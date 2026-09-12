@@ -29,8 +29,13 @@ def fetch_one(symbol):
     # Match the other API files: only skip the .NS suffix when the symbol
     # already has an exchange dot-suffix (e.g. TATAMOTORS.BO). Hyphenated
     # NSE tickers like BAJAJ-AUTO still need .NS appended.
-    ticker = symbol if "." in symbol else f"{symbol}.NS"
-    for base in HOSTS:
+    # The universe ships 1,145 BSE rows and 542 NSE_SME rows alongside
+    # 2,680 NSE ones, but this only ever asked Yahoo for ".NS", so every
+    # BSE-only listing resolved to nothing. Try NSE first (unchanged for
+    # the common case), then fall back to ".BO". Costs one extra request
+    # only for symbols that were previously returning no price at all.
+    tickers = [symbol] if "." in symbol else [f"{symbol}.NS", f"{symbol}.BO"]
+    for ticker, base in ((t, b) for t in tickers for b in HOSTS):
         try:
             url = f"{base}/{url_quote(ticker, safe='.')}?interval=1d&range=5d"
             req = urllib.request.Request(url, headers={

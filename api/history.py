@@ -55,8 +55,10 @@ def fetch_yahoo(symbol, range_, interval, period1=None, period2=None):
     """Yahoo /v8 chart fetch. Either pass `range_` (preset) OR `period1`+
     `period2` (custom epoch-second range). Custom range takes precedence
     when both are provided."""
-    ticker = symbol if "." in symbol else f"{symbol}.NS"
-    for base in YAHOO_HOSTS:
+    # BSE-only listings 404 on ".NS" — try NSE first, then ".BO". See the
+    # same fallback in quote.py / quotes.py / live-quote.py.
+    tickers = [symbol] if "." in symbol else [f"{symbol}.NS", f"{symbol}.BO"]
+    for ticker, base in ((t, b) for t in tickers for b in YAHOO_HOSTS):
         if period1 and period2:
             url = f"{base}/{url_quote(ticker, safe='.')}?interval={interval}&period1={int(period1)}&period2={int(period2)}"
         else:
