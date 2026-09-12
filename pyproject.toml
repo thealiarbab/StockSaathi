@@ -3,12 +3,20 @@ name = "stocksaathi"
 version = "0.1.0"
 description = "StockSaathi — static site with @vercel/python serverless functions (stdlib-only handlers)"
 requires-python = ">=3.12"
-# Empty deps list. The api/*.py handlers (BaseHTTPRequestHandler-based)
-# use only the Python stdlib — urllib, json, http.server, time, os, re.
-# api-backup/ has its own pyproject for the Fly.io shim with fastapi/uvicorn,
-# but that runs on a different host. Vercel's @vercel/python builder reads
-# this file to satisfy uv lock during the framework=python build path.
-dependencies = []
+# The handlers themselves are still stdlib-only. These two are for the single
+# ASGI entrypoint (api/index.py -> handlers/_shim.py) that dispatches to them,
+# which exists because Vercel's Hobby plan caps a deployment at 12 serverless
+# functions and one-file-per-handler put us at 21.
+#
+# These MUST live here, not in requirements.txt. Vercel's build log shows
+# "Installing required dependencies from uv.lock" — the uv path wins and
+# requirements.txt is never read. Declaring them only there produced a clean
+# build and a FUNCTION_INVOCATION_FAILED on every request, because
+# `from fastapi import FastAPI` raised ImportError at cold start.
+dependencies = [
+    "fastapi==0.115.0",
+    "uvicorn[standard]==0.32.0",
+]
 
 [build-system]
 requires = ["setuptools>=61"]
