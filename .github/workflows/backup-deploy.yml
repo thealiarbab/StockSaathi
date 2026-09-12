@@ -51,6 +51,7 @@ jobs:
           mkdir -p ./_pages_publish
           rsync -a \
             --exclude='api/' \
+            --exclude='handlers/' \
             --exclude='api-backup/' \
             --exclude='edge/' \
             --exclude='.github/' \
