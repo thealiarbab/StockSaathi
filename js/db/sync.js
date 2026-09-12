@@ -494,7 +494,9 @@ async function ensureAuthedOrRedirect(client) {
   throw new Error("Your session expired. Please log in again.");
 }
 
-async function handleSessionLost() {
+// Exported so state.js can route a failed trade through the same
+// session-lost path instead of silently writing a local-only txn.
+export async function handleSessionLost() {
   try {
     const { logoutAccount } = await import("../auth/accounts.js");
     await logoutAccount();

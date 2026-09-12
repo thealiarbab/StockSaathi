@@ -10,7 +10,7 @@
 // =============================================================================
 
 import { currentUser } from "./auth/accounts.js";
-import { dbApplyTrade, dbAddWatchlist, dbRemoveWatchlist, dbAddCoachMessage } from "./db/sync.js";
+import { dbApplyTrade, dbAddWatchlist, dbRemoveWatchlist, dbAddCoachMessage, handleSessionLost } from "./db/sync.js";
 import { sb } from "./db/supabase.js";
 
 const STARTING_CASH_PAISE = 1_00_00_000;
@@ -325,34 +325,50 @@ export async function applyTrade({ symbol, side, qty, pricePaise, biasFlags = []
 
   const client = await sb();
   if (client) {
-    // Only attempt DB path if there's a real Supabase session — otherwise the
-    // RPC raises 'not logged in' because auth.uid() is null.
+    // ---- Supabase mode: the DB is the ledger, full stop. ------------------
+    // This block always returns or throws; it never falls through to the
+    // local path below. Previously an auth-shaped RPC failure was swallowed
+    // and the trade was written to local state only — the user saw a filled
+    // trade, the DB had no row, and the next loadAllFromDb() erased it. That
+    // is the real origin of the "my data disappeared after a deploy"
+    // reports. An offline-trading affordance is not worth a ledger that
+    // disagrees with the server.
     let hasSession = false;
     try {
       const { data } = await client.auth.getSession();
       hasSession = !!data?.session?.access_token;
     } catch { hasSession = false; }
 
-    if (hasSession) {
-      try {
-        await dbApplyTrade({ symbol, side, qty, pricePaise, idempotencyKey, biasFlags });
-        const txn = makeLocalTxn({ symbol, side, qty, pricePaise, valuePaise, biasFlags, idempotencyKey });
-        applyLocalTradeEffect(txn);
-        return txn;
-      } catch (e) {
-        // If the RPC itself complained about auth, fall through to local.
-        // Other errors (insufficient cash, etc.) should bubble up.
-        const msg = String(e?.message || "");
-        if (msg === "trade_timeout") {
-          throw new Error("Trade took too long — a previous request may still be processing. Wait 30 seconds and try again.");
-        }
-        if (!/not logged in|jwt|auth|permission/i.test(msg)) throw e;
-        console.warn("DB trade failed auth, using local path:", msg);
+    // No real session but isAuthed said otherwise — the ghost-session bug
+    // described in db/sync.js. Clear the phantom cache and send them to
+    // /login rather than booking a trade nobody will honour.
+    if (!hasSession) {
+      await handleSessionLost();
+      throw new Error("Your session expired. Please log in again.");
+    }
+
+    try {
+      await dbApplyTrade({ symbol, side, qty, pricePaise, idempotencyKey, biasFlags });
+      const txn = makeLocalTxn({ symbol, side, qty, pricePaise, valuePaise, biasFlags, idempotencyKey });
+      applyLocalTradeEffect(txn);
+      return txn;
+    } catch (e) {
+      const msg = String(e?.message || "");
+      if (msg === "trade_timeout") {
+        throw new Error("Trade took too long — a previous request may still be processing. Wait 30 seconds and try again.");
       }
+      if (/not logged in|jwt|auth|permission/i.test(msg)) {
+        await handleSessionLost();
+        throw new Error("Your session expired. Please log in again.");
+      }
+      // Real business errors (insufficient cash / holding) bubble up as-is.
+      throw e;
     }
   }
 
-  // Local fallback (same as before)
+  // ---- Local mode only (no Supabase configured at all) -------------------
+  // Reached only when sb() returned null, i.e. the legacy localStorage mode
+  // documented at the top of this file. Never reached in Supabase mode.
   if (side === "BUY") {
     if (valuePaise > s.portfolio.cashPaise) {
       throw new Error(`Insufficient cash. Need ₹${(valuePaise / 100).toLocaleString("en-IN")}, have ₹${(s.portfolio.cashPaise / 100).toLocaleString("en-IN")}.`);
