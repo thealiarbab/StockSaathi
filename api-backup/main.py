@@ -147,6 +147,12 @@ _ROUTES = {
     "/api/admin-sync-fundamentals": "admin-sync-fundamentals",
     "/api/admin-sync-mf": "admin-sync-mf",
     "/api/mf-history": "mf-history",
+    # Added 2026-09-13: these two existed in app/api/ but were never
+    # registered here, so tests/test_route_parity.py failed and took the
+    # whole backup-deploy workflow down with it (parity-check is the first
+    # job and everything else needs: it).
+    "/api/screener": "screener",
+    "/api/admin-refresh-fundamentals": "admin-refresh-fundamentals",
 }
 
 _METHODS = ["GET", "POST", "OPTIONS"]
