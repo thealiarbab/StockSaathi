@@ -1,0 +1,86 @@
+name: data-sync
+
+# Nightly data syncs, moved off Vercel Cron.
+#
+# WHY THIS EXISTS: vercel.json declared 9 cron entries, including
+# /api/keepalive at */4 * * * *. The project is on the Vercel Hobby plan,
+# which allows 2 cron jobs at daily granularity. Over one 72h window
+# /api/keepalive logged 15 invocations against a schedule implying 1,080, and
+# the one admin-sync that did fire returned 401 because CRON_SECRET was unset.
+# Net effect: dhan_instruments and mf_master sat at 0 rows and
+# fundamentals_cache was never created.
+#
+# GitHub Actions has no such cron limit, so all scheduling now lives here.
+# vercel.json no longer declares any crons — one place to look.
+#
+# Required GitHub secret:
+#   CRON_SECRET  — must match the CRON_SECRET env var in the Vercel project.
+#                  Keep it DIFFERENT from ADMIN_TOKEN: the handlers accept
+#                  either, and ADMIN_TOKEN also unlocks admin_exec_sql
+#                  (arbitrary SQL). There is no reason the sync path should
+#                  carry admin-panel powers.
+
+on:
+  schedule:
+    # 13:15 UTC = 18:45 IST, comfortably after the NSE close (10:00 UTC).
+    - cron: "15 13 * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: data-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Refresh instrument / fundamentals / MF masters
+    runs-on: ubuntu-latest
+    steps:
+      - name: Guard — secret must be configured
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET repo secret is not set. Add it under"
+            echo "::error::Settings > Secrets and variables > Actions, matching"
+            echo "::error::the CRON_SECRET env var in the Vercel project."
+            exit 1
+          fi
+          echo "CRON_SECRET present (${#CRON_SECRET} chars)"
+
+      - name: Sync NSE instrument master
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          code=$(curl -sS -o /tmp/instruments.json -w '%{http_code}' --max-time 120 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            https://stocksaathi.co.in/api/admin-sync-instruments)
+          echo "HTTP $code"; head -c 600 /tmp/instruments.json; echo
+          [ "$code" = "200" ] || exit 1
+
+      - name: Sync fundamentals (5 pages, sequential)
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          fail=0
+          for offset in 0 500 1000 1500 2000; do
+            code=$(curl -sS -o /tmp/f.json -w '%{http_code}' --max-time 120 \
+              -H "Authorization: Bearer $CRON_SECRET" \
+              "https://stocksaathi.co.in/api/admin-sync-fundamentals?offset=$offset&limit=500")
+            echo "offset=$offset -> HTTP $code"; head -c 300 /tmp/f.json; echo
+            [ "$code" = "200" ] || fail=1
+            sleep 5
+          done
+          # Fundamentals are best-effort: upstream (Yahoo/Tickertape) rate-limits
+          # aggressively and a partial refresh is still useful. Warn, don't fail
+          # the whole run, so the MF step below still gets a chance.
+          [ "$fail" = "0" ] || echo "::warning::at least one fundamentals page failed"
+
+      - name: Sync AMFI mutual-fund master
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          code=$(curl -sS -o /tmp/mf.json -w '%{http_code}' --max-time 180 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            https://stocksaathi.co.in/api/admin-sync-mf)
+          echo "HTTP $code"; head -c 600 /tmp/mf.json; echo
+          [ "$code" = "200" ] || exit 1

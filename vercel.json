@@ -7,17 +7,6 @@
   "functions": {
     "api/*.py": { "runtime": "@vercel/python@6.36.0", "maxDuration": 60 }
   },
-  "crons": [
-    { "path": "/api/keepalive", "schedule": "*/4 * * * *" },
-    { "path": "/api/admin-sync-instruments", "schedule": "15 13 * * *" },
-    { "path": "/api/admin-sync-fundamentals?offset=0&limit=500",     "schedule": "20 13 * * *" },
-    { "path": "/api/admin-sync-fundamentals?offset=500&limit=500",   "schedule": "25 13 * * *" },
-    { "path": "/api/admin-sync-fundamentals?offset=1000&limit=500",  "schedule": "30 13 * * *" },
-    { "path": "/api/admin-sync-fundamentals?offset=1500&limit=500",  "schedule": "35 13 * * *" },
-    { "path": "/api/admin-sync-fundamentals?offset=2000&limit=500",  "schedule": "40 13 * * *" },
-    { "path": "/api/admin-sync-mf",                                  "schedule": "0 17 * * *" },
-    { "path": "/api/admin-refresh-fundamentals",                      "schedule": "0 14 * * *" }
-  ],
   "rewrites": [
     {
       "source": "/js/data/:name(universeFull|mfFull).:hash([a-f0-9]{8}).json",
