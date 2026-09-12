@@ -1,7 +1,8 @@
-# Secrets — NEVER commit
-.env
-.env.local
-.env.*.local
+# Secrets — NEVER commit.
+# Glob covers .env.vercel / .env.production / anything future; the
+# negation keeps the checked-in template visible.
+.env*
+!.env.example
 
 # Logged emails — may contain personal data
 logs/
@@ -34,3 +35,8 @@ dist/
 build/
 *.log
 .vercel
+
+# Vendored pip output — `pip install --target .` leftovers. The api/*.py
+# handlers are stdlib-only; nothing imports werkzeug.
+werkzeug/
+*.dist-info/
