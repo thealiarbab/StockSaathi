@@ -234,9 +234,24 @@ async function main() {
 
     // Data rows start with a numeric scheme code followed by a semicolon.
     if (/^\d{4,7};/.test(trimmed)) {
-      const cols = trimmed.split(";");
+      const cols = trimmed.split(";").map(s => s.trim());
       if (cols.length < 6) { dropped++; continue; }
-      const [amfi_code, isin1, isin2, schemeName, navStr, dateStr] = cols.map(s => s.trim());
+
+      // AMFI changed the schema (observed 2026-09-12): Plan and Option became
+      // their own columns, where they used to be baked into the scheme name.
+      //   old (6): code;isin1;isin2;name;nav;date
+      //   new (8): code;isin1;isin2;name;plan;option;nav;date
+      // The old positional destructure still "worked" on 8 columns — it just
+      // read navStr from the Plan column, so Number("Direct Plan") was NaN and
+      // the finite-check below dropped every row. 14,361 of them, silently,
+      // with only the >=1000 sanity gate at the end catching it. Handle both.
+      let amfi_code, isin1, isin2, schemeName, navStr, dateStr;
+      let planCol = "", optionCol = "";
+      if (cols.length >= 8) {
+        [amfi_code, isin1, isin2, schemeName, planCol, optionCol, navStr, dateStr] = cols;
+      } else {
+        [amfi_code, isin1, isin2, schemeName, navStr, dateStr] = cols;
+      }
       if (!amfi_code || !schemeName) { dropped++; continue; }
       if (seenCodes.has(amfi_code)) { dropped++; continue; }
       seenCodes.add(amfi_code);
@@ -244,12 +259,16 @@ async function main() {
       const nav = Number(navStr);
       if (!Number.isFinite(nav) || nav <= 0) { dropped++; continue; }
 
-      const { plan_type, option_type } = parsePlanAndOption(schemeName);
+      // Feed the explicit Plan/Option columns to the classifier when present.
+      // Without them the new-format name carries no "Direct"/"IDCW" text and
+      // every scheme would silently classify as Regular/Growth.
+      const classifySrc = [schemeName, planCol, optionCol].filter(Boolean).join(" - ");
+      const { plan_type, option_type } = parsePlanAndOption(classifySrc);
       const bucket = bucketFor(currentCategory || "Other");
       rows.push({
         symbol: `MF_${amfi_code}`,
         amfi_code,
-        name: schemeName,
+        name: classifySrc,
         amc: tidyAmc(currentAmc) || "Unknown AMC",
         category: currentCategory || "Other",
         category_bucket: bucket,

@@ -13,15 +13,32 @@ name: universe-refresh
 # JSON plus a brotli sidecar, and every commit here triggers a production
 # deploy.
 #
+# DOES NOT WORK ON GITHUB-HOSTED RUNNERS.
+#
+# NSE blocks datacenter IPs. Measured 2026-09-12: nsearchives.nseindia.com
+# returned EQUITY_L.csv (200, 2,568 rows) to a residential connection and
+# nothing at all to Vercel, whose /api/admin-sync-instruments failed its own
+# gate with "sanity_fail: only 0 equities (expected >=1800)". GitHub's runners
+# are datacenter IPs too, so a scheduled run here would fail every week.
+#
+# The schedule is therefore removed rather than left to cry wolf. Two ways to
+# actually automate this:
+#   1. Register a self-hosted runner on a residential connection and set
+#      `runs-on: self-hosted` below. The workflow then works unchanged.
+#   2. Run `node scripts/build-universe.mjs && node scripts/build-mf-universe.mjs`
+#      locally on a timer and commit the result. This is what has always
+#      happened in practice — build-universe.mjs's own header says it runs on
+#      "the developer's machine or in CI".
+#
+# Left dispatchable so it can still be triggered by hand once a runner exists.
+#
 # SANITY GATE: the build fetches from NSE and niftyindices, which rate-limit
 # and occasionally return partial data. A truncated universe would silently
 # delete tradeable symbols from the app, so the run refuses to commit if the
 # row count collapses.
 
+# NO SCHEDULE — deliberately. See DOES NOT WORK ON HOSTED RUNNERS below.
 on:
-  schedule:
-    # 02:30 UTC Sunday = 08:00 IST. Quiet window, well clear of market hours.
-    - cron: "30 2 * * 0"
   workflow_dispatch: {}
 
 concurrency:
