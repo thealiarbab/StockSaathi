@@ -9,6 +9,10 @@
   },
   "rewrites": [
     {
+      "source": "/api/:path((?!ai$|chat$).*)",
+      "destination": "/api/index?__path=:path"
+    },
+    {
       "source": "/js/data/:name(universeFull|mfFull).:hash([a-f0-9]{8}).json",
       "has": [{ "type": "header", "key": "accept-encoding", "value": ".*br.*" }],
       "destination": "/js/data/:name.:hash.json.br"

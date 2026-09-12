@@ -1,5 +1,6 @@
-# Vercel expects a top-level requirements.txt for projects auto-detected as
-# Python framework. Our api/*.py handlers (BaseHTTPRequestHandler-based)
-# use only the Python stdlib — urllib, json, http.server, time, os, re —
-# so this file is intentionally empty. The api-backup/ Fly.io shim has its
-# own requirements.txt (fastapi, uvicorn) since that's a separate runtime.
+# The Python handlers themselves are stdlib-only. These two are for the single
+# ASGI entrypoint (api/index.py -> handlers/_shim.py) that dispatches to them,
+# which exists because Vercel's Hobby plan caps a deployment at 12 serverless
+# functions and one-file-per-handler put us at 21.
+fastapi==0.115.0
+uvicorn[standard]==0.32.0

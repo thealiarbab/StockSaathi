@@ -11,13 +11,13 @@ import sys
 
 THIS_DIR = pathlib.Path(__file__).resolve().parent
 BACKUP_DIR = THIS_DIR.parent
-API_DIR = BACKUP_DIR.parent / "api"
+API_DIR = BACKUP_DIR.parent / "handlers"
 
 sys.path.insert(0, str(BACKUP_DIR))
 
 
 def _public_handlers():
-    """Python files in app/api/ that are meant to be HTTP handlers."""
+    """Python files in app/handlers/ that are meant to be HTTP handlers."""
     for p in API_DIR.glob("*.py"):
         stem = p.stem
         if stem.startswith("_"):
