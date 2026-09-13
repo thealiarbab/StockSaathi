@@ -4,6 +4,13 @@ Written 2026-09-13 as a handoff. Everything below was **verified against the
 live database, live site, live Vercel API and live GitHub UI** — not inferred
 from source. Read this before crawling the repo; it exists to save you that.
 
+> **Companion file: [`BUGFIXES.md`](BUGFIXES.md).** This file describes the
+> *current state*. That one records *what was broken, why it stayed hidden, and
+> how it was proven fixed* — newest session first. Read it when you are about
+> to touch a subsystem, or when something here reads as settled and you want to
+> know whether it was checked or assumed. Append to it; don't rewrite history
+> in it.
+
 ---
 
 ## 0. Bugfix records — read the one that matches your area
