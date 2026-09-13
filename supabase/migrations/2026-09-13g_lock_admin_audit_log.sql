@@ -1,0 +1,23 @@
+-- admin_audit_log was granted arwdDxtm to both anon and authenticated.
+-- RLS is enabled with zero policies, which blocks SELECT/INSERT/UPDATE/DELETE
+-- for those roles -- but Postgres RLS does NOT apply to TRUNCATE, and the "D"
+-- in that ACL is TRUNCATE. The audit trail of admin actions (25 user_delete
+-- entries) therefore sat behind a safety net with a hole in it.
+--
+-- Nothing reads this table with an anon or authenticated key: js/ has no
+-- reference to it at all, and every server path in api/ai.js goes through
+-- sbAdminFetch, i.e. the service_role key, which is unaffected below.
+--
+-- order_backfill_audit is already correct (postgres + service_role only) and
+-- is the shape this table should have had.
+--
+-- NOTE these are DIRECT grants in relacl (anon=arwdDxtm/postgres), not
+-- inherited from PUBLIC, so unlike the function-grant case in 2026-09-12c this
+-- revoke is not a no-op.
+--
+-- Verified after applying:
+--   anon          sel=f ins=f upd=f del=f truncate=f
+--   authenticated sel=f ins=f upd=f del=f truncate=f
+--   service_role  sel=t ins=t upd=t del=t truncate=t
+
+revoke all on public.admin_audit_log from anon, authenticated;
