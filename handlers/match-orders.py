@@ -73,16 +73,41 @@ CRON_SECRET = os.environ.get("CRON_SECRET", "").strip()
 MAX_ORDERS_PER_RUN = 300
 MAX_SYMBOLS_PER_BATCH = 60
 
-# NSE 2026 trading holidays. The client's prices.js carries the same list;
-# duplicated here rather than shared because handlers/ is stdlib-only Python
-# and cannot import from js/. Keep the two in sync when the NSE publishes
-# the next calendar.
-NSE_HOLIDAYS = {
-    "2026-01-26", "2026-03-03", "2026-03-19", "2026-03-26", "2026-03-31",
-    "2026-04-01", "2026-04-03", "2026-04-14", "2026-05-01", "2026-08-15",
-    "2026-08-26", "2026-10-02", "2026-10-21", "2026-11-09", "2026-11-24",
-    "2026-12-25",
+# NSE trading holidays — parsed from js/data/prices.js at runtime so there is
+# exactly ONE list in the codebase.
+#
+# This started as a hand-written copy and immediately drifted: the two
+# disagreed on 8 dates. The dangerous direction is a day the client treats as
+# a holiday but the matcher does not — 2026-09-14 (Ganesh Chaturthi) was
+# exactly that, so the matcher would have woken up on a closed exchange,
+# fetched the previous session's stale closes, and filled live orders against
+# them. That is the same failure the client matcher's own comments describe as
+# "queued orders vanish on /#/portfolio".
+#
+# prices.js ships with every deploy, so parsing it costs nothing and cannot
+# drift. The literal below is only a last-resort fallback and is asserted
+# equal to prices.js by api-backup/tests/test_order_execution_guards.py.
+_HOLIDAY_FALLBACK = {
+    "2026-01-26", "2026-02-17", "2026-03-03", "2026-03-26", "2026-04-03",
+    "2026-04-14", "2026-05-01", "2026-08-15", "2026-08-26", "2026-09-14",
+    "2026-10-02", "2026-10-21", "2026-11-04", "2026-12-25",
 }
+
+_holidays_cache = None
+
+
+def nse_holidays():
+    global _holidays_cache
+    if _holidays_cache is not None:
+        return _holidays_cache
+    try:
+        src = (_DIR.parent / "js" / "data" / "prices.js").read_text(encoding="utf-8")
+        block = src.split("NSE_HOLIDAYS_2026 = new Set([")[1].split("]);")[0]
+        found = set(re.findall(r'"(\d{4}-\d{2}-\d{2})"', block))
+        _holidays_cache = found or set(_HOLIDAY_FALLBACK)
+    except Exception:
+        _holidays_cache = set(_HOLIDAY_FALLBACK)
+    return _holidays_cache
 
 
 def _auth_ok(header):
@@ -133,7 +158,7 @@ def market_state():
     now = datetime.now(tz=_IST)
     if now.weekday() >= 5:
         return ("closed", "weekend")
-    if now.strftime("%Y-%m-%d") in NSE_HOLIDAYS:
+    if now.strftime("%Y-%m-%d") in nse_holidays():
         return ("closed", "holiday")
     mins = now.hour * 60 + now.minute
     if (9 * 60 + 15) <= mins < (15 * 60 + 30):
