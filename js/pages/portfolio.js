@@ -114,13 +114,61 @@ function pfVisibleSeries(pts, rangeKey) {
   return { pts: within, fromMs: Math.max(cutoff, pts[0].t) };
 }
 
-/** Which range buttons are worth showing for this much history. */
+/**
+ * Which range buttons are worth showing.
+ *
+ * v278: used to gate on total history span alone, which offered a 3M button to
+ * a user whose only points inside the last 90 days were all written on the SAME
+ * DAY. Selecting it produced a vertical spike against the right edge over an
+ * otherwise empty quarter — the chart was drawing three real samples and 89
+ * days of nothing. A range is only offered if it holds enough samples AND those
+ * samples actually cover a decent part of the window.
+ */
 function pfUsefulRanges(pts) {
-  if (pts.length < 2) return [];
+  if (pts.length < 3) return [];
+  const now = Date.now();
   const span = pts[pts.length - 1].t - pts[0].t;
-  const usable = PF_RANGES.filter(r => Number.isFinite(r.ms) && r.ms < span);
+  const usable = PF_RANGES.filter(r => {
+    if (!Number.isFinite(r.ms)) return false;
+    if (r.ms >= span) return false;               // window covers everything — that IS "ALL"
+    const cutoff = now - r.ms;
+    const within = pts.filter(pt => pt.t >= cutoff);
+    if (within.length < 3) return false;
+    const covered = within[within.length - 1].t - within[0].t;
+    return covered >= r.ms * 0.25;                // samples must span the window, not cluster
+  });
   // A lone "ALL" button is a label pretending to be a control.
   return usable.length ? [...usable, PF_RANGES[PF_RANGES.length - 1]] : [];
+}
+
+/**
+ * Y bounds with a FLOOR on the visible span.
+ *
+ * v278: stockChart auto-fits Y to the visible data, which is right for a share
+ * price that genuinely ranges during a session. Portfolio snapshots can sit
+ * within a few rupees of each other, and auto-fit then magnifies Rs 3 of
+ * rounding noise to full chart height: a real 3M view rendered an axis of
+ * 99821.71 -> 99824.47 and a line that looked like a crash. Accurate, and
+ * completely misleading.
+ *
+ * Floor the band at 1% of the portfolio's value (min Rs 100) so a move only
+ * looks big when it IS big. Returns paise.
+ */
+function pfYBounds(values) {
+  let lo = Math.min(...values);
+  let hi = Math.max(...values);
+  const ref = values[values.length - 1] || hi || 0;
+  const minSpan = Math.max(Math.abs(ref) * 0.01, 10000); // 1%, floor Rs 100
+  if (!(hi - lo >= minSpan)) {
+    const mid = (hi + lo) / 2;
+    lo = mid - minSpan / 2;
+    hi = mid + minSpan / 2;
+  } else {
+    const pad = (hi - lo) * 0.06;                 // breathing room top and bottom
+    lo -= pad;
+    hi += pad;
+  }
+  return { min: Math.max(0, lo), max: hi };
 }
 
 export function renderPortfolio(main) {
@@ -467,6 +515,7 @@ export function renderPortfolio(main) {
     if (pfRanges.length && !pfRanges.some(r => r.key === pfChartRange)) pfChartRange = "ALL";
     const pfVisible = hasRealHistory ? pfVisibleSeries(pfSeries, pfChartRange) : { pts: [], fromMs: 0 };
     const pfOhlc = pfVisible.pts.map(pt => ({ t: pt.t, o: pt.v, h: pt.v, l: pt.v, c: pt.v }));
+    const pfBounds = pfOhlc.length ? pfYBounds(pfVisible.pts.map(pt => pt.v)) : { min: 0, max: 1 };
 
     main.innerHTML = `
       <div class="portfolio-hero">
@@ -515,6 +564,11 @@ export function renderPortfolio(main) {
                     width: pfChartWidth(),
                     mode: "area",
                     xAxisRange: { fromMs: pfVisible.fromMs, toMs: Date.now() },
+                    min: pfBounds.min,
+                    max: pfBounds.max,
+                    // Few samples? Show where they actually are, so a straight
+                    // run between two points does not read as continuous data.
+                    showPoints: pfOhlc.length <= 40,
                     lastLabelFormat: (paise) => formatRupees(paise, { compact: true }),
                     // Portfolio spreads are small relative to a lakh-scale
                     // total, so the y-axis needs span-derived precision or

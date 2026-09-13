@@ -334,6 +334,11 @@ export function stockChart(ohlc, {
   // charts are a separate surface and are left on the existing per-value
   // formatting until that change can be looked at on its own.
   axisFormat = null,
+  // v278: mark each real sample with a dot. A portfolio series can be two
+  // points five months apart; joined by a bare line that reads as a smooth
+  // continuous decline, which is a claim the data does not make. Dots say
+  // "we measured here, here, and nowhere in between".
+  showPoints = false,
 } = {}) {
   if (!ohlc.length) return "";
   const useTimeAxis = xAxisRange && Number.isFinite(xAxisRange.fromMs) && Number.isFinite(xAxisRange.toMs) && xAxisRange.toMs > xAxisRange.fromMs;
@@ -469,9 +474,16 @@ export function stockChart(ohlc, {
     const lastClose = ohlc[ohlc.length - 1].c;
     const up = lastClose >= firstClose;
     const color = up ? "var(--positive)" : "var(--negative)";
+    let dots = "";
+    if (showPoints) {
+      for (let i = 0; i < ohlc.length; i++) {
+        dots += `<circle cx="${toXk(ohlc[i], i).toFixed(2)}" cy="${toY(ohlc[i].c).toFixed(2)}" r="2.5" fill="${color}" stroke="var(--surface, #13161E)" stroke-width="1" />`;
+      }
+    }
     body = `
       <path d="${areaD}" fill="${color}" opacity="0.12" />
       <path d="${d.trim()}" fill="none" stroke="${color}" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+      ${dots}
     `;
   } else {
     // Candles. When using a time axis, derive candleW from the time-step

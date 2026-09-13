@@ -7,6 +7,14 @@
   "functions": {
     "api/*.py": { "runtime": "@vercel/python@6.36.0", "maxDuration": 60 }
   },
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "www.stocksaathi.co.in" }],
+      "destination": "https://stocksaathi.co.in/$1",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/:path((?!ai$|chat$).*)",
