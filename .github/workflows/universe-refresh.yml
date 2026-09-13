@@ -13,32 +13,44 @@ name: universe-refresh
 # JSON plus a brotli sidecar, and every commit here triggers a production
 # deploy.
 #
-# DOES NOT WORK ON GITHUB-HOSTED RUNNERS.
+# WORKS ON GITHUB-HOSTED RUNNERS. Measured 2026-09-13, run 34761640980.
 #
-# NSE blocks datacenter IPs. Measured 2026-09-12: nsearchives.nseindia.com
-# returned EQUITY_L.csv (200, 2,568 rows) to a residential connection and
-# nothing at all to Vercel, whose /api/admin-sync-instruments failed its own
-# gate with "sanity_fail: only 0 equities (expected >=1800)". GitHub's runners
-# are datacenter IPs too, so a scheduled run here would fail every week.
+# An earlier version of this comment claimed the opposite. That claim was an
+# extrapolation, never a measurement: Vercel is blocked by NSE (its
+# /api/admin-sync-instruments fails its own gate with "sanity_fail: only 0
+# equities"), and the conclusion "GitHub runners are datacenter IPs too" was
+# inferred from it rather than tested.
 #
-# The schedule is therefore removed rather than left to cry wolf. Two ways to
-# actually automate this:
-#   1. Register a self-hosted runner on a residential connection and set
-#      `runs-on: self-hosted` below. The workflow then works unchanged.
-#   2. Run `node scripts/build-universe.mjs && node scripts/build-mf-universe.mjs`
-#      locally on a timer and commit the result. This is what has always
-#      happened in practice — build-universe.mjs's own header says it runs on
-#      "the developer's machine or in CI".
+# It is wrong. A manual dispatch on ubuntu-latest fetched, directly from NSE:
+#   nsearchives.nseindia.com EQUITY_L.csv   -> 200, 2,568 equity rows
+#   NSE Emerge SME_EQUITY_L.csv             -> 571 rows
+#   BSE main-board master                   -> 3,548 rows
+#   niftyindices.com index CSVs             -> all 20, 755-symbol industry map
+#   NSE ETF list                            -> 350
+#   final build                             -> 4,619 rows, sanity gate passed
+# 2,568 is the same count Ali's residential connection returns. The runner is
+# not throttled or served a stub; it gets the real file.
 #
-# Left dispatchable so it can still be triggered by hand once a runner exists.
+# NSE blocks Vercel specifically. Do not generalise that to other hosts without
+# measuring the host.
+#
+# KNOWN CHURN: NSE serves Emerge SME_EQUITY_L.csv in a varying row order, so
+# ~129 of 4,619 rows (all series SM/ST) change array position between runs even
+# when no listing changed. The row set is identical; only order moves. Each run
+# therefore commits and triggers a production deploy even on a no-op week. That
+# is cosmetic — array position feeds search result ordering among micro-caps
+# only. Fix by sorting deterministically before serialising if it ever matters.
 #
 # SANITY GATE: the build fetches from NSE and niftyindices, which rate-limit
 # and occasionally return partial data. A truncated universe would silently
 # delete tradeable symbols from the app, so the run refuses to commit if the
 # row count collapses.
 
-# NO SCHEDULE — deliberately. See DOES NOT WORK ON HOSTED RUNNERS below.
 on:
+  schedule:
+    # Weekly, Sunday 02:30 UTC (08:00 IST). Not daily: the NSE universe changes
+    # slowly and every commit here triggers a production deploy.
+    - cron: "30 2 * * 0"
   workflow_dispatch: {}
 
 concurrency:
