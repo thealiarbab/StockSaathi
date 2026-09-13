@@ -324,6 +324,11 @@ export function stockChart(ohlc, {
   // whole plot. Other timeframes (1W/1M/etc.) leave this null and use
   // the original index-based mapping.
   xAxisRange = null,
+  // v276: optional override for the green last-value badge. Stock charts
+  // want "Rs 1365.40"; the portfolio chart carries six-figure rupee values
+  // that blow straight out of a 52px pill, so it passes a compact
+  // formatter ("Rs 1.02L"). Returns the badge string for a paise value.
+  lastLabelFormat = null,
 } = {}) {
   if (!ohlc.length) return "";
   const useTimeAxis = xAxisRange && Number.isFinite(xAxisRange.fromMs) && Number.isFinite(xAxisRange.toMs) && xAxisRange.toMs > xAxisRange.fromMs;
@@ -502,10 +507,16 @@ export function stockChart(ohlc, {
   const lastY = toY(ohlc[lastIdx].c);
   const lastX = toXk(ohlc[lastIdx], lastIdx);
   const labelOffset = useTimeAxis ? 4 : (width - paddingRight + 2 - lastX);
+  const lastLabelText = lastLabelFormat
+    ? lastLabelFormat(ohlc[lastIdx].c)
+    : `₹${(ohlc[lastIdx].c / 100).toFixed(2)}`;
+  // Was a hard-coded 52px pill. Fine for a 4-digit share price, but it
+  // clipped anything longer, so measure off the string instead.
+  const lastLabelW = Math.max(52, lastLabelText.length * 6.6 + 10);
   const lastLabel = `
     <g transform="translate(${lastX + labelOffset}, ${lastY})">
-      <rect x="0" y="-10" width="52" height="20" rx="4" fill="var(--brand, #00B386)" />
-      <text x="26" y="4" text-anchor="middle" font-size="11" font-weight="700" fill="#fff" font-family="var(--font-mono, monospace)">₹${(ohlc[lastIdx].c / 100).toFixed(2)}</text>
+      <rect x="0" y="-10" width="${lastLabelW.toFixed(1)}" height="20" rx="4" fill="var(--brand, #00B386)" />
+      <text x="${(lastLabelW / 2).toFixed(1)}" y="4" text-anchor="middle" font-size="11" font-weight="700" fill="#fff" font-family="var(--font-mono, monospace)">${lastLabelText}</text>
     </g>`;
 
   // Subtle "paper trading" watermark — sits behind the chart at very low
@@ -569,7 +580,17 @@ export function candleChart(ohlc, opts = {}) { return stockChart(ohlc, { ...opts
 // ---- HOVER INTERACTION --------------------------------------------------
 // Call AFTER the chart HTML has been inserted into `container`.
 // Re-call on every re-render. Cleans up automatically when container empties.
-export function attachStockChartHover(container, ohlc, { mode = "candle" } = {}) {
+export function attachStockChartHover(container, ohlc, {
+  mode = "candle",
+  // v276: optional replacement for the O/H/L/C tooltip body. The portfolio
+  // chart reuses every bit of this function's geometry, cursor snapping and
+  // dead-space handling, but O/H/L/C is meaningless for a portfolio-value
+  // series (o === h === l === c by construction) and the 5-paise tick
+  // quantisation below is an NSE equity rule that has no business rounding
+  // somebody's net worth. Given the hover context it returns the lines to
+  // show; null keeps the original stock behaviour.
+  tooltipRows = null,
+} = {}) {
   if (!container || !ohlc?.length) return () => {};
   const svg = container.querySelector(".chart-svg");
   const tooltip = container.querySelector(".chart-tooltip");
@@ -764,7 +785,12 @@ export function attachStockChartHover(container, ohlc, { mode = "candle" } = {})
       ? `<span style="color:var(--text-dim)">${cursorTimeStr} IST · ${cursorDateStr}</span>`
       : `<span style="color:var(--text-dim)">${cursorTimeStr}</span>`;
     let tipLines;
-    if (noDataHere) {
+    if (tooltipRows) {
+      tipLines = tooltipRows({
+        k, idx, interpClose, cursorMs, noDataHere, isIntraday,
+        headerRow, first: ohlc[0], last: ohlc[N - 1], fmt,
+      }).filter(Boolean);
+    } else if (noDataHere) {
       tipLines = [
         headerRow,
         `<span style="color:var(--text-dim); font-style: italic;">(no candle yet)</span>`,

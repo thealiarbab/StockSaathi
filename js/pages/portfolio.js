@@ -25,7 +25,7 @@ import { getPriceAt, getTodayChange, marketStatus } from "../data/prices.js";
 import { getQuoteBatch, getDataSource, subscribeToQuotes, getCachedQuotes } from "../data/marketData.js";
 import { listPendingOrders, cancelOrder } from "../features/limitOrders.js";
 import { getNews, fmtRelativeTime, labelSentiment } from "../data/news.js";
-import { areaChart } from "../components/charts.js";
+import { stockChart, attachStockChartHover } from "../components/charts.js";
 import { fetchDigest, cachedDigest } from "../features/portfolioDigest.js";
 
 let newsItems = [];
@@ -34,6 +34,94 @@ let pendingOrders = [];
 let ordersUnavailable = false;
 let aiDigest = null;      // { narrative, mood } | null
 let aiDigestLoading = false;
+
+// v276: the portfolio chart now renders through stockChart() — the same
+// engine the stock-detail page uses — instead of the bare areaChart().
+//
+// areaChart positions points by ARRAY INDEX, so a trade in April and a trade
+// yesterday landed the same distance apart: the x-axis was a list, not a
+// timeline, and five months of holding looked identical to five minutes.
+// It also had no axis dates, no hover, no reference line and no last-value
+// badge. stockChart already solves every one of those for share prices, and
+// a portfolio series is just an OHLC series where o === h === l === c.
+//
+// Selected range survives re-render (the page re-paints on every state
+// change and on the 15s quote poll), so it lives at module scope.
+const PF_RANGES = [
+  { key: "1M",  label: "1M",  ms: 30  * 86400000 },
+  { key: "3M",  label: "3M",  ms: 91  * 86400000 },
+  { key: "6M",  label: "6M",  ms: 182 * 86400000 },
+  { key: "1Y",  label: "1Y",  ms: 365 * 86400000 },
+  { key: "ALL", label: "ALL", ms: Infinity },
+];
+let pfChartRange = "ALL";
+let pfHoverDetach = null;
+
+function pfChartWidth() {
+  if (typeof window === "undefined") return 800;
+  const iw = window.innerWidth;
+  if (iw >= 900) return 800;
+  if (iw >= 640) return 640;
+  return Math.max(280, Math.min(440, iw - 48));
+}
+
+/**
+ * DB snapshots + (optionally) the live "right now" value, as a sorted,
+ * de-duplicated {t, v} series in paise.
+ *
+ * `liveValuePaise` is passed as null when any holding has not priced yet.
+ * That matters: holdValue only sums rows with priceReady, so mid-load the
+ * live total is cash-only and appending it draws a cliff straight down to
+ * the cash line — a fake "you lost everything" spike on every page load.
+ * When prices are not in yet we simply end the line at the last real
+ * snapshot instead of inventing a point.
+ */
+function buildPfSeries(histRows, liveValuePaise) {
+  const pts = (histRows || [])
+    .map(r => ({ t: Number(r.ts), v: Number(r.valuePaise) }))
+    .filter(pt => Number.isFinite(pt.t) && Number.isFinite(pt.v) && pt.v >= 0)
+    .sort((a, b) => a.t - b.t);
+
+  if (Number.isFinite(liveValuePaise) && liveValuePaise >= 0) {
+    const now = Date.now();
+    // Drop a snapshot written in the last 2 minutes — the daily-snapshot
+    // cron or a just-executed trade would otherwise sit a pixel away from
+    // the live point and render as a visual spike.
+    while (pts.length && now - pts[pts.length - 1].t < 120000) pts.pop();
+    pts.push({ t: now, v: liveValuePaise });
+  }
+
+  // Collapse exact-duplicate timestamps (a BUY and its snapshot can share
+  // created_at to the millisecond); keep the last value written for that ms.
+  const out = [];
+  for (const pt of pts) {
+    if (out.length && out[out.length - 1].t === pt.t) out[out.length - 1] = pt;
+    else out.push(pt);
+  }
+  return out;
+}
+
+/** Narrow a series to the selected range, never below 2 points. */
+function pfVisibleSeries(pts, rangeKey) {
+  const range = PF_RANGES.find(r => r.key === rangeKey) || PF_RANGES[PF_RANGES.length - 1];
+  if (!Number.isFinite(range.ms)) return { pts, fromMs: pts[0]?.t ?? 0 };
+  const cutoff = Date.now() - range.ms;
+  const within = pts.filter(pt => pt.t >= cutoff);
+  // Fewer than two points inside the window means the window is empty of
+  // history, not that the user has none — fall back to the last two rather
+  // than rendering a single dot with no line.
+  if (within.length < 2) return { pts: pts.slice(-2), fromMs: pts.slice(-2)[0]?.t ?? cutoff };
+  return { pts: within, fromMs: Math.max(cutoff, pts[0].t) };
+}
+
+/** Which range buttons are worth showing for this much history. */
+function pfUsefulRanges(pts) {
+  if (pts.length < 2) return [];
+  const span = pts[pts.length - 1].t - pts[0].t;
+  const usable = PF_RANGES.filter(r => Number.isFinite(r.ms) && r.ms < span);
+  // A lone "ALL" button is a label pretending to be a control.
+  return usable.length ? [...usable, PF_RANGES[PF_RANGES.length - 1]] : [];
+}
 
 export function renderPortfolio(main) {
   let cancelled = false;
@@ -360,17 +448,25 @@ export function renderPortfolio(main) {
     const returnPct = start ? deltaPaise / start : 0;
 
     const src = getDataSource();
-    // Hotfix66a: state.portfolioHistory is now populated by sync.js with
-    // {ts, valuePaise} rows from Supabase. Project to a flat numeric
-    // rupee series for areaChart (which expects values, not row objects),
-    // and append the live pfValue as the rightmost point so the line
-    // ends at "right now" instead of the last DB-snapshot tick.
+    // Hotfix66a: state.portfolioHistory is populated by sync.js with
+    // {ts, valuePaise} rows from Supabase. (v275 fixed the reason those
+    // rows never arrived: js/state.js rebuilds its store from an explicit
+    // key allowlist, portfolioHistory was in neither the getState()
+    // projection nor applyFullPatch's, so every fetched row was written
+    // into a throwaway object and dropped one line later. This value read
+    // `undefined` for every user, which is why the placeholder below was
+    // pinned on screen for all of them regardless of their data.)
     const histPaiseRows = Array.isArray(state.portfolioHistory) ? state.portfolioHistory : [];
-    const histValues = [
-      ...histPaiseRows.map(r => Number(r.valuePaise || 0) / 100),
-      pfValue / 100,
-    ].filter(v => Number.isFinite(v) && v >= 0);
-    const hasRealHistory = histValues.length > 1;
+    // Only anchor the right edge to the live value once EVERY holding has a
+    // real price — see buildPfSeries for why a half-priced total is worse
+    // than no point at all.
+    const allPriced = holdings.every(h => h.priceReady);
+    const pfSeries = buildPfSeries(histPaiseRows, allPriced ? pfValue : null);
+    const hasRealHistory = pfSeries.length > 1;
+    const pfRanges = pfUsefulRanges(pfSeries);
+    if (pfRanges.length && !pfRanges.some(r => r.key === pfChartRange)) pfChartRange = "ALL";
+    const pfVisible = hasRealHistory ? pfVisibleSeries(pfSeries, pfChartRange) : { pts: [], fromMs: 0 };
+    const pfOhlc = pfVisible.pts.map(pt => ({ t: pt.t, o: pt.v, h: pt.v, l: pt.v, c: pt.v }));
 
     main.innerHTML = `
       <div class="portfolio-hero">
@@ -408,15 +504,27 @@ export function renderPortfolio(main) {
               <h3>Value over time</h3>
               <span class="data-badge"><span class="dot"></span> ${escapeHtml(src.name)}</span>
             </div>
-            <div style="height: 260px; position: relative;">
+            ${hasRealHistory && pfRanges.length ? `
+              <div style="display:flex; gap:4px; flex-wrap:wrap; margin-bottom: var(--sp-2);">
+                ${pfRanges.map(r => `<button class="tf-btn ${pfChartRange === r.key ? "active" : ""}" data-pf-range="${r.key}">${r.label}</button>`).join("")}
+              </div>` : ""}
+            <div id="pf-chart-host" style="height: clamp(240px, 38vh, 300px); position: relative;">
               ${hasRealHistory
-                ? areaChart(histValues, { height: 260, color: "var(--brand)", paddingLeft: 60 })
+                ? stockChart(pfOhlc, {
+                    height: 300,
+                    width: pfChartWidth(),
+                    mode: "area",
+                    xAxisRange: { fromMs: pfVisible.fromMs, toMs: Date.now() },
+                    lastLabelFormat: (paise) => formatRupees(paise, { compact: true }),
+                  })
                 : `<div style="height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; border: 1px dashed var(--border); border-radius: var(--r); background: var(--surface);">
                     <div style="font-size: 40px; opacity: 0.45;">📈</div>
                     <div class="font-semi" style="color: var(--text-strong);">Make your first trade to start charting</div>
                     <div class="muted text-sm" style="text-align: center; max-width: 340px;">Buy any stock or fund and your portfolio value gets snapshotted automatically. The line builds up from there.</div>
                   </div>`}
             </div>
+            ${hasRealHistory && !allPriced ? `
+              <div class="dim text-xs" style="margin-top:6px;">Live value lands once every holding has priced — the line ends at your last snapshot until then.</div>` : ""}
           </div>
 
           <div class="card">
@@ -504,6 +612,45 @@ export function renderPortfolio(main) {
         </div>
       </div>
     `;
+
+    // Chart: crosshair + tooltip, and the range selector. Both have to be
+    // re-wired on every render because render() replaces main.innerHTML
+    // wholesale (state change, 15s quote poll, universe load...).
+    if (pfHoverDetach) { try { pfHoverDetach(); } catch {} pfHoverDetach = null; }
+    const chartHost = main.querySelector("#pf-chart-host");
+    if (chartHost && pfOhlc.length > 1) {
+      pfHoverDetach = attachStockChartHover(chartHost, pfOhlc, {
+        mode: "area",
+        // The stock tooltip reports O/H/L/C and quantises to NSE's 5-paise
+        // equity tick. Both are wrong here: a portfolio point has no
+        // intraday range (o === h === l === c), and rounding somebody's net
+        // worth to a share-price tick is meaningless. Show what the user
+        // actually wants off this chart — what it was worth, when, and how
+        // far that is from where the visible window started.
+        tooltipRows: ({ interpClose, noDataHere, headerRow, first }) => {
+          if (noDataHere || interpClose == null) {
+            return [headerRow, `<span style="color:var(--text-dim); font-style:italic;">(no snapshot yet)</span>`];
+          }
+          const deltaPaise = interpClose - first.c;
+          const pct = first.c ? deltaPaise / first.c : 0;
+          const cls = deltaPaise >= 0 ? "var(--positive)" : "var(--negative)";
+          return [
+            headerRow,
+            `<strong style="font-size:13px;">${formatRupees(Math.round(interpClose))}</strong>`,
+            `<span style="color:${cls}">${formatRupees(Math.round(deltaPaise), { sign: true })} (${formatPct(pct, { sign: true })})</span>`,
+            `<span style="color:var(--text-dim)">since ${new Date(first.t).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</span>`,
+          ];
+        },
+      });
+    }
+    main.querySelectorAll("[data-pf-range]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const key = btn.dataset.pfRange;
+        if (!key || key === pfChartRange) return;
+        pfChartRange = key;
+        render();
+      });
+    });
 
     // Wire up Cancel buttons on Pending orders. Without this the buttons
     // looked active but did nothing — users assumed the AMO system was
