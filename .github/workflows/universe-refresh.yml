@@ -9,9 +9,9 @@ name: universe-refresh
 # script's own header already says it is meant to run "on the developer's
 # machine or in CI"; this wires up the CI half.
 #
-# Weekly, not daily: the NSE universe changes slowly, each run rewrites a ~1 MB
-# JSON plus a brotli sidecar, and every commit here triggers a production
-# deploy.
+# Daily. This was weekly on the grounds that the NSE universe changes slowly;
+# that reasoning ignored mfFull.json, which carries a NAV per scheme and is
+# what the app prices mutual funds from. See the schedule block below.
 #
 # WORKS ON GITHUB-HOSTED RUNNERS. Measured 2026-09-13, run 34761640980.
 #
@@ -48,9 +48,34 @@ name: universe-refresh
 
 on:
   schedule:
-    # Weekly, Sunday 02:30 UTC (08:00 IST). Not daily: the NSE universe changes
-    # slowly and every commit here triggers a production deploy.
-    - cron: "30 2 * * 0"
+    # DAILY, 02:30 UTC (08:00 IST).
+    #
+    # This was weekly, inherited from a comment arguing "the NSE universe
+    # changes slowly" and "every commit here triggers a production deploy".
+    # Both are true of the equity half and neither justifies weekly, because
+    # this workflow also rebuilds mfFull.json -- and that file ships a `nav`
+    # and `nav_date` for all 14,120 schemes.
+    #
+    # AMFI publishes NAVs every business day. js/data/universeLoader.js loads
+    # mfFull.json straight into the browser, and marketData.js synthMFQuote
+    # prices a fund as `inst.nav * 100` from it. So a weekly rebuild meant
+    # every mutual fund in the app was priced at a NAV up to 7 days old -- in
+    # a product where 13-18 year olds buy and sell them. That is a wrong
+    # price, not a stale label.
+    #
+    # The cost argument does not hold either: the SME row-order churn below
+    # means a run commits and deploys EVERY time regardless of cadence, so
+    # weekly did not avoid the deploy, it just batched a week of staleness
+    # behind it. The build is ~35s.
+    #
+    # 08:00 IST picks up the previous business day's NAVs, which AMFI posts
+    # late evening IST. Weekend and holiday runs re-fetch the same NAVs and
+    # are harmless.
+    #
+    # Note data-sync.yml already refreshes the mf_master TABLE daily, but the
+    # front end reads the committed JSON, not the table -- that never covered
+    # this.
+    - cron: "30 2 * * *"
   workflow_dispatch: {}
 
 concurrency:
