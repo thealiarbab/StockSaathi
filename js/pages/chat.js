@@ -546,10 +546,10 @@ async function sendAndReply(userText) {
       try {
         const retry = await runAgent({
           apiKey: state.settings.llmApiKey || null,
-          system: system + "
+          system: system + `
 
 # THIS TURN
-You already offered to look this up and the user already asked. Do NOT ask again. Call the tools you need, in parallel if it takes several, and answer with the real numbers now.",
+You already offered to look this up and the user already asked. Do NOT ask again. Call the tools you need, in parallel if it takes several, and answer with the real numbers now.`,
           messages, profile: "fast",
         });
         const cleanRetry = stripScaffolding(retry);
