@@ -23,6 +23,55 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Reports whether the deploy credentials exist, so the deploy jobs can skip
+  # cleanly instead of failing.
+  #
+  # WHY: this workflow had 366 runs and 0 successes. The first cause was
+  # parity-check failing (api-backup/main.py's _ROUTES was missing 4 handlers);
+  # that is fixed and parity now passes 16/16. What remains is simply that
+  # CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID and FLY_API_TOKEN have never
+  # been set, so wrangler exits with "it's necessary to set a
+  # CLOUDFLARE_API_TOKEN environment variable" and flyctl with "no access
+  # token available".
+  #
+  # A permanently-red required-looking workflow on every push to main trains
+  # everyone to ignore it -- and parity-check is not decoration. It is the only
+  # CI this repo has: it runs api-backup/tests/ (route parity AND the
+  # order-execution regression guards, which exist because orders silently
+  # rotted for up to 128 days with users' cash reserved) plus
+  # scripts/check-js-syntax.mjs (added after a syntax error blanked the
+  # homepage in v273). Those must keep running and must be visibly green.
+  #
+  # So: gate the deploys on the secrets. With no secrets the run is green with
+  # the deploys skipped; add the secrets and they start deploying with no
+  # further edit. Note the secrets context is not available in a job-level
+  # `if:`, hence reading them into env here.
+  preflight:
+    name: Check deploy credentials
+    runs-on: ubuntu-latest
+    outputs:
+      has_cf: ${{ steps.check.outputs.has_cf }}
+      has_fly: ${{ steps.check.outputs.has_fly }}
+    steps:
+      - id: check
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          FLY_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          if [ -n "$CF_TOKEN" ] && [ -n "$CF_ACCOUNT" ]; then
+            echo "has_cf=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_cf=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Cloudflare deploy skipped - set CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID to enable."
+          fi
+          if [ -n "$FLY_TOKEN" ]; then
+            echo "has_fly=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_fly=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Fly.io deploy skipped - set FLY_API_TOKEN to enable."
+          fi
+
   parity-check:
     name: Handler parity check
     runs-on: ubuntu-latest
@@ -54,7 +103,8 @@ jobs:
 
   deploy-pages:
     name: Deploy Cloudflare Pages (static backup)
-    needs: parity-check
+    needs: [parity-check, preflight]
+    if: needs.preflight.outputs.has_cf == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -91,7 +141,8 @@ jobs:
 
   deploy-fly:
     name: Deploy Fly.io (Python API backup)
-    needs: parity-check
+    needs: [parity-check, preflight]
+    if: needs.preflight.outputs.has_fly == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -101,6 +152,15 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
+  # NOTE: adding the Cloudflare secrets is not sufficient to make this job
+  # pass. edge/front-door/wrangler.toml still carries the literal placeholder
+  # id = "REPLACE_WITH_KV_ID_AFTER_wrangler_kv_namespace_create" for the
+  # HEALTH_KV binding, so wrangler will reject the deploy until a real KV
+  # namespace is created and its id pasted in. This job also binds routes for
+  # stocksaathi.co.in/* -- deploying it puts a Worker in front of ALL
+  # production traffic, which currently goes straight to Vercel (verified
+  # 2026-09-13: the apex responds Server: Vercel with no cf-ray). Treat the
+  # first successful run here as a production cutover, not a backup step.
   deploy-worker:
     name: Deploy Cloudflare Worker (front-door)
     needs: [deploy-pages, deploy-fly]
