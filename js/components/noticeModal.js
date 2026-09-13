@@ -16,19 +16,42 @@
 
 import { sb } from "../db/supabase.js";
 
-let _shown = false;
+// Guard state.
+//
+// The first version latched a single module-level `_shown = true` on the very
+// first call. That call happens 1.2s after page load — which for most people
+// is while they are still LOGGED OUT, staring at the login form. It found
+// nothing (correctly, RLS returns no rows for anon), latched, and then logging
+// in never re-ran it, because login navigates via the hash router and never
+// reloads the page. Net effect: the people the apology was written for could
+// only ever see it by hard-reloading while already signed in.
+//
+// Now: `_inFlight` only prevents two overlapping runs, and `_doneForUser`
+// records the user id we actually finished a pass for. A different user (or
+// going from logged-out to logged-in) gets a fresh pass.
+let _inFlight = false;
+let _doneForUser = null;
 
 /**
  * Fetch unseen notices for the logged-in user and show them one at a time.
- * Safe to call on every boot — returns immediately when there is nothing
- * to show, and never throws into the caller.
+ * Safe to call repeatedly — on boot, after login, on user switch. Returns
+ * immediately when there is nothing to show, and never throws into the caller.
  */
 export async function showPendingNotices() {
-  if (_shown) return;
-  _shown = true;
+  if (_inFlight) return;
+  _inFlight = true;
   try {
     const client = await sb();
     if (!client) return;
+    // Who are we? No session means nothing to show AND nothing to latch —
+    // the user may be about to log in.
+    let uid = null;
+    try {
+      const raw = localStorage.getItem("ss.sb.session.v1");
+      uid = raw ? (JSON.parse(raw)?.user?.id ?? null) : null;
+    } catch { uid = null; }
+    if (!uid) return;
+    if (_doneForUser === uid) return;
     // RLS scopes this to the current user; an unauthenticated tab gets [].
     const { data, error } = await client
       .from("user_notices")
@@ -36,12 +59,21 @@ export async function showPendingNotices() {
       .is("seen_at", null)
       .order("created_at", { ascending: true })
       .limit(5);
-    if (error || !data?.length) return;
+    // A query error is NOT a reason to latch — we still don't know whether
+    // this user has something waiting. Only a clean result counts as done.
+    if (error) {
+      console.warn("[notices] query failed:", error.message);
+      return;
+    }
+    _doneForUser = uid;
+    if (!data?.length) return;
     for (const notice of data) {
       await presentOne(client, notice);
     }
   } catch (e) {
     console.warn("[notices] skipped:", e?.message || e);
+  } finally {
+    _inFlight = false;
   }
 }
 

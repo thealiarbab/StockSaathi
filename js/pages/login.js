@@ -96,6 +96,14 @@ export function renderLogin(main) {
       await bootSync();
       await loadAllFromDb();
       switchUser();
+      // Deliver any personal notice waiting for this user. Login navigates
+      // through the hash router and never reloads, so app.js's boot-time
+      // call already ran (while logged out, finding nothing) and will not
+      // run again. Without this the stuck-order apology was only reachable
+      // by hard-reloading after signing in.
+      import("../components/noticeModal.js")
+        .then(m => m.showPendingNotices())
+        .catch(() => {});
       const state = (await import("../state.js")).getState();
       if (!state.user.onboarded) navigate("/onboarding");
       else navigate("/portfolio");
