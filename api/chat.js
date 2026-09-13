@@ -36,6 +36,15 @@ export const config = { runtime: "edge" };
 const MAX_BODY = 64 * 1024;
 const MAX_OUTPUT_TOKENS = 4000;
 
+// How long any ONE upstream gets to return response headers before we give
+// up and try the next in the chain.
+//
+// Vercel edge functions are killed at ~25s. With no per-attempt bound, the
+// first slow provider eats that entire budget and the caller gets a 504 with
+// nothing at all — which is strictly worse than a fallback answer. 9s leaves
+// room for two full attempts plus overhead inside the limit.
+const UPSTREAM_TIMEOUT_MS = Number(globalThis.process?.env?.UPSTREAM_TIMEOUT_MS) || 9000;
+
 // Per-profile thinking budget. See the block where this is applied for the
 // measurements behind it. Env-overridable so the trade can be retuned
 // without a deploy.
@@ -290,11 +299,30 @@ async function callUpstream(desc, payload) {
   // tHeaders - t0 ≈ TTFT for the upstream LLM. Surfaced to the client as
   // a Server-Timing header in the success branch below. See PERF_AUDIT §1.
   const t0 = performance.now();
-  const res = await fetch(desc.url, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ ...payload, model: modelForApi }),
-  });
+  // PER-ATTEMPT TIMEOUT. Without one, a single slow upstream consumes the
+  // whole edge-function budget and the fallback chain never gets a turn —
+  // the caller just receives a 504 FUNCTION_INVOCATION_TIMEOUT at ~25s with
+  // no reply at all. Observed in production on 2026-09-13: one ordinary
+  // coach question ("whys monday holiday") hung gemini_chat past the limit
+  // while three perfectly healthy fallbacks sat unused behind it.
+  //
+  // The budget below leaves room for at least two attempts inside the edge
+  // limit, so a stalled provider costs a few seconds rather than the turn.
+  // It only bounds time-to-HEADERS; once a stream starts, the body is piped
+  // without further limit.
+  const ctrl = new AbortController();
+  const killer = setTimeout(() => ctrl.abort(), UPSTREAM_TIMEOUT_MS);
+  let res;
+  try {
+    res = await fetch(desc.url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ ...payload, model: modelForApi }),
+      signal: ctrl.signal,
+    });
+  } finally {
+    clearTimeout(killer);
+  }
   const ttftMs = Math.round(performance.now() - t0);
   // Return the Response object unread so the handler can either pipe the
   // body through (streaming) or read it as text (non-streaming). For
