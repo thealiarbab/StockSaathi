@@ -477,6 +477,10 @@ export function stockChart(ohlc, {
     let dots = "";
     if (showPoints) {
       for (let i = 0; i < ohlc.length; i++) {
+        // v279: never dot a synthetic point. Carried-forward values exist so a
+        // fixed window has a left edge; they are not measurements and must not
+        // be drawn as if somebody sampled the portfolio there.
+        if (ohlc[i].synthetic) continue;
         dots += `<circle cx="${toXk(ohlc[i], i).toFixed(2)}" cy="${toY(ohlc[i].c).toFixed(2)}" r="2.5" fill="${color}" stroke="var(--surface, #13161E)" stroke-width="1" />`;
       }
     }

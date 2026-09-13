@@ -26,6 +26,7 @@ import { getQuoteBatch, getDataSource, subscribeToQuotes, getCachedQuotes } from
 import { listPendingOrders, cancelOrder } from "../features/limitOrders.js";
 import { getNews, fmtRelativeTime, labelSentiment } from "../data/news.js";
 import { stockChart, attachStockChartHover } from "../components/charts.js";
+import { attachChartZoom } from "../components/chartZoom.js";
 import { fetchDigest, cachedDigest } from "../features/portfolioDigest.js";
 
 let newsItems = [];
@@ -48,14 +49,22 @@ let aiDigestLoading = false;
 // Selected range survives re-render (the page re-paints on every state
 // change and on the 15s quote poll), so it lives at module scope.
 const PF_RANGES = [
-  { key: "1M",  label: "1M",  ms: 30  * 86400000 },
-  { key: "3M",  label: "3M",  ms: 91  * 86400000 },
-  { key: "6M",  label: "6M",  ms: 182 * 86400000 },
-  { key: "1Y",  label: "1Y",  ms: 365 * 86400000 },
-  { key: "ALL", label: "ALL", ms: Infinity },
+  { key: "1D",  ms: 1   * 86400000 },
+  { key: "1W",  ms: 7   * 86400000 },
+  { key: "1M",  ms: 30  * 86400000 },
+  { key: "3M",  ms: 91  * 86400000 },
+  { key: "6M",  ms: 182 * 86400000 },
+  { key: "YTD", ms: null },            // start of the calendar year
+  { key: "1Y",  ms: 365 * 86400000 },
+  { key: "ALL", ms: Infinity },
 ];
-let pfChartRange = "ALL";
+
+// Mirrors stockDetail's ui.zoom. Lives at module scope because render()
+// repaints main.innerHTML wholesale on every state change and 15s quote poll.
+let pfChart = { range: "ALL", zoom: { scale: 1, centerMs: null, manualPan: false } };
 let pfHoverDetach = null;
+let pfZoomDetach = null;
+let pfGestureActive = false;
 
 function pfChartWidth() {
   if (typeof window === "undefined") return 800;
@@ -91,8 +100,6 @@ function buildPfSeries(histRows, liveValuePaise) {
     pts.push({ t: now, v: liveValuePaise });
   }
 
-  // Collapse exact-duplicate timestamps (a BUY and its snapshot can share
-  // created_at to the millisecond); keep the last value written for that ms.
   const out = [];
   for (const pt of pts) {
     if (out.length && out[out.length - 1].t === pt.t) out[out.length - 1] = pt;
@@ -101,55 +108,73 @@ function buildPfSeries(histRows, liveValuePaise) {
   return out;
 }
 
-/** Narrow a series to the selected range, never below 2 points. */
-function pfVisibleSeries(pts, rangeKey) {
-  const range = PF_RANGES.find(r => r.key === rangeKey) || PF_RANGES[PF_RANGES.length - 1];
-  if (!Number.isFinite(range.ms)) return { pts, fromMs: pts[0]?.t ?? 0 };
-  const cutoff = Date.now() - range.ms;
-  const within = pts.filter(pt => pt.t >= cutoff);
-  // Fewer than two points inside the window means the window is empty of
-  // history, not that the user has none — fall back to the last two rather
-  // than rendering a single dot with no line.
-  if (within.length < 2) return { pts: pts.slice(-2), fromMs: pts.slice(-2)[0]?.t ?? cutoff };
-  return { pts: within, fromMs: Math.max(cutoff, pts[0].t) };
+function pfRangeCutoff(key) {
+  if (key === "ALL") return -Infinity;
+  if (key === "YTD") return new Date(new Date().getFullYear(), 0, 1).getTime();
+  const r = PF_RANGES.find(x => x.key === key);
+  return Date.now() - (r && Number.isFinite(r.ms) ? r.ms : 30 * 86400000);
 }
 
 /**
- * Which range buttons are worth showing.
+ * Narrow the series to a fixed window, CARRYING THE LAST KNOWN VALUE FORWARD
+ * to the window's left edge.
  *
- * v278: used to gate on total history span alone, which offered a 3M button to
- * a user whose only points inside the last 90 days were all written on the SAME
- * DAY. Selecting it produced a vertical spike against the right edge over an
- * otherwise empty quarter — the chart was drawing three real samples and 89
- * days of nothing. A range is only offered if it holds enough samples AND those
- * samples actually cover a decent part of the window.
+ * v279: this is what makes fixed ranges work on a sparse series, and it is why
+ * 1M/3M are back. A portfolio is not a stock: it is sampled on trades plus one
+ * daily snapshot, so a 90-day window can easily contain three points all
+ * written on the same afternoon. Plotting only those gave a vertical spike
+ * against the right edge of an otherwise empty quarter, which is why the
+ * buttons were withdrawn in v278.
+ *
+ * The honest fix is the one every broker uses — last observation carried
+ * forward. If the newest snapshot before the cutoff said Rs 99,900, then at the
+ * start of the window the portfolio was worth Rs 99,900, and the line should
+ * start there. The carried point is flagged `synthetic` so it is never drawn as
+ * a sampled dot: it states what we knew, not that we measured.
  */
-function pfUsefulRanges(pts) {
-  if (pts.length < 3) return [];
+function pfWindow(pts, key) {
   const now = Date.now();
-  const span = pts[pts.length - 1].t - pts[0].t;
-  const usable = PF_RANGES.filter(r => {
-    if (!Number.isFinite(r.ms)) return false;
-    if (r.ms >= span) return false;               // window covers everything — that IS "ALL"
-    const cutoff = now - r.ms;
-    const within = pts.filter(pt => pt.t >= cutoff);
-    if (within.length < 3) return false;
-    const covered = within[within.length - 1].t - within[0].t;
-    return covered >= r.ms * 0.25;                // samples must span the window, not cluster
-  });
-  // A lone "ALL" button is a label pretending to be a control.
-  return usable.length ? [...usable, PF_RANGES[PF_RANGES.length - 1]] : [];
+  if (!pts.length) return { pts: [], fromMs: now - 86400000, toMs: now };
+
+  const cutoff = pfRangeCutoff(key);
+  if (!Number.isFinite(cutoff)) {
+    return { pts: pts.slice(), fromMs: pts[0].t, toMs: Math.max(now, pts[pts.length - 1].t) };
+  }
+
+  const within = pts.filter(pt => pt.t >= cutoff);
+  const before = pts.filter(pt => pt.t < cutoff);
+  const out = [];
+  if (before.length) out.push({ t: cutoff, v: before[before.length - 1].v, synthetic: true });
+  out.push(...within);
+
+  // One point cannot be a line. Extend the last known value to "now" so the
+  // window still reads as a flat stretch rather than rendering nothing.
+  if (out.length === 1) out.push({ t: now, v: out[0].v, synthetic: true });
+
+  const fromMs = before.length ? cutoff : (out[0] ? out[0].t : cutoff);
+  return { pts: out, fromMs, toMs: Math.max(now, out[out.length - 1].t) };
+}
+
+/** Apply the current zoom to a window, clamped so it never slides outside. */
+function pfZoomedRange(win) {
+  const { scale, centerMs } = pfChart.zoom;
+  const total = win.toMs - win.fromMs;
+  if (!(scale > 1) || !(total > 0)) return { fromMs: win.fromMs, toMs: win.toMs };
+  const span = total / scale;
+  let c = centerMs ?? (win.fromMs + total / 2);
+  if (c - span / 2 < win.fromMs) c = win.fromMs + span / 2;
+  if (c + span / 2 > win.toMs)   c = win.toMs - span / 2;
+  return { fromMs: c - span / 2, toMs: c + span / 2 };
 }
 
 /**
  * Y bounds with a FLOOR on the visible span.
  *
- * v278: stockChart auto-fits Y to the visible data, which is right for a share
- * price that genuinely ranges during a session. Portfolio snapshots can sit
- * within a few rupees of each other, and auto-fit then magnifies Rs 3 of
- * rounding noise to full chart height: a real 3M view rendered an axis of
- * 99821.71 -> 99824.47 and a line that looked like a crash. Accurate, and
- * completely misleading.
+ * stockChart auto-fits Y to the visible data, which is right for a share price
+ * that genuinely ranges during a session. Portfolio snapshots can sit within a
+ * few rupees of each other, and auto-fit then magnifies Rs 3 of rounding noise
+ * to full chart height: a real 3M view rendered an axis of 99821.71 -> 99824.47
+ * and a line that looked like a crash. Accurate, and completely misleading.
  *
  * Floor the band at 1% of the portfolio's value (min Rs 100) so a move only
  * looks big when it IS big. Returns paise.
@@ -164,7 +189,7 @@ function pfYBounds(values) {
     lo = mid - minSpan / 2;
     hi = mid + minSpan / 2;
   } else {
-    const pad = (hi - lo) * 0.06;                 // breathing room top and bottom
+    const pad = (hi - lo) * 0.06;
     lo -= pad;
     hi += pad;
   }
@@ -403,6 +428,12 @@ export function renderPortfolio(main) {
   }
 
   function render() {
+    // v279: any render() replaces main.innerHTML wholesale, which destroys the
+    // SVG the zoom gesture is mid-way through transforming — the pointer
+    // capture dies and the pinch/drag freezes. The 15s quote poll and every
+    // state change both land here, so a gesture in flight would be killed by
+    // routine background work. stockDetail guards its render the same way.
+    if (pfGestureActive) return;
     const state = getState();
     const cash = state.portfolio.cashPaise;
 
@@ -511,11 +542,21 @@ export function renderPortfolio(main) {
     const allPriced = holdings.every(h => h.priceReady);
     const pfSeries = buildPfSeries(histPaiseRows, allPriced ? pfValue : null);
     const hasRealHistory = pfSeries.length > 1;
-    const pfRanges = pfUsefulRanges(pfSeries);
-    if (pfRanges.length && !pfRanges.some(r => r.key === pfChartRange)) pfChartRange = "ALL";
-    const pfVisible = hasRealHistory ? pfVisibleSeries(pfSeries, pfChartRange) : { pts: [], fromMs: 0 };
-    const pfOhlc = pfVisible.pts.map(pt => ({ t: pt.t, o: pt.v, h: pt.v, l: pt.v, c: pt.v }));
-    const pfBounds = pfOhlc.length ? pfYBounds(pfVisible.pts.map(pt => pt.v)) : { min: 0, max: 1 };
+
+    // Full range ladder, always offered — same shape as the markets chart.
+    // Sparse windows are handled by carrying the last known value forward
+    // (see pfWindow) rather than by hiding the button.
+    const pfWin = hasRealHistory ? pfWindow(pfSeries, pfChart.range) : { pts: [], fromMs: 0, toMs: 0 };
+    const pfXr = pfZoomedRange(pfWin);
+    const pfOhlc = pfWin.pts.map(pt => ({
+      t: pt.t, o: pt.v, h: pt.v, l: pt.v, c: pt.v, synthetic: !!pt.synthetic,
+    }));
+    // Y auto-fits to what the ZOOM actually shows, like stockChart does, so
+    // zooming into a quiet stretch does not leave the line pinned flat.
+    const pfSeen = pfOhlc.filter(k => k.t >= pfXr.fromMs && k.t <= pfXr.toMs);
+    const pfForY = (pfSeen.length >= 2 ? pfSeen : pfOhlc).map(k => k.c);
+    const pfBounds = pfForY.length ? pfYBounds(pfForY) : { min: 0, max: 1 };
+    const pfZoomed = pfChart.zoom.scale > 1;
 
     main.innerHTML = `
       <div class="portfolio-hero">
@@ -553,9 +594,14 @@ export function renderPortfolio(main) {
               <h3>Value over time</h3>
               <span class="data-badge"><span class="dot"></span> ${escapeHtml(src.name)}</span>
             </div>
-            ${hasRealHistory && pfRanges.length ? `
-              <div style="display:flex; gap:4px; flex-wrap:wrap; margin-bottom: var(--sp-2);">
-                ${pfRanges.map(r => `<button class="tf-btn ${pfChartRange === r.key ? "active" : ""}" data-pf-range="${r.key}">${r.label}</button>`).join("")}
+            ${hasRealHistory ? `
+              <div class="tf-buttons" style="display:flex; align-items:center; gap:var(--sp-2); flex-wrap:wrap; margin-bottom: var(--sp-2);">
+                <div style="display:flex; gap:4px; flex-wrap:wrap;">
+                  ${PF_RANGES.map(r => `<button class="tf-btn ${pfChart.range === r.key ? "active" : ""}" data-pf-range="${r.key}">${r.key}</button>`).join("")}
+                </div>
+                ${pfZoomed ? `
+                  <button class="btn btn-ghost btn-sm" id="pf-zoom-reset" title="Reset chart zoom" style="font-size:11px; padding:4px 10px;">↻ Reset zoom (${pfChart.zoom.scale.toFixed(1)}×)</button>
+                ` : ""}
               </div>` : ""}
             <div id="pf-chart-host" style="height: clamp(240px, 38vh, 300px); position: relative;">
               ${hasRealHistory
@@ -563,7 +609,7 @@ export function renderPortfolio(main) {
                     height: 300,
                     width: pfChartWidth(),
                     mode: "area",
-                    xAxisRange: { fromMs: pfVisible.fromMs, toMs: Date.now() },
+                    xAxisRange: pfXr,
                     min: pfBounds.min,
                     max: pfBounds.max,
                     // Few samples? Show where they actually are, so a straight
@@ -704,11 +750,45 @@ export function renderPortfolio(main) {
     main.querySelectorAll("[data-pf-range]").forEach(btn => {
       btn.addEventListener("click", () => {
         const key = btn.dataset.pfRange;
-        if (!key || key === pfChartRange) return;
-        pfChartRange = key;
+        if (!key || key === pfChart.range) return;
+        // Every range switch resets zoom: centerMs from the previous window
+        // would land outside the new one. Same rule stockDetail uses.
+        pfChart = { range: key, zoom: { scale: 1, centerMs: null, manualPan: false } };
         render();
       });
     });
+
+    main.querySelector("#pf-zoom-reset")?.addEventListener("click", () => {
+      pfChart.zoom = { scale: 1, centerMs: null, manualPan: false };
+      render();
+    });
+
+    // Wheel / pinch / drag-pan, via the same engine the markets chart uses.
+    if (pfZoomDetach) { try { pfZoomDetach(); } catch {} pfZoomDetach = null; }
+    if (chartHost && pfOhlc.length > 1 && pfWin.toMs > pfWin.fromMs) {
+      pfZoomDetach = attachChartZoom(chartHost, {
+        getState: () => ({
+          scale: pfChart.zoom.scale,
+          centerMs: pfChart.zoom.centerMs,
+          manualPan: pfChart.zoom.manualPan,
+          fromMs: pfWin.fromMs,
+          toMs: pfWin.toMs,
+        }),
+        onCommit: (next) => {
+          pfChart.zoom = {
+            scale: next.scale,
+            centerMs: next.centerMs,
+            manualPan: next.manualPan ?? pfChart.zoom.manualPan,
+          };
+          render();
+        },
+        onReset: () => {
+          pfChart.zoom = { scale: 1, centerMs: null, manualPan: false };
+          render();
+        },
+        onGestureActive: (active) => { pfGestureActive = active; },
+      });
+    }
 
     // Wire up Cancel buttons on Pending orders. Without this the buttons
     // looked active but did nothing — users assumed the AMO system was
