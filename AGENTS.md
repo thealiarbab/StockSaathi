@@ -16,6 +16,47 @@ Vanilla-JS SPA + Python serverless (Vercel) + Postgres (Supabase). Virtual-money
 - **No attribution** in anything committed to this repo — no co-author trailers, no "built by X" comments, no vendor-branded filenames or identifiers. This is a hard rule.
 - **SW cache bump:** every JS/CSS change → bump `CACHE_NAME` in `sw.js` (format `stocksaathi-vN-YYYYMMDDx`)
 
+## Order execution — SERVER-SIDE. Never make this client-driven again.
+
+Limit orders and AMOs are matched by `/api/match-orders` (`handlers/match-orders.py`)
+on a schedule. The user does **not** need the app open.
+
+- **Primary tick:** Cloudflare front-door Worker cron, `* * * * *` (see
+  `edge/front-door/wrangler.toml` + its `scheduled()` export). Needs the
+  `CRON_SECRET` secret bound on the Worker.
+- **Backup tick:** `.github/workflows/order-matcher.yml`, every 5 min during
+  market hours. Two vendors, because one scheduler failing silently is exactly
+  what caused the original outage.
+- **Fill path:** `admin_fill_limit_order` / `admin_pending_orders` (service_role
+  only). Both wrap `_fill_limit_order_core`, which takes the owner from the
+  order row instead of `auth.uid()` and is revoked from `anon`/`authenticated`.
+- The client loop in `js/features/limitOrders.js` is a **latency optimisation
+  only**. If it never ran again every order would still execute.
+
+**History (2026-09-13):** execution used to run ONLY inside the user's browser
+tab, gated on `marketStatus().open`. For teenagers that window is the school
+day, so orders rotted: 75 pending, 42 already past their fill condition, oldest
+128 days, cash reserved throughout. Users were told in the coach to "contact
+your broker" — there is no broker. 74 orders were backfilled at their frozen
+limit price and 24 users got an apology notice.
+
+Guarded by `api-backup/tests/test_order_execution_guards.py` (runs in CI via
+backup-deploy.yml). Do not delete those tests to make a change pass.
+
+**Never auto-cancel an order the matcher cannot price.** The old client
+cancelled after ~2 min of missing quotes; `getQuoteBatch` has no mutual-fund
+coverage, so every MF order was guaranteed to be destroyed. A missing price is
+our problem — retry next tick. MF pricing: `mf_master`, falling back to
+`js/data/mfFull.json` (the same file the browser uses).
+
+## User notices
+
+`public.user_notices` + `ack_notice()` RPC + `js/components/noticeModal.js`
+deliver a one-off personal message to specific users on next login. RLS scopes
+reads/updates to `auth.uid()`; only the service role inserts. Used for the
+order-backfill apology. Grants are `authenticated: SELECT, UPDATE` only —
+do not let Supabase's default grants hand `anon` TRUNCATE, which bypasses RLS.
+
 ## Key endpoints
 - `/api/live-quote?symbols=A,B,C` — **primary quote path**, cache-first Supabase + Dhan→Yahoo fallback
 - `/api/history?symbol=X&range=1mo&interval=1d` — OHLC for charts
