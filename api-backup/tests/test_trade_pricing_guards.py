@@ -105,6 +105,46 @@ def test_fill_core_ignores_client_market_price():
     )
 
 
+def test_apply_trade_never_books_the_client_price():
+    """apply_trade must book v_ref_price, never the caller's p_price_paise.
+
+    2026-09-12b clamped p_price_paise only when it was >10% off the reference
+    and honored it within that band. That gave a crafted request the favorable
+    edge of a 10% window on every trade (buy at ref-10%, sell at ref+10%,
+    ~+22% per round-trip, compounding). 2026-09-13j removed the band: the
+    booked price is always the server's, and p_price_paise is advisory only.
+
+    The client price must never be assigned to the variable that sets the
+    trade value. Any `:= p_price_paise` (assigning it to the booked price) or a
+    reintroduced tolerance band is the exploit coming back.
+    """
+    fname, body = _latest_definition("apply_trade")
+
+    assert "v_price    := v_ref_price" in body or "v_price := v_ref_price" in body, (
+        f"apply_trade in {fname} does not unconditionally set the booked price "
+        f"to v_ref_price. The execution price must always be the server's."
+    )
+
+    offenders = [
+        line.strip()
+        for line in body.splitlines()
+        if re.search(r"v_price\s*:=\s*p_price_paise", line)
+        and not line.strip().startswith("--")
+    ]
+    assert not offenders, (
+        f"apply_trade in {fname} assigns the client price to the booked price:\n  "
+        + "\n  ".join(offenders)
+        + "\np_price_paise is advisory only. Book v_ref_price."
+    )
+
+    # The +/-10% tolerance band was the vehicle. It must not return.
+    assert "v_band" not in body, (
+        f"apply_trade in {fname} reintroduces a tolerance band (v_band). "
+        f"Honoring the client price within any band is the exploitable edge; "
+        f"there is no safe band width. Book v_ref_price unconditionally."
+    )
+
+
 def test_fill_core_has_mutual_fund_fallback():
     """Pricing MF orders from quote_cache alone would freeze them forever.
 
