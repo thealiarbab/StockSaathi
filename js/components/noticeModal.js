@@ -62,7 +62,7 @@ function presentOne(client, notice) {
              <div class="notice-order-row">
                <span class="pill ${o.side === "BUY" ? "pill-green" : "pill-red"}">${escapeHtml(o.side)}</span>
                <strong>${escapeHtml(o.symbol)}</strong>
-               <span class="dim">${escapeHtml(String(o.qty))} @ ₹${escapeHtml(String(o.price_inr))}</span>
+               <span class="dim">${escapeHtml(fmtQty(o.qty))} @ ₹${escapeHtml(fmtPrice(o.price_inr))}</span>
                <span class="dim" style="margin-left:auto;">${
                  o.outcome === "filled"
                    ? `filled · was stuck ${escapeHtml(String(o.days_stuck))}d`
@@ -124,4 +124,22 @@ function escapeHtml(s) {
   const d = document.createElement("div");
   d.textContent = String(s ?? "");
   return d.innerHTML;
+}
+
+// jsonb numerics arrive stripped of trailing zeros, so 401.90 came back as
+// 401.9 and rendered as "₹401.9" next to a correctly-formatted "₹706.65".
+// Money always gets two decimals.
+function fmtPrice(v) {
+  const n = Number(v);
+  return Number.isFinite(n)
+    ? n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : String(v ?? "");
+}
+
+// Quantities are fractional only for mutual funds; show decimals just when
+// they exist, so "12" stays "12" and 37.0096 units stays precise.
+function fmtQty(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return String(v ?? "");
+  return Number.isInteger(n) ? String(n) : n.toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
 }

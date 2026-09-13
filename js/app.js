@@ -53,11 +53,22 @@ mountRouter();
     await bootSync();
     switchUser();
     startLimitMatcher();
-    // Deliver any personal notice waiting for this user (e.g. the
-    // 2026-09-13 stuck-order apology). No-op when there is nothing unseen.
-    showPendingNotices();
   } catch (e) { console.warn("Supabase boot skipped:", e); }
 })();
+
+// Personal notices run on their OWN chain, deliberately not sequenced behind
+// bootSync().
+//
+// They were chained after it at first, and a live test on a flaky network
+// showed the cost: bootSync() never settled — no throw, so nothing was even
+// logged — and the notice simply never appeared. Gating an apology on the
+// slowest, most failure-prone step of boot is exactly backwards: the users
+// owed one are the ones whose network and session were already misbehaving.
+//
+// showPendingNotices() reads its own Supabase client, is a no-op when there
+// is nothing unseen or nobody is logged in, and swallows its own errors.
+// A small delay keeps it from competing with first paint.
+setTimeout(() => { showPendingNotices(); }, 1200);
 
 // Reactively sync theme
 subscribe((s) => {
