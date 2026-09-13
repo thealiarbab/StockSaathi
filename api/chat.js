@@ -55,13 +55,26 @@ const GEMINI_PRO     = (globalThis.process?.env?.GEMINI_PRO_MODEL)  || "gemini-3
 // That is the wrong trade for this surface. The coach IS the product, its
 // answers are read by 13-18 year olds who cannot evaluate them, and a
 // non-thinking model is exactly the kind that states a confident wrong
-// thing. Reasoning quality beats a few hundred milliseconds of time to
-// first token, and the reply still streams either way.
+// thing.
 //
-// Chain below degrades to Flash then OpenAI, so a slow or unavailable Pro
-// never hangs the coach. Override with GEMINI_CHAT_MODEL to trade back
-// toward latency without a deploy.
-const GEMINI_CHAT    = (globalThis.process?.env?.GEMINI_CHAT_MODEL) || "gemini-3.1-pro-preview";
+// So: Gemini 3 Flash, which DOES think — the real objection to Lite — and
+// not 3.1 Pro. That is a measured call, not a guess. Streaming
+// time-to-first-token against production, 2 runs each:
+//
+//   gemini-3.1-pro-preview   6.43s, 5.43s      <- 6 seconds of blank screen
+//   gemini-3-flash-preview   1.94s, 2.81s
+//
+// Pro reasons before it emits anything, so streaming does not rescue the
+// wait — a teenager on a phone sees nothing at all for six seconds and
+// concludes it is broken. Flash 3 is a thinking model, is already proven in
+// this exact stack on the tool path, and keeps the coach answering in about
+// two seconds.
+//
+// If you want maximum reasoning and will accept that wait, it is one env
+// var and no deploy: GEMINI_CHAT_MODEL=gemini-3.1-pro-preview. The chain
+// below degrades to OpenAI, so an unavailable model costs a fallback hop
+// rather than hanging the coach.
+const GEMINI_CHAT    = (globalThis.process?.env?.GEMINI_CHAT_MODEL) || "gemini-3-flash-preview";
 // Dedicated model for JSON-returning ops (command palette, market-search,
 // report-card, crash-replay).
 //
