@@ -108,6 +108,21 @@ const TOOLS = [
       parameters: { type: "object", properties: {} },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "get_trade_history",
+      description:
+        "The user's actual BUY/SELL transaction history, newest first, with realised profit/loss per closed position. Use for ANY question about what they have DONE rather than what they currently hold: 'show me all my trades', 'my recent activity', 'what did I buy last week', 'my best trade', 'did I panic sell', 'how many trades have I made'. get_user_portfolio does NOT contain this.",
+      parameters: {
+        type: "object",
+        properties: {
+          limit: { type: "number", description: "Max trades to return (default 20, max 50)." },
+          symbol: { type: "string", description: "Optional — only trades in this NSE ticker." },
+        },
+      },
+    },
+  },
 ];
 
 // -----------------------------------------------------------------------------
@@ -270,8 +285,92 @@ async function execGetUserPortfolio() {
   return out;
 }
 
+/**
+ * Actual trade history. This tool exists because its absence produced the
+ * single worst failure in the logs.
+ *
+ * haldenbeet, 2026-04-22, asked "Can u show me all the trades i have made?".
+ * The coach had only get_user_portfolio — holdings, no transactions — so it
+ * invented an entire trading record and stuck to it across four consecutive
+ * turns: "You're at ₹1,04,230 total... 4 positions, biggest is RELIANCE at
+ * ₹28k... best performer this week is INFY (+6.8%)", then "your best trade is
+ * Reliance, up 18.5%", then "You haven't panic sold any stocks."
+ *
+ * Every figure was fabricated. The next day the coach pulled the real
+ * portfolio: ₹1,00,201.90, two holdings — Vedanta and a gold fund. No
+ * Reliance. No Infosys. The numbers it had recited were the placeholder
+ * portfolio from the system prompt's own tone examples.
+ *
+ * Three other users asked variants of the same question. Giving the model a
+ * real answer is the fix; telling it not to lie is only half of one.
+ */
+async function execGetTradeHistory(input) {
+  const state = getState();
+  if (!state.isAuthed) return { ok: false, error: "User not logged in." };
+  const limit = Math.min(Math.max(1, Number(input?.limit) || 20), 50);
+  const wantSym = input?.symbol ? resolveSymbolFuzzy(String(input.symbol)) : null;
+
+  const all = Array.isArray(state.transactions) ? state.transactions : [];
+  const rows = (wantSym ? all.filter(t => t.symbol === wantSym) : all)
+    .slice()
+    .sort((a, b) => b.ts - a.ts);
+
+  if (!rows.length) {
+    return {
+      ok: true, trades: [], count: 0, total_trades_ever: all.length,
+      note: wantSym
+        ? `No trades in ${wantSym}.`
+        : "This user has never placed a trade. Say exactly that — do not invent one.",
+    };
+  }
+
+  // Running average cost per symbol, walked oldest-first, so a SELL can be
+  // reported with the realised P&L it actually produced.
+  const book = {};
+  const realised = new Map();
+  for (const t of rows.slice().reverse()) {
+    const b = book[t.symbol] || { qty: 0, avg: 0 };
+    if (t.side === "BUY") {
+      const newQty = b.qty + t.qty;
+      b.avg = newQty > 0 ? Math.round((b.avg * b.qty + t.pricePaise * t.qty) / newQty) : t.pricePaise;
+      b.qty = newQty;
+    } else {
+      if (b.qty > 0) realised.set(t.id, Math.round((t.pricePaise - b.avg) * t.qty));
+      b.qty = Math.max(0, b.qty - t.qty);
+    }
+    book[t.symbol] = b;
+  }
+
+  const trades = rows.slice(0, limit).map(t => {
+    const inst = getInstrument(t.symbol);
+    const pl = realised.get(t.id);
+    return {
+      date: new Date(t.ts).toISOString().slice(0, 10),
+      symbol: t.symbol,
+      name: inst?.name || t.symbol,
+      side: t.side,
+      qty: t.qty,
+      price_inr: +(t.pricePaise / 100).toFixed(2),
+      value_inr: +(t.valuePaise / 100).toFixed(2),
+      realised_pl_inr: pl != null ? +(pl / 100).toFixed(2) : null,
+      flags: Array.isArray(t.biasFlags)
+        ? t.biasFlags.map(f => f?.bias).filter(Boolean)
+        : [],
+    };
+  });
+
+  return {
+    ok: true,
+    trades,
+    count: trades.length,
+    total_trades_ever: all.length,
+    note: "realised_pl_inr is set only on SELLs that closed part of a position; null means the trade opened or added to one. `flags` carries any behavioural pattern the app recorded at trade time (e.g. panic_sell). Report only what is here.",
+  };
+}
+
 const EXECUTORS = {
   get_stock_price: execGetStockPrice,
+  get_trade_history: execGetTradeHistory,
   get_crypto_price: execGetCryptoPrice,
   search_stocks: execSearchStocks,
   get_market_news: execGetMarketNews,
@@ -637,8 +736,19 @@ export async function streamChat({ system, messages, profile = "chat", onToken, 
   return { text: stripToolCallScaffolding(fullText).trim(), raw: fullText };
 }
 
-// The five known tool names, for anchoring the CALL-leak patterns below.
-const TOOL_NAME_RE = "(?:get_stock_price|get_crypto_price|search_stocks|get_market_news|get_user_portfolio|\\w+)";
+// The known tool names, for anchoring the CALL-leak patterns below.
+const TOOL_NAME_RE = "(?:get_stock_price|get_crypto_price|search_stocks|get_market_news|get_user_portfolio|get_trade_history|\\w+)";
+
+// Same names WITHOUT the \w+ catch-all, for the riskier mid-line strip.
+// Anchoring on real names only means we can safely cut "CALL get_stock" out
+// of the middle of a sentence without ever eating ordinary prose.
+//
+// Why that case exists: naazakhtar asked about Orient Electric on 2026-04-27
+// and got back, literally, "CALL get_stockic is trading at ₹219.60" — the
+// model emitted "CALL get_stock" and then ran straight into the tail of
+// "Electric". Neither the own-line nor the end-of-line pattern catches that,
+// because there is prose on both sides of it.
+const KNOWN_TOOL_RE = "(?:get_stock_price|get_stock|get_crypto_price|get_crypto|search_stocks|get_market_news|get_user_portfolio|get_trade_history)";
 
 // Strip the tool-use scaffolding and self-narration that the Gemini chat
 // models periodically emit as LITERAL text instead of as structured
@@ -665,6 +775,15 @@ export function stripToolCallScaffolding(text) {
   s = s.replace(/^[ \t]*\[(?:tool|function)[ _]?call[^\]]*\][ \t]*\r?\n?/gmi, "");
   s = s.replace(/\[(?:tool|function)[ _]?call[^\]]*\]/gi, "");
   s = s.replace(/^[ \t]*\((?:no tool call|call [a-z_]+)[^)]*\)[ \t]*\r?\n?/gmi, "");
+  // Same, but anywhere — "(call get_user_portfolio)" was a whole reply once.
+  s = s.replace(/\((?:no tool call|call [a-z_]+)[^)]*\)/gi, "");
+  // 3b. "CALL <real tool name>" anywhere at all, including mid-sentence with
+  //     prose running straight into it. Deliberately AFTER the bracketed
+  //     rules, so "(call get_user_portfolio)" is removed whole instead of
+  //     being hollowed out into a stray "()". Anchored on actual tool names
+  //     only, so it can never chew through ordinary prose like "call me
+  //     old-fashioned" or "I'll call you back".
+  s = s.replace(new RegExp(`\\bCALL[ \\t]+${KNOWN_TOOL_RE}[ \\t]*(?:\\([^)]*\\))?`, "gi"), "");
   // 4. Label prefixes the model sometimes echoes from the prompt examples.
   s = s.replace(/^[ \t]*(?:You say|You hear|Reply|Assistant|Response|Output)[ \t]*:[ \t]*/gmi, "");
   // 5. Unfilled <angle bracket> placeholders from the tone examples.
