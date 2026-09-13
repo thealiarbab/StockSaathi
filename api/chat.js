@@ -40,16 +40,24 @@ const MAX_OUTPUT_TOKENS = 4000;
 // measurements behind it. Env-overridable so the trade can be retuned
 // without a deploy.
 //
-//   chat      conversational coach. "low" keeps real reasoning at ~1.2s to
-//             first token instead of ~6s. This is the lane the user talks to.
-//   fast      tool-use. Still needs to reason about WHICH tool to call, but
-//             not deeply — the tools supply the facts.
+//   chat      conversational coach — greetings, concepts, explanations.
+//             "none" because this lane has no tools and no data to reason
+//             over; it is Gemini 3 Flash talking. Measured 0.15-0.33s to
+//             first token vs 1.2-1.4s at "low" and 3.9-6.5s unbudgeted, and
+//             real-world runs at "low" still spiked to 20s on upstream
+//             variance. Note this is NOT a return to Flash Lite: the base
+//             model is far stronger, it simply is not spending a turn
+//             thinking before saying hello.
+//   fast      tool-use. Keeps "low" — it has to reason about WHICH tool to
+//             call and how to read the result back. The facts come from the
+//             tools, so it does not need more than that, and this lane was
+//             never the one the user watches a cursor blink on.
 //   json      already on a non-thinking model; nothing to trim.
 //   reasoning / creative  deliberately left alone. These lanes exist to
 //             think, are not on the interactive path, and nobody is watching
 //             a cursor blink while they run.
 const REASONING_EFFORT = {
-  chat: (globalThis.process?.env?.CHAT_REASONING_EFFORT) || "low",
+  chat: (globalThis.process?.env?.CHAT_REASONING_EFFORT) || "none",
   fast: (globalThis.process?.env?.FAST_REASONING_EFFORT) || "low",
 };
 
