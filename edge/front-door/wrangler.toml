@@ -32,6 +32,18 @@ routes = [
 binding = "HEALTH_KV"
 id = "REPLACE_WITH_KV_ID_AFTER_wrangler_kv_namespace_create"
 
+# Cron trigger — server-side order matcher.
+#
+# Every minute, all day. /api/match-orders checks IST market hours itself and
+# returns immediately when the NSE is shut, so the off-hours ticks cost
+# essentially nothing. Running the schedule flat rather than restricting it to
+# market hours in cron syntax means no DST/holiday logic lives in two places.
+#
+# Needs CRON_SECRET bound:  wrangler secret put CRON_SECRET
+# (must match the CRON_SECRET env var in the Vercel project)
+[triggers]
+crons = ["* * * * *"]
+
 # Observability — cheap and invaluable during a real outage.
 [observability]
 enabled = true

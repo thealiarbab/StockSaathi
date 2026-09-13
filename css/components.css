@@ -4088,3 +4088,24 @@
   .event-marquee { white-space: normal; height: auto; padding: 6px 12px; }
   .event-marquee-track { padding-left: 0; animation: none; }
 }
+
+/* ---- Notice modal (personal message from the maintainer) ---------------- */
+/* Used by js/components/noticeModal.js for the user_notices delivery. The
+   order list renders the user's actual affected orders under the message so
+   the apology is concrete rather than generic. */
+.notice-orders {
+  margin-top: var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  overflow: hidden;
+}
+.notice-order-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 8px 10px;
+  font-size: var(--text-sm);
+  flex-wrap: wrap;
+}
+.notice-order-row + .notice-order-row { border-top: 1px solid var(--border); }
+.notice-order-row strong { color: var(--text-strong); }

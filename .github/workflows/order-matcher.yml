@@ -1,0 +1,76 @@
+name: order-matcher
+
+# BACKUP scheduler for server-side order execution.
+#
+# The primary tick is the Cloudflare front-door Worker's cron trigger, which
+# fires every minute (edge/front-door/wrangler.toml). This workflow exists
+# because the whole reason orders sat unfilled for 87 days is that a single
+# execution path failed silently and nobody noticed. Two independent
+# schedulers, on different vendors, means a silent failure of either one
+# still leaves orders executing.
+#
+# GitHub's scheduled runners are best-effort and routinely fire several
+# minutes late under load; that is fine for a backup whose only job is to
+# catch up anything the per-minute Worker tick missed.
+#
+# /api/match-orders is idempotent — the fill flips order status inside a
+# row-locked transaction — so overlapping ticks cannot double-fill.
+#
+# Required GitHub secret:
+#   CRON_SECRET — same value as the CRON_SECRET env var in the Vercel project.
+
+on:
+  schedule:
+    # Every 5 minutes from 03:30 to 10:30 UTC = 09:00-16:00 IST, Mon-Fri.
+    # Covers pre-open through post-close with margin on both ends.
+    - cron: "*/5 3-10 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Run even when the market is closed"
+        type: boolean
+        default: false
+      dry:
+        description: "Report what would fill, change nothing"
+        type: boolean
+        default: false
+
+concurrency:
+  group: order-matcher
+  cancel-in-progress: false
+
+jobs:
+  match:
+    name: Match pending limit / AMO orders
+    runs-on: ubuntu-latest
+    steps:
+      - name: Guard — secret must be configured
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET repo secret is not set. Orders will NOT execute."
+            exit 1
+          fi
+
+      - name: Tick the matcher
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          FORCE: ${{ inputs.force && '1' || '0' }}
+          DRY: ${{ inputs.dry && '1' || '0' }}
+        run: |
+          code=$(curl -sS -o /tmp/match.json -w '%{http_code}' --max-time 90 \
+            -X POST \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "https://stocksaathi.co.in/api/match-orders?force=$FORCE&dry=$DRY")
+          echo "HTTP $code"
+          cat /tmp/match.json; echo
+          [ "$code" = "200" ] || exit 1
+
+      - name: Fail the run if the matcher reported fill errors
+        run: |
+          errs=$(python3 -c "import json;d=json.load(open('/tmp/match.json'));print(len(d.get('errors') or []))")
+          if [ "$errs" != "0" ]; then
+            echo "::error::matcher reported $errs fill error(s) — see the JSON above"
+            exit 1
+          fi

@@ -10,6 +10,7 @@ import { mountRouter } from "./router.js";
 import { currentUser, refreshCurrentUser } from "./auth/accounts.js";
 import { bootSync } from "./db/sync.js";
 import { startLimitMatcher } from "./features/limitOrders.js";
+import { showPendingNotices } from "./components/noticeModal.js";
 import { mountAiExplainer } from "./features/aiExplainer.js";
 import { mountCommandPalette, openCommandPalette } from "./components/commandPalette.js";
 import { startServerTimeSync } from "./data/serverTime.js";
@@ -52,6 +53,9 @@ mountRouter();
     await bootSync();
     switchUser();
     startLimitMatcher();
+    // Deliver any personal notice waiting for this user (e.g. the
+    // 2026-09-13 stuck-order apology). No-op when there is nothing unseen.
+    showPendingNotices();
   } catch (e) { console.warn("Supabase boot skipped:", e); }
 })();
 

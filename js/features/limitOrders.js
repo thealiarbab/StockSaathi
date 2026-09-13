@@ -1,13 +1,25 @@
 // =============================================================================
-// LIMIT ORDERS — actual market-order-like execution simulation.
+// LIMIT ORDERS — market-order-like execution simulation.
 //
 // User places a BUY limit at ₹X → fires when market drops to ≤ X.
 // User places a SELL limit at ₹X → fires when market rises to ≥ X.
 //
-// Execution is client-driven: whenever the user is online and authed, a
-// background loop polls live prices for their pending orders and calls the
-// fill_limit_order RPC when a condition matches. The fill happens inside a
-// Postgres transaction so concurrent users can't double-fill the same order.
+// EXECUTION IS SERVER-SIDE. /api/match-orders runs on a schedule (Cloudflare
+// Worker cron every minute, GitHub Actions every 5 min as backup) and fills
+// every user's orders with no browser involved.
+//
+// The loop below is now only a LATENCY OPTIMISATION: when the user happens to
+// be watching, it fills within ~12 s instead of waiting up to a minute for
+// the next server tick. It is not load-bearing. If it never ran again,
+// every order would still execute.
+//
+// It used to be the ONLY execution path, and that was the bug. An order
+// could fill only while the user personally had the app open on a weekday
+// between 09:15 and 15:30 IST — the school day, for a product built for
+// teenagers. 75 orders sat pending, 42 of them already past their fill
+// condition, the oldest for 87 days, cash reserved the whole time. One user
+// asked in the coach, mid-chase: "Yaar me 8 se 2 baje busy rahta hu to
+// trading kaise karu". Never make execution depend on a client again.
 // =============================================================================
 
 import { sb } from "../db/supabase.js";
@@ -19,8 +31,6 @@ let _stopFn = null;
 let _matching = false;              // guard: never run two passes in parallel
 const _inFlight = new Set();        // order-ids currently being filled
 const _recentFills = new Map();     // order-id → ts, debounce re-fires
-const _noQuoteAttempts = new Map(); // order-id → count of ticks with no upstream quote
-const _NO_QUOTE_CANCEL_AFTER = 12;  // ~2 min at 12s tick — auto-cancel stuck orders
 
 async function withRpcTimeout(promiseFactory, timeoutMs, label) {
   let timer = null;
@@ -215,39 +225,22 @@ async function matchOnce() {
     const quotes = await getQuoteBatch(symbols);
 
     let filled = 0;
-    let autoCancelled = 0;
     for (const order of pending) {
       const q = quotes[order.symbol];
       if (!q) {
-        // B5: imported-but-uncurated symbols sometimes have no upstream
-        // quote, so the matcher can silently loop forever while cash stays
-        // reserved. Track consecutive no-quote ticks per order; auto-cancel
-        // after ~2 min so the user gets their cash back + a visible toast.
-        const n = (_noQuoteAttempts.get(order.id) || 0) + 1;
-        _noQuoteAttempts.set(order.id, n);
-        if (n >= _NO_QUOTE_CANCEL_AFTER) {
-          try {
-            await cancelOrder(order.id);
-            autoCancelled++;
-            _noQuoteAttempts.delete(order.id);
-            console.warn(`[limit] auto-cancelled ${order.symbol} order ${order.id} after ${n} no-quote ticks`);
-            // Surface to the user if toast is reachable from here — imported
-            // dynamically to avoid a circular import from components/toast.js.
-            try {
-              const { toast } = await import("../components/toast.js");
-              toast({
-                kind: "warn",
-                message: `Cancelled limit ${order.side} ${order.symbol} — no live price available after 2 min. Cash returned.`,
-                duration: 6000,
-              });
-            } catch {}
-          } catch (e) {
-            console.warn("[limit] auto-cancel failed:", e);
-          }
-        }
+        // DO NOT auto-cancel. This used to cancel the order after ~2 minutes
+        // of missing quotes and refund the cash with a toast. That silently
+        // destroyed every mutual-fund order ever placed — getQuoteBatch has
+        // no MF coverage at all, so an MF order was guaranteed to hit the
+        // counter — plus any thinly-covered listing whose quote briefly
+        // dropped out. A missing price is our infrastructure's problem, not
+        // the user's order's problem.
+        //
+        // The server matcher (/api/match-orders) prices MFs off the daily
+        // NAV in mf_master and simply retries anything it cannot price, so
+        // the order stays alive until it can genuinely be evaluated.
         continue;
       }
-      _noQuoteAttempts.delete(order.id);   // reset on any successful quote
       const cur = q.pricePaise;
       const limit = Number(order.limit_price_paise);
       const matches = order.side === "BUY" ? cur <= limit : cur >= limit;
@@ -256,7 +249,7 @@ async function matchOnce() {
         if (result?.ok) filled++;
       }
     }
-    return { checked: pending.length, filled, autoCancelled };
+    return { checked: pending.length, filled };
   } finally {
     _matching = false;
   }

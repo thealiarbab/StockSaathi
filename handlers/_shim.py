@@ -72,6 +72,7 @@ ROUTES = {
     "admin-sync-fundamentals": "admin-sync-fundamentals",
     "admin-sync-mf": "admin-sync-mf",
     "admin-refresh-fundamentals": "admin-refresh-fundamentals",
+    "match-orders": "match-orders",
 }
 
 

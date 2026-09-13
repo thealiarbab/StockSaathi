@@ -189,8 +189,65 @@ async function dispatch(req, env, ctx) {
   }
 }
 
+// -----------------------------------------------------------------------------
+// SCHEDULED — server-side order matcher tick.
+//
+// Order execution used to happen ONLY inside the user's own browser tab
+// (js/features/limitOrders.js), which meant an order filled only while the
+// user personally had the app open during NSE hours. For a product aimed at
+// teenagers that window is the school day, so orders simply rotted: 75
+// pending, 42 of them already past their fill condition, oldest 87 days.
+//
+// This Worker already fronts every request to the domain and already holds
+// the credentials, so it is the cheapest place to get minute-level
+// scheduling that does not depend on anyone's browser. The cron fires every
+// minute; /api/match-orders itself decides whether the market is open, so a
+// tick outside hours is a sub-millisecond no-op.
+//
+// .github/workflows/order-matcher.yml runs the same endpoint every 5 minutes
+// as an INDEPENDENT backup, on the assumption that any single scheduler will
+// eventually fail silently. Both paths are idempotent — the fill flips
+// status inside a row-locked transaction, so a double tick cannot double
+// fill.
+//
+// Requires the CRON_SECRET var/secret to be bound on the Worker.
+// -----------------------------------------------------------------------------
+async function tickOrderMatcher(env) {
+  const secret = env.CRON_SECRET;
+  if (!secret) {
+    console.error("[cron] CRON_SECRET not bound — order matcher cannot run");
+    return;
+  }
+  const origin = env.PUBLIC_ORIGIN || PRIMARY_ORIGIN;
+  try {
+    const res = await fetch(`${origin}/api/match-orders`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${secret}` },
+    });
+    const body = await res.text();
+    if (!res.ok) {
+      console.error("[cron] match-orders HTTP", res.status, body.slice(0, 300));
+      return;
+    }
+    // Only log ticks that did something, so the tail stays readable.
+    try {
+      const j = JSON.parse(body);
+      if (j.filled || (j.errors && j.errors.length)) {
+        console.log("[cron] match-orders", JSON.stringify({
+          filled: j.filled, checked: j.checked, errors: j.errors?.length || 0,
+        }));
+      }
+    } catch { /* non-JSON body — ignore */ }
+  } catch (e) {
+    console.error("[cron] match-orders failed:", e?.message || String(e));
+  }
+}
+
 export default {
   async fetch(req, env, ctx) {
     return dispatch(req, env, ctx);
+  },
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(tickOrderMatcher(env));
   },
 };
