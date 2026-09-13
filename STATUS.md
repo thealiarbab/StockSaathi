@@ -75,15 +75,23 @@ is `revoke ... from public, anon` then `grant ... to authenticated`.
 `CREATE OR REPLACE FUNCTION` *preserves* existing grants — verified — so it
 does not silently undo the revokes. Verify anyway.
 
-### 2.5 NSE blocks datacenter IPs
-Measured both directions on 2026-09-12:
+### 2.5 NSE blocks **Vercel**, not datacenters generally
+Measured on 2026-09-12:
 - From Ali's residential connection: `nsearchives.nseindia.com/content/equities/EQUITY_L.csv` → **200, 2,568 rows**
 - From Vercel: `/api/admin-sync-instruments` → `sanity_fail: only 0 equities (expected >=1800)`
 
-So **`dhan_instruments` can never be populated from Vercel**, and the
-DB-backed universe design is not viable as built. The committed-JSON path is
-not a stopgap — it is the only thing that works. See §4.1 for the open
-question about GitHub-hosted runners.
+Measured 2026-09-13, run `34761640980` — **GitHub-hosted `ubuntu-latest`
+reaches NSE fine**: EQUITY_L.csv 200 with **2,568 rows**, the same count the
+residential connection gets. Plus NSE SME 571, BSE main 3,548, all 20
+niftyindices CSVs, 350 ETFs.
+
+The original heading here read "NSE blocks datacenter IPs" and was an
+extrapolation from the single Vercel data point. **Do not generalise a block
+from one host to another — measure the host.**
+
+`dhan_instruments` still cannot be populated *from Vercel*, so the committed
+JSON remains the serving path; but CI on GitHub can rebuild it, which is what
+§4.1 now does.
 
 ### 2.6 `quote_cache` is no longer just a cache
 As of migration `2026-09-12b`, `apply_trade` and `fill_limit_order` **refuse to
@@ -103,9 +111,30 @@ from the Plan column, `Number("Direct Plan")` was `NaN`, and the finite-check
 dropped **all 14,361 rows**. The `cols.length < 6` guard passed because 8 ≥ 6.
 Fixed in `scripts/build-mf-universe.mjs`; it now handles both layouts.
 
+**The identical bug also lived in `handlers/admin-sync-mf.py` and was missed
+until 2026-09-13** — `cols[:6]`, same `len(cols) < 6` guard, same total
+row loss, surfacing as `amfi_parse_underfilled rows=0` behind an HTTP 200.
+Both are fixed now. When a parser exists in two languages here, **fix both.**
+
 ### 2.8 `pg_trgm` must stay in `public`
 The Supabase advisor flags `extension_in_public`. **Do not relocate it** — it
 backs a live GIN index, `idx_dhan_name_trgm` on `dhan_instruments`.
+
+### 2.9 RLS does not protect against TRUNCATE
+Supabase grants `anon` and `authenticated` the full `arwdDxtm` on every new
+table in the `public` schema. The instinct "RLS is enabled and there's no write
+policy, so writes are blocked" is **wrong for TRUNCATE** — Postgres RLS governs
+SELECT/INSERT/UPDATE/DELETE and does not apply to TRUNCATE at all. The `D` in
+that ACL is TRUNCATE.
+
+`admin_audit_log` sat this way with 25 `user_delete` entries in it. PostgREST
+does not expose TRUNCATE, so it was not reachable over the REST API, but the
+grant was wrong and the table is service-role-only by design.
+
+For any service-role-only table: `revoke all ... from anon, authenticated`.
+For a public-read table: keep `SELECT`, revoke
+`insert, update, delete, truncate`. Then **verify with `has_table_privilege`**
+— see §2.4 for why "it returned success" is not evidence.
 
 ---
 
@@ -126,53 +155,59 @@ backs a live GIN index, `idx_dhan_name_trgm` on `dhan_instruments`.
 | 11 | Pasted `ADMIN_PATH` value stored in plaintext in chat | Redacted during migration; **0 occurrences** across `coach_messages`, `ai_response_cache`, `admin_audit_log`. All 430 chat rows scanned for other secrets — none. |
 | 12 | Dead `leaderboard()`, `leaderboard_view`, `public_profiles` | Dropped. Public tables 16 → 15. |
 
+Verified 2026-09-13 (this session):
+
+| # | Issue | Verification |
+|---|---|---|
+| 13 | GitHub runners assumed unable to reach NSE; universe had no auto-refresh | Run `34761640980` **succeeded** — EQUITY_L.csv 200/2,568 rows. `cron: "30 2 * * 0"` restored and live |
+| 14 | Fundamentals broken for BSE/SME | Live: `7NR` was `ok:false` → now `7NR.BO` ₹7.15 BSE; `BMW` → `BMW.BO`; `RELIANCE` unchanged |
+| 15 | `backup-deploy` 366 runs / 0 successes, burying the repo's only CI | Deploys gated on credential presence; first green run `34762615727`, green since |
+| 16 | `data-sync` aborted at step 1, so steps 2–3 never ran | Job completes; `mf_master` 0 → **14,120**, `fundamentals_cache` 0 → 197, `tickertape_sids` 0 → 162 |
+| 17 | `handlers/admin-sync-mf.py` still had the §2.7 AMFI bug | Live feed: 14,120 rows, 0 bad NAVs, 0 missing dates; production upserted 14,120 |
+| 18 | `admin_audit_log` truncatable by `anon` (RLS ≠ TRUNCATE) | `has_table_privilege` false for all verbs, both roles; `service_role` unchanged |
+| 19 | Screener served a 140-day-old static snapshot | `/api/screener` now answers `source: "supabase"` |
+
 Applied migrations (all recorded in `supabase/migrations/`):
-`2026-09-12a`, `12b`, `12c`, `12d`, `2026-09-13a`, `13b`, `13c`.
+`2026-09-12a`, `12b`, `12c`, `12d`, `2026-09-13a`, `13b`, `13c`,
+`13g` (lock `admin_audit_log`), `13h` (apply the fundamentals cache).
+`13d`–`13f` belong to work that ran in parallel.
 Note `12d` exists because `12a`/`12c` were the no-op revokes from §2.4.
 
 ---
 
 ## 4. OPEN — what still needs doing
 
-### 4.1 Universe automation — UNRESOLVED, this is the live question
-The universe and MF catalogs are **fresh as of 2026-09-13**, but nothing will
-refresh them automatically.
+### 4.1 Universe automation — RESOLVED 2026-09-13
+`universe-refresh` was dispatched manually (run `34761640980`). It **succeeded**
+in 38s. GitHub-hosted runners reach NSE; see §2.5 for the numbers.
 
-`.github/workflows/universe-refresh.yml` exists, is `workflow_dispatch`-only
-(schedule deliberately removed), and has a sanity gate that refuses to commit
-if the row count drops below 2,000 absolute or >20% relative — so it **fails
-safe**, never wiping the universe with partial data.
+`cron: "30 2 * * 0"` is restored and live on the default branch, and the
+workflow's comment block has been rewritten — it previously asserted
+`DOES NOT WORK ON GITHUB-HOSTED RUNNERS` in capitals, which was false.
 
-**The untested assumption:** I claimed GitHub-hosted runners can't reach NSE,
-reasoning from Vercel being blocked (§2.5). **I never actually tested a GitHub
-runner.** That test was in flight when this handoff was written and did not
-run.
+**One correction to the prediction made here.** The handoff said a successful
+run "produces identical output and commits nothing". It committed: `d07bc1f`.
+Row counts were identical (4,619 equity / 14,120 MF) and *all 4,619 rows are
+identical as a set* — zero added, zero removed — but NSE serves the Emerge SME
+CSV in a varying row order, so ~129 rows (all series SM/ST) change array
+position between runs and the sha8 moves (`aa27fa18` → `464c6681`) while
+`rawBytes` stays byte-identical at 1,036,344.
 
-**Do this first — it decides everything else:**
-1. Trigger `universe-refresh` manually (Actions → universe-refresh → Run workflow).
-2. It is a safe test: the universe was rebuilt hours ago, so a *successful* run
-   produces identical output and commits nothing; a *blocked* run trips the
-   sanity gate and commits nothing.
-3. If it **succeeds** → GitHub runners can reach NSE. Restore the weekly
-   schedule in the workflow (`cron: "30 2 * * 0"`) and the problem is solved.
-4. If it **fails** with `only 0 equities` or a sanity-gate error → confirmed
-   blocked. Then pick one:
-   - **Self-hosted runner** on Ali's machine + `runs-on: self-hosted`. Workflow
-     works unchanged. He already runs Windows scheduled tasks (zoombot), so
-     this fits his setup.
-   - **Local scheduled task**: `node scripts/build-universe.mjs && node
-     scripts/build-mf-universe.mjs && git commit && git push` on a weekly
-     Windows Task Scheduler entry. Simplest. Ali asked for this to be written;
-     it was not written before the handoff.
-   - Residential proxy for the Vercel sync. Costs money, adds a dependency.
+So **every weekly run will commit and trigger a production deploy even when
+nothing changed.** Cosmetic — array position only feeds search-result ordering
+among micro-caps — but if it becomes annoying, sort deterministically before
+serialising in `scripts/build-universe.mjs`. Documented in the workflow.
 
-Manual rebuild, any time, from Ali's machine (works today):
+Manual rebuild, any time, from Ali's machine (still works):
 ```bash
 cd /g/stocksaathi/app
 node scripts/build-universe.mjs
 node scripts/build-mf-universe.mjs
 git add js/data/ && git commit -m "chore(data): refresh universe" && git push
 ```
+
+No Windows Task Scheduler script was needed — that was the fallback for the
+"NSE blocks GitHub" branch, which did not happen.
 
 ### 4.2 Rotate `ADMIN_TOKEN` and `ADMIN_PATH` — BLOCKED ON USER
 `admin_exec_sql(text)` runs **arbitrary SQL as the function owner** and is
@@ -193,40 +228,138 @@ Generated but unused: `02ebbbfcda9f97705c350977818c5db22c1c494ec71494ff29e4c7731
 Keep `ADMIN_TOKEN` **different** from `CRON_SECRET` — the sync handlers accept
 either, and there is no reason the cron path should carry admin-panel powers.
 
-### 4.3 Failover stack — needs credentials only Ali can generate
-`backup-deploy.yml` deploys Fly.io + Cloudflare Pages + a CF Worker front door
-(Ali built it in commit `91ec661`, 2026-04-21). **336 runs, 0 successes.**
+### 4.3 Failover stack — no longer red; still needs Ali's credentials
+`backup-deploy.yml` had **366 runs, 0 successes**. Verified 2026-09-13: the
+parity fix holds — `parity-check` now passes in 18s. What remained was only the
+missing credentials, exactly as predicted:
+- Cloudflare: `it's necessary to set a CLOUDFLARE_API_TOKEN environment variable`
+- Fly.io: `FLY_API_TOKEN:` empty → `no access token available`
 
-The cause was **not** the missing secrets, as first assumed — it was
-`parity-check`, the first job, failing because `api-backup/main.py`'s `_ROUTES`
-was missing 4 handlers. That is **fixed**; parity now passes 16/16.
+**Do not delete this workflow.** The handoff undersold what that would cost.
+`parity-check` runs `pytest api-backup/tests/ -v`, which is **two** files, not
+one: `test_route_parity.py` *and* `test_order_execution_guards.py` — the
+regression guards for the bug that left orders rotting up to 128 days with
+users' cash reserved. The job also runs `scripts/check-js-syntax.mjs`, added
+after a syntax error blanked the homepage in v273. **This job is the only CI
+this repo has, and it guards the main app, not the backup.**
 
-It will now get past parity and fail at the deploy steps until these exist as
-GitHub repo secrets: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`,
-`FLY_API_TOKEN`. Whether Ali wants the failover at all is still his call — the
-alternative is deleting `backup-deploy.yml`, `edge/` and `api-backup/`.
+Changed instead of deleted: a `preflight` job now reports credential presence
+and gates `deploy-pages` / `deploy-fly`; `deploy-worker` and `verify` skip by
+cascade. With no secrets the run is **green with deploys skipped**; add the
+secrets and they deploy with no further edit. First green run ever:
+`34762615727`. (The `secrets` context is unavailable in a job-level `if:`,
+hence the preflight indirection.)
 
-**If deleting: `api-backup/main.py` is no longer standalone.** It imports the
-shared shim from `handlers/_shim.py`, and `test_route_parity.py` is what keeps
-`ROUTES` honest. Removing `api-backup/` removes that guard.
+**Two things the handoff did not know, both verified:**
+1. Adding the Cloudflare secrets is **not sufficient** for `deploy-worker`.
+   `edge/front-door/wrangler.toml` still carries the literal placeholder
+   `id = "REPLACE_WITH_KV_ID_AFTER_wrangler_kv_namespace_create"` for
+   `HEALTH_KV`. Wrangler will reject the deploy.
+2. That job binds routes for `stocksaathi.co.in/*`. Production currently
+   answers `Server: Vercel` with **no `cf-ray`** — no Worker has ever fronted
+   it. **Its first successful run is a production cutover, not a backup step.**
 
-### 4.4 `data-sync` workflow runs but the instruments step fails
-`.github/workflows/data-sync.yml` (daily 13:15 UTC) authenticates correctly
-now. Run #1 failed at the instruments step with the §2.5 NSE block. The
-fundamentals step only warns on failure by design (upstream rate-limits, a
-partial refresh is still useful), so it does not abort the MF step.
-`dhan_instruments` and `mf_master` remain **0 rows** and, per §2.5, may be
-unfillable from the cloud entirely.
+Related: `test_at_least_two_independent_schedulers` asserts two schedulers
+exist *in the repo*. In production there is **one**. The Worker cron has never
+deployed, so `order-matcher.yml` is the only live scheduler — and it has 3
+runs, all `workflow_dispatch`, **zero scheduled**. Its cron is
+`*/5 3-10 * * 1-5` and it was added today (Sunday), so its first real
+scheduled tick is Monday 03:30 UTC, untested. Same repo-says-X / live-says-Y
+pattern as §5.
 
-### 4.5 Smaller open items
-- `api/fundamentals.py:474` still appends `.NS` only. Different crumb/Tickertape control flow; untested, left alone.
-- `handlers/history.py:191` echoes an assumed ticker in its response. Cosmetic.
-- `fundamentals_cache` table **does not exist**. `handlers/screener.py` falls back to the committed `js/data/fundamentals_full.json` and says so in its own docstring. Migration `2026-04-25c_fundamentals_cache.sql` was never applied.
-- Supabase Auth: leaked-password protection is **off**.
-- `admin_audit_log` has RLS enabled with zero policies (works only because service-role bypasses RLS).
-- `js/data/fundamentals_full.json` is a May snapshot, same staleness class as the universe was.
+Still Ali's call whether the failover is wanted at all. If yes, he needs
+`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `FLY_API_TOKEN`, plus a real
+KV namespace id.
 
----
+### 4.4 `data-sync` — was aborting early; now completes
+The instruments step is still blocked (NSE blocks Vercel; re-confirmed
+2026-09-13, HTTP 500 `sanity_fail: only 0 equities`). **But the handoff missed
+why that mattered:** the step ended in `[ "$code" = "200" ] || exit 1` with no
+`continue-on-error`, so it **killed the whole job** and the two steps after it
+never ran at all. The fundamentals and MF syncs were not failing — they were
+never reached.
+
+Now warns and continues, matching what the fundamentals step already did.
+Result, from 0 rows each:
+
+| Table | Before | After |
+|---|---|---|
+| `mf_master` | 0 | **14,120** (all with NAV + date, newest 2026-09-14) |
+| `fundamentals_cache` | 0 (table absent) | **197** and climbing |
+| `tickertape_sids` | 0 (table absent) | **162** |
+
+Two real bugs were hiding behind HTTP 200 responses carrying `ok: false`,
+which the workflow's status-code-only check could not see:
+
+1. **`handlers/admin-sync-mf.py` had the §2.7 AMFI bug** — `cols[:6]` on an
+   8-column line, `float("Direct Plan")` raising, every row dropped,
+   `amfi_parse_underfilled rows=0`. §2.7's fix was applied to
+   `scripts/build-mf-universe.mjs` **only**; the handler still had it. Fixed
+   and verified against the live feed: 14,120 rows, 0 bad NAVs, 0 missing
+   dates.
+2. **`admin-sync-fundamentals` iterated `dhan_instruments`**, which is empty
+   and unfillable from Vercel, so it answered `{"ok": true, "processed": 0}`
+   for every page forever. Now falls back to the committed
+   `js/data/universeFull.json` (4,269 equities), the way `screener.py` already
+   reads its committed JSON.
+
+Note `idx` in `universeFull.json` is an index-tier **code**, not a rank:
+7 = Nifty 50 (RELIANCE/TCS/HDFCBANK/INFY all carry 7), 6 = next 50,
+12 = Midcap 150, 20 = Smallcap 250, 0 = unindexed. Sorting it descending
+refreshes smallcaps *before* Nifty 50.
+
+Each page is time-bounded at ~50s by the function budget, so a run processes
+~200 symbols rather than the nominal 2,500. It accumulates across daily runs.
+Fetching instruments **on the GitHub runner** (which can reach NSE, §2.5) and
+POSTing them would fix the root cause properly.
+
+### 4.5 Smaller open items — mostly closed 2026-09-13
+
+**Done:**
+- ~~`api/fundamentals.py:474` appends `.NS` only~~ — the path was stale (`api/`
+  holds 3 files per §2.2; it is `handlers/fundamentals.py:474`). It was also
+  **not** harmless. One ticker was built as `symbol + ".NS"` and fed to all
+  three Yahoo tiers, so for BSE/SME scrips every Yahoo request queried a ticker
+  that does not exist. Measured before the fix: **7NR returned `ok: false`,
+  total failure** (Tickertape does not carry SME) while `/api/quote?symbol=7NR`
+  served it fine as `7NR.BO`; **BMW returned `source_tiers: ["tickertape"]`
+  with `exchange: null`**, the Yahoo failure masked by Tickertape. Now falls
+  back to `.BO` like `handlers/quote.py:37`, gated on no `yahoo_*` tier having
+  reported so NSE symbols never pay for the retry. Live: 7NR → `7NR.BO`, BMW →
+  `BMW.BO`, RELIANCE unchanged.
+- ~~`handlers/history.py:191` echoes an assumed ticker~~ — genuinely cosmetic
+  (nothing in `js/` reads the field), but `fetch_yahoo` already did the
+  `.NS`/`.BO` fallback and knew the right answer, then threw it away. Now
+  returns the ticker it actually succeeded on.
+- ~~`fundamentals_cache` does not exist~~ — applied
+  (`2026-09-13h`). Creating it was **not** enough: the first three live
+  requests still left it empty, because `write_cache` posts a
+  `debt_to_equity` field the April definition never had and PostgREST rejects
+  the whole row with `PGRST204` — silently, by design. Column added. The
+  screener now answers `source: "supabase"` instead of the static fallback.
+- ~~`admin_audit_log` RLS with zero policies~~ — it was worse than a lint. The
+  table carried **direct** grants of `arwdDxtm` to `anon` **and**
+  `authenticated`. RLS-with-no-policies blocks SELECT/INSERT/UPDATE/DELETE —
+  but **Postgres RLS does not govern TRUNCATE**, and the `D` in that ACL is
+  TRUNCATE. Revoked (`2026-09-13g`); `has_table_privilege` now false across the
+  board for both roles, true for `service_role`. `order_backfill_audit` was
+  already correct and is the shape to copy.
+  **Watch for this generally:** Supabase grants `arwdDxtm` to `anon`/
+  `authenticated` on every new public-schema table, so "RLS on, no write
+  policy" always leaves TRUNCATE open. `fundamentals_cache` and
+  `tickertape_sids` arrived with the same hole and were locked down at
+  creation.
+- ~~`js/data/fundamentals_full.json` is a May snapshot~~ — it is a
+  **2026-04-26** snapshot, 140 days old, and it no longer backs the screener.
+  Still committed as the fallback for when the cache is cold.
+
+**Still open:**
+- **Supabase Auth leaked-password protection is off.** Needs Ali in the
+  Supabase dashboard — the MCP surface has no auth-config write. Same class as
+  §4.2.
+- `handlers/admin-sync-fundamentals` covers ~200 symbols per run against a
+  ~50s per-page function budget; full coverage of 4,269 equities accumulates
+  over days. See §4.4 for the proper fix.
 
 ## 5. Claims made this session that turned out wrong
 
@@ -238,12 +371,36 @@ Recorded so they are not repeated.
 4. **"A user pasted the admin path"** — it was Ali's own account, testing.
 5. **"The token is almost certainly in `coach_messages` too"** — it was in `coach_chats` only.
 6. **"`coach_chats` is 2 rows of vestigial junk"** — it held one user's only copy of a real conversation.
-7. **"GitHub runners can't reach NSE"** — plausible, never tested. See §4.1.
+7. **"GitHub runners can't reach NSE"** — **tested 2026-09-13 and false.**
+   Run `34761640980` fetched EQUITY_L.csv with 2,568 rows on `ubuntu-latest`.
+   The claim was extrapolated from Vercel. See §2.5, §4.1.
+
+Added 2026-09-13, same pattern, found while working §4.1/§4.3/§4.5:
+
+8. **"A successful universe-refresh run commits nothing"** — it committed
+   `d07bc1f`. Identical row *set*, different row *order* (NSE varies the SME
+   CSV ordering). §4.1.
+9. **"Deleting `backup-deploy.yml` costs only the route-parity guard"** — it
+   also carries the order-execution regression guards and the JS syntax check,
+   and is the repo's only CI. §4.3.
+10. **"The instruments step fails but the other data-sync steps still run"** —
+    it `exit 1`s and kills the job; the other two never ran. §4.4.
+11. **"§2.7's AMFI fix is done"** — done in the JS build script, **not** in
+    `handlers/admin-sync-mf.py`, which still dropped all 14,120 rows. §4.4.
+12. **"`api/fundamentals.py:474` is untested, leave it alone"** — tested: SME
+    fundamentals were failing completely in production. §4.5.
 
 Pattern: the DB and the live services disagree with the source comments
 constantly. `schema.sql:810` claims the leaderboard was dropped in April; it
 was still serving minors' school names to anonymous callers in September.
 **Check the live system, not the comment.**
+
+Second pattern, new: **HTTP 200 is not success.** `admin-sync-mf` and
+`admin-sync-fundamentals` both answer 200 while carrying `ok: false` or
+`processed: 0`, and `data-sync.yml` only checked the status code. Read the
+body. Likewise `{"success": true}` from a Postgres `REVOKE` (§2.4) and a green
+workflow step whose script silently no-opped — **verify the effect, not the
+exit code.**
 
 ---
 
