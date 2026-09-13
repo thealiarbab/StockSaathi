@@ -459,6 +459,35 @@ async function sendAndReply(userText) {
     }
   };
 
+  // FINAL PAINT — belt and braces, run once a turn has fully completed.
+  //
+  // reRenderOuter() above is gated on isOwnerActive(), which compares
+  // ownerSessionId against `sessionsData.activeId`. `sessionsData` is a
+  // MODULE-LEVEL binding that two async listeners reassign wholesale: the
+  // cross-tab `storage` handler and the `ss:coach-sync` handler that fires
+  // when sync.js hydrates chat history from Supabase. If either lands while
+  // a turn is in flight, isOwnerActive() ends up comparing a captured id
+  // against a freshly-loaded object and returns false — so the reply is
+  // pushed and saved but never painted. Observed live on 2026-09-13: the
+  // coach answered an injection probe correctly, the reply sat in
+  // localStorage, and the user saw nothing until navigating away and back.
+  //
+  // This reads the CURRENT active session rather than the captured array,
+  // so it paints the truth regardless of which object won the race.
+  const finalPaint = () => {
+    try {
+      const el = document.getElementById("chat-messages");
+      if (!el) return;
+      const active = getActiveSession(sessionsData);
+      if (!active || active.id !== ownerSessionId) return;
+      el.innerHTML = "";
+      for (const m of active.messages) el.innerHTML += renderBubble(m);
+      el.scrollTop = el.scrollHeight;
+    } catch (e) {
+      console.warn("[chat] finalPaint failed:", e);
+    }
+  };
+
   const restoreForm = () => {
     if (input) {
       input.removeAttribute("readonly");
@@ -527,6 +556,7 @@ async function sendAndReply(userText) {
       });
     }
     if (isOwnerActive()) reRenderOuter();
+    finalPaint();
     restoreForm();
     return;
   }
@@ -692,6 +722,7 @@ Keep replies conversational and short by default (1–3 sentences).`;
       });
     }
   }
+  finalPaint();
   restoreForm();
 }
 
