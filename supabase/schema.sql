@@ -1,7 +1,27 @@
 -- =============================================================================
--- StockSaathi — complete Postgres schema for Supabase.
--- Run this ONCE in the Supabase SQL editor (dashboard → SQL → New query).
--- Idempotent: safe to re-run.
+-- StockSaathi — Postgres baseline for Supabase.
+--
+-- ⚠ DO NOT RE-RUN THIS AGAINST AN EXISTING DATABASE. It is no longer
+--   idempotent in any safe sense. It is a BASELINE that has been superseded by
+--   supabase/migrations/, and re-running it would SILENTLY REINTRODUCE CLOSED
+--   SECURITY HOLES, because `create or replace` overwrites the fixed versions:
+--
+--     • `apply_trade` below is the PRE-2026-09-12b body that takes the
+--       execution price from the client. Re-running it restores "buy RELIANCE
+--       at ₹0.01, sell at market".
+--     • `fill_limit_order` below is likewise pre-12b.
+--     • the `*_self_all` policies below are `for all`, which 2026-09-13e
+--       replaced with read-only policies after they were found to let a
+--       logged-in client POST holdings and cash straight to PostgREST.
+--
+--   For a NEW project: run this first, then every file in
+--   supabase/migrations/ in filename order.
+--   For the EXISTING project: use migrations only.
+--
+--   The function bodies here are deliberately left at their original state so
+--   the migration history reads correctly. The policies below have been
+--   corrected in place, because a stale policy is far likelier to be
+--   copy-pasted than a stale function body.
 -- =============================================================================
 
 create extension if not exists pgcrypto;
@@ -950,29 +970,40 @@ end;
 $$;
 grant execute on function public.profile_by_username(text) to authenticated;
 
-drop policy if exists "portfolios_self_all" on public.portfolios;
-create policy "portfolios_self_all" on public.portfolios for all
-  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+-- Money tables are READ-ONLY to clients. Every write goes through a SECURITY
+-- DEFINER RPC (apply_trade, apply_transfer, place_/cancel_/fill_limit_order),
+-- which runs as the function owner and is unaffected by these policies.
+--
+-- These were `for all using (auth.uid() = user_id)` until 2026-09-13e. That is
+-- an OWNERSHIP test, not an AUTHORSHIP test: it asks "is this row yours", never
+-- "did a legitimate code path write it" — so a user could mint their own
+-- holdings and set their own cash over PostgREST. Do not restore `for all`.
+drop policy if exists "portfolios_self_all"  on public.portfolios;
+drop policy if exists "portfolios_self_read" on public.portfolios;
+create policy "portfolios_self_read" on public.portfolios for select
+  using (auth.uid() = user_id);
 
-drop policy if exists "holdings_self_all" on public.holdings;
-create policy "holdings_self_all" on public.holdings for all
-  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists "holdings_self_all"  on public.holdings;
+drop policy if exists "holdings_self_read" on public.holdings;
+create policy "holdings_self_read" on public.holdings for select
+  using (auth.uid() = user_id);
 
-drop policy if exists "txn_self_read" on public.transactions;
+-- The ledger is written by apply_trade alone. `txn_self_insert` used to let a
+-- client fabricate trade history that never moved cash.
+drop policy if exists "txn_self_read"   on public.transactions;
 drop policy if exists "txn_self_insert" on public.transactions;
-create policy "txn_self_read"   on public.transactions for select using (auth.uid() = user_id);
-create policy "txn_self_insert" on public.transactions for insert with check (auth.uid() = user_id);
+create policy "txn_self_read" on public.transactions for select
+  using (auth.uid() = user_id);
 
 drop policy if exists "friends_self_all" on public.friends;
 create policy "friends_self_all" on public.friends for all
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+-- Transfers are written by apply_transfer / redeem_transfer_code only.
 drop policy if exists "transfers_party_read" on public.transfers;
 drop policy if exists "transfers_sender_insert" on public.transfers;
-create policy "transfers_party_read"    on public.transfers for select
+create policy "transfers_party_read" on public.transfers for select
   using (auth.uid() = sender_id or auth.uid() = recipient_id);
-create policy "transfers_sender_insert" on public.transfers for insert
-  with check (auth.uid() = sender_id);
 
 drop policy if exists "coach_self_all" on public.coach_messages;
 create policy "coach_self_all" on public.coach_messages for all
@@ -982,9 +1013,13 @@ drop policy if exists "watchlist_self_all" on public.watchlist;
 create policy "watchlist_self_all" on public.watchlist for all
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
-drop policy if exists "orders_self_all" on public.limit_orders;
-create policy "orders_self_all" on public.limit_orders for all
-  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists "orders_self_all"  on public.limit_orders;
+drop policy if exists "orders_self_read" on public.limit_orders;
+create policy "orders_self_read" on public.limit_orders for select
+  using (auth.uid() = user_id);
+
+-- NOTE: the matching table-grant revokes live at the END of this file, after
+-- every table exists. RLS alone is not the gate — the grant is.
 
 -- =============================================================================
 -- AI response cache — dedupes identical queries across every user so the
@@ -1299,5 +1334,47 @@ do $$ begin alter publication supabase_realtime add table public.coach_messages;
 exception when duplicate_object then null; end $$;
 do $$ begin alter publication supabase_realtime add table public.profiles;
 exception when duplicate_object then null; end $$;
+
+-- =============================================================================
+-- Table grants — the other half of the gate.
+--
+-- Supabase's project template runs
+--   alter default privileges in schema public grant all on tables
+--     to anon, authenticated;
+-- so every table created here is born with INSERT/UPDATE/DELETE/TRUNCATE for
+-- both roles. RLS decides WHICH ROWS; the grant decides WHETHER AT ALL. A
+-- correct policy with a stray grant is still a hole, which is how holdings and
+-- portfolios stayed client-writable until 2026-09-13e.
+--
+-- Placed at the end of the file because every table must already exist.
+-- `mf_master` is created by supabase/migrations/2026-04-25d_mf_master.sql and
+-- is revoked there / in 2026-09-13e, not here.
+-- =============================================================================
+revoke insert, update, delete, truncate on
+  public.holdings,
+  public.transactions,
+  public.portfolios,
+  public.limit_orders,
+  public.transfers,
+  public.portfolio_history,
+  public.quote_cache,
+  public.dhan_instruments
+from public, anon, authenticated;
+
+grant select on
+  public.holdings,
+  public.transactions,
+  public.portfolios,
+  public.limit_orders,
+  public.transfers,
+  public.portfolio_history
+to authenticated;
+
+-- Verify after running:
+--   select relname,
+--          has_table_privilege('authenticated', oid, 'INSERT') should_be_false,
+--          has_table_privilege('authenticated', oid, 'SELECT') should_be_true
+--     from pg_class where relnamespace = 'public'::regnamespace
+--      and relname in ('holdings','portfolios','limit_orders','transactions');
 
 -- Done.
