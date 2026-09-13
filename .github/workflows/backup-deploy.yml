@@ -37,6 +37,21 @@ jobs:
         working-directory: .
         run: pytest api-backup/tests/ -v
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      # A JS module that fails to PARSE takes the whole app down silently:
+      # app.js imports the router which imports every page, so one bad
+      # literal anywhere means no nav, no router, no anything — and no
+      # stack trace pointing at the cause. That shipped on 2026-09-13
+      # (v273) and blanked the homepage.
+      #
+      # `node --check` does not catch it: it parses ES modules as scripts
+      # and reported the broken file clean. This compiles each module with
+      # vm.SourceTextModule instead — parse only, never evaluate.
+      - name: JS syntax check (all ES modules)
+        run: node --experimental-vm-modules scripts/check-js-syntax.mjs
+
   deploy-pages:
     name: Deploy Cloudflare Pages (static backup)
     needs: parity-check
