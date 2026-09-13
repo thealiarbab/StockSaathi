@@ -460,7 +460,7 @@ def _normalize_dividend_yield(r):
 
 
 def fetch_fundamentals(symbol, *, allow_cache=True, write_back=True):
-    """Returns a merged fundamentals dict for an NSE symbol.
+    """Returns a merged fundamentals dict for an NSE, BSE or SME symbol.
 
     Order: cache → Yahoo v7 (crumb) → Yahoo v10 (crumb) → Tickertape →
            Yahoo v8/chart anonymous.
@@ -502,6 +502,28 @@ def fetch_fundamentals(symbol, *, allow_cache=True, write_back=True):
     r = _merge(r, fetch_v10(ticker))
     r = _merge(r, fetch_v7(ticker))
     r = _merge(r, fetch_v8_chart(ticker))
+
+    # BSE / SME fallback. Yahoo lists non-NSE scrips under ".BO", so for a
+    # BSE-only or SME symbol every Yahoo tier above queries a ticker that does
+    # not exist and contributes nothing. Measured 2026-09-13 against
+    # production: BMW returned source_tiers ["tickertape"] with exchange null
+    # (Tickertape happened to cover it), and 7NR returned ok:false outright
+    # because Tickertape does not carry SME at all -- while /api/quote served
+    # 7NR fine as 7NR.BO. handlers/quote.py:37 already does this ".NS" then
+    # ".BO" fallback; fundamentals never got it.
+    #
+    # Gated on source_tiers rather than on the universe file so it needs no
+    # exchange lookup: if no yahoo_* tier reported in, the suffix was wrong.
+    # An NSE symbol therefore never pays for the retry.
+    if "." not in symbol and not any(
+        t.startswith("yahoo") for t in ((r or {}).get("source_tiers") or [])
+    ):
+        alt_ticker = f"{symbol}.BO"
+        alt = _merge(r, fetch_v10(alt_ticker))
+        alt = _merge(alt, fetch_v7(alt_ticker))
+        alt = _merge(alt, fetch_v8_chart(alt_ticker))
+        if any(t.startswith("yahoo") for t in ((alt or {}).get("source_tiers") or [])):
+            r, ticker = alt, alt_ticker
 
     if not r:
         return {"error": "all_sources_failed"}
