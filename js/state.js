@@ -76,9 +76,18 @@ function migrateUserState(st) {
     const before = st.coachMessages.length;
     st.coachMessages = st.coachMessages.filter(m => {
       if (m?.eventType !== "STOCK_INTRO") return true;
-      const body = String(m?.payload?.body || m?.body || m?.text || "");
+      // The payload field is `reflection`. This filter previously read
+      // `payload.body` / `body` / `text`, none of which exist on a coach
+      // message, so it matched nothing and the migration was a no-op —
+      // the broken messages it was written to purge were still on screen.
+      const body = String(
+        m?.payload?.reflection || m?.payload?.body || m?.body || m?.text || ""
+      );
       if (/P\/E is\s+[—-]/.test(body)) return false;
-      if (/is a Other company/.test(body)) return false;
+      if (/₹—/.test(body)) return false;
+      if (/is a (?:Other|Unknown|undefined|null) company/.test(body)) return false;
+      // Fund/ETF rows that went through the equity copy.
+      if (/\b(?:ETF|Fund|FOF|IDCW|Index Fund)\b.*\bcompany\b/i.test(body)) return false;
       return true;
     });
     if (st.coachMessages.length < before) {

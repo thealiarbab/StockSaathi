@@ -8,7 +8,8 @@ import { getState, subscribe, setSetting } from "../state.js";
 import { getInstrument } from "../data/universe.js";
 import { getNews } from "../data/news.js";
 import { formatRupees, formatPct } from "../money.js";
-import { SYSTEM_PROMPT, matchTemplate, isOffTopic, offTopicRedirect, STARTER_QUESTIONS } from "../coach/persona.js";
+import { SYSTEM_PROMPT, matchTemplate, isOffTopic, offTopicRedirect, STARTER_QUESTIONS, runtimeFacts } from "../coach/persona.js";
+import { marketStatus } from "../data/prices.js";
 import { runAgent, streamChat, needsLiveData, logChatTurn } from "../coach/agent.js";
 
 const CHAT_LOG_KEY = "ss.coachchat.v1";
@@ -99,7 +100,7 @@ async function callLlmAgent(apiKey, history, state) {
   // which made the coach feel like a decision tree instead of a coach.
   const portfolioSummary = summarisePortfolio(state);
   const newsContext = newsSnap.slice(0, 5).map(n => `- ${n.headline} (${n.source}) [${n.sentiment}]`).join("\n");
-  const system = `${SAATHI_SYSTEM}\n\n# RUNTIME CONTEXT\n## User portfolio\n${portfolioSummary}\n\n## Latest market headlines\n${newsContext || "(none loaded)"}\n\n# TONE\nKeep replies short by default (1–3 sentences). Go longer only when asked for depth.`;
+  const system = `${SAATHI_SYSTEM}\n\n${runtimeFacts(marketStatus())}\n\n# RUNTIME CONTEXT\n## User portfolio\n${portfolioSummary}\n\n## Latest market headlines\n${newsContext || "(none loaded)"}\n\n# TONE\nKeep replies short by default (1–3 sentences). Go longer only when asked for depth.`;
 
   const messages = history.slice(-12).map(m => ({
     role: m.role === "user" ? "user" : "assistant",
@@ -252,14 +253,16 @@ function render() {
     // and append tokens as they arrive. For messages that need live data
     // (stock prices, portfolio, news) we fall through to the non-streaming
     // tool-use path below.
-    if (!needsLiveData(text)) {
+    // chatHistory already has this turn's user message pushed, so hand the
+    // heuristic the turns BEFORE it as context for short follow-ups.
+    if (!needsLiveData(text, chatHistory.slice(-9, -1))) {
       abortController = new AbortController();
       const placeholderIdx = chatHistory.length;
       chatHistory.push({ role: "assistant", text: "", ts: Date.now(), streaming: true });
       render();
       const portfolioSummary = summarisePortfolio(s);
       const newsContext = newsSnap.slice(0, 5).map(n => `- ${n.headline} (${n.source}) [${n.sentiment}]`).join("\n");
-      const system = `${SAATHI_SYSTEM}\n\n# RUNTIME CONTEXT\n## User portfolio\n${portfolioSummary}\n\n## Latest market headlines\n${newsContext || "(none loaded)"}\n\n# TONE\nKeep replies short by default (1–3 sentences). Go longer only when asked for depth.`;
+      const system = `${SAATHI_SYSTEM}\n\n${runtimeFacts(marketStatus())}\n\n# RUNTIME CONTEXT\n## User portfolio\n${portfolioSummary}\n\n## Latest market headlines\n${newsContext || "(none loaded)"}\n\n# TONE\nKeep replies short by default (1–3 sentences). Go longer only when asked for depth.`;
       const messages = chatHistory.slice(-12).filter(m => !m.streaming || m === chatHistory[placeholderIdx]).slice(0, -1).map(m => ({
         role: m.role === "user" ? "user" : "assistant",
         content: m.text,
@@ -294,6 +297,14 @@ function render() {
       const entry = chatHistory[placeholderIdx];
       if (entry) {
         entry.streaming = false;
+        // Reconcile against the fully-cleaned text. Tokens are painted as
+        // they arrive, so a tool-call leak or a reasoning preamble can be
+        // on screen before enough of it exists to recognise and strip. The
+        // stream's final text has been through the full stripper, so adopt
+        // it — a brief flash is fine, a persisted leak is not.
+        if (!result?.aborted && result?.text && result.text.trim() && result.text !== entry.text) {
+          entry.text = result.text;
+        }
         if (result?.aborted) {
           const suffix = "\n\n— ok, I'll stop there. Ping me again if you want more.";
           entry.text = entry.text.trim()

@@ -6,51 +6,29 @@
 
 import { getState } from "../state.js";
 import { getInstrument } from "../data/universe.js";
-import { SYSTEM_PROMPT, matchTemplate, isOffTopic, offTopicRedirect, STARTER_QUESTIONS } from "../coach/persona.js";
-import { runAgent, streamChat, needsLiveData, logChatTurn } from "../coach/agent.js";
+import { SYSTEM_PROMPT, matchTemplate, isOffTopic, offTopicRedirect, STARTER_QUESTIONS, runtimeFacts } from "../coach/persona.js";
+import { marketStatus } from "../data/prices.js";
+import { runAgent, streamChat, needsLiveData, logChatTurn, stripToolCallScaffolding } from "../coach/agent.js";
 import {
   loadSessions, saveSessions, getActiveSession, setActiveSession,
   createNewSession, deleteSessionById, touchActive, clearActiveMessages,
   formatRelative, SESSIONS_KEY,
 } from "../features/chatSessions.js";
 
-// Defense-in-depth: strip any prompt-scaffolding patterns the model
-// might leak into its visible reply. The system prompt was rewritten
-// in Hotfix38a / 39a to remove the labeled-example format that was
-// triggering this leak, but we keep this strip layer as belt-and-
-// suspenders so future prompt edits can't reintroduce the bug.
+// Defense-in-depth: strip any prompt-scaffolding patterns the model might
+// leak into its visible reply.
 //
-// Patterns stripped (case-insensitive, multiline):
-//   "You hear: ..."          one whole line
-//   "You say: "              prefix
-//   "Reply: "                prefix
-//   "Assistant: "            prefix
-//   "[internal: ...]"        bracketed annotations
-//   "(NO tool call ...)"     parenthetical labels
-//   "(call get_X(...))"      tool-call narration
-//   "CALL get_X(...)"        explicit tool-call writeout
-//   "<user query>" / "<...>" placeholder echoes
+// Delegates to the shared stripper in coach/agent.js. That one is the single
+// source of truth: it handles the CALL-leak shapes actually seen in the
+// production log (parens optional, inline as well as own-line) plus the
+// reasoning-preamble paragraphs, which this local copy never caught.
 function stripScaffolding(text) {
   if (!text || typeof text !== "string") return text;
-  let s = text;
-  // Whole-line patterns first (drop the entire line + newline).
+  let s = stripToolCallScaffolding(text);
   s = s.replace(/^[ \t]*You hear:[^\n]*\n?/gmi, "");
   s = s.replace(/^[ \t]*\[internal:[^\]]*\][ \t]*\n?/gmi, "");
-  s = s.replace(/^[ \t]*\(NO tool call[^)]*\)[ \t]*\n?/gmi, "");
-  s = s.replace(/^[ \t]*\(call [a-z_]+[^)]*\)[ \t]*\n?/gmi, "");
-  s = s.replace(/^[ \t]*CALL\s+[a-z_]+[ \t]*\([^)]*\)[ \t]*\n?/gmi, "");
-  // Prefix patterns next (strip the prefix, keep the rest of the line).
-  s = s.replace(/^[ \t]*You say:[ \t]*/gmi, "");
-  s = s.replace(/^[ \t]*Reply:[ \t]*/gmi, "");
-  s = s.replace(/^[ \t]*Assistant:[ \t]*/gmi, "");
-  // Empty placeholder echoes (rare but seen in the user's test).
-  s = s.replace(/<user query>/gi, "");
-  s = s.replace(/<literal reply prose>/gi, "");
-  // Collapse leading whitespace and any double-newlines created by the
-  // line-drop patterns above.
   s = s.replace(/^\s+/, "");
-  s = s.replace(/\n{3,}/g, "\n\n");
-  return s;
+  return s.replace(/\n{3,}/g, "\n\n");
 }
 
 // sessionsData is the persistent envelope { activeId, sessions: [...] }.
@@ -505,7 +483,10 @@ async function sendAndReply(userText) {
   // portfolio, crypto, news)? If yes, take the slower tool-use path with
   // runAgent. If no, stream tokens directly for instant feel — first
   // character typically visible in ~300ms.
-  const wantTools = needsLiveData(userText);
+  // Pass the recent turns so a short follow-up ("i mean on stocksaathi",
+  // "well how much do i own") inherits the previous turn's routing instead
+  // of dropping onto the tool-less streaming path.
+  const wantTools = needsLiveData(userText, chatLog.slice(-8, -1));
 
   if (wantTools) {
     // Tool-use path: non-streaming, standard runAgent with TOOLS.
@@ -513,7 +494,7 @@ async function sendAndReply(userText) {
     let replyText = null;
     let errorText = null;
     try {
-      const system = `${SYSTEM_PROMPT}\n\n# TOOL USE\nYou have tools for live data: get_stock_price, get_crypto_price, search_stocks, get_market_news, get_user_portfolio. USE them whenever the user asks about any specific stock, crypto, market state, or their portfolio. Never guess numbers — always call the tool.\n\nCRITICAL: Call tools via the STRUCTURED tool_calls API only. NEVER write literal text like 'CALL search_stocks(...)' or '[Tool call: ...]' or fenced ` + "```tool_calls```" + ` JSON in your visible response. Those are internal scaffolding the user must never see. If you want to call a tool, emit the tool_call JSON block and let the system handle it. Your visible reply either (a) answers the user's question with real data you just received from a tool, or (b) says you'll look it up — never describes the mechanics of looking it up.\n\n# TONE\nKeep replies conversational and short by default (1–3 sentences). Only go longer when the user asks for explanation or depth.`;
+      const system = `${SYSTEM_PROMPT}\n\n${runtimeFacts(marketStatus())}\n\n# TOOL USE\nYou have tools for live data: get_stock_price, get_crypto_price, search_stocks, get_market_news, get_user_portfolio. USE them whenever the user asks about any specific stock, crypto, market state, or their portfolio. Never guess numbers — always call the tool.\n\nCRITICAL: Call tools via the STRUCTURED tool_calls API only. NEVER write literal text like 'CALL search_stocks(...)' or '[Tool call: ...]' or fenced ` + "```tool_calls```" + ` JSON in your visible response. Those are internal scaffolding the user must never see. If you want to call a tool, emit the tool_call JSON block and let the system handle it. Your visible reply either (a) answers the user's question with real data you just received from a tool, or (b) says you'll look it up — never describes the mechanics of looking it up.\n\n# TONE\nKeep replies conversational and short by default (1–3 sentences). Only go longer when the user asks for explanation or depth.`;
       replyText = await runAgent({
         apiKey: state.settings.llmApiKey || null,
         system,
@@ -606,7 +587,7 @@ async function sendAndReply(userText) {
     }
   }, dripIntervalMs);
 
-  const system = `${SYSTEM_PROMPT}\n\n# TONE\nKeep replies conversational and short by default (1–3 sentences). Only go longer when the user asks for explanation or depth.`;
+  const system = `${SYSTEM_PROMPT}\n\n${runtimeFacts(marketStatus())}\n\n# TONE\nKeep replies conversational and short by default (1–3 sentences). Only go longer when the user asks for explanation or depth.`;
   let result = null;
   try {
     result = await streamChat({

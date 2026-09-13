@@ -7,7 +7,7 @@
 // backend proxies using GROQ_API_KEY env var.
 // =============================================================================
 
-import { getInstrument, STOCKS, MUTUAL_FUNDS } from "../data/universe.js";
+import { getInstrument, getAllInstruments, STOCKS, MUTUAL_FUNDS } from "../data/universe.js";
 import { getQuote } from "../data/marketData.js";
 import { getNews } from "../data/news.js";
 import { getState, getPortfolioValue } from "../state.js";
@@ -235,14 +235,33 @@ async function execGetUserPortfolio() {
   }
   const total = getPortfolioValue(state);
   const start = state.portfolio.startingCashPaise;
-  return {
+
+  // Sanity guard. A corrupted account (seeded/admin rows with qty in the
+  // billions and a zero average cost) produced a portfolio worth more than
+  // every market on earth, and the coach dutifully explained to the user
+  // that those positions "were acquired at no cost". Hand the model an
+  // explicit flag so it reports a data problem instead of a fortune.
+  const suspect = holdings.filter(h =>
+    !Number.isFinite(h.qty) || h.qty > 1e7 ||
+    !Number.isFinite(h.avg_cost_inr) || h.avg_cost_inr <= 0
+  ).map(h => h.symbol);
+  const totalInr = total / 100;
+  const absurdTotal = !Number.isFinite(totalInr) || Math.abs(totalInr) > 1e11;
+
+  const out = {
     ok: true,
     cash_inr: +(state.portfolio.cashPaise / 100).toFixed(2),
-    total_value_inr: +(total / 100).toFixed(2),
+    total_value_inr: +totalInr.toFixed(2),
     return_pct: +(((total - start) / start) * 100).toFixed(2),
     holdings, holdings_count: holdings.length,
     trade_count: state.transactions.length,
   };
+  if (suspect.length || absurdTotal) {
+    out.data_warning =
+      "These figures are corrupt, not real performance. Tell the user their portfolio data looks broken and to contact support. Do NOT present these numbers as their actual holdings, and do NOT explain them as free or zero-cost shares." +
+      (suspect.length ? ` Affected: ${suspect.join(", ")}.` : "");
+  }
+  return out;
 }
 
 const EXECUTORS = {
@@ -256,14 +275,38 @@ const EXECUTORS = {
 // -----------------------------------------------------------------------------
 // Fuzzy symbol resolution — let the LLM be sloppy with names
 // -----------------------------------------------------------------------------
-const NAME_TO_SYMBOL = (() => {
+// Built LAZILY, not at module load. `STOCKS` is an `export let` that the
+// universe loader reassigns once universeFull.json lands, and it only ever
+// holds the ~100 FEATURED_SYMBOLS. At import time those are bare stubs whose
+// `name` IS the symbol — so a map snapshotted here at module load contained
+// zero real company names, and every name-based lookup ("orient electric",
+// "bajaj finance") fell through to the 30-odd hardcoded aliases below and
+// then failed with "No NSE stock matching". Build from getAllInstruments()
+// (the full ~2,200-row merged universe) on first use, and drop the cache
+// when the loader announces fresh rows.
+let _nameMap = null;
+try {
+  window.addEventListener("ss:universe-loaded", () => { _nameMap = null; });
+  window.addEventListener("ss:mf-universe-loaded", () => { _nameMap = null; });
+} catch (_) {}
+
+function nameToSymbol() {
+  if (_nameMap) return _nameMap;
   const m = {};
-  for (const s of STOCKS) {
+  let rows = [];
+  try { rows = getAllInstruments() || []; } catch (_) { rows = []; }
+  if (!rows.length) rows = [...STOCKS, ...MUTUAL_FUNDS];
+  for (const s of rows) {
+    if (!s?.symbol) continue;
     m[s.symbol.toLowerCase()] = s.symbol;
-    m[s.name.toLowerCase()] = s.symbol;
-    m[s.name.toLowerCase().replace(/\s+/g, "")] = s.symbol;
-    // First word of name
-    const first = s.name.toLowerCase().split(/\s+/)[0];
+    const name = String(s.name || "");
+    if (!name || name === s.symbol) continue;
+    m[name.toLowerCase()] = s.symbol;
+    m[name.toLowerCase().replace(/\s+/g, "")] = s.symbol;
+    // First word of name — only for equities, and never let a fund's
+    // generic leading word ("gold", "index", "nifty") shadow a real ticker.
+    if (s.kind === "MF") continue;
+    const first = name.toLowerCase().split(/\s+/)[0];
     if (first.length >= 3 && !m[first]) m[first] = s.symbol;
   }
   Object.assign(m, {
@@ -293,17 +336,28 @@ const NAME_TO_SYMBOL = (() => {
     coal: "COALINDIA", "coal india": "COALINDIA",
     adani: "ADANIENT", "adani ports": "ADANIPORTS",
   });
+  _nameMap = m;
   return m;
-})();
+}
 
-function resolveSymbolFuzzy(input) {
+// `allowStub` controls what happens for an input that looks like a ticker but
+// isn't in the universe. The TOOL executor wants the lenient behaviour (try
+// the quote API anyway — the universe can lag the exchange). The ROUTING
+// heuristic wants the strict one: getInstrument() never returns null, it
+// synthesises a stub for any string, so a lenient resolve would match every
+// word in every sentence.
+function resolveSymbolFuzzy(input, { allowStub = true } = {}) {
   const s = String(input || "").toLowerCase().trim();
   if (!s) return null;
-  const upper = input.toUpperCase().trim();
-  if (getInstrument(upper)) return upper;
-  if (NAME_TO_SYMBOL[s]) return NAME_TO_SYMBOL[s];
+  const upper = String(input).toUpperCase().trim();
+  const direct = getInstrument(upper);
+  if (direct && !direct._stub) return upper;
+  const m = nameToSymbol();
+  if (m[s]) return m[s];
   const cleaned = s.replace(/\s+(ltd|limited|india|indian|corp|corporation|co)\b/g, "").trim();
-  if (NAME_TO_SYMBOL[cleaned]) return NAME_TO_SYMBOL[cleaned];
+  if (m[cleaned]) return m[cleaned];
+  // Plausible-ticker fallback: no spaces, 2-12 chars, letter-led.
+  if (allowStub && /^[A-Za-z][A-Za-z0-9&.\-]{1,11}$/.test(upper)) return upper;
   return null;
 }
 
@@ -475,11 +529,7 @@ export async function runAgent({ apiKey, system, messages, onStep, profile = "fa
     // leak into the user-facing bubble — they're model-internal scaffolding.
     // We strip them wholesale; if the model hallucinated a result after
     // such a line we keep the prose around it (best-effort).
-    let text = String(msg.content || "");
-    text = text.replace(/^\s*CALL\s+\w+\s*\([^)]*\)\s*$/gmi, "");
-    text = text.replace(/^\s*\[Tool\s+call[^\]]*\]\s*$/gmi, "");
-    text = text.replace(/^\s*```(?:tool_calls?|function|json)?\s*[\s\S]*?(?:^\s*\{[\s\S]*?\})\s*^\s*```\s*$/gmi, "");
-    text = text.replace(/\n{3,}/g, "\n\n").trim();
+    const text = stripToolCallScaffolding(String(msg.content || "")).trim();
     return text || null;
   }
 
@@ -581,26 +631,96 @@ export async function streamChat({ system, messages, profile = "chat", onToken, 
   return { text: stripToolCallScaffolding(fullText).trim() };
 }
 
-// Strip the handful of tool-use scaffolding patterns that Gemini 3.x Flash
-// Preview occasionally emits as LITERAL text in the content stream instead
-// of as structured tool_calls. Users shouldn't see any of this.
-function stripToolCallScaffolding(text) {
+// The five known tool names, for anchoring the CALL-leak patterns below.
+const TOOL_NAME_RE = "(?:get_stock_price|get_crypto_price|search_stocks|get_market_news|get_user_portfolio|\\w+)";
+
+// Strip the tool-use scaffolding and self-narration that the Gemini chat
+// models periodically emit as LITERAL text instead of as structured
+// tool_calls. Users must never see any of it.
+//
+// Every pattern here corresponds to something found in the production
+// coach_messages log, not a hypothetical:
+//   "CALL get_market_news"                      — no parens, own line
+//   "...banking stocks for you. CALL search_stocks(\"Banking\")"  — inline
+//   "Ah, gotcha! ...\n\nCALL get_user_portfolio\n\nYou're currently at ..."
+//   "The user is asking if the market is closed today. I need to check ..."
+// The previous regexes required BOTH parentheses AND a full-line anchor, so
+// all four leaked through verbatim.
+export function stripToolCallScaffolding(text) {
   if (!text) return "";
   let s = String(text);
-  // Bare "CALL function_name(args...)" lines
-  s = s.replace(/^\s*CALL\s+\w+\s*\([^)]*\)\s*$/gmi, "");
-  // "[Tool call: xxx]" or "[Function call: xxx]" bracketed annotations
-  s = s.replace(/^\s*\[(?:tool|function)\s+call[^\]]*\]\s*$/gmi, "");
-  // Fenced tool_calls JSON blocks
+
+  // 1. "CALL tool_name(...)" or bare "CALL tool_name" — own-line form,
+  //    parentheses optional. Drop the whole line.
+  s = s.replace(new RegExp(`^[ \\t]*CALL[ \\t]+${TOOL_NAME_RE}[ \\t]*(?:\\([^)]*\\))?[ \\t]*\\r?\\n?`, "gmi"), "");
+  // 2. Same thing INLINE at the end of a sentence. Keep the prose before it.
+  s = s.replace(new RegExp(`[ \\t]*\\bCALL[ \\t]+${TOOL_NAME_RE}[ \\t]*(?:\\([^)]*\\))?[ \\t]*(?=$|\\r?\\n)`, "gmi"), "");
+  // 3. Bracketed / parenthesised annotations.
+  s = s.replace(/^[ \t]*\[(?:tool|function)[ _]?call[^\]]*\][ \t]*\r?\n?/gmi, "");
+  s = s.replace(/\[(?:tool|function)[ _]?call[^\]]*\]/gi, "");
+  s = s.replace(/^[ \t]*\((?:no tool call|call [a-z_]+)[^)]*\)[ \t]*\r?\n?/gmi, "");
+  // 4. Label prefixes the model sometimes echoes from the prompt examples.
+  s = s.replace(/^[ \t]*(?:You say|You hear|Reply|Assistant|Response|Output)[ \t]*:[ \t]*/gmi, "");
+  // 5. Unfilled <angle bracket> placeholders from the tone examples.
+  s = s.replace(/<(?:price|change|pe|inr price|usd price|total|return|starting cash|cash|n|symbol|value|user query|literal reply prose)>/gi, "");
+  // 6. Fenced tool_calls JSON blocks.
   s = s.replace(/```(?:tool_calls?|function|json)?\s*[\s\S]*?```/gi, (match) => {
-    // Keep plain ```json code fences if the output is genuinely JSON the
-    // user asked for. Only strip fenced blocks that look like a tool call.
-    if (/\b(name|function|tool_calls?)\b/i.test(match)) return "";
+    if (/\b(name|function|tool_calls?|arguments)\b/i.test(match)) return "";
     return match;
   });
-  // Collapse any now-triple-blank-lines from the removals
+
+  s = stripReasoningPreamble(s);
+
   s = s.replace(/\n{3,}/g, "\n\n");
+  return s.replace(/^\s+/, "");
+}
+
+// Gemini frequently prefixes the visible reply with a sentence or two of
+// self-directed planning: "The user is asking X. I need to do Y in Hindi."
+// It reads as the coach talking about the user behind their back, and it
+// showed up in roughly one in six logged turns. Drop those leading
+// sentences — but only from the FRONT of the reply, and only while every
+// sentence so far matches, so ordinary prose containing "I need to" mid-
+// answer survives untouched.
+// A planning sentence OPENS one of these ways...
+const PREAMBLE_SENTENCE_RE = /^(?:the user (?:is |wants|seems|said|asked|needs|has |does|doesn|can|could|might|appears)|this (?:is a |question|user)|i (?:need to|should|will|must|have to|am going to|can (?:now|then) )|let me (?:check|call|pull|look|fetch|use|get)|my (?:apologies|task|job) )/i;
+// ...AND talks about the machinery. Both conditions are required for the
+// sentence-level peel, so an ordinary reply that happens to open with "I
+// need to flag..." or "I should mention..." is left alone. The paragraph-
+// level peel below is allowed to rely on the opener alone, because there
+// every sentence in the block must match and a later block must survive.
+const PREAMBLE_META_RE = /\b(the user|tool|call|translate|previous (?:explanation|message|answer)|in hindi|rephrase|provide (?:further )?guidance|check (?:the )?(?:market status|portfolio)|address this|oversight)\b/i;
+
+function stripReasoningPreamble(text) {
+  let s = String(text || "");
+  // Work paragraph by paragraph first: the preamble is usually its own
+  // block separated by a blank line.
+  const paras = s.split(/\n\s*\n/);
+  while (paras.length > 1 && isPreambleBlock(paras[0])) paras.shift();
+  s = paras.join("\n\n");
+
+  // Then peel leading sentences within the (possibly single) first block.
+  let guard = 0;
+  while (guard++ < 4) {
+    const m = s.match(/^\s*([^.!?\n]*[.!?])(\s+)/);
+    if (!m) break;
+    const sentence = m[1].trim();
+    if (!PREAMBLE_SENTENCE_RE.test(sentence) || !PREAMBLE_META_RE.test(sentence)) break;
+    const rest = s.slice(m[0].length);
+    if (!rest.trim()) break;          // never strip away the whole reply
+    s = rest;
+  }
   return s;
+}
+
+function isPreambleBlock(block) {
+  const b = String(block || "").trim();
+  if (!b) return false;
+  if (b.length > 400) return false;
+  // Every sentence in the block must look like planning.
+  const sentences = b.split(/(?<=[.!?])\s+/).map(x => x.trim()).filter(Boolean);
+  if (!sentences.length) return false;
+  return sentences.every(x => PREAMBLE_SENTENCE_RE.test(x));
 }
 
 // -----------------------------------------------------------------------------
@@ -650,14 +770,159 @@ export async function logChatTurn({ userText, assistantText, model, sessionId, s
 // negatives mean the user's "what's TCS at?" gets answered without live
 // data, which is worse.
 // -----------------------------------------------------------------------------
-export function needsLiveData(text) {
-  const t = String(text || "").toLowerCase();
-  if (!t.trim()) return false;
-  // Direct data keywords
-  if (/\b(price|quote|portfolio|holdings|my stocks|my crypto|news|market cap|p\/?e|p\/e ratio)\b/.test(t)) return true;
-  // Common Indian tickers + crypto
-  if (/\b(tcs|reliance|infy|infosys|hdfc|hdfcbank|icici|icicibank|sbi|sbin|wipro|itc|lt|axisbank|kotak|maruti|adani|tata|bharti|airtel|ongc|ntpc|coal india|asian paints|nestle|hindalco|jsw|bitcoin|btc|ethereum|eth|solana|sol|dogecoin|doge|shib|nifty|sensex|bank nifty|nift)\b/.test(t)) return true;
-  // Uppercase ticker-shaped tokens in the ORIGINAL casing (not lowercased).
-  if (/\b[A-Z]{3,8}\b/.test(String(text || ""))) return true;
+// Questions about the user's OWN account. These are the ones that hurt most
+// when missed: with no tools the model either denies having the data ("I
+// can't access your specific financial details" — logged against a real user
+// on 2026-09-12) or, worse, invents a portfolio. Hinglish included, because
+// a large share of real traffic is Hinglish.
+const SELF_DATA_RE = new RegExp([
+  "\\b(my|mine|our)\\b.*\\b(portfolio|holding|holdings|stock|stocks|share|shares|fund|funds|posit|invest|money|cash|balance|worth|value|profit|loss|gain|return|trade|trades|account)",
+  "\\b(portfolio|holdings|report card|watchlist)\\b",
+  "\\b(how much|how many|what.s my|whats my|hows my|how am i|am i in|do i own|did i|have i|i own|i hold|i bought|i sold|i made)\\b",
+  "\\b(loss|profit|gain|return|pnl|p&l)\\b.*\\b(my|me|i)\\b",
+  "\\b(my|me|i)\\b.*\\b(loss|profit|gain|return|pnl|p&l)\\b",
+  "\\b(show|list|check|review|rate|analyse|analyze|overview|opinion|summary)\\b.*\\b(my|mine|me)\\b",
+  "\\bi (?:have|had|has)\\b.*\\b(made|bought|sold|invested|owned|held)\\b",
+  "\\b(best|worst|first|last|recent)\\b.*\\b(trade|trades|buy|sell|pick|position)\\b",
+  // Hinglish
+  "\\b(mera|meri|mere|mujhe|maine|mene|hamara|humara)\\b.*\\b(portfolio|stock|stocks|share|shares|paisa|paise|profit|loss|fayda|nuksan|account|order|request)",
+  "\\bkitna\\b.*\\b(profit|loss|paisa|paise|value|fayda|nuksan)\\b",
+  "\\b(order|orders|amo)\\b.*\\b(pending|queued|cancel|execute|placed|kab|nahi)\\b",
+  "\\b(kab|kyu|kyun)\\b.*\\b(order|execute|place|accept)\\b",
+].join("|"), "i");
+
+// Market open/closed/hours — the model has repeatedly answered this from
+// memory and got it wrong (it declared the market open on a Saturday and
+// quoted a fabricated Nifty level two minutes after agreeing it was shut).
+// Route to the tool path so the runtime market-status block is in scope.
+const MARKET_STATUS_RE = /\b(market|nse|bse|exchange|trading)\b.*\b(open|close|closed|closing|band|khula|khulega|chalu|hours|timing|today|aaj|holiday|chuti|chhutti)\b|\b(band|khula|khulega)\b.*\b(market|nse|bse)\b/i;
+
+// Explicit market-data nouns.
+const DATA_NOUN_RE = /\b(price|prices|quote|rate|ltp|cmp|news|headline|headlines|market cap|marketcap|market capitalisation|market capitalization|p\/?e|pe ratio|p\/?b|valuation|movers|gainers|losers|top performers|52 week|52-week|day high|day low)\b/i;
+
+// Discovery / screening — needs search_stocks, not a canned essay.
+const DISCOVERY_RE = /\b(bank|banks|banking|it stocks|pharma|auto|fmcg|energy|metal|metals|cement|infra|infrastructure|psu|realty|telecom|defence|defense|rail|railway|shipping|chemical|textile|sector|sectors|compan(?:y|ies)|which stock|which stocks|what stock|what stocks|suggest.*stock|list.*stock|show.*stock|find.*stock|top \d+|best.*stock|stocks? (?:to|in|for|under|like))\b/i;
+
+// Crypto — broader than the old hardcoded five.
+const CRYPTO_RE = /\b(crypto|cryptocurrency|bitcoin|btc|ethereum|eth|solana|sol|dogecoin|doge|shiba|shib|xrp|ripple|cardano|ada|polkadot|dot|polygon|matic|avalanche|avax|litecoin|ltc|tron|trx|chainlink|link|monero|xmr|binancecoin|bnb|usdt|tether)\b/i;
+
+// Index names. We have no index tool, but these still belong on the tool
+// path: the model must be told to look rather than left alone to invent a
+// Nifty level (it produced a fabricated 22,419.50 on a Saturday).
+const INDEX_RE = /\b(nifty|sensex|bank ?nifty|bse|nse|index|indices)\b/i;
+
+// Pure-concept questions that must NOT pay the tool-loop latency, even
+// though they contain words like "market" or "stock".
+const CONCEPT_RE = /^(what(?:'s| is| are)?|how (?:do|does|can|should)|why|explain|define|tell me about|meaning of|difference between|who is|who was)\b/i;
+const CONCEPT_TOPIC_RE = /\b(compounding|compound interest|sip|systematic investment|diversif|inflation|repo rate|ipo|etf|mutual fund|nav|dividend|bond|volatility|beta|drawdown|ltcg|stcg|tax|80c|elss|ppf|demat|finfluencer|scam|ponzi|bubble|harshad mehta|dot-?com|recession|crash|bear market|bull market|short selling|leverage|margin|stop loss|limit order|market order|amo)\b/i;
+
+// All-caps chatter that the ticker-shaped-token rule would otherwise catch.
+const ALLCAPS_CHATTER = /^(HELLO|HI|HII|HAI|HEY|YO|YES|YEAH|NO|NAH|OK|OKAY|THANKS|THANK|PLS|PLEASE|SURE|WHAT|WHY|HOW|WHO|WHEN|WHERE|LOL|LMAO|OMG|BRO|BRUH|TEST|TESTES|TESTING|WTF|IDK|IDU|AND|THE|FOR|YOU|ARE|NOT|CAN|ALL|ANY|NEW|NOW|WRAP|UP|HELP|STOP|GOOD|NICE|COOL|WOW|HMM|AI|PWNED)$/;
+
+// -----------------------------------------------------------------------------
+// Heuristic: does this user message likely need live data (tool-use)?
+// Used by the chat page and the side panel to choose between the fast
+// streaming path (NO tools at all) and the slower runAgent tool-loop.
+//
+// The asymmetry is severe and one-directional. A false positive costs one
+// message's worth of extra latency. A false negative means the streaming
+// model is asked a data question with no tools attached — and it answers
+// anyway, either refusing ("I can't access your financial details") or
+// fabricating. Measured against the logged chat corpus, the previous
+// keyword list missed ~72% of messages that genuinely needed data. So:
+// lean hard toward true.
+// -----------------------------------------------------------------------------
+// Short follow-ups that only make sense as a continuation of the previous
+// turn. "i mean on stocksaathi" carries no keyword of its own, but it was
+// the message that pushed the model onto the tool-less path where it
+// answered a portfolio question by reciting the system prompt's example
+// figures back to the user as if they were real.
+const CONTINUATION_RE = /^(?:i mean\b|no[, ]|nope\b|not that\b|the other\b|and\b|but\b|also\b|what about\b|how about\b|ok(?:ay)?[, ]|yes\b|yeah\b|ya\b|sure\b|do it\b|go on\b|more\b|again\b|u said\b|you said\b|show me\b|then\b|so\b|\?)/i;
+
+/**
+ * @param {string} text            the new user message
+ * @param {Array}  [history]       prior turns, newest last, as {role, text|content}
+ */
+export function needsLiveData(text, history) {
+  const raw = String(text || "");
+  const t = raw.toLowerCase().trim();
+  if (!t) return false;
+
+  // The user's own account always needs get_user_portfolio.
+  if (SELF_DATA_RE.test(t)) return true;
+  if (MARKET_STATUS_RE.test(t)) return true;
+
+  // "my <anything>" in a very short message — covers typos like "my
+  // orotfdilio" that no keyword list will ever match.
+  if (/^(?:my|mera|meri|mere)\b/i.test(t) && t.split(/\s+/).length <= 4) return true;
+
+  // A short continuation inherits the previous user turn's routing. Without
+  // this, a two-word clarification drops off the tool path mid-thread.
+  if (Array.isArray(history) && history.length && (t.split(/\s+/).length <= 8 || CONTINUATION_RE.test(t))) {
+    const prevUser = [...history].reverse()
+      .find(m => m && m.role === "user" && (m.text || m.content));
+    const prevText = prevUser ? String(prevUser.text ?? prevUser.content ?? "") : "";
+    // Guard against unbounded recursion: resolve the previous turn WITHOUT
+    // passing history along.
+    if (prevText && prevText !== raw && needsLiveData(prevText)) return true;
+  }
+
+  // A definitional question about a concept is answerable without tools,
+  // even when it mentions "market" or "stock" — unless it also names an
+  // actual instrument, which the checks further down will catch.
+  const isConcept = CONCEPT_RE.test(t) && CONCEPT_TOPIC_RE.test(t) && !DATA_NOUN_RE.test(t);
+
+  if (!isConcept) {
+    if (DATA_NOUN_RE.test(t)) return true;
+    if (DISCOVERY_RE.test(t)) return true;
+  }
+  if (CRYPTO_RE.test(t)) return true;
+  if (INDEX_RE.test(t)) return true;
+
+  // Any token that resolves against the real instrument universe — company
+  // names included, so "Orient Electric" and "Bajaj Finance" route correctly
+  // instead of relying on a hardcoded 30-ticker list.
+  if (mentionsKnownInstrument(raw)) return true;
+
+  // Ticker-shaped ALL-CAPS token in the original casing, minus chatter.
+  const caps = raw.match(/\b[A-Z][A-Z&-]{2,9}\b/g) || [];
+  if (caps.some(c => !ALLCAPS_CHATTER.test(c))) return true;
+
+  return false;
+}
+
+// Scan 1–3 word n-grams against the instrument universe. Words shorter than
+// 3 chars and common English filler never resolve, so this is cheap and
+// quiet. Returns true on the first hit.
+const NGRAM_STOPWORDS = new Set([
+  "all", "and", "the", "for", "you", "are", "not", "can", "any", "new", "now",
+  "how", "what", "why", "who", "when", "this", "that", "with", "from", "your",
+  "its", "was", "has", "have", "will", "good", "best", "more", "less", "than",
+  "buy", "sell", "hold", "long", "short", "high", "low", "big", "top", "one",
+  "two", "ten", "get", "got", "see", "say", "tell", "give", "make", "know",
+  "like", "want", "need", "some", "many", "much", "very", "just", "only",
+  // Ordinary words that are also the FIRST word of a listed company name
+  // ("India Cements", "Time Technoplast", "Force Motors", "Future Retail").
+  // Multi-word n-grams still match those names in full; it's the bare
+  // single-word form that would otherwise fire on casual chat.
+  "india", "indian", "time", "first", "next", "total", "future", "global",
+  "point", "style", "care", "life", "home", "city", "star", "force", "group",
+  "power", "world", "unit", "value", "smart", "super", "prime", "grand",
+]);
+
+function mentionsKnownInstrument(raw) {
+  const words = String(raw)
+    .replace(/[^\p{L}\p{N}&\-\s]/gu, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!words.length) return false;
+  for (let n = Math.min(3, words.length); n >= 1; n--) {
+    for (let i = 0; i + n <= words.length; i++) {
+      const gram = words.slice(i, i + n).join(" ");
+      if (gram.length < 3) continue;
+      if (n === 1 && NGRAM_STOPWORDS.has(gram.toLowerCase())) continue;
+      try { if (resolveSymbolFuzzy(gram, { allowStub: false })) return true; } catch (_) {}
+    }
+  }
   return false;
 }

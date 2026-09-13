@@ -171,12 +171,39 @@ const CRASH_SIMULATION_END = [
 ];
 
 // ---- STOCK INTRO (first visit) -------------------------------------------
+// A fund is not a company and has no P/E. Feeding an ETF or a mutual fund
+// through the equity copy produced lines like "ANGEL ONE GOLD ETF is a
+// Commodity company. P/E is —, which means investors are paying ₹— for
+// every ₹1 of annual earnings." — 54 of those reached users before this
+// branch existed. Likewise, an equity with no P/E on file must simply drop
+// the valuation sentence rather than render an em-dash where a number goes.
 const STOCK_INTRO = [
   (tick) => {
-    const inst = tick.instrument;
-    const pe = inst.pe != null ? `${inst.pe}` : "—";
+    const inst = tick.instrument || {};
+    const name = inst.name || inst.symbol || "This instrument";
+    const isFund = inst.kind === "MF" || inst.kind === "ETF";
+    const sector = inst.sector && inst.sector !== "Unknown" && inst.sector !== "Other"
+      ? inst.sector : null;
+
+    if (isFund) {
+      const label = inst.kind === "ETF" ? "an ETF" : "a mutual fund";
+      const theme = sector ? ` tracking the ${sector} theme` : "";
+      return {
+        reflection: `${name} is ${label}${theme} — a basket, not a single company. You buy units at its NAV, so one purchase spreads your money across everything the fund holds. That smooths out any single stock blowing up, and it equally caps how much one winner can do for you. Funds have no P/E of their own; what matters is what's inside, and the expense ratio you pay each year to hold it.`,
+        suggested_q: "What's actually inside this fund — and what does it charge you per year to hold it?",
+      };
+    }
+
+    // "a IT company" reads badly; pick the article from the leading sound.
+    const article = /^[aeiou]/i.test(sector || "") || /^(?:FMCG|IT|NBFC|PSU)\b/.test(sector || "") ? "an" : "a";
+    const sectorClause = sector ? ` is ${article} ${sector} company.` : ` is a listed Indian company.`;
+    const pe = Number(inst.pe);
+    const hasPe = Number.isFinite(pe) && pe > 0;
+    const peClause = hasPe
+      ? ` P/E is ${pe}, which means investors are paying ₹${pe} for every ₹1 of annual earnings. A P/E of 25 is average for Indian large-caps; >50 usually implies investors expect fast growth.`
+      : ` We don't have a P/E on file for it right now — that usually means the company isn't profitable, or the data hasn't landed yet. Either way, valuation is worth checking before the price is.`;
     return {
-      reflection: `${inst.name} is a ${inst.sector} company. P/E is ${pe}, which means investors are paying ₹${pe} for every ₹1 of annual earnings. A P/E of 25 is average for Indian large-caps; >50 usually implies investors expect fast growth.`,
+      reflection: `${name}${sectorClause}${peClause}`,
       suggested_q: "Before buying anything, ask: why would the earnings grow from here?",
     };
   },

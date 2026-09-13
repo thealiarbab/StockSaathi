@@ -2063,7 +2063,7 @@ function renderMfInvestBox(inst, symbol, curNavPaise, holding) {
         <h3 style="font-size: var(--text-base); margin-bottom: 4px;">Scheme wound up</h3>
         <div class="dim text-xs" style="line-height: 1.5;">
           This fund is no longer active${ageNote}. AMFI's last-known NAV is from
-          <strong>${navDate}</strong>. New investments aren't possible â€” the AMC
+          <strong>${navDate}</strong>. New investments aren't possible — the AMC
           has stopped processing units for this scheme.
         </div>
       </div>

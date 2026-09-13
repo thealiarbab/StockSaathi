@@ -1671,7 +1671,7 @@ async function runAiSearch(query, render) {
       // rationale so the user knows to try again rather than seeing
       // a silent empty state.
       if (signal.aborted && !aiSearch) {
-        aiSearch = { matches: [], rationale: "Saathi took too long â€” try again with a shorter query." };
+        aiSearch = { matches: [], rationale: "Saathi took too long — try again with a shorter query." };
       }
       return;
     }
