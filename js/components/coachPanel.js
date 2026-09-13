@@ -93,7 +93,13 @@ function summarisePortfolio(state) {
     const h = state.holdings[s];
     return `${s} × ${h.qty} @ avg ₹${(h.avgCostPaise / 100).toFixed(2)}`;
   });
-  return `Cash: ${formatRupees(state.portfolio.cashPaise, { compact: true })}\nHoldings (${syms.length}): ${lines.join(", ")}`;
+  // Label this explicitly. A live probe had the model read this block and
+  // answer "Your total portfolio is worth ₹38,100.00 ... you're down ₹4,000"
+  // — arithmetic invented out of average costs, with no live price anywhere
+  // in sight. Average cost is what was PAID; current value needs a quote.
+  return `Cash: ${formatRupees(state.portfolio.cashPaise, { compact: true })}\n`
+    + `Holdings (${syms.length}), shown as quantity @ AVERAGE BUY PRICE (what they paid — NOT current value): ${lines.join(", ")}\n`
+    + `No live prices in this block. Do not compute a total, a profit, or a return % from it.`;
 }
 
 async function callLlmAgent(apiKey, history, state) {
