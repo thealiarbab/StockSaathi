@@ -160,6 +160,27 @@ function jsonError(status, code, err) {
 // -----------------------------------------------------------------------------
 async function dispatch(req, env, ctx) {
   const url = new URL(req.url);
+
+  // Canonical host. www and the apex are separate ORIGINS, and localStorage is
+  // keyed by scheme+host+port, so the Supabase session written under
+  // ss.sb.session.v1 on the apex is invisible on www and the app boots
+  // signed-out there. Everything else already treats the apex as canonical
+  // (link rel=canonical, og:url, sitemap.xml, robots.txt).
+  //
+  // vercel.json carries the same redirect, and that is what serves this today.
+  // It must ALSO live here, because proxyTo() below rewrites the Host header to
+  // the origin's hostname (keeping the real host only in x-forwarded-host) --
+  // so the moment this Worker is put in front of www, Vercel stops seeing
+  // Host: www.stocksaathi.co.in and its redirect silently stops firing. Two
+  // layers, because a redirect that fails silently is worse than no redirect.
+  //
+  // 308 keeps method and body intact for POSTs to /api/*. Fragments never reach
+  // the server; browsers re-append them to the Location themselves.
+  if (url.hostname === "www.stocksaathi.co.in") {
+    url.hostname = "stocksaathi.co.in";
+    return Response.redirect(url.toString(), 308);
+  }
+
   const isApi = url.pathname.startsWith("/api/");
   const timeout = isApi ? TIMEOUT_API_MS : TIMEOUT_STATIC_MS;
 
