@@ -106,6 +106,10 @@ def fetch_yahoo(symbol, range_, interval, period1=None, period2=None):
             continue
         return {
             "ohlc": ohlc,
+            # The ticker this loop actually succeeded on. The caller used to
+            # re-derive it as symbol + ".NS", which is wrong for every BSE and
+            # SME listing -- the exact symbols the fallback above exists for.
+            "ticker": ticker,
             "currency": meta.get("currency") or "INR",
             "exchange": meta.get("exchangeName") or "",
             "host": base.split("//")[1].split("/")[0],
@@ -190,7 +194,7 @@ class handler(BaseHTTPRequestHandler):
         self._json(200, {
             "ok": True,
             "symbol": symbol,
-            "ticker": symbol if "." in symbol else f"{symbol}.NS",
+            "ticker": data.get("ticker") or (symbol if "." in symbol else f"{symbol}.NS"),
             "range": range_ if not custom_range else f"{from_str}_{to_str}",
             "interval": interval,
             "ohlc": data["ohlc"],
