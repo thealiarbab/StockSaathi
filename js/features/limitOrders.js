@@ -70,22 +70,48 @@ async function withRpcTimeout(promiseFactory, timeoutMs, label) {
 // user's rows, so an unauthenticated or expired-session tab simply
 // gets an empty array — no lock, no timeout, no spam.
 
+/**
+ * Pending orders for the signed-in user.
+ *
+ * Returns an ARRAY on success (possibly empty) or NULL when the list could
+ * not be loaded. Callers must treat those differently.
+ *
+ * Why: this used to return [] for both "you have no orders" and "the query
+ * failed", and worse, it could hang forever — supabase-js can deadlock on
+ * its GoTrue lock (issues #936, #740, documented in the block comment above),
+ * in which case the awaited promise simply never settles. The portfolio page
+ * then sat at its initial empty list and rendered "QUEUED AMOS: 0".
+ *
+ * Observed live on 2026-09-13: a real pending RELIANCE AMO existed in the
+ * database and PostgREST returned it correctly, while the page showed 0. A
+ * user in that state concludes their order vanished — which is exactly the
+ * complaint that started all of this ("Order ya pending order wala koi option
+ * hi nahi hai"). Silently showing zero is the worst possible failure here.
+ */
 export async function listPendingOrders() {
-  const client = await sb();
-  if (!client) return [];
-  // RLS filters by auth.uid() = user_id automatically. No client-side
-  // user-id fetch needed — one fewer lock acquisition per 15-s poll
-  // tick. Unauthenticated tabs get an empty array (RLS returns zero
-  // rows), matching the old behaviour without the 5-s timeout spam.
-  const { data, error } = await client.from("limit_orders")
-    .select("*")
-    .eq("status", "pending")
-    .order("created_at", { ascending: false });
-  if (error) {
-    console.error("[limit] listPendingOrders select error:", error.message, error.code, error.details);
-    return [];
+  try {
+    const client = await withRpcTimeout(() => sb(), 8_000, "supabase client");
+    if (!client) return [];
+    // RLS filters by auth.uid() = user_id automatically. Unauthenticated
+    // tabs legitimately get an empty array (RLS returns zero rows).
+    const { data, error } = await withRpcTimeout(
+      () => client.from("limit_orders")
+        .select("*")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false }),
+      10_000,
+      "listPendingOrders"
+    );
+    if (error) {
+      console.error("[limit] listPendingOrders select error:", error.message, error.code, error.details);
+      return null;
+    }
+    return data || [];
+  } catch (e) {
+    // Timeout or thrown error — we do NOT know the user's orders.
+    console.error("[limit] listPendingOrders failed:", e?.message || e);
+    return null;
   }
-  return data || [];
 }
 
 export async function listAllOrders(limit = 50) {

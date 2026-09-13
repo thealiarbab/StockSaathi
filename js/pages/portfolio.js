@@ -31,6 +31,7 @@ import { fetchDigest, cachedDigest } from "../features/portfolioDigest.js";
 let newsItems = [];
 let quoteCache = {};
 let pendingOrders = [];
+let ordersUnavailable = false;
 let aiDigest = null;      // { narrative, mood } | null
 let aiDigestLoading = false;
 
@@ -87,7 +88,16 @@ export function renderPortfolio(main) {
   }
 
   // Load pending limit orders (initial fetch)
-  listPendingOrders().then(o => { if (!cancelled) { pendingOrders = o; render(); } }).catch(() => {});
+  // listPendingOrders() now returns null when it could not load the list at
+  // all (timeout / error), which is NOT the same as "you have no orders".
+  // Rendering 0 in that case tells the user their order vanished.
+  listPendingOrders().then(o => {
+    if (cancelled) return;
+    if (o === null) { ordersUnavailable = true; render(); return; }
+    ordersUnavailable = false;
+    pendingOrders = o;
+    render();
+  }).catch(() => { if (!cancelled) { ordersUnavailable = true; render(); } });
 
   // Live-refresh pending orders every 15 s so background-matcher fills
   // and cross-tab cancels propagate to the visible list without
@@ -109,6 +119,13 @@ export function renderPortfolio(main) {
     try {
       const o = await listPendingOrders();
       if (cancelled) return;
+      if (o === null) {
+        // Could not reach the list. Keep whatever is on screen and say so,
+        // rather than silently collapsing to zero.
+        if (!ordersUnavailable) { ordersUnavailable = true; render(); }
+        return;
+      }
+      if (ordersUnavailable) { ordersUnavailable = false; render(); }
       if (o.length === 0 && pendingOrders.length > 0) {
         emptyStreak++;
         if (emptyStreak < 2) return;   // wait one more tick to confirm
@@ -359,7 +376,7 @@ export function renderPortfolio(main) {
         <div class="stat-tile"><div class="l">Cash</div><div class="v tabular">${formatRupees(cash, { compact: true })}</div></div>
         <div class="stat-tile"><div class="l">Invested</div><div class="v tabular">${formatRupees(holdValue, { compact: true })}</div></div>
         <div class="stat-tile"><div class="l">Holdings</div><div class="v tabular">${holdings.length}</div></div>
-        <div class="stat-tile ${pendingOrders.length ? 'has-pending' : ''}"><div class="l">Queued AMOs</div><div class="v tabular">${pendingOrders.length}</div></div>
+        <div class="stat-tile ${pendingOrders.length ? 'has-pending' : ''}"><div class="l">Queued AMOs</div><div class="v tabular" ${ordersUnavailable ? 'title="Could not load your queued orders just now — this is a display problem, not a cancellation. Your orders are safe."' : ''}>${ordersUnavailable ? "—" : pendingOrders.length}</div></div>
       </div>
 
       <div class="portfolio-grid">
@@ -387,6 +404,18 @@ export function renderPortfolio(main) {
             </div>
             ${holdings.length ? renderHoldingsTable(holdings) : renderEmptyHoldings()}
           </div>
+
+          ${ordersUnavailable && !pendingOrders.length ? `
+            <div class="card" id="order-list" style="border: 1px solid var(--warning, #b26a00);">
+              <div class="card-head"><h3><span>🕗</span> Queued AMOs &amp; Limit orders</h3></div>
+              <p class="dim text-sm" style="margin: 0;">
+                Couldn't load your queued orders just now — that's a display
+                problem on our side, not a cancellation. Nothing has been
+                cancelled and any queued order will still execute on our
+                servers. Try again in a moment.
+              </p>
+            </div>
+          ` : ""}
 
           ${pendingOrders.length ? `
             <div class="card" id="order-list" style="border: 1px solid color-mix(in srgb, var(--brand) 40%, var(--border));">
