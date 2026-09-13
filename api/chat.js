@@ -34,7 +34,24 @@
 export const config = { runtime: "edge" };
 
 const MAX_BODY = 64 * 1024;
-const MAX_OUTPUT_TOKENS = 2000;
+const MAX_OUTPUT_TOKENS = 4000;
+
+// Per-profile thinking budget. See the block where this is applied for the
+// measurements behind it. Env-overridable so the trade can be retuned
+// without a deploy.
+//
+//   chat      conversational coach. "low" keeps real reasoning at ~1.2s to
+//             first token instead of ~6s. This is the lane the user talks to.
+//   fast      tool-use. Still needs to reason about WHICH tool to call, but
+//             not deeply — the tools supply the facts.
+//   json      already on a non-thinking model; nothing to trim.
+//   reasoning / creative  deliberately left alone. These lanes exist to
+//             think, are not on the interactive path, and nobody is watching
+//             a cursor blink while they run.
+const REASONING_EFFORT = {
+  chat: (globalThis.process?.env?.CHAT_REASONING_EFFORT) || "low",
+  fast: (globalThis.process?.env?.FAST_REASONING_EFFORT) || "low",
+};
 
 const OPENAI_MODEL   = (globalThis.process?.env?.OPENAI_MODEL)    || "gpt-5.4";
 // Defaults target the Gemini 2.5 production GA models — available in every
@@ -320,12 +337,41 @@ export default async function handler(req) {
   const profile = typeof payload.profile === "string" ? payload.profile : "reasoning";
   delete payload.profile;
 
-  // Safety: cap max_tokens. Tools are passed through — the coach agent
-  // needs function-calling to fetch live quotes, portfolio values, and
-  // news during a conversation. Body size is already capped so runaway
-  // tool-schema bloat can't balloon the payload.
-  const mt = Number.isFinite(payload.max_tokens) ? Math.min(payload.max_tokens, MAX_OUTPUT_TOKENS) : 800;
+  // Output budget. Tools are passed through — the coach agent needs
+  // function-calling to fetch live quotes, portfolio values and news during
+  // a conversation. Body size is already capped so runaway tool-schema
+  // bloat can't balloon the payload.
+  //
+  // The `: 800` default here is why coach replies kept stopping mid-word
+  // even after the client stopped sending max_tokens: omitting it did not
+  // mean "no cap", it meant 800, and on a thinking model most of that goes
+  // to reasoning before a single visible word is produced. An absent
+  // max_tokens now means the real ceiling.
+  const mt = Number.isFinite(payload.max_tokens)
+    ? Math.min(payload.max_tokens, MAX_OUTPUT_TOKENS)
+    : MAX_OUTPUT_TOKENS;
   payload.max_tokens = mt;
+
+  // Thinking budget — by far the biggest lever on time-to-first-token.
+  //
+  // Measured against production with the coach's real 5,046-token system
+  // prompt, streaming, "hello how is u":
+  //
+  //   default (full thinking)     3.85s, 6.48s
+  //   reasoning_effort: "low"     1.22s, 1.32s
+  //   reasoning_effort: "none"    0.15s, 0.33s
+  //
+  // For comparison, shrinking that 5,046-token prompt to 21 tokens only
+  // bought ~1s. The prompt was never the problem; the reasoning phase was.
+  // A thinking model emits NOTHING until it has finished thinking, so
+  // streaming cannot hide it — the user just watches an empty bubble.
+  //
+  // So: conversational lanes get a small budget, lanes that exist to reason
+  // keep theirs. A caller that sets reasoning_effort explicitly always wins.
+  if (payload.reasoning_effort === undefined) {
+    const effort = REASONING_EFFORT[profile];
+    if (effort) payload.reasoning_effort = effort;
+  }
   if (!Array.isArray(payload.messages) || payload.messages.length === 0) {
     return jsonResponse(400, { error: "bad_messages" }, origin);
   }
