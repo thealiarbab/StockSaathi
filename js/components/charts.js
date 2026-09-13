@@ -100,8 +100,21 @@ export function lineChart(values, {
   // Same reason: 8% padding made y-axis labels overshoot the actual
   // peak/trough values by enough to be misleading on charts that
   // already have small absolute ranges (portfolio P&L vs. â‚¹1L start).
-  const min = minArg != null ? minArg : autoMin - (autoMax - autoMin) * 0.03;
-  const max = maxArg != null ? maxArg : autoMax + (autoMax - autoMin) * 0.03;
+  let min = minArg != null ? minArg : autoMin - (autoMax - autoMin) * 0.03;
+  let max = maxArg != null ? maxArg : autoMax + (autoMax - autoMin) * 0.03;
+  // v275: a perfectly flat series (every value identical) gives max === min,
+  // so toY() divides by zero and every path coordinate becomes NaN. The
+  // browser then discards the whole <path> and the chart renders BLANK —
+  // indistinguishable from "no data". 11 of the 42 users with portfolio
+  // history have a flat series (one trade, never re-valued), so this was
+  // the second reason the portfolio chart looked empty. Open the band to
+  // +/-1% of the value (or +/-1 unit at zero) and draw the flat line.
+  if (!(max > min)) {
+    const mid = Number.isFinite(autoMin) ? autoMin : 0;
+    const pad = Math.abs(mid) > 0 ? Math.abs(mid) * 0.01 : 1;
+    min = mid - pad;
+    max = mid + pad;
+  }
   const plotW = width - paddingLeft - paddingRight;
   const plotH = height - paddingTop - paddingBottom;
 

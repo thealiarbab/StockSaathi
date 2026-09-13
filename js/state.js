@@ -27,6 +27,9 @@ const DEFAULT_STATE = () => ({
   watchlist: [],
   friends: [],
   badges: [],
+  // v275: portfolio-value snapshots, {ts, valuePaise}[], ascending by ts.
+  // Populated from public.portfolio_history by sync.js:loadAllFromDb.
+  portfolioHistory: [],
   profile: {
     riskProfile: null, school: null, classCode: null, age: null,
     onboarded: false,
@@ -114,6 +117,7 @@ function writeUserState(userId, st) {
         transactions: (stamped.transactions || []).slice(-500),
         transfers: (stamped.transfers || []).slice(-200),
         inbox: (stamped.inbox || []).slice(-100),
+        portfolioHistory: (stamped.portfolioHistory || []).slice(-500),
       };
       localStorage.setItem(keyFor(userId), JSON.stringify(trimmed));
       console.warn("state trimmed after QuotaExceededError (coach history shrunk).");
@@ -205,6 +209,16 @@ export function getState() {
     watchlist: us.watchlist,
     friends: us.friends,
     badges: us.badges,
+    // v275 BUGFIX: this projection is an allowlist, not a spread — any key
+    // missing from BOTH this literal and applyFullPatch's literal below is
+    // silently discarded. sync.js has been fetching portfolio_history and
+    // calling setState({portfolioHistory}) since Hotfix66a, but neither list
+    // named it, so the rows were written into a throwaway object and dropped
+    // on the very next line. portfolio.js read `state.portfolioHistory` as
+    // undefined for EVERY user, making hasRealHistory permanently false and
+    // pinning the "Make your first trade to start charting" placeholder on
+    // screen even for users with 50 snapshots in the table.
+    portfolioHistory: us.portfolioHistory || [],
     demo: us.demo,
     settings: _settings,
     isAuthed: !!user,
@@ -242,6 +256,7 @@ function applyFullPatch(full, prev) {
       watchlist: full.watchlist ?? _userState.watchlist,
       friends: full.friends ?? _userState.friends,
       badges: full.badges ?? _userState.badges,
+      portfolioHistory: full.portfolioHistory ?? _userState.portfolioHistory ?? [],
       profile: {
         riskProfile: full.user?.riskProfile ?? _userState.profile.riskProfile,
         school: full.user?.school ?? _userState.profile.school,

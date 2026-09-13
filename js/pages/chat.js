@@ -22,6 +22,23 @@ import {
 // source of truth: it handles the CALL-leak shapes actually seen in the
 // production log (parens optional, inline as well as own-line) plus the
 // reasoning-preamble paragraphs, which this local copy never caught.
+/**
+ * Resolve to `promise`'s value, or to null if it takes longer than `ms`.
+ * Never rejects.
+ *
+ * Every retry in this file sits on the path between "the stream finished"
+ * and "the composer is re-enabled". An unbounded one strands the user
+ * looking at a disabled input and a Stop button that no longer aborts
+ * anything. A retry is an optimisation; it must never be able to cost more
+ * than it saves.
+ */
+function withDeadline(promise, ms) {
+  return Promise.race([
+    Promise.resolve(promise).catch(() => null),
+    new Promise((resolve) => setTimeout(() => resolve(null), ms)),
+  ]);
+}
+
 function stripScaffolding(text) {
   if (!text || typeof text !== "string") return text;
   let s = stripToolCallScaffolding(text);
@@ -140,19 +157,24 @@ export function renderChat(main) {
             ${renderMessages()}
           </div>
 
-          <form id="chat-form" style="display: flex; gap: var(--sp-2); padding: var(--sp-3); border-top: 1px solid var(--divider); background: var(--surface);">
-            <input
-              id="chat-input"
-              class="input"
-              placeholder="${m_pending ? "Wait for the response to finish…" : "Ask about SIPs, P/E, crashes, anything..."}"
-              autocomplete="off"
-              style="flex: 1;"
-              maxlength="500"
-              ${m_pending ? "disabled" : ""}
-            />
-            ${m_pending
-              ? `<button class="btn btn-outline" id="chat-stop" type="button" title="Stop response">◼ Stop</button>`
-              : `<button class="btn btn-primary" id="chat-send" type="submit">Send</button>`}
+          <form id="chat-form" class="composer">
+            <div class="composer-shell ${m_pending ? "is-busy" : ""}">
+              ${m_pending
+                ? `<span class="composer-dots" aria-live="polite"><span>Saathi is thinking</span><i></i><i></i><i></i></span>`
+                : ""}
+              <input
+                id="chat-input"
+                class="composer-input"
+                placeholder="${m_pending ? "" : "Ask about SIPs, P/E, crashes, anything…"}"
+                autocomplete="off"
+                maxlength="500"
+                aria-label="Message Saathi"
+                ${m_pending ? "disabled" : ""}
+              />
+              ${m_pending
+                ? `<button class="composer-btn is-stop" id="chat-stop" type="button" title="Stop generating" aria-label="Stop generating">&#9632;</button>`
+                : `<button class="composer-btn" id="chat-send" type="submit" title="Send" aria-label="Send message">&#8593;</button>`}
+            </div>
           </form>
         </div>
 
@@ -355,21 +377,67 @@ function renderBubble(m) {
 // user/LLM content can't inject tags), then converts a whitelist of common
 // Gemini-output patterns: **bold**, *italic*, `code`, auto-linked URLs.
 // Paragraph spacing is handled by CSS white-space: pre-wrap on the bubble.
+// Shared markdown renderer body — written once, injected into both
+// chat.js and coachPanel.js by patch-md.py.
 function renderMarkdown(text) {
   if (!text) return "";
-  let s = escapeHtml(String(text));
-  // Bold: **text** — run first so the single-* italic regex below doesn't
-  // try to claim the same asterisks.
-  s = s.replace(/\*\*([^\n*][^\n*]*?)\*\*/g, "<strong>$1</strong>");
-  // Italic: single-* text *. Intentionally conservative — no words on
-  // either side of the asterisks (e.g. "rate*up" isn't italic).
-  s = s.replace(/(^|[\s(])\*([^\n*][^\n*]*?)\*(?=[\s.,!?)]|$)/g, "$1<em>$2</em>");
-  // Inline code: `snippet`
-  s = s.replace(/`([^`\n]+)`/g, "<code style=\"background:var(--bg-soft);padding:1px 4px;border-radius:3px;font-size:0.9em;\">$1</code>");
-  // Auto-link bare URLs. Safe because HTML was escaped first so any raw
-  // "http" from user content is already `http` not a tag attribute.
-  s = s.replace(/(^|\s)(https?:\/\/[^\s<]+)/g, "$1<a href=\"$2\" target=\"_blank\" rel=\"noopener\" style=\"color:var(--brand);text-decoration:underline;\">$2</a>");
-  return s;
+  const esc = (x) => { const d = document.createElement("div"); d.textContent = String(x ?? ""); return d.innerHTML; };
+
+  // Inline formatting, applied to already-escaped text.
+  const inline = (raw) => {
+    let s = esc(raw);
+    // Bold first, so the single-* italic rule below can't claim its asterisks.
+    s = s.replace(/\*\*([^\n*][^\n*]*?)\*\*/g, "<strong>$1</strong>");
+    // Italic: conservative — needs a boundary on both sides.
+    s = s.replace(/(^|[\s(])\*([^\n*][^\n*]*?)\*(?=[\s.,!?)]|$)/g, "$1<em>$2</em>");
+    s = s.replace(/`([^`\n]+)`/g, '<code class="md-code">$1</code>');
+    s = s.replace(/(^|\s)(https?:\/\/[^\s<]+)/g,
+      '$1<a href="$2" target="_blank" rel="noopener" class="md-link">$2</a>');
+    return s;
+  };
+
+  // Block pass. The model writes real markdown lists — "*   HDFC Bank",
+  // "- Axis Bank", "1. Reliance" — and the old renderer had no list handling
+  // at all, so a five-bank comparison arrived as a wall of literal asterisks.
+  // Rather than fight the model (a bullet IS the right shape for comparing
+  // instruments), render them.
+  const lines = String(text).replace(/\r\n?/g, "\n").split("\n");
+  const out = [];
+  let list = null;          // "ul" | "ol" | null
+  let para = [];
+
+  const flushPara = () => {
+    if (para.length) { out.push(`<p>${inline(para.join(" "))}</p>`); para = []; }
+  };
+  const closeList = () => {
+    if (list) { out.push(`</${list}>`); list = null; }
+  };
+
+  for (const rawLine of lines) {
+    const line = rawLine.trimEnd();
+    const bullet = line.match(/^\s*[-*•]\s+(.*)$/);
+    const numbered = line.match(/^\s*(\d{1,2})[.)]\s+(.*)$/);
+
+    if (!line.trim()) { flushPara(); closeList(); continue; }
+
+    if (bullet) {
+      flushPara();
+      if (list !== "ul") { closeList(); out.push('<ul class="md-list">'); list = "ul"; }
+      out.push(`<li>${inline(bullet[1])}</li>`);
+      continue;
+    }
+    if (numbered) {
+      flushPara();
+      if (list !== "ol") { closeList(); out.push('<ol class="md-list">'); list = "ol"; }
+      out.push(`<li>${inline(numbered[2])}</li>`);
+      continue;
+    }
+    closeList();
+    para.push(line.trim());
+  }
+  flushPara();
+  closeList();
+  return out.join("");
 }
 
 function renderTyping() {
@@ -433,15 +501,27 @@ async function sendAndReply(userText) {
   const outer = document.getElementById("main");
   const input = outer?.querySelector("#chat-input");
   const sendBtn = outer?.querySelector("#chat-send");
+  const shell = outer?.querySelector(".composer-shell");
+  if (shell) {
+    shell.classList.add("is-busy");
+    // Live typing dots INSIDE the composer. The old treatment just disabled
+    // the input and set the placeholder to "Saathi is responding…", which
+    // reads as a dead form rather than a busy one — especially when a reply
+    // takes a few seconds.
+    if (!shell.querySelector(".composer-dots")) {
+      shell.insertAdjacentHTML("afterbegin",
+        `<span class="composer-dots" aria-live="polite"><span>Saathi is thinking</span><i></i><i></i><i></i></span>`);
+    }
+  }
   if (input) {
     input.setAttribute("readonly", "readonly");
-    input.placeholder = "Saathi is responding…";
+    input.placeholder = "";
     // Don't steal focus during mobile streaming — keeps the virtual
     // keyboard from popping up uninvited. Desktop-only.
     if (window.innerWidth >= 1024) input.focus();
   }
   if (sendBtn) {
-    sendBtn.outerHTML = `<button class="btn btn-outline" id="chat-stop" type="button" title="Stop response">◼ Stop</button>`;
+    sendBtn.outerHTML = `<button class="composer-btn is-stop" id="chat-stop" type="button" title="Stop generating" aria-label="Stop generating">&#9632;</button>`;
     outer.querySelector("#chat-stop")?.addEventListener("click", () => {
       if (m_abortController) m_abortController.abort();
     });
@@ -489,16 +569,26 @@ async function sendAndReply(userText) {
   };
 
   const restoreForm = () => {
-    if (input) {
-      input.removeAttribute("readonly");
-      input.placeholder = "Ask about SIPs, P/E, crashes, anything...";
+    // Re-read from the DOM rather than trusting the captured refs: a
+    // re-render between send and completion replaces these nodes, and a
+    // stale ref here is how the composer ends up stuck on "thinking".
+    const el = document.getElementById("main");
+    const shellNow = el?.querySelector(".composer-shell");
+    shellNow?.classList.remove("is-busy");
+    shellNow?.querySelector(".composer-dots")?.remove();
+
+    const inputNow = el?.querySelector("#chat-input") || input;
+    if (inputNow) {
+      inputNow.removeAttribute("readonly");
+      inputNow.removeAttribute("disabled");
+      inputNow.placeholder = "Ask about SIPs, P/E, crashes, anything…";
       // Same rationale as above — desktop auto-focus is fine, mobile
       // pops a keyboard the user didn't ask for.
-      if (window.innerWidth >= 1024) input.focus();
+      if (window.innerWidth >= 1024) inputNow.focus();
     }
-    const stopBtn = outer?.querySelector("#chat-stop");
+    const stopBtn = el?.querySelector("#chat-stop");
     if (stopBtn) {
-      stopBtn.outerHTML = `<button class="btn btn-primary" id="chat-send" type="submit">Send</button>`;
+      stopBtn.outerHTML = `<button class="composer-btn" id="chat-send" type="submit" title="Send" aria-label="Send message">&#8593;</button>`;
     }
   };
 
@@ -544,14 +634,17 @@ async function sendAndReply(userText) {
     // instruction, instead of spending the user's turn on a yes/no.
     if (looksLikeLookupOffer(cleanedReply)) {
       try {
-        const retry = await runAgent({
+        // Bounded — see the note on the streaming escalation below. A retry
+        // that outlives the user's patience is worse than the reply we're
+        // trying to improve.
+        const retry = await withDeadline(runAgent({
           apiKey: state.settings.llmApiKey || null,
           system: system + `
 
 # THIS TURN
 You already offered to look this up and the user already asked. Do NOT ask again. Call the tools you need, in parallel if it takes several, and answer with the real numbers now.`,
           messages, profile: "fast",
-        });
+        }), 12_000);
         const cleanRetry = stripScaffolding(retry);
         if (cleanRetry && cleanRetry.trim() && !looksLikeLookupOffer(cleanRetry)) cleanedReply = cleanRetry;
       } catch (e) { console.warn("[chat] lookup-offer retry failed:", e?.message || e); }
@@ -681,6 +774,11 @@ You already offered to look this up and the user already asked. Do NOT ask again
   m_pending = false;
   m_abortController = null;
   const entry = ownerMessages[placeholderIdx];
+  // Everything below runs in a try/finally so the composer is re-enabled no
+  // matter what happens in here. A thrown retry used to leave the input
+  // disabled and the Stop button inert — the user could not send anything
+  // again without reloading the page.
+  try {
   if (entry) {
     entry.streaming = false;
     // Strip any leaked scaffolding from the streamed result. Done AFTER
@@ -703,16 +801,24 @@ You already offered to look this up and the user already asked. Do NOT ask again
     } else if (looksLikeLookupOffer(entry.text)) {
       // Streaming has no tools at all, so an offer here is guaranteed to be
       // a dead end. Re-run through runAgent and replace the bubble.
+      //
+      // BOUNDED. runAgent can take up to MAX_TOOL_LOOPS network round trips,
+      // and this await sits between `m_pending = false` and restoreForm() —
+      // so an unbounded one leaves the composer showing "Saathi is
+      // responding…" with a Stop button that does nothing, because
+      // m_abortController was already nulled above. That is exactly the
+      // stuck state reported on 2026-09-13. Never let a retry outlive the
+      // user's patience: cap it, and fall back to the original text.
       const sysT = `${SYSTEM_PROMPT}
 
 ${runtimeFacts(marketStatus())}
 
 # THIS TURN
 The user asked for data. Call the tools and answer with real numbers. Do NOT ask permission.`;
-      const esc = await runAgent({
+      const esc = await withDeadline(runAgent({
         apiKey: getState().settings.llmApiKey || null,
         system: sysT, messages, profile: "fast",
-      }).catch(() => null);
+      }), 12_000);
       const cleanEsc = stripScaffolding(esc);
       if (cleanEsc && cleanEsc.trim()) entry.text = cleanEsc.trim();
     } else if (!entry.text.trim() && isToolCallOnly(result?.raw)) {
@@ -726,10 +832,10 @@ ${runtimeFacts(marketStatus())}
 
 # TONE
 Keep replies conversational and short by default (1–3 sentences).`;
-      const retry = await runAgent({
+      const retry = await withDeadline(runAgent({
         apiKey: getState().settings.llmApiKey || null,
         system: sys, messages, profile: "fast",
-      }).catch(() => null);
+      }), 12_000);
       entry.text = (retry && stripScaffolding(retry).trim())
         ? stripScaffolding(retry).trim()
         : "Let me pull that up — ask me once more?";
@@ -754,8 +860,10 @@ Keep replies conversational and short by default (1–3 sentences).`;
       });
     }
   }
-  finalPaint();
-  restoreForm();
+  } finally {
+    finalPaint();
+    restoreForm();
+  }
 }
 
 function escapeHtml(s) { const d = document.createElement("div"); d.textContent = String(s ?? ""); return d.innerHTML; }

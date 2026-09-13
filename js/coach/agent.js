@@ -18,10 +18,36 @@ const BACKEND_URL = "/api/chat";
 // actual Gemini model based on the profile. Kept short so it still works
 // if someone sets their own Groq key (legacy "bring your own key" path).
 const MODEL = "llama-3.3-70b-versatile";
-// Keep responses tight — Gemini thinking models spend tokens on internal
-// reasoning, so a smaller budget = less thinking = faster UX without losing
-// response quality (the visible reply is usually 200–400 tokens anyway).
-const MAX_TOKENS = 512;
+// NO OUTPUT CAP. We do not send max_tokens at all, so each upstream uses its
+// own full output window.
+//
+// It used to be 512, on the theory that a smaller budget means less internal
+// reasoning and therefore a snappier reply. What it actually bought was
+// replies chopped off mid-word:
+//
+//   "That would be your mutual fund (MF_151908), which is currently flat"
+//   "The 21 EMA is an Exponential Moving Average that tracks the average
+//    price over the last"
+//   "My apologies! It seems I"
+//
+// The subtle part is WHY only some replies were cut. The budget is shared
+// with the model's internal reasoning tokens, and the two profiles use
+// different models:
+//
+//   profile "chat" -> gemini-2.5-flash-lite, which does NOT think. All 512
+//                     tokens went to visible text (~2,000 chars), so
+//                     conversational answers were never truncated.
+//   profile "fast" -> gemini-2.5-flash, which DOES think. Reasoning came out
+//                     of the same 512, leaving very little for the answer.
+//
+// api/chat.js already documents this exact failure mode elsewhere: "2.5 Flash
+// spends ~1900 reasoning-tokens on strict-JSON requests, which breaks crash
+// replay (hits max_tokens with the JSON itself only 70 tokens long)."
+//
+// That is why long conceptual answers were fine while portfolio and trade
+// questions — the ones that go through tools on the "fast" profile — kept
+// getting cut. trimToSentence() stays as a safety net for any cap imposed
+// upstream that we do not control.
 const MAX_TOOL_LOOPS = 5;
 
 // -----------------------------------------------------------------------------
@@ -503,7 +529,6 @@ async function callLLM({ apiKey, system, messages, tools, profile = "fast" }) {
   ];
   const body = {
     model: MODEL,
-    max_tokens: MAX_TOKENS,
     temperature: 0.5,
     messages: openaiMessages,
     tools,
@@ -634,7 +659,9 @@ export async function runAgent({ apiKey, system, messages, onStep, profile = "fa
     // leak into the user-facing bubble — they're model-internal scaffolding.
     // We strip them wholesale; if the model hallucinated a result after
     // such a line we keep the prose around it (best-effort).
-    const text = stripToolCallScaffolding(String(msg.content || "")).trim();
+    let text = stripToolCallScaffolding(String(msg.content || "")).trim();
+    // Hit the output ceiling? Never show a sentence that stops mid-word.
+    if (choice.finish_reason === "length") text = trimToSentence(text);
     return text || null;
   }
 
@@ -657,7 +684,6 @@ export { TOOLS };
 export async function streamChat({ system, messages, profile = "chat", onToken, signal }) {
   const body = {
     model: MODEL,
-    max_tokens: MAX_TOKENS,
     temperature: 0.5,
     messages: [
       { role: "system", content: system },
@@ -1092,6 +1118,34 @@ const OFFER_RE = new RegExp([
   "\\bi'?ll need to (?:pull|fetch|look|check)\\b",
   "\\btell me (?:what|which)\\b.{0,40}\\band i(?:'| w)?ll\\b",
 ].join("|"), "i");
+
+// -----------------------------------------------------------------------------
+// Cut a truncated reply back to its last complete sentence.
+//
+// When the model hits the output ceiling it stops wherever it happens to be,
+// which users see as a reply that just... stops. Real examples from the log:
+//
+//   "That would be your mutual fund (MF_151908), which is currently flat"
+//   "The 21 EMA is an Exponential Moving Average that tracks the average
+//    price over the last"
+//   "My apologies! It seems I"
+//
+// Raising MAX_TOKENS makes this rare; this makes it survivable. Ending one
+// sentence early reads as brevity. Ending mid-word reads as broken.
+// -----------------------------------------------------------------------------
+export function trimToSentence(text) {
+  const s = String(text || "").trim();
+  if (!s) return s;
+  // Last sentence-ending punctuation that isn't a decimal point or an
+  // abbreviation like "Rs." — require whitespace or end-of-string after it.
+  const m = s.match(/^[\s\S]*[.!?…](?=\s|$)/);
+  if (m && m[0].trim().length >= Math.min(60, s.length * 0.4)) {
+    return m[0].trim();
+  }
+  // Nothing usable to cut back to (one long unfinished sentence). Say so
+  // rather than pretending the fragment is the whole answer.
+  return s + "…";
+}
 
 export function looksLikeLookupOffer(text) {
   const s = String(text || "").trim();

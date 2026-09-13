@@ -218,11 +218,18 @@ function render() {
       ${messages}
     </div>
 
-    <form class="coach-chat-input" id="coach-form" autocomplete="off">
-      <input id="coach-input" placeholder="${pending ? "Wait for the response…" : "Ask about any stock, crypto, or concept…"}" maxlength="300" ${pending ? "disabled" : ""} />
-      ${pending
-        ? `<button type="button" id="coach-stop" title="Stop response">◼</button>`
-        : `<button type="submit" id="coach-send">Send</button>`}
+    <form class="composer" id="coach-form" autocomplete="off">
+      <div class="composer-shell ${pending ? "is-busy" : ""}">
+        ${pending
+          ? `<span class="composer-dots" aria-live="polite"><span>Thinking</span><i></i><i></i><i></i></span>`
+          : ""}
+        <input id="coach-input" class="composer-input"
+               placeholder="${pending ? "" : "Ask about any stock, crypto, or concept…"}"
+               maxlength="300" aria-label="Message Saathi" ${pending ? "disabled" : ""} />
+        ${pending
+          ? `<button type="button" class="composer-btn is-stop" id="coach-stop" title="Stop generating" aria-label="Stop generating">&#9632;</button>`
+          : `<button type="submit" class="composer-btn" id="coach-send" title="Send" aria-label="Send message">&#8593;</button>`}
+      </div>
     </form>
 
     <div class="coach-footer">
@@ -477,12 +484,65 @@ function escapeAttr(s) { return String(s ?? "").replace(/"/g, "&quot;").replace(
 // Minimal safe Markdown renderer — escapes HTML first, then converts
 // **bold**, *italic*, `code`, and bare URLs. Keeps Gemini's natural
 // Markdown output readable instead of rendering literal asterisks.
+// Shared markdown renderer body — written once, injected into both
+// chat.js and coachPanel.js by patch-md.py.
 function renderMarkdown(text) {
   if (!text) return "";
-  let s = escapeHtml(String(text));
-  s = s.replace(/\*\*([^\n*][^\n*]*?)\*\*/g, "<strong>$1</strong>");
-  s = s.replace(/(^|[\s(])\*([^\n*][^\n*]*?)\*(?=[\s.,!?)]|$)/g, "$1<em>$2</em>");
-  s = s.replace(/`([^`\n]+)`/g, "<code style=\"background:var(--bg-soft);padding:1px 4px;border-radius:3px;font-size:0.9em;\">$1</code>");
-  s = s.replace(/(^|\s)(https?:\/\/[^\s<]+)/g, "$1<a href=\"$2\" target=\"_blank\" rel=\"noopener\" style=\"color:var(--brand);text-decoration:underline;\">$2</a>");
-  return s;
+  const esc = (x) => { const d = document.createElement("div"); d.textContent = String(x ?? ""); return d.innerHTML; };
+
+  // Inline formatting, applied to already-escaped text.
+  const inline = (raw) => {
+    let s = esc(raw);
+    // Bold first, so the single-* italic rule below can't claim its asterisks.
+    s = s.replace(/\*\*([^\n*][^\n*]*?)\*\*/g, "<strong>$1</strong>");
+    // Italic: conservative — needs a boundary on both sides.
+    s = s.replace(/(^|[\s(])\*([^\n*][^\n*]*?)\*(?=[\s.,!?)]|$)/g, "$1<em>$2</em>");
+    s = s.replace(/`([^`\n]+)`/g, '<code class="md-code">$1</code>');
+    s = s.replace(/(^|\s)(https?:\/\/[^\s<]+)/g,
+      '$1<a href="$2" target="_blank" rel="noopener" class="md-link">$2</a>');
+    return s;
+  };
+
+  // Block pass. The model writes real markdown lists — "*   HDFC Bank",
+  // "- Axis Bank", "1. Reliance" — and the old renderer had no list handling
+  // at all, so a five-bank comparison arrived as a wall of literal asterisks.
+  // Rather than fight the model (a bullet IS the right shape for comparing
+  // instruments), render them.
+  const lines = String(text).replace(/\r\n?/g, "\n").split("\n");
+  const out = [];
+  let list = null;          // "ul" | "ol" | null
+  let para = [];
+
+  const flushPara = () => {
+    if (para.length) { out.push(`<p>${inline(para.join(" "))}</p>`); para = []; }
+  };
+  const closeList = () => {
+    if (list) { out.push(`</${list}>`); list = null; }
+  };
+
+  for (const rawLine of lines) {
+    const line = rawLine.trimEnd();
+    const bullet = line.match(/^\s*[-*•]\s+(.*)$/);
+    const numbered = line.match(/^\s*(\d{1,2})[.)]\s+(.*)$/);
+
+    if (!line.trim()) { flushPara(); closeList(); continue; }
+
+    if (bullet) {
+      flushPara();
+      if (list !== "ul") { closeList(); out.push('<ul class="md-list">'); list = "ul"; }
+      out.push(`<li>${inline(bullet[1])}</li>`);
+      continue;
+    }
+    if (numbered) {
+      flushPara();
+      if (list !== "ol") { closeList(); out.push('<ol class="md-list">'); list = "ol"; }
+      out.push(`<li>${inline(numbered[2])}</li>`);
+      continue;
+    }
+    closeList();
+    para.push(line.trim());
+  }
+  flushPara();
+  closeList();
+  return out.join("");
 }
