@@ -212,25 +212,68 @@ def equity_prices(symbols):
     return out
 
 
+_mf_static_cache = None
+
+
+def _mf_static_navs():
+    """{symbol: nav_paise} parsed from the shipped js/data/mfFull.json.
+
+    This is the SAME file the browser prices mutual funds from, so the
+    matcher and the UI can never disagree about a fund's NAV. It is also
+    why MF matching does not depend on a cron: the file is deployed with
+    the app. mf_master in Postgres is the nominally-canonical source but
+    has been sitting at 0 rows because the nightly data-sync aborts on an
+    unrelated instrument-sync failure before it ever reaches the MF step.
+    Relying on it alone would have left every mutual-fund order unfillable.
+    """
+    global _mf_static_cache
+    if _mf_static_cache is not None:
+        return _mf_static_cache
+    _mf_static_cache = {}
+    path = _DIR.parent / "js" / "data" / "mfFull.json"
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        rows = data if isinstance(data, list) else (data.get("rows") or data.get("data") or [])
+        for row in rows:
+            sym, nav = row.get("symbol"), row.get("nav")
+            if sym and nav:
+                try:
+                    _mf_static_cache[sym] = int(round(float(nav) * 100))
+                except Exception:
+                    continue
+    except Exception:
+        pass
+    return _mf_static_cache
+
+
 def mf_prices(symbols):
-    """{symbol: nav_paise} from mf_master for MF_<code> symbols."""
+    """{symbol: nav_paise} for MF_<code> symbols. mf_master first, then the
+    shipped AMFI snapshot for anything it does not cover."""
     out = {}
-    if not symbols or not (SUPA_URL and SUPA_SRV):
+    if not symbols:
         return out
-    for i in range(0, len(symbols), MAX_SYMBOLS_PER_BATCH):
-        chunk = symbols[i:i + MAX_SYMBOLS_PER_BATCH]
-        sym_list = ",".join(f'"{s}"' for s in chunk)
-        url = (f"{SUPA_URL}/rest/v1/mf_master"
-               f"?symbol=in.({sym_list})&select=symbol,nav")
-        req = urllib.request.Request(url, headers=_supa_headers())
-        try:
-            with urllib.request.urlopen(req, timeout=6) as r:
-                for row in json.loads(r.read().decode("utf-8")):
-                    nav = row.get("nav")
-                    if nav:
-                        out[row["symbol"]] = int(round(float(nav) * 100))
-        except Exception:
-            continue
+    if SUPA_URL and SUPA_SRV:
+        for i in range(0, len(symbols), MAX_SYMBOLS_PER_BATCH):
+            chunk = symbols[i:i + MAX_SYMBOLS_PER_BATCH]
+            sym_list = ",".join(f'"{s}"' for s in chunk)
+            url = (f"{SUPA_URL}/rest/v1/mf_master"
+                   f"?symbol=in.({sym_list})&select=symbol,nav")
+            req = urllib.request.Request(url, headers=_supa_headers())
+            try:
+                with urllib.request.urlopen(req, timeout=6) as r:
+                    for row in json.loads(r.read().decode("utf-8")):
+                        nav = row.get("nav")
+                        if nav:
+                            out[row["symbol"]] = int(round(float(nav) * 100))
+            except Exception:
+                continue
+    missing = [s for s in symbols if s not in out]
+    if missing:
+        static = _mf_static_navs()
+        for s in missing:
+            if s in static:
+                out[s] = static[s]
     return out
 
 
