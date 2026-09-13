@@ -181,9 +181,23 @@ Note `12d` exists because `12a`/`12c` were the no-op revokes from §2.4.
 `universe-refresh` was dispatched manually (run `34761640980`). It **succeeded**
 in 38s. GitHub-hosted runners reach NSE; see §2.5 for the numbers.
 
-`cron: "30 2 * * 0"` is restored and live on the default branch, and the
-workflow's comment block has been rewritten — it previously asserted
+The workflow's comment block has been rewritten — it previously asserted
 `DOES NOT WORK ON GITHUB-HOSTED RUNNERS` in capitals, which was false.
+
+**The schedule is `cron: "30 2 * * *"` — DAILY, not the weekly the old comment
+specified.** Weekly was restored first, on the inherited reasoning that "the
+NSE universe changes slowly". That reasoning covers the equity half only.
+This workflow also rebuilds `js/data/mfFull.json`, which ships a `nav` and
+`nav_date` for **all 14,120 schemes**; AMFI publishes NAVs every business day;
+`js/data/universeLoader.js` loads that file straight into the browser; and
+`js/data/marketData.js` `synthMFQuote` prices a fund as `inst.nav * 100` from
+it. Weekly therefore meant **every mutual fund in the app traded at a NAV up
+to 7 days old** — a wrong execution price for 13–18 year olds, not a stale
+label. The cost argument did not hold either: the SME churn below means a run
+commits and deploys every time regardless of cadence.
+
+Note `data-sync.yml` already refreshed the `mf_master` **table** daily, but the
+front end reads the committed JSON, not the table — that never covered this.
 
 **One correction to the prediction made here.** The handoff said a successful
 run "produces identical output and commits nothing". It committed: `d07bc1f`.
@@ -193,8 +207,8 @@ CSV in a varying row order, so ~129 rows (all series SM/ST) change array
 position between runs and the sha8 moves (`aa27fa18` → `464c6681`) while
 `rawBytes` stays byte-identical at 1,036,344.
 
-So **every weekly run will commit and trigger a production deploy even when
-nothing changed.** Cosmetic — array position only feeds search-result ordering
+So **every run will commit and trigger a production deploy even when nothing
+changed.** Cosmetic — array position only feeds search-result ordering
 among micro-caps — but if it becomes annoying, sort deterministically before
 serialising in `scripts/build-universe.mjs`. Documented in the workflow.
 
@@ -389,6 +403,13 @@ Added 2026-09-13, same pattern, found while working §4.1/§4.3/§4.5:
     `handlers/admin-sync-mf.py`, which still dropped all 14,120 rows. §4.4.
 12. **"`api/fundamentals.py:474` is untested, leave it alone"** — tested: SME
     fundamentals were failing completely in production. §4.5.
+13. **"Weekly is the right cadence for universe-refresh"** — mine, and wrong.
+    I restored the schedule the old comment specified without checking whether
+    its reasoning still applied. `mfFull.json` carries a NAV per scheme and is
+    what `synthMFQuote` prices MFs from, so weekly priced every fund up to 7
+    days stale. Now daily. **Restoring a setting is not the same as validating
+    it** — the comment justifying it deserved the same scrutiny as the comment
+    claiming NSE was blocked.
 
 Pattern: the DB and the live services disagree with the source comments
 constantly. `schema.sql:810` claims the leaderboard was dropped in April; it
