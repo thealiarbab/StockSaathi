@@ -41,19 +41,42 @@ const OPENAI_MODEL   = (globalThis.process?.env?.OPENAI_MODEL)    || "gpt-5.4";
 // Vertex region including asia-south1. 3.x family is still preview-only and
 // not deployed to all regions. Override via env vars if you want a specific
 // version or to test the 3.x preview.
-const GEMINI_FAST    = (globalThis.process?.env?.GEMINI_FAST_MODEL) || "gemini-2.5-flash";
-const GEMINI_PRO     = (globalThis.process?.env?.GEMINI_PRO_MODEL)  || "gemini-2.5-pro";
-// Dedicated model for the live coach chat. Defaults to 2.5 Flash Lite which
-// is Google's fastest Gemini model (~400 tok/s) with no internal thinking
-// overhead. Keeps the coach chat response <1s end-to-end even when the
-// fast/reasoning lanes run heavier 3.x preview models for structured tasks.
-const GEMINI_CHAT    = (globalThis.process?.env?.GEMINI_CHAT_MODEL) || "gemini-2.5-flash-lite";
+const GEMINI_FAST    = (globalThis.process?.env?.GEMINI_FAST_MODEL) || "gemini-3-flash-preview";
+const GEMINI_PRO     = (globalThis.process?.env?.GEMINI_PRO_MODEL)  || "gemini-3.1-pro-preview";
+// Dedicated model for the live coach chat.
+//
+// This used to default to 2.5 Flash Lite, chosen because it is the fastest
+// Gemini (~400 tok/s) and does no internal thinking — the goal was a
+// sub-second streaming feel. GEMINI_CHAT_MODEL is not set in the Vercel
+// project, so that default was live: the coach's conversational path ran on
+// the least capable model in the fleet while the tool path next door was
+// already being served by Gemini 3 Flash.
+//
+// That is the wrong trade for this surface. The coach IS the product, its
+// answers are read by 13-18 year olds who cannot evaluate them, and a
+// non-thinking model is exactly the kind that states a confident wrong
+// thing. Reasoning quality beats a few hundred milliseconds of time to
+// first token, and the reply still streams either way.
+//
+// Chain below degrades to Flash then OpenAI, so a slow or unavailable Pro
+// never hangs the coach. Override with GEMINI_CHAT_MODEL to trade back
+// toward latency without a deploy.
+const GEMINI_CHAT    = (globalThis.process?.env?.GEMINI_CHAT_MODEL) || "gemini-3.1-pro-preview";
 // Dedicated model for JSON-returning ops (command palette, market-search,
-// report-card, crash-replay). 2.5 Flash Lite is the ONLY Gemini model that
-// is truly non-thinking in response_format:json_object mode — 2.5 Flash
-// spends ~1900 reasoning-tokens on strict-JSON requests, which breaks crash
-// replay (hits max_tokens with the JSON itself only 70 tokens long). Lite
-// completes full crash-replay schema in ~3s with no reasoning overhead.
+// report-card, crash-replay).
+//
+// DELIBERATELY STAYS ON FLASH LITE — this is the one lane where "smarter"
+// is actively worse, and it is not an oversight. 2.5 Flash Lite is the only
+// Gemini that is truly non-thinking in response_format:json_object mode.
+// 2.5 Flash spends ~1900 reasoning tokens on a strict-JSON request and blows
+// the caller's max_tokens with the JSON itself only ~70 tokens long, which
+// broke crash replay outright. Lite returns the full crash-replay schema in
+// ~3s with no reasoning overhead.
+//
+// These callers set their own max_tokens (unlike the coach, which no longer
+// sends one), so the failure mode is live for them. Do not "upgrade" this
+// to a thinking model without first removing those caps and re-testing
+// crash replay, the command palette and the report card end to end.
 const GEMINI_JSON    = (globalThis.process?.env?.GEMINI_JSON_MODEL) || "gemini-2.5-flash-lite";
 const CEREBRAS_MODEL = (globalThis.process?.env?.CEREBRAS_MODEL)  || "llama3.3-70b";
 const GROQ_MODEL     = (globalThis.process?.env?.GROQ_MODEL)      || "llama-3.3-70b-versatile";
@@ -182,9 +205,11 @@ function providerDescriptors() {
 function chainFor(profile) {
   switch (profile) {
     case "chat":
-      // Live-typing coach chat. Leads with 2.5 Flash Lite for sub-second
-      // feel; Flash / Pro sit behind it as escalation if Lite errors.
-      return ["gemini_chat", "gemini_fast", "gemini_pro", "openai"];
+      // Live-typing coach chat. Leads with the smartest model (see
+      // GEMINI_CHAT above) and degrades to Flash then OpenAI, so a slow or
+      // unavailable Pro costs one fallback hop rather than hanging the
+      // coach. gemini_pro is not repeated here — it is already the lead.
+      return ["gemini_chat", "gemini_fast", "openai", "cerebras"];
     case "json":
       // JSON-returning ops (command palette, market-search, report-card,
       // crash-replay). Leads with 2.5 Flash (non-thinking, GA everywhere),
