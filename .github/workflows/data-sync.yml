@@ -55,7 +55,26 @@ jobs:
             -H "Authorization: Bearer $CRON_SECRET" \
             https://stocksaathi.co.in/api/admin-sync-instruments)
           echo "HTTP $code"; head -c 600 /tmp/instruments.json; echo
-          [ "$code" = "200" ] || exit 1
+          # This endpoint runs on Vercel, and NSE blocks Vercel: it fails its
+          # own gate with "sanity_fail: only 0 equities (expected >=1800)".
+          # Measured again 2026-09-13 (run 34772112882) -- still HTTP 500.
+          #
+          # It used to `exit 1` here, which aborted the JOB, so the two steps
+          # below never ran at all. That is why fundamentals_cache stayed empty
+          # and handlers/screener.py kept falling back to the 140-day-old
+          # js/data/fundamentals_full.json: the step that feeds the cache was
+          # never reached, not failing on its own merits.
+          #
+          # Nothing user-facing depends on dhan_instruments -- the app serves
+          # the committed js/data/universeFull.json -- so warn and continue,
+          # the same way the fundamentals step already does.
+          #
+          # Worth revisiting: GitHub-hosted runners CAN reach NSE directly
+          # (measured 2026-09-13, run 34761640980 -- EQUITY_L.csv returned 200
+          # with 2,568 rows). Doing this fetch on the runner and POSTing the
+          # rows, rather than asking Vercel to fetch them, would make this step
+          # actually work.
+          [ "$code" = "200" ] || echo "::warning::instrument sync failed (HTTP $code) - NSE blocks Vercel, see comment"
 
       - name: Sync fundamentals (5 pages, sequential)
         env:
