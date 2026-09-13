@@ -9,7 +9,7 @@
 // producing hero values that disagreed with the holdings-table sum. We now
 // derive these locally from the same quoteCache-first holdings array the
 // table displays, so the two views AGREE.
-import { getState, subscribe } from "../state.js";
+import { getState, subscribe, setReservedCashPaise } from "../state.js";
 import { formatRupees, formatPct, deltaClass, formatQty } from "../money.js";
 import { getInstrument } from "../data/universe.js";
 // Hotfix57a: portfolio holdings of MFs were rendering bare-stub names
@@ -87,6 +87,18 @@ export function renderPortfolio(main) {
     }, 15_000);
   }
 
+
+  // Mirror the reserved total into shared state so every OTHER consumer of
+  // getPortfolioValue() -- the nav badge, the report card, and the coach's
+  // get_user_portfolio tool -- agrees with what this page shows.
+  function syncReserved(orders) {
+    try {
+      const total = (orders || []).reduce(
+        (sum, o) => sum + (o.side === "BUY" ? Number(o.reserved_cash || 0) : 0), 0);
+      setReservedCashPaise(total);
+    } catch (e) { console.warn("[portfolio] syncReserved failed:", e); }
+  }
+
   // Load pending limit orders (initial fetch)
   // listPendingOrders() now returns null when it could not load the list at
   // all (timeout / error), which is NOT the same as "you have no orders".
@@ -96,6 +108,7 @@ export function renderPortfolio(main) {
     if (o === null) { ordersUnavailable = true; render(); return; }
     ordersUnavailable = false;
     pendingOrders = o;
+    syncReserved(o);
     render();
   }).catch(() => { if (!cancelled) { ordersUnavailable = true; render(); } });
 
@@ -135,6 +148,7 @@ export function renderPortfolio(main) {
       const changed = o.length !== pendingOrders.length
         || (o[0]?.id !== pendingOrders[0]?.id);
       pendingOrders = o;
+      syncReserved(o);
       if (changed) render();
     } catch (e) {
       console.warn("[portfolio] pending-orders poll failed:", e?.message || e);
@@ -332,7 +346,15 @@ export function renderPortfolio(main) {
     for (const h of holdings) {
       if (h.priceReady && Number.isFinite(h.value)) holdValue += h.value;
     }
-    const pfValue = cash + holdValue;
+    // Cash reserved against pending BUY orders belongs in the total.
+    // place_limit_order deducts it from cash_paise the moment an order is
+    // queued, and the shares do not exist yet, so without this term the
+    // money is in NEITHER bucket. Queueing a Rs 6,287 AMO on a Rs 1,00,019
+    // portfolio rendered "Rs 93,732 -6.27% since start" -- telling a
+    // teenager they lost 6% for placing an order they had not even filled.
+    const reserved = pendingOrders.reduce(
+      (sum, o) => sum + (o.side === "BUY" ? Number(o.reserved_cash || 0) : 0), 0);
+    const pfValue = cash + holdValue + reserved;
     const start = state.portfolio.startingCashPaise;
     const deltaPaise = pfValue - start;
     const returnPct = start ? deltaPaise / start : 0;

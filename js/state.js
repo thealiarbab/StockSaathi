@@ -497,8 +497,37 @@ export function getHoldingsValue(state = getState()) {
   }
   return total;
 }
+/**
+ * Total portfolio value: free cash + holdings + cash reserved against
+ * pending BUY orders.
+ *
+ * That third term matters. place_limit_order deducts the reservation from
+ * `cash_paise` the moment an order is queued, but the shares do not exist
+ * yet — so without counting it the money is in NEITHER bucket and simply
+ * vanishes from the total. Queueing a ₹6,287 AMO on a ₹1,00,019 portfolio
+ * rendered as "₹93,732 · -6.27% since start", which tells a teenager they
+ * lost 6% for placing an order. They lost nothing; the money is earmarked.
+ *
+ * Defaults to 0, so this is a no-op for anyone with no pending orders.
+ */
+export function getReservedCashPaise(state = getState()) {
+  const v = state?.portfolio?.reservedCashPaise;
+  return Number.isFinite(v) ? v : 0;
+}
+
 export function getPortfolioValue(state = getState()) {
-  return state.portfolio.cashPaise + getHoldingsValue(state);
+  return state.portfolio.cashPaise + getHoldingsValue(state) + getReservedCashPaise(state);
+}
+
+/**
+ * Record how much cash is currently earmarked by pending BUY orders.
+ * Called by whoever has just loaded the pending-order list.
+ */
+export function setReservedCashPaise(paise) {
+  const n = Number.isFinite(paise) ? Math.max(0, Math.round(paise)) : 0;
+  const st = getState();
+  if (getReservedCashPaise(st) === n) return;   // no-op, don't churn subscribers
+  setState({ portfolio: { ...st.portfolio, reservedCashPaise: n } });
 }
 export function getPortfolioReturnPct(state = getState()) {
   const total = getPortfolioValue(state);
