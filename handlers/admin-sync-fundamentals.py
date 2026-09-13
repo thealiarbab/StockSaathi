@@ -59,17 +59,81 @@ def _supa_headers(extra=None):
     return h
 
 
+_UNIVERSE_CACHE = None
+
+
+def _symbols_from_committed_universe(offset, limit):
+    """Fallback symbol source: the committed js/data/universeFull.json.
+
+    dhan_instruments is populated by /api/admin-sync-instruments, which fetches
+    EQUITY_L.csv from NSE -- and NSE blocks Vercel, so that sync fails its own
+    sanity gate ("only 0 equities") every run and the table has stayed at 0
+    rows. With no symbols to iterate, this cron answered
+    {"ok": true, "processed": 0} for every page while doing nothing, so
+    fundamentals_cache never filled and handlers/screener.py kept serving the
+    committed js/data/fundamentals_full.json from April.
+
+    universeFull.json is the same data, is rebuilt weekly by
+    .github/workflows/universe-refresh.yml (GitHub runners CAN reach NSE), and
+    ships in the bundle. handlers/screener.py already reads its own committed
+    JSON from these same paths.
+
+    Ordered so index constituents refresh first, which is what the
+    dhan_instruments query intends. Note `idx` in universeFull.json is an
+    index-tier CODE, not a rank -- 7 = Nifty 50 (RELIANCE/TCS/HDFCBANK/INFY
+    all carry 7), 6 = the next 50, 12 = Midcap 150, 20 = Smallcap 250, 0 =
+    unindexed. Sorting it descending would refresh smallcaps before Nifty 50,
+    so map it to an explicit priority instead.
+    """
+    global _UNIVERSE_CACHE
+    if _UNIVERSE_CACHE is None:
+        rows = []
+        for path in (
+            os.path.join(os.path.dirname(__file__), "..", "js", "data", "universeFull.json"),
+            os.path.join(os.getcwd(), "js", "data", "universeFull.json"),
+            os.path.join("/var/task", "js", "data", "universeFull.json"),
+        ):
+            try:
+                with open(path, encoding="utf-8") as fh:
+                    rows = json.load(fh)
+                break
+            except Exception:
+                continue
+        eq = [r for r in rows if (r.get("kind") or "") == "EQUITY" and r.get("symbol")]
+        # idx code -> refresh priority (lower sorts first).
+        rank = {7: 0, 6: 1, 12: 2, 20: 3}
+        eq.sort(key=lambda r: (rank.get(r.get("idx") or 0, 9), r["symbol"]))
+        _UNIVERSE_CACHE = [r["symbol"] for r in eq]
+    return _UNIVERSE_CACHE[offset:offset + limit]
+
+
 def fetch_active_symbols(offset=0, limit=400):
     """Pull a slice of active symbols (kind=EQUITY only — ETFs use a separate
     cron, MFs come from AMFI). Ordered by `idx_tags desc, symbol asc` so
-    Nifty 50/100 names get refreshed first when the cron runs."""
+    Nifty 50/100 names get refreshed first when the cron runs.
+
+    Falls back to the committed universe when dhan_instruments is empty --
+    see _symbols_from_committed_universe for why it is."""
     url = (f"{SUPA_URL}/rest/v1/dhan_instruments"
            f"?select=symbol,idx_tags&is_active=eq.true&kind=eq.EQUITY"
            f"&order=idx_tags.desc,symbol.asc"
            f"&offset={offset}&limit={limit}")
-    req = urllib.request.Request(url, headers=_supa_headers({"Accept": "application/json"}))
-    with urllib.request.urlopen(req, timeout=10) as r:
-        return [row["symbol"] for row in json.loads(r.read())]
+    symbols = []
+    try:
+        req = urllib.request.Request(url, headers=_supa_headers({"Accept": "application/json"}))
+        with urllib.request.urlopen(req, timeout=10) as r:
+            symbols = [row["symbol"] for row in json.loads(r.read())]
+    except Exception as exc:
+        print(f"[sync-fundamentals] dhan_instruments read failed: {exc}", flush=True)
+
+    if symbols:
+        return symbols
+
+    fallback = _symbols_from_committed_universe(offset, limit)
+    if fallback:
+        print(f"[sync-fundamentals] dhan_instruments empty at offset={offset}; "
+              f"using committed universe ({len(fallback)} symbols)", flush=True)
+    return fallback
 
 
 def fetch_known_sids():
