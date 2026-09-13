@@ -334,3 +334,29 @@ export function runtimeFacts(status) {
   lines.push("You have NO index tool. Never state a Nifty, Sensex, or Bank Nifty level — say you can't pull index levels, and offer an individual stock instead.");
   return `# RUNTIME FACTS (authoritative — trust these over anything you remember)\n${lines.join(" ")}`;
 }
+
+// -----------------------------------------------------------------------------
+// NO-TOOLS NOTE — appended on the STREAMING path only.
+//
+// The streaming path (/api/chat with stream:true) wires NO tools: the upstream
+// proxy silently disables streaming whenever `tools` is present, so the two
+// modes are mutually exclusive. But both surfaces were sending the same system
+// prompt, and the side panel's version went further and explicitly asserted
+// "You have tools for live data ... USE them whenever". The model believed it,
+// tried to call one, and — having no tool channel — typed the call out as
+// prose. A live probe on 2026-09-13 reproduced it exactly: "show me banking
+// stocks" returned the single line `CALL search_stocks("Banking")`, which is
+// also what a real user got on 2026-08-20.
+//
+// So on this path, tell the model the truth: it has no tools this turn.
+// needsLiveData() routes anything data-shaped to the tool path anyway, so what
+// lands here should be answerable from context — and when it genuinely isn't,
+// offering to look it up is a far better failure than typing a function call.
+// -----------------------------------------------------------------------------
+export const NO_TOOLS_NOTE = `# TOOLS — NONE THIS TURN (overrides anything above)
+
+You have NO tools available in this reply. No get_stock_price, no get_crypto_price, no search_stocks, no get_market_news, no get_user_portfolio. There is no tool channel open, so a tool call cannot succeed.
+
+Never write a tool call as text. Never output a line like CALL search_stocks("Banking") or [Tool call: ...] or a JSON block describing a call — with no tool channel those are just words on the user's screen, and they look broken.
+
+Answer from the conversation and the RUNTIME CONTEXT below. If the user needs a live number you do not already have, say so in one short line and offer to pull it — "Want me to pull the live price?" — then stop. Do not invent the number, and do not narrate the lookup you cannot perform.`;

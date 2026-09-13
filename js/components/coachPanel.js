@@ -8,9 +8,9 @@ import { getState, subscribe, setSetting } from "../state.js";
 import { getInstrument } from "../data/universe.js";
 import { getNews } from "../data/news.js";
 import { formatRupees, formatPct } from "../money.js";
-import { SYSTEM_PROMPT, matchTemplate, isOffTopic, offTopicRedirect, STARTER_QUESTIONS, runtimeFacts } from "../coach/persona.js";
+import { SYSTEM_PROMPT, matchTemplate, isOffTopic, offTopicRedirect, STARTER_QUESTIONS, runtimeFacts, NO_TOOLS_NOTE } from "../coach/persona.js";
 import { marketStatus } from "../data/prices.js";
-import { runAgent, streamChat, needsLiveData, logChatTurn } from "../coach/agent.js";
+import { runAgent, streamChat, needsLiveData, logChatTurn, isToolCallOnly } from "../coach/agent.js";
 
 const CHAT_LOG_KEY = "ss.coachchat.v1";
 
@@ -31,6 +31,9 @@ function isCoachAllowed() {
   if (COACH_HIDDEN_ROUTES.has(hash)) return false;
   return true;
 }
+
+// Streaming path only — no tools are wired there, so say so.
+const SAATHI_NO_TOOLS = `${SYSTEM_PROMPT}\n\n${NO_TOOLS_NOTE}`;
 
 const SAATHI_SYSTEM = `${SYSTEM_PROMPT}\n\n# TOOL USE\nYou have tools for live data: get_stock_price, get_crypto_price, search_stocks, get_market_news, get_user_portfolio. USE them whenever the user asks about any specific stock, crypto, market state, or their portfolio. Never guess numbers — always call the tool.`;
 
@@ -262,7 +265,7 @@ function render() {
       render();
       const portfolioSummary = summarisePortfolio(s);
       const newsContext = newsSnap.slice(0, 5).map(n => `- ${n.headline} (${n.source}) [${n.sentiment}]`).join("\n");
-      const system = `${SAATHI_SYSTEM}\n\n${runtimeFacts(marketStatus())}\n\n# RUNTIME CONTEXT\n## User portfolio\n${portfolioSummary}\n\n## Latest market headlines\n${newsContext || "(none loaded)"}\n\n# TONE\nKeep replies short by default (1–3 sentences). Go longer only when asked for depth.`;
+      const system = `${SAATHI_NO_TOOLS}\n\n${runtimeFacts(marketStatus())}\n\n# RUNTIME CONTEXT\n## User portfolio\n${portfolioSummary}\n\n## Latest market headlines\n${newsContext || "(none loaded)"}\n\n# TONE\nKeep replies short by default (1–3 sentences). Go longer only when asked for depth.`;
       const messages = chatHistory.slice(-12).filter(m => !m.streaming || m === chatHistory[placeholderIdx]).slice(0, -1).map(m => ({
         role: m.role === "user" ? "user" : "assistant",
         content: m.text,
@@ -312,6 +315,15 @@ function render() {
             : "No worries — ask again when you're ready.";
         } else if (result?.error && !entry.text.trim()) {
           entry.text = "Hmm, I can't reach my brain right now. Give it a sec and try again?";
+        } else if (!entry.text.trim() && isToolCallOnly(result?.raw)) {
+          // The model answered with nothing but a tool call — it decided it
+          // needed live data on the path that has no tools wired. It was
+          // right; it was just on the wrong path. Re-run the turn through
+          // runAgent, which has the real tools, instead of apologising.
+          const retry = await callLlmAgent(s.settings.llmApiKey || null, chatHistory, s).catch(() => null);
+          entry.text = (retry && retry.trim())
+            ? retry
+            : "Let me pull that up — ask me once more?";
         } else if (!entry.text.trim()) {
           entry.text = result?.text && result.text.trim()
             ? result.text

@@ -175,7 +175,13 @@ async function execSearchStocks(input) {
   const q = String(input.query || "").toLowerCase().trim();
   const limit = Math.min(input.limit || 8, 20);
   if (!q) return { ok: false, error: "Empty query." };
-  const all = [...STOCKS, ...MUTUAL_FUNDS];
+  // getAllInstruments() is the full merged universe (~2,200 NSE rows +
+  // ~14,000 AMFI schemes). STOCKS/MUTUAL_FUNDS are only the ~100 curated
+  // FEATURED_SYMBOLS plus 10 placeholder funds, so searching those made
+  // "show me banking stocks" miss almost every bank on the exchange.
+  let all = [];
+  try { all = getAllInstruments() || []; } catch (_) { all = []; }
+  if (!all.length) all = [...STOCKS, ...MUTUAL_FUNDS];
   const matches = all
     .map(s => {
       let score = 0;
@@ -570,7 +576,7 @@ export async function streamChat({ system, messages, profile = "chat", onToken, 
       signal,
     });
   } catch (e) {
-    if (e?.name === "AbortError") return { aborted: true, text: "" };
+    if (e?.name === "AbortError") return { aborted: true, text: "", raw: "" };
     console.warn("streamChat fetch:", e);
     return { error: e?.message || "network_error", text: "" };
   }
@@ -624,11 +630,11 @@ export async function streamChat({ system, messages, profile = "chat", onToken, 
       }
     }
   } catch (e) {
-    if (e?.name === "AbortError") return { aborted: true, text: stripToolCallScaffolding(fullText) };
+    if (e?.name === "AbortError") return { aborted: true, text: stripToolCallScaffolding(fullText), raw: fullText };
     console.warn("streamChat read error:", e);
-    return { error: e?.message || "read_error", text: stripToolCallScaffolding(fullText) };
+    return { error: e?.message || "read_error", text: stripToolCallScaffolding(fullText), raw: fullText };
   }
-  return { text: stripToolCallScaffolding(fullText).trim() };
+  return { text: stripToolCallScaffolding(fullText).trim(), raw: fullText };
 }
 
 // The five known tool names, for anchoring the CALL-leak patterns below.
@@ -925,4 +931,23 @@ function mentionsKnownInstrument(raw) {
     }
   }
   return false;
+}
+
+// -----------------------------------------------------------------------------
+// True when the model's raw reply was NOTHING BUT tool-call scaffolding, i.e.
+// stripping it leaves nothing to show. Seen live on the streaming path:
+// "show me banking stocks" came back as the single line
+//   CALL search_stocks("Banking")
+// Before the stripper that leaked verbatim; after it, the bubble would be
+// empty and the user would get "I went quiet there" — still a dead end.
+//
+// Callers use this to RE-ROUTE the turn through runAgent (which has real
+// tools) instead of apologising. The model was right that it needed a tool;
+// it was just on the path that has none.
+// -----------------------------------------------------------------------------
+export function isToolCallOnly(raw) {
+  const s = String(raw || "").trim();
+  if (!s) return false;
+  if (stripToolCallScaffolding(s).trim()) return false;
+  return /CALL\s+\w+|\[(?:tool|function)[ _]?call|tool_calls/i.test(s);
 }

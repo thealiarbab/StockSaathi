@@ -6,9 +6,9 @@
 
 import { getState } from "../state.js";
 import { getInstrument } from "../data/universe.js";
-import { SYSTEM_PROMPT, matchTemplate, isOffTopic, offTopicRedirect, STARTER_QUESTIONS, runtimeFacts } from "../coach/persona.js";
+import { SYSTEM_PROMPT, matchTemplate, isOffTopic, offTopicRedirect, STARTER_QUESTIONS, runtimeFacts, NO_TOOLS_NOTE } from "../coach/persona.js";
 import { marketStatus } from "../data/prices.js";
-import { runAgent, streamChat, needsLiveData, logChatTurn, stripToolCallScaffolding } from "../coach/agent.js";
+import { runAgent, streamChat, needsLiveData, logChatTurn, stripToolCallScaffolding, isToolCallOnly } from "../coach/agent.js";
 import {
   loadSessions, saveSessions, getActiveSession, setActiveSession,
   createNewSession, deleteSessionById, touchActive, clearActiveMessages,
@@ -587,7 +587,7 @@ async function sendAndReply(userText) {
     }
   }, dripIntervalMs);
 
-  const system = `${SYSTEM_PROMPT}\n\n${runtimeFacts(marketStatus())}\n\n# TONE\nKeep replies conversational and short by default (1–3 sentences). Only go longer when the user asks for explanation or depth.`;
+  const system = `${SYSTEM_PROMPT}\n\n${NO_TOOLS_NOTE}\n\n${runtimeFacts(marketStatus())}\n\n# TONE\nKeep replies conversational and short by default (1–3 sentences). Only go longer when the user asks for explanation or depth.`;
   let result = null;
   try {
     result = await streamChat({
@@ -653,6 +653,24 @@ async function sendAndReply(userText) {
       entry.text = "Hmm, I'm having trouble reaching my brain right now. Give it a sec and try again?";
     } else if (!entry.text.trim() && result?.text) {
       entry.text = result.text;
+    } else if (!entry.text.trim() && isToolCallOnly(result?.raw)) {
+      // Reply was nothing but a tool call: the model decided it needed live
+      // data while on the streaming path, which has no tools wired. It was
+      // right about needing a tool. Re-run through runAgent rather than
+      // telling the user we went quiet.
+      const sys = `${SYSTEM_PROMPT}
+
+${runtimeFacts(marketStatus())}
+
+# TONE
+Keep replies conversational and short by default (1–3 sentences).`;
+      const retry = await runAgent({
+        apiKey: getState().settings.llmApiKey || null,
+        system: sys, messages, profile: "fast",
+      }).catch(() => null);
+      entry.text = (retry && stripScaffolding(retry).trim())
+        ? stripScaffolding(retry).trim()
+        : "Let me pull that up — ask me once more?";
     } else if (!entry.text.trim()) {
       entry.text = "Hmm, I went quiet there. Ask me once more?";
     }
