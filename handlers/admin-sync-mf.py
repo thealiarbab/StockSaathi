@@ -218,7 +218,23 @@ def parse_amfi(text):
             cols = [c.strip() for c in line.split(";")]
             if len(cols) < 6:
                 continue
-            amfi_code, isin1, isin2, name, nav_str, date_str = cols[:6]
+            # AMFI changed NAVAll.txt's layout: Plan and Option became their
+            # own columns instead of being baked into the scheme name.
+            #   old (6): code;isin1;isin2;name;nav;date
+            #   new (8): code;isin1;isin2;name;plan;option;nav;date
+            # The old positional unpack still "worked" on 8 columns -- it read
+            # nav_str from the Plan column, float("Direct Plan") raised, and
+            # every row was dropped, which is what produced
+            # amfi_parse_underfilled with rows=0. The len(cols) < 6 guard did
+            # not catch it because 8 >= 6.
+            #
+            # scripts/build-mf-universe.mjs was fixed for this; this handler
+            # was not. Both layouts are handled here now.
+            plan_col = option_col = ""
+            if len(cols) >= 8:
+                amfi_code, isin1, isin2, name, plan_col, option_col, nav_str, date_str = cols[:8]
+            else:
+                amfi_code, isin1, isin2, name, nav_str, date_str = cols[:6]
             if not amfi_code or not name or amfi_code in seen:
                 continue
             seen.add(amfi_code)
@@ -228,7 +244,11 @@ def parse_amfi(text):
                     continue
             except (ValueError, TypeError):
                 continue
-            plan, option = parse_plan_option(name)
+            # Classify from the dedicated columns too when AMFI ships them --
+            # on the new layout the scheme name alone no longer carries them.
+            plan, option = parse_plan_option(
+                " - ".join(x for x in (name, plan_col, option_col) if x)
+            )
             bucket = bucket_for(cur_cat or "Other")
             rows.append({
                 "symbol": f"MF_{amfi_code}",
