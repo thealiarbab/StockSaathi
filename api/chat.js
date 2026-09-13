@@ -41,13 +41,17 @@ const MAX_OUTPUT_TOKENS = 4000;
 // without a deploy.
 //
 //   chat      conversational coach — greetings, concepts, explanations.
-//             "none" because this lane has no tools and no data to reason
-//             over; it is Gemini 3 Flash talking. Measured 0.15-0.33s to
-//             first token vs 1.2-1.4s at "low" and 3.9-6.5s unbudgeted, and
-//             real-world runs at "low" still spiked to 20s on upstream
-//             variance. Note this is NOT a return to Flash Lite: the base
-//             model is far stronger, it simply is not spending a turn
-//             thinking before saying hello.
+//             "minimal" is the smallest budget the upstream accepts. The
+//             valid set is high | low | max | medium | minimal; "none" is
+//             REJECTED with a 400, so do not reach for it. (I shipped
+//             "none" once: every request 400'd, and the 0.15s I had
+//             "measured" for it was the error coming back fast, not an
+//             answer. Measure the body, not just the clock.)
+//             This lane has no tools and no data to reason over, so the
+//             smallest budget is right: it is Gemini 3 Flash talking, which
+//             is a far stronger base than the 2.5 Flash Lite this used to
+//             be — it simply is not spending a turn thinking before saying
+//             hello.
 //   fast      tool-use. Keeps "low" — it has to reason about WHICH tool to
 //             call and how to read the result back. The facts come from the
 //             tools, so it does not need more than that, and this lane was
@@ -57,7 +61,7 @@ const MAX_OUTPUT_TOKENS = 4000;
 //             think, are not on the interactive path, and nobody is watching
 //             a cursor blink while they run.
 const REASONING_EFFORT = {
-  chat: (globalThis.process?.env?.CHAT_REASONING_EFFORT) || "none",
+  chat: (globalThis.process?.env?.CHAT_REASONING_EFFORT) || "minimal",
   fast: (globalThis.process?.env?.FAST_REASONING_EFFORT) || "low",
 };
 
