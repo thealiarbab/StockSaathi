@@ -329,6 +329,11 @@ export function stockChart(ohlc, {
   // that blow straight out of a 52px pill, so it passes a compact
   // formatter ("Rs 1.02L"). Returns the badge string for a paise value.
   lastLabelFormat = null,
+  // v277: "span" picks one unit + precision for the whole y-axis from the
+  // visible range (see makeAxisFormatter). Opt-in rather than default: stock
+  // charts are a separate surface and are left on the existing per-value
+  // formatting until that change can be looked at on its own.
+  axisFormat = null,
 } = {}) {
   if (!ohlc.length) return "";
   const useTimeAxis = xAxisRange && Number.isFinite(xAxisRange.fromMs) && Number.isFinite(xAxisRange.toMs) && xAxisRange.toMs > xAxisRange.fromMs;
@@ -376,12 +381,13 @@ export function stockChart(ohlc, {
   const toY = (v) => paddingTop + plotH - ((v - min) / (max - min)) * plotH;
 
   // Y gridlines + labels
+  const fmtAxis = axisFormat === "span" ? makeAxisFormatter(min / 100, max / 100) : formatAxisNumber;
   let grid = "", yLabels = "";
   for (let i = 0; i <= 4; i++) {
     const y = paddingTop + (i / 4) * plotH;
     const v = max - (i / 4) * (max - min);
     grid += `<line x1="${paddingLeft}" x2="${width - paddingRight}" y1="${y}" y2="${y}" />`;
-    yLabels += `<text class="chart-axis-label" x="${paddingLeft - 8}" y="${y + 4}" text-anchor="end">₹${formatAxisNumber(v / 100)}</text>`;
+    yLabels += `<text class="chart-axis-label" x="${paddingLeft - 8}" y="${y + 4}" text-anchor="end">₹${fmtAxis(v / 100)}</text>`;
   }
 
   // X-axis ticks.
@@ -885,6 +891,32 @@ export function attachStockChartHover(container, ohlc, {
 // ---- AREA CHART (portfolio over time) -----------------------------------
 export function areaChart(values, opts = {}) {
   return lineChart(values, { ...opts, areaFill: true });
+}
+
+/**
+ * v277: build ONE formatter shared by all five y-ticks, chosen from the SPAN
+ * being displayed rather than from each value's own magnitude.
+ *
+ * formatAxisNumber() below decides per value, which breaks in two ways once a
+ * portfolio (lakh-scale value, small day-to-day spread) is plotted:
+ *   - a Rs 1,300 spread at lakh scale renders "1.01L" four times running,
+ *     because toFixed(2) on lakhs cannot resolve it;
+ *   - the unit flips mid-axis at exactly 1e5, so one tick reads "100.0k" and
+ *     the tick above it reads "1.01L" -- the same quantity, two units.
+ * Both were visible on #/portfolio's 1M range.
+ *
+ * Picking the unit from the span keeps every tick in the same unit, and
+ * picking decimals from the tick step keeps adjacent ticks distinct.
+ */
+function makeAxisFormatter(min, max) {
+  const span = Math.abs(max - min) || Math.abs(max) || 1;
+  let div = 1, suffix = "";
+  if (span >= 1e7)      { div = 1e7; suffix = "Cr"; }
+  else if (span >= 1e5) { div = 1e5; suffix = "L"; }
+  else if (span >= 1e3) { div = 1e3; suffix = "k"; }
+  const step = span / 4 / div;
+  const decimals = step >= 10 ? 0 : step >= 1 ? 1 : step >= 0.1 ? 2 : 3;
+  return (v) => (v / div).toFixed(decimals) + suffix;
 }
 
 function formatAxisNumber(v) {

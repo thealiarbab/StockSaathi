@@ -516,6 +516,10 @@ export function renderPortfolio(main) {
                     mode: "area",
                     xAxisRange: { fromMs: pfVisible.fromMs, toMs: Date.now() },
                     lastLabelFormat: (paise) => formatRupees(paise, { compact: true }),
+                    // Portfolio spreads are small relative to a lakh-scale
+                    // total, so the y-axis needs span-derived precision or
+                    // every tick reads the same number. See makeAxisFormatter.
+                    axisFormat: "span",
                   })
                 : `<div style="height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; border: 1px dashed var(--border); border-radius: var(--r); background: var(--surface);">
                     <div style="font-size: 40px; opacity: 0.45;">📈</div>
