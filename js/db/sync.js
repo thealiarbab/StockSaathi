@@ -216,7 +216,7 @@ export async function loadAllFromDb() {
     // turn was already being written per-row via logChatTurn → this
     // just reads them back and regroups. Idempotent — running it on
     // every boot is fine.
-    try { rebuildChatSessionsFromDb(msgs.data || []); }
+    try { rebuildChatSessionsFromDb(msgs.data || [], uid || null); }
     catch (e) { console.warn("[sync] rebuild chat sessions failed:", e?.message || e); }
   } finally {
     _syncing = false;
@@ -370,7 +370,60 @@ export async function dbApplyTrade({ symbol, side, qty, pricePaise, idempotencyK
 // ---------------------------------------------------------------------------
 const SESSIONS_LS_KEY = "ss.chat.sessions.v1";
 const COACHLOG_LS_KEY = "ss.coachchat.v1";
+const CHAT_OWNER_KEY  = "ss.chat.owner.v1";
 const SESSION_GAP_MS = 30 * 60_000;
+
+/**
+ * Which user the cached chat history on this device belongs to.
+ *
+ * The coach caches are PLAIN localStorage keys with no user scoping, and
+ * logout only ever removed the auth session — so a signed-out browser kept a
+ * full transcript of the last person's conversations with the coach. `/chat`
+ * is a PUBLIC route (router.js), so anyone could then open it and read them:
+ * portfolio values, what they were worried about, their questions. On a
+ * shared family laptop or a school computer that is a straight privacy leak,
+ * and these are 13-18 year olds.
+ *
+ * There is a second path to the same place: rebuildChatSessionsFromDb()
+ * returns early when the incoming user has NO chat rows, leaving the previous
+ * user's cache untouched. So signing in as someone new who has never chatted
+ * showed them the previous account's history.
+ *
+ * RLS on coach_messages is correct (auth.uid() = user_id) — nothing leaked
+ * server-side. This is purely the local cache outliving its owner.
+ */
+export function clearChatCaches() {
+  try { localStorage.removeItem(SESSIONS_LS_KEY); } catch {}
+  try { localStorage.removeItem(COACHLOG_LS_KEY); } catch {}
+  try { localStorage.removeItem(CHAT_OWNER_KEY); } catch {}
+  try { window.dispatchEvent(new CustomEvent("ss:coach-sync")); } catch {}
+}
+
+/**
+ * Drop the cached chat history unless it belongs to `userId`.
+ * Pass null/undefined for "nobody is logged in" — which also wipes.
+ * Safe to call on every boot and every user switch.
+ */
+export function enforceChatCacheOwner(userId) {
+  let owner = null;
+  try { owner = localStorage.getItem(CHAT_OWNER_KEY); } catch {}
+  const hasCache = (() => {
+    try {
+      return !!(localStorage.getItem(SESSIONS_LS_KEY) || localStorage.getItem(COACHLOG_LS_KEY));
+    } catch { return false; }
+  })();
+
+  if (!userId) {
+    if (hasCache) clearChatCaches();
+    return;
+  }
+  if (owner !== userId) {
+    // Either unowned legacy cache or someone else's — never show it to
+    // this user. Their own history re-hydrates from coach_messages.
+    if (hasCache) clearChatCaches();
+    try { localStorage.setItem(CHAT_OWNER_KEY, userId); } catch {}
+  }
+}
 
 /**
  * Reconstruct the `/chat` multi-session envelope + the coach-panel running
@@ -382,8 +435,13 @@ const SESSION_GAP_MS = 30 * 60_000;
  * Writes to localStorage (as a cache) and dispatches ss:coach-sync so any
  * live-mounted chat view reloads. No-op if the user has never chatted.
  */
-export function rebuildChatSessionsFromDb(coachMessagesRows) {
+export function rebuildChatSessionsFromDb(coachMessagesRows, userId = null) {
   if (!Array.isArray(coachMessagesRows)) return;
+  // Do this FIRST. The early return below (no chat rows for this user) used
+  // to leave the previous account's cached transcript sitting on the device,
+  // so signing in as someone who had never chatted showed them the last
+  // person's conversation.
+  enforceChatCacheOwner(userId);
   const chatRows = coachMessagesRows
     .filter(r => r && typeof r.event_type === "string" &&
       (r.event_type === "chat_user" || r.event_type === "chat_assistant"))
@@ -459,6 +517,7 @@ export function rebuildChatSessionsFromDb(coachMessagesRows) {
     } catch (e) { console.warn("[coach-sync] rebuild coachLog write failed:", e); }
   }
   if (touched) {
+    if (userId) { try { localStorage.setItem(CHAT_OWNER_KEY, userId); } catch {} }
     try { window.dispatchEvent(new CustomEvent("ss:coach-sync")); } catch {}
     console.log(`[coach-sync] rebuilt ${sessions.length} session(s), ${coachLog.length} panel msg(s) from coach_messages`);
   }

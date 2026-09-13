@@ -323,6 +323,24 @@ export async function logoutAccount() {
   try {
     localStorage.removeItem("ss.sb.session.v1");
   } catch {}
+
+  // 4. Drop the cached coach transcripts. They are plain localStorage keys
+  //    with no user scoping, and `/chat` is a PUBLIC route — so leaving them
+  //    behind meant a signed-out browser still displayed the last person's
+  //    full conversation with the coach: their portfolio figures, what they
+  //    were worried about, everything they asked. On a shared laptop or a
+  //    school machine that is a straight privacy leak, and these users are
+  //    13-18. The server copy in coach_messages is untouched and re-hydrates
+  //    on the next sign-in.
+  try {
+    const { clearChatCaches } = await import("../db/sync.js");
+    clearChatCaches();
+  } catch (e) {
+    // Never let this block logout — fall back to removing the keys directly.
+    try { localStorage.removeItem("ss.chat.sessions.v1"); } catch {}
+    try { localStorage.removeItem("ss.coachchat.v1"); } catch {}
+    try { localStorage.removeItem("ss.chat.owner.v1"); } catch {}
+  }
 }
 
 /**

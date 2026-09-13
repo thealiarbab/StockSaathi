@@ -56,6 +56,30 @@ mountRouter();
   } catch (e) { console.warn("Supabase boot skipped:", e); }
 })();
 
+// PRIVACY: drop any cached coach transcript that does not belong to whoever
+// is signed in on this device right now.
+//
+// The coach caches (ss.chat.sessions.v1 / ss.coachchat.v1) are unscoped
+// localStorage keys, and `/chat` is a PUBLIC route — so a signed-out browser
+// was still rendering the previous user's entire conversation with the coach.
+// Logout now clears them, but this covers the cases logout never sees: a
+// session that expired on its own, a cache written before this fix shipped,
+// and signing in as a different person on a shared device.
+//
+// Runs before anything can paint the chat. The server copy in coach_messages
+// is untouched and re-hydrates on sign-in.
+(async () => {
+  try {
+    let uid = null;
+    try {
+      const raw = localStorage.getItem("ss.sb.session.v1");
+      uid = raw ? (JSON.parse(raw)?.user?.id ?? null) : null;
+    } catch { uid = null; }
+    const { enforceChatCacheOwner } = await import("./db/sync.js");
+    enforceChatCacheOwner(uid);
+  } catch (e) { console.warn("chat-cache owner check skipped:", e); }
+})();
+
 // Personal notices run on their OWN chain, deliberately not sequenced behind
 // bootSync().
 //
