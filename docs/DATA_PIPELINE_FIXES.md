@@ -1,17 +1,27 @@
-# Bugfix ledger
+# Market-data pipeline & CI — bugfix record
 
-Defects found and fixed, newest session first. Companion to `STATUS.md` — that
-file describes the *current state* of the system; this one records *what was
-broken and how it was proven fixed*, so a later session can tell the difference
-between "this was checked" and "this was assumed".
+Indexed from `STATUS.md` §0 alongside `COACH_FIXES.md`,
+`SECURITY_FIXES_2026-09-13.md` and `PORTFOLIO_CHART_FIXES.md`.
 
-Each entry records four things deliberately: **what broke**, **why it stayed
-hidden**, **the fix**, and **the proof**. The third column is the cheap one to
-write and the first two are the ones that save the next investigation.
+**Read this before touching a sync, a cron, or anything that writes market
+data.** It covers the universe and MF catalogs, the fundamentals path, the
+`admin-sync-*` endpoints, `data-sync` / `universe-refresh` / `backup-deploy`,
+and the grants on the tables those write to.
+
+`STATUS.md` describes the *current state*. This file records *what was broken,
+why it stayed hidden, and how it was proven fixed*, so a later session can tell
+the difference between "this was checked" and "this was assumed". Each entry
+keeps four fields on purpose: **what broke**, **why it stayed hidden**, **the
+fix**, and **the proof**. The fix is the cheap part to write down; the middle
+two are what save the next investigation.
+
+Newest session first. Append; don't rewrite history.
 
 ---
 
-## 2026-09-13 — §4.1 / §4.3 / §4.5 session
+## 2026-09-13 — universe automation, sync pipeline, CI
+
+Worked from `STATUS.md` §4.1 / §4.3 / §4.5.
 
 **10 defects · 9 code/CI commits · 4 migrations.** Nine of the ten were
 reporting success while doing nothing — see *The pattern underneath* at the end.

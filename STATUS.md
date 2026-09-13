@@ -4,13 +4,6 @@ Written 2026-09-13 as a handoff. Everything below was **verified against the
 live database, live site, live Vercel API and live GitHub UI** — not inferred
 from source. Read this before crawling the repo; it exists to save you that.
 
-> **Companion file: [`BUGFIXES.md`](BUGFIXES.md).** This file describes the
-> *current state*. That one records *what was broken, why it stayed hidden, and
-> how it was proven fixed* — newest session first. Read it when you are about
-> to touch a subsystem, or when something here reads as settled and you want to
-> know whether it was checked or assumed. Append to it; don't rewrite history
-> in it.
-
 ---
 
 ## 0. Bugfix records — read the one that matches your area
@@ -26,11 +19,18 @@ failure modes that are still open.
 | [`docs/COACH_FIXES.md`](docs/COACH_FIXES.md) | **Saathi, the AI coach** — 46 defects, v270→v279. Fabricated portfolios, the prompt/tool/routing layers, both chat surfaces, the model proxy, the local-cache privacy leak. | `ADMIN_PATH` still needs rotating; `json`-lane `max_tokens` blowout |
 | [`docs/SECURITY_FIXES_2026-09-13.md`](docs/SECURITY_FIXES_2026-09-13.md) | **Trade-path / ledger security** — server-side fill pricing, money-table locks, the 10% price band. | see file |
 | [`docs/PORTFOLIO_CHART_FIXES.md`](docs/PORTFOLIO_CHART_FIXES.md) | **Portfolio "Value over time"** — 9 defects across the client store, chart renderer, database, scheduler and DNS. | see file |
+| [`docs/DATA_PIPELINE_FIXES.md`](docs/DATA_PIPELINE_FIXES.md) | **Market-data pipeline & CI** — 10 defects. MFs priced at week-old NAVs, the AMFI sync dropping all 14,120 rows, SME fundamentals dead, `data-sync` aborting at step 1, the audit log truncatable by `anon`. | leaked-password toggle; MF fills already executed at stale NAVs |
 
 If you are about to debug the coach, read `COACH_FIXES.md` **first**. Most of
 its 46 entries were found by reading logged `coach_messages` rows, not by
 testing — and its closing section explains why the regex probe suites were
 green while the replies underneath were wrong.
+
+If you are about to touch a sync, a cron or anything that writes market data,
+read `DATA_PIPELINE_FIXES.md` first — its closing section is a table of the
+success signals that lied (`HTTP 200` with `ok: false`, a Postgres `REVOKE`
+reporting success while changing nothing, a green workflow step whose write was
+rejected). Nine of its ten defects were reporting success while doing nothing.
 
 ---
 
