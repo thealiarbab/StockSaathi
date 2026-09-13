@@ -1,0 +1,91 @@
+name: portfolio-snapshot
+
+# Daily mark-to-market snapshot of every trading user's portfolio value.
+#
+# WHY A SEPARATE WORKFLOW, not a step in data-sync.yml:
+# data-sync's first step (`admin-sync-instruments`) currently exits 1 with
+# `sanity_fail: only 0 equities (expected >=1800)` because the Dhan instrument
+# feed is broken upstream. Every later step in that job is therefore skipped —
+# which is exactly why mf_master sits at 0 rows. Hanging the portfolio
+# snapshot off the same job would inherit that failure and the chart would
+# silently stop advancing again. Independent concern, independent workflow.
+#
+# WHY THIS EXISTS AT ALL:
+# Before 2026-09-13 nothing wrote portfolio_history except the per-trade
+# trigger, and that trigger values holdings at COST BASIS — which makes a BUY
+# value-neutral, so a buy-and-hold user's "Value over time" chart was a
+# dead-flat line at their starting cash. /api/admin-snapshot-portfolios prices
+# holdings from the live feed and writes one real point per user per day.
+#
+# The endpoint is idempotent (the RPC skips a user who already has a
+# daily_snapshot today), so a retry, a manual dispatch, or an overlapping run
+# cannot double-write.
+#
+# Required GitHub secret:
+#   CRON_SECRET — must match the CRON_SECRET env var in the Vercel project.
+#                 Already configured (it is what order-matcher.yml uses).
+
+on:
+  schedule:
+    # 10:30 UTC = 16:00 IST, half an hour after the NSE close (15:30 IST),
+    # so the quotes we fetch are the settled closing prices rather than a
+    # mid-auction tick. Weekdays only — nothing moves at the weekend and a
+    # Saturday point would just flatten the line.
+    - cron: "30 10 * * 1-5"
+  workflow_dispatch: {}
+
+concurrency:
+  group: portfolio-snapshot
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    name: Snapshot portfolio values (mark-to-market)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Guard — secret must be configured
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET repo secret is not set. Portfolio charts will stop advancing."
+            exit 1
+          fi
+          echo "CRON_SECRET present (${#CRON_SECRET} chars)"
+
+      - name: Write today's snapshot
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          code=$(curl -sS -o /tmp/snapshot.json -w '%{http_code}' --max-time 90 \
+            -X POST \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            https://stocksaathi.co.in/api/admin-snapshot-portfolios)
+          echo "HTTP $code"
+          cat /tmp/snapshot.json; echo
+          [ "$code" = "200" ] || exit 1
+
+      - name: Fail if nothing was written and nothing was already there
+        run: |
+          python3 - <<'EOF'
+          import json, sys
+          d = json.load(open('/tmp/snapshot.json'))
+          rpc = d.get('rpc') or {}
+          written = rpc.get('snapshots_written', 0)
+          skipped = rpc.get('skipped_already_today', 0)
+          traders = rpc.get('traders', 0)
+          priced  = d.get('symbols_priced', 0)
+          quotable = d.get('symbols_quotable', 0)
+          print(f"traders={traders} written={written} skipped={skipped} "
+                f"priced={priced}/{quotable}")
+          if traders and (written + skipped) == 0:
+              print("::error::no snapshot rows written for any of "
+                    f"{traders} trading users")
+              sys.exit(1)
+          # A total pricing failure still writes rows (cost-basis fallback),
+          # but the resulting points carry no market movement — warn loudly.
+          if quotable and priced == 0:
+              print("::warning::priced 0 of "
+                    f"{quotable} quotable symbols — today's points are "
+                    "cost-basis only and the chart will look flat")
+          EOF
