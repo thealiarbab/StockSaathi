@@ -1064,6 +1064,45 @@ function mentionsKnownInstrument(raw) {
 // tools) instead of apologising. The model was right that it needed a tool;
 // it was just on the path that has none.
 // -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// True when the reply is the model ASKING PERMISSION to do a lookup instead of
+// doing it. "Want me to pull that up?" / "Shall I check?" / "Let me know and
+// I can search."
+//
+// The prompt forbids this, but a prompt rule is a preference, not a guarantee.
+// destroyer04's transcript is full of it even on the tool path: "Tell me new
+// stocks to invest" came back as "Let me know what you're looking for, and I
+// can help you search"; "Banks" produced five bank names with no prices and
+// "Would you like to know the current price for any of these?".
+//
+// The user already asked. Treat the question as the permission: callers use
+// this to silently re-run the turn through runAgent, which has real tools, and
+// replace the reply. Deliberately narrow — it must match an OFFER, not an
+// ordinary follow-up question at the end of a real answer, so it only fires
+// when the reply is SHORT and carries no data of its own.
+// -----------------------------------------------------------------------------
+const OFFER_RE = new RegExp([
+  "\\bwant me to\\b",
+  "\\bshall i\\b",
+  "\\bdo you want me to\\b",
+  "\\bwould you like (?:me )?to\\b",
+  "\\bwould you like to (?:know|see|check)\\b",
+  "\\blet me know (?:and|if|what|which|your)\\b",
+  "\\bi can (?:help you )?(?:pull|fetch|look|search|check|find|get)\\b",
+  "\\bi'?ll need to (?:pull|fetch|look|check)\\b",
+  "\\btell me (?:what|which)\\b.{0,40}\\band i(?:'| w)?ll\\b",
+].join("|"), "i");
+
+export function looksLikeLookupOffer(text) {
+  const s = String(text || "").trim();
+  if (!s) return false;
+  // A reply carrying actual figures is an answer, not a dodge.
+  if (/₹\s?[0-9]|[0-9]+(?:\.[0-9]+)?\s?%/.test(s)) return false;
+  // Long replies are explanations that happen to end with an offer.
+  if (s.length > 400) return false;
+  return OFFER_RE.test(s);
+}
+
 export function isToolCallOnly(raw) {
   const s = String(raw || "").trim();
   if (!s) return false;

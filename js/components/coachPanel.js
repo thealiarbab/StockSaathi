@@ -10,7 +10,7 @@ import { getNews } from "../data/news.js";
 import { formatRupees, formatPct } from "../money.js";
 import { SYSTEM_PROMPT, matchTemplate, isOffTopic, offTopicRedirect, STARTER_QUESTIONS, runtimeFacts, NO_TOOLS_NOTE } from "../coach/persona.js";
 import { marketStatus } from "../data/prices.js";
-import { runAgent, streamChat, needsLiveData, logChatTurn, isToolCallOnly } from "../coach/agent.js";
+import { runAgent, streamChat, needsLiveData, logChatTurn, isToolCallOnly, looksLikeLookupOffer } from "../coach/agent.js";
 
 const CHAT_LOG_KEY = "ss.coachchat.v1";
 
@@ -35,7 +35,7 @@ function isCoachAllowed() {
 // Streaming path only — no tools are wired there, so say so.
 const SAATHI_NO_TOOLS = `${SYSTEM_PROMPT}\n\n${NO_TOOLS_NOTE}`;
 
-const SAATHI_SYSTEM = `${SYSTEM_PROMPT}\n\n# TOOL USE\nYou have tools for live data: get_stock_price, get_crypto_price, search_stocks, get_market_news, get_user_portfolio. USE them whenever the user asks about any specific stock, crypto, market state, or their portfolio. Never guess numbers — always call the tool.`;
+const SAATHI_SYSTEM = `${SYSTEM_PROMPT}\n\n# TOOL USE\nYou have tools for live data: get_stock_price, get_crypto_price, search_stocks, get_market_news, get_user_portfolio, get_trade_history. USE them whenever the user asks about any specific stock, crypto, market state, or their portfolio. Never guess numbers — always call the tool.`;
 
 function loadChat() {
   try { const raw = localStorage.getItem(CHAT_LOG_KEY); return raw ? JSON.parse(raw) : []; }
@@ -321,6 +321,11 @@ function render() {
             : "No worries — ask again when you're ready.";
         } else if (result?.error && !entry.text.trim()) {
           entry.text = "Hmm, I can't reach my brain right now. Give it a sec and try again?";
+        } else if (looksLikeLookupOffer(entry.text)) {
+          // No tools on the streaming path, so an offer to fetch is a dead
+          // end. The user already asked — go get it.
+          const retry = await callLlmAgent(s.settings.llmApiKey || null, chatHistory, s).catch(() => null);
+          if (retry && retry.trim()) entry.text = retry.trim();
         } else if (!entry.text.trim() && isToolCallOnly(result?.raw)) {
           // The model answered with nothing but a tool call — it decided it
           // needed live data on the path that has no tools wired. It was
@@ -357,6 +362,13 @@ function render() {
     try {
       reply = await callLlmAgent(s.settings.llmApiKey || null, chatHistory, s);
     } catch (e) { console.warn("coach panel error:", e); }
+    // If it offered to look something up instead of doing it, push once more.
+    if (reply && looksLikeLookupOffer(reply)) {
+      try {
+        const again = await callLlmAgent(s.settings.llmApiKey || null, chatHistory, s);
+        if (again && again.trim() && !looksLikeLookupOffer(again)) reply = again;
+      } catch (e) { console.warn("coach panel lookup-offer retry:", e); }
+    }
     if (!reply || !reply.trim()) {
       reply = "Hmm, I can't reach my brain right now. Give it a sec and try again?";
     } else {

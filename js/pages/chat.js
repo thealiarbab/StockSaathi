@@ -8,7 +8,7 @@ import { getState } from "../state.js";
 import { getInstrument } from "../data/universe.js";
 import { SYSTEM_PROMPT, matchTemplate, isOffTopic, offTopicRedirect, STARTER_QUESTIONS, runtimeFacts, NO_TOOLS_NOTE } from "../coach/persona.js";
 import { marketStatus } from "../data/prices.js";
-import { runAgent, streamChat, needsLiveData, logChatTurn, stripToolCallScaffolding, isToolCallOnly } from "../coach/agent.js";
+import { runAgent, streamChat, needsLiveData, logChatTurn, stripToolCallScaffolding, isToolCallOnly, looksLikeLookupOffer } from "../coach/agent.js";
 import {
   loadSessions, saveSessions, getActiveSession, setActiveSession,
   createNewSession, deleteSessionById, touchActive, clearActiveMessages,
@@ -538,7 +538,24 @@ async function sendAndReply(userText) {
     m_abortController = null;
     // Write into the OWNER session's messages directly so a mid-stream
     // session switch doesn't land the reply in the wrong chat.
-    const cleanedReply = stripScaffolding(replyText);
+    let cleanedReply = stripScaffolding(replyText);
+    // The user already asked. If the model came back offering to look it up
+    // rather than looking it up, run the turn again with an explicit
+    // instruction, instead of spending the user's turn on a yes/no.
+    if (looksLikeLookupOffer(cleanedReply)) {
+      try {
+        const retry = await runAgent({
+          apiKey: state.settings.llmApiKey || null,
+          system: system + "
+
+# THIS TURN
+You already offered to look this up and the user already asked. Do NOT ask again. Call the tools you need, in parallel if it takes several, and answer with the real numbers now.",
+          messages, profile: "fast",
+        });
+        const cleanRetry = stripScaffolding(retry);
+        if (cleanRetry && cleanRetry.trim() && !looksLikeLookupOffer(cleanRetry)) cleanedReply = cleanRetry;
+      } catch (e) { console.warn("[chat] lookup-offer retry failed:", e?.message || e); }
+    }
     const finalText = (cleanedReply && cleanedReply.trim()) ? cleanedReply : (errorText || "Saathi couldn't answer that. Try rephrasing or asking again.");
     ownerMessages.push({ role: "assistant", text: finalText, ts: Date.now() });
     // Title/timestamp refresh on the owner session
@@ -683,6 +700,21 @@ async function sendAndReply(userText) {
       entry.text = "Hmm, I'm having trouble reaching my brain right now. Give it a sec and try again?";
     } else if (!entry.text.trim() && result?.text) {
       entry.text = result.text;
+    } else if (looksLikeLookupOffer(entry.text)) {
+      // Streaming has no tools at all, so an offer here is guaranteed to be
+      // a dead end. Re-run through runAgent and replace the bubble.
+      const sysT = `${SYSTEM_PROMPT}
+
+${runtimeFacts(marketStatus())}
+
+# THIS TURN
+The user asked for data. Call the tools and answer with real numbers. Do NOT ask permission.`;
+      const esc = await runAgent({
+        apiKey: getState().settings.llmApiKey || null,
+        system: sysT, messages, profile: "fast",
+      }).catch(() => null);
+      const cleanEsc = stripScaffolding(esc);
+      if (cleanEsc && cleanEsc.trim()) entry.text = cleanEsc.trim();
     } else if (!entry.text.trim() && isToolCallOnly(result?.raw)) {
       // Reply was nothing but a tool call: the model decided it needed live
       // data while on the streaming path, which has no tools wired. It was
