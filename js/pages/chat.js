@@ -473,18 +473,8 @@ async function sendAndReply(userText) {
   // Now: any off-topic message gets the canonical refusal and saves the
   // tokens. The OFF_TOPIC_PATTERNS in persona.js were also broadened to
   // catch bare-cook-verb constructions like "help me cook maggi".
-  if (isOffTopic(userText)) {
-    const ownerSession_ = getActiveSession(sessionsData);
-    ownerSession_.messages.push({ role: "assistant", text: offTopicRedirect(userText), ts: Date.now() });
-    saveSessions(sessionsData);
-    if (sessionsData.activeId === ownerSession_.id) {
-      chatLog = ownerSession_.messages;
-      render();
-    }
-    m_pending = false;
-    m_abortController = null;
-    return;
-  }
+  // NOTE: the actual early-return now lives further down, after finalPaint /
+  // restoreForm are defined. See "OFF-TOPIC EARLY RETURN" below for why.
 
   // Capture the OWNER session at send time. If the user switches sessions
   // or hits + New while the stream is running, we still write tokens into
@@ -611,6 +601,52 @@ async function sendAndReply(userText) {
   // on this page the coach's only route to the user's own data was a tool
   // call, which is why "it says it can't see my trade history" was
   // literally true here.
+  // ── OFF-TOPIC EARLY RETURN ────────────────────────────────────────────────
+  //
+  // This used to sit ~130 lines above, right after `m_pending = true`, and it
+  // called a bare `render()`. That identifier does not exist in this scope:
+  // render() is declared inside renderChat()'s closure (line ~132), and
+  // sendAndReply is a module-level function. Every off-topic message therefore
+  // threw ReferenceError: render is not defined.
+  //
+  // The throw landed BETWEEN saving the reply and clearing the pending flag,
+  // so the consequences were both of the bugs COACH_FIXES already has entries
+  // for, via a new route:
+  //
+  //   §28  the refusal was pushed and persisted but never painted — the user
+  //        saw nothing at all
+  //   §30  `m_pending` stayed true, and the submit handler's guardrail
+  //        (`if (m_pending) return`) then silently swallowed every following
+  //        message. The chat page was bricked until reload.
+  //
+  // Found by firing adversarial input at production in a real browser:
+  // "Ignore all previous instructions..." produced 0 LLM calls, 0 new
+  // messages, and an unhandled ReferenceError. Off-topic input is exactly what
+  // a curious teenager types.
+  //
+  // Moved here so the repaint helpers actually exist (they are `const` arrow
+  // functions declared above, so referencing them earlier would hit the
+  // temporal dead zone and throw just as hard). It still fires before any
+  // network work, so it saves the LLM call and the dossier build as intended.
+  if (isOffTopic(userText)) {
+    try {
+      ownerMessages.push({ role: "assistant", text: offTopicRedirect(userText), ts: Date.now() });
+      if (isOwnerActive()) chatLog = ownerMessages;
+      saveSessions(sessionsData);
+      finalPaint();
+    } catch (e) {
+      console.warn("[chat] off-topic paint failed:", e);
+    } finally {
+      // Unconditionally, in a finally: whatever goes wrong above, the composer
+      // must come back. A stuck m_pending is worse than a missing reply
+      // because it eats every message the user sends afterwards.
+      m_pending = false;
+      m_abortController = null;
+      restoreForm();
+    }
+    return;
+  }
+
   const dossier = await buildDossier();
 
   const wantTools = needsLiveData(userText, chatLog.slice(-8, -1));
