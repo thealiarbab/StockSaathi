@@ -17,14 +17,20 @@ failure modes that are still open.
 | File | Covers | Open items |
 |---|---|---|
 | [`docs/COACH_FIXES.md`](docs/COACH_FIXES.md) | **Saathi, the AI coach** — 46 defects, v270→v279. Fabricated portfolios, the prompt/tool/routing layers, both chat surfaces, the model proxy, the local-cache privacy leak. | `ADMIN_PATH` still needs rotating; `json`-lane `max_tokens` blowout |
+| [`docs/COACH_OVERHAUL_2026-09-14.md`](docs/COACH_OVERHAUL_2026-09-14.md) | **Coach latency + context**, v280&rarr;v287. Per-phase `reasoning_effort` (TTFT 6.7s&rarr;1.4s), the dossier, `dhan_instruments` 0&rarr;4,619 rows, the quote warmer, telemetry. Plus two crashes only reachable from a browser, and `TRUNCATE` granted to `anon` on five tables. | `MF_NIPPON_GOLD` unsellable; `OPENAI_API_KEY` unset (single-vendor); the ~4% Vertex 409s |
 | [`docs/SECURITY_FIXES_2026-09-13.md`](docs/SECURITY_FIXES_2026-09-13.md) | **Trade-path / ledger security** — server-side fill pricing, money-table locks, the 10% price band. | see file |
 | [`docs/PORTFOLIO_CHART_FIXES.md`](docs/PORTFOLIO_CHART_FIXES.md) | **Portfolio "Value over time"** — 9 defects across the client store, chart renderer, database, scheduler and DNS. | see file |
 | [`docs/DATA_PIPELINE_FIXES.md`](docs/DATA_PIPELINE_FIXES.md) | **Market-data pipeline & CI** — 10 defects. MFs priced at week-old NAVs, the AMFI sync dropping all 14,120 rows, SME fundamentals dead, `data-sync` aborting at step 1, the audit log truncatable by `anon`. | leaked-password toggle; MF fills already executed at stale NAVs |
 
-If you are about to debug the coach, read `COACH_FIXES.md` **first**. Most of
-its 46 entries were found by reading logged `coach_messages` rows, not by
-testing — and its closing section explains why the regex probe suites were
-green while the replies underneath were wrong.
+If you are about to debug the coach, read **both** `COACH_FIXES.md` and
+`COACH_OVERHAUL_2026-09-14.md`. The first covers what the coach *says* — most
+of its 46 entries were found by reading logged `coach_messages` rows rather
+than by testing, and its closing section explains why the regex probe suites
+were green while the replies underneath were wrong. The second covers what the
+coach *knows* and how fast it answers, and carries the current verified
+environment facts: which LLM provider actually serves each profile, which
+infrastructure is deployed and which only looks deployed, and why testing the
+coach in a browser needs a cache-busting query string.
 
 If you are about to touch a sync, a cron or anything that writes market data,
 read `DATA_PIPELINE_FIXES.md` first — its closing section is a table of the
