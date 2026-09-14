@@ -27,6 +27,7 @@
 // =============================================================================
 
 import { sb } from "../db/supabase.js";
+import { currentUser } from "../auth/accounts.js";
 
 const MAX_QUEUE = 200;
 const FLUSH_AT = 25;
@@ -108,11 +109,19 @@ export async function flushEvents() {
   queue = [];
   flushing = true;
   try {
+    // currentUser() is the SYNCHRONOUS cache. Deliberately not
+    // client.auth.getUser(), which js/db/sync.js already documents as
+    // "the single biggest source of 'my data vanished on deploy'" — a stuck
+    // getUser call in v135 left loadAllFromDb hung forever, and it hung this
+    // function too on its first real test.
+    //
+    // It matters more here than there: flushEvents runs on pagehide, so an
+    // auth call that does not settle would delay closing the tab. Telemetry
+    // is never worth that. No user in the cache means drop the batch.
+    const uid = currentUser()?.id || null;
+    if (!uid) { return; }
     const client = await sb();
-    if (!client) { return; }              // signed out — drop, do not retry
-    const { data: u } = await client.auth.getUser();
-    const uid = u?.user?.id;
-    if (!uid) { return; }                 // ditto
+    if (!client) { return; }
     const rows = batch.map((e) => ({ ...e, user_id: uid }));
     const { error } = await client.from("user_events").insert(rows);
     if (error) console.warn("[track] insert failed:", error.message);
