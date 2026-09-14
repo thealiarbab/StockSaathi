@@ -6,8 +6,22 @@ Vanilla-JS SPA + Python serverless (Vercel) + Postgres (Supabase). Virtual-money
 - **Frontend:** vanilla JS modules (no framework, no build step), SW-cached, hash router
 - **Backend:** Vercel Python serverless functions in `api/*.py`
 - **Database:** Supabase Postgres, RLS-enforced, RPCs for cross-user reads
-- **Data:** Yahoo Finance free tier (rate-limited for Vercel IPs) with Supabase `quote_cache` TTL layer on top
-- **LLM:** Groq (Llama 3.3 70B), proxied via `api/chat.py` with pinned model + capped tokens
+- **Data:** Yahoo Finance free tier (rate-limited for Vercel IPs) with a Supabase
+  `quote_cache` TTL layer. **Yahoo is the ONLY source.** `fetch_dhan_ltp` exists
+  in `handlers/live-quote.py` but has never served a single quote:
+  `DHAN_ACCESS_TOKEN` is unset and all 3,655 `quote_cache` rows across five
+  months are `source='yahoo'` (verified 2026-09-14). There is no second price
+  source behind Yahoo - treat its rate limit as a hard ceiling, not a
+  degraded mode.
+- **LLM:** Google **Vertex AI** Gemini, proxied via `api/chat.js` (Edge). Project
+  `gen-lang-client-0129344832`. Profiles: `chat`/`fast` -> `gemini-3-flash-preview`,
+  `reasoning` -> `gemini-3.1-pro-preview`, `json` -> `gemini-2.5-flash-lite`.
+  **Groq is deliberately excluded** from the provider list (`api/chat.js:240`).
+  The chains look 4-deep but only `GEMINI_API_KEY` is set, so every profile is
+  effectively 2 Gemini models on ONE vendor - `OPENAI_API_KEY` and
+  `CEREBRAS_API_KEY` are unset (verified 2026-09-14 via `X-Chat-Attempts`).
+  A Vertex outage takes the coach, command palette, crash replay and report
+  card down together, with no fallback.
 
 ## Workflow rules
 - **Always push + let Vercel deploy** after any task. User pre-authorised.
@@ -21,12 +35,18 @@ Vanilla-JS SPA + Python serverless (Vercel) + Postgres (Supabase). Virtual-money
 Limit orders and AMOs are matched by `/api/match-orders` (`handlers/match-orders.py`)
 on a schedule. The user does **not** need the app open.
 
-- **Primary tick:** Cloudflare front-door Worker cron, `* * * * *` (see
-  `edge/front-door/wrangler.toml` + its `scheduled()` export). Needs the
-  `CRON_SECRET` secret bound on the Worker.
-- **Backup tick:** `.github/workflows/order-matcher.yml`, every 5 min during
-  market hours. Two vendors, because one scheduler failing silently is exactly
-  what caused the original outage.
+- **ACTUAL tick:** `.github/workflows/order-matcher.yml`, every 5 min during
+  market hours. **This is the only matcher running.**
+- **Aspirational tick:** Cloudflare front-door Worker cron, `* * * * *` (see
+  `edge/front-door/wrangler.toml` + its `scheduled()` export). **NOT DEPLOYED** -
+  `wrangler.toml` still carries the literal placeholder
+  `id = "REPLACE_WITH_KV_ID_AFTER_wrangler_kv_namespace_create"`, and production
+  returns `Server: Vercel` with no `cf-ray` header (verified 2026-09-14). This
+  file previously described it as the primary tick, which is how at least one
+  later plan came to be designed around a scheduler that does not run.
+  Evidence it is GitHub Actions doing the work: of 130 filled orders across 73
+  distinct fill times, 56 have non-zero seconds - irregular, HTTP-triggered
+  runs, not a per-minute cron.
 - **Fill path:** `admin_fill_limit_order` / `admin_pending_orders` (service_role
   only). Both wrap `_fill_limit_order_core`, which takes the owner from the
   order row instead of `auth.uid()` and is revoked from `anon`/`authenticated`.
@@ -72,7 +92,14 @@ do not let Supabase's default grants hand `anon` TRUNCATE, which bypasses RLS.
 
 ## Failover infrastructure
 
-The site has a full hot mirror. Primary serving path: Cloudflare Worker (`edge/front-door/`) → Vercel. On Vercel 5xx / timeout / network error, the Worker falls back to:
+**NOT DEPLOYED — this section describes intent, not production.** Verified
+2026-09-14: `stocksaathi.co.in` resolves straight to Vercel (`Server: Vercel`,
+`X-Vercel-Id: bom1::...`, no `cf-ray`), the Worker's KV id is still a
+placeholder, and the deploy secrets (`CLOUDFLARE_API_TOKEN`,
+`CLOUDFLARE_ACCOUNT_ID`, `FLY_API_TOKEN`) are absent. Deploying it is a
+production cutover of the entire serving path, not a config tweak.
+
+The intended design: primary serving path Cloudflare Worker (`edge/front-door/`) → Vercel. On Vercel 5xx / timeout / network error, the Worker falls back to:
 - **Cloudflare Pages** (`stocksaathi.pages.dev`) for static assets
 - **Fly.io** (`stocksaathi-backup.fly.dev`) for `/api/*.py`
 - **Inline in the Worker** for `/api/chat` + `/api/ai` (Vercel's edge JS is imported directly)

@@ -234,10 +234,26 @@ export function ensureMfUniverseLoaded() {
 export function getAllInstruments() {
   if (!_fullBySymbol && !_mfBySymbol) return INSTRUMENTS;
   if (_mergedBySymbol) return Object.values(_mergedBySymbol);
+  // ORDER MATTERS, and it used to be wrong.
+  //
+  // _placeholderMfsByS was spread LAST, so the 8 legacy placeholder funds in
+  // curated.js overrode the real AMFI catalogue for their symbols. Those
+  // placeholders carry no NAV, so the winning entry was unpriceable — while
+  // still appearing in search and therefore being buyable.
+  //
+  // That is not hypothetical. One user holds 56.86 units of MF_NIPPON_GOLD
+  // bought 2026-04-22 (cost basis Rs 17,984). It is in neither quote_cache
+  // nor mf_master, so apply_trade raises 'no price available' and they cannot
+  // sell it. Same failure class as the order-rot incident in AGENTS.md.
+  //
+  // Placeholders now go FIRST, making them a FALLBACK that real data
+  // overrides, which is what "placeholder" was always supposed to mean. They
+  // stay in the merge so existing holdings still resolve to a name rather
+  // than rendering as a bare symbol.
   const merged = {
+    ..._placeholderMfsByS,         // legacy starter-portfolio codes (fallback only)
     ...(_fullBySymbol || {}),
     ...(_mfBySymbol || {}),
-    ..._placeholderMfsByS,         // legacy starter-portfolio codes
   };
   _mergedBySymbol = merged;
   return Object.values(merged);
