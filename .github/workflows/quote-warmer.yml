@@ -82,25 +82,38 @@ jobs:
           # not finish inside it. The handler reports `more` so we can stop.
           offset=0
           total_warmed=0
+          total_failed=0
           for page in 1 2 3 4 5 6; do
             body=$(curl -sS --max-time 120 \
               -H "Authorization: Bearer $CRON_SECRET" \
               "https://stocksaathi.co.in/api/admin-warm-quotes?tier=$TIER&offset=$offset&limit=240") || {
                 echo "::warning::request failed at offset $offset"; break; }
             echo "  page $page (offset=$offset): $(echo "$body" | head -c 300)"
-            ok=$(echo "$body" | sed -n 's/.*"ok":\([a-z]*\).*/\1/p')
+            # jq, not sed. The first version parsed with a sed pattern that
+            # assumed '"ok":true' with no space. Python's json.dumps writes
+            # '"ok": true' WITH one, so it always produced an empty string and
+            # the workflow failed while the handler was working perfectly.
+            # A parser that cannot fail loudly is worse than no parser.
+            ok=$(echo "$body" | jq -r '.ok // false')
             if [ "$ok" != "true" ]; then
-              echo "::error::warmer returned ok=$ok"
+              echo "::error::warmer returned ok=$ok body=$(echo "$body" | head -c 300)"
               exit 1
             fi
-            w=$(echo "$body" | sed -n 's/.*"warmed":\([0-9]*\).*/\1/p')
-            total_warmed=$(( total_warmed + ${w:-0} ))
-            more=$(echo "$body" | sed -n 's/.*"more":\([a-z]*\).*/\1/p')
+            w=$(echo "$body" | jq -r '.warmed // 0')
+            f=$(echo "$body" | jq -r '.failed // 0')
+            total_warmed=$(( total_warmed + w ))
+            total_failed=$(( total_failed + f ))
+            more=$(echo "$body" | jq -r '.more // false')
             [ "$more" = "true" ] || break
             offset=$(( offset + 240 ))
             sleep 3
           done
-          echo "tier=$TIER warmed=$total_warmed"
+          echo "tier=$TIER warmed=$total_warmed failed=$total_failed"
+          # Partial failure is worth surfacing but not worth failing on: one
+          # slow batch is normal against a cold cache and the next tick gets it.
+          if [ "$total_failed" != "0" ]; then
+            echo "::warning::$total_failed symbols failed to warm this run"
+          fi
           # A tier that warms nothing at all means the symbol query or the
           # quote path is broken. Failing loudly here is the whole point —
           # the previous generation of this idea was a comment in

@@ -68,11 +68,15 @@ ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "").strip()
 CRON_SECRET = os.environ.get("CRON_SECRET", "").strip()
 PUBLIC_ORIGIN = (os.environ.get("PUBLIC_ORIGIN") or "https://stocksaathi.co.in").rstrip("/")
 
-# /api/live-quote caps at 80 symbols per request and does the Yahoo fan-out
-# itself, with its own thread pool and its own cache write. Warming by calling
-# it means exactly one implementation of "fetch and cache a quote" exists.
-# Duplicating that logic here is how the two paths drift.
-BATCH = 80
+# Warming by calling /api/live-quote means exactly one implementation of
+# "fetch and cache a quote" exists — it owns the Yahoo fan-out, the thread
+# pool and the cache write. Duplicating that here is how two paths drift.
+#
+# 40 rather than live-quote's 80-symbol ceiling: a chunk is all-or-nothing
+# here, so one slow fan-out costs every symbol in it. The first run of this
+# warmer lost exactly that way (118 warmed / 80 failed of 198). Halving the
+# chunk halves the blast radius; the retry in _warm covers the rest.
+BATCH = 40
 MAX_LIMIT = 400
 
 
@@ -164,18 +168,38 @@ def _tier_symbols(tier):
 
 
 def _warm(symbols):
-    """Warm via /api/live-quote, which owns the fetch-and-cache path."""
+    """Warm via /api/live-quote, which owns the fetch-and-cache path.
+
+    One retry per chunk. A cold fan-out against Yahoo is genuinely slow
+    sometimes, and without a retry a single slow batch silently costs every
+    symbol in it — which is what happened on the first run (80 of 198 lost to
+    one chunk). The retry is cheap because a partially-warmed chunk is already
+    cached, so the second attempt mostly hits the cache and returns fast.
+    """
     warmed, failed = 0, 0
     for i in range(0, len(symbols), BATCH):
         chunk = symbols[i : i + BATCH]
         url = f"{PUBLIC_ORIGIN}/api/live-quote?symbols=" + urllib.parse.quote(",".join(chunk))
-        try:
-            req = urllib.request.Request(url, headers={"User-Agent": "StockSaathi-Warmer/1.0"})
-            with urllib.request.urlopen(req, timeout=30) as r:
-                payload = json.loads(r.read().decode("utf-8") or "{}")
-            warmed += len(payload.get("quotes") or {})
-        except Exception:
+        got = None
+        for attempt in (1, 2):
+            try:
+                req = urllib.request.Request(url, headers={"User-Agent": "StockSaathi-Warmer/1.0"})
+                with urllib.request.urlopen(req, timeout=45) as r:
+                    payload = json.loads(r.read().decode("utf-8") or "{}")
+                got = len(payload.get("quotes") or {})
+                break
+            except Exception:
+                if attempt == 2:
+                    got = None
+                else:
+                    time.sleep(1.5)
+        if got is None:
             failed += len(chunk)
+        else:
+            warmed += got
+            # quotes may come back short of the chunk if a symbol has no
+            # upstream data at all. Count the shortfall rather than pretending.
+            failed += max(0, len(chunk) - got)
     return warmed, failed
 
 
