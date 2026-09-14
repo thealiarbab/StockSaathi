@@ -73,6 +73,7 @@ ROUTES = {
     "admin-sync-mf": "admin-sync-mf",
     "admin-refresh-fundamentals": "admin-refresh-fundamentals",
     "admin-snapshot-portfolios": "admin-snapshot-portfolios",
+    "admin-warm-quotes": "admin-warm-quotes",
     "match-orders": "match-orders",
 }
 

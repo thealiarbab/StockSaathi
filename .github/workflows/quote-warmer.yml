@@ -1,0 +1,111 @@
+name: quote-warmer
+
+# Pre-warms public.quote_cache so the coach's sector screening and
+# /api/universe-quotes read from cache instead of a cold Yahoo fan-out.
+#
+# WHY GITHUB ACTIONS IS FINE HERE, DESPITE BEING LATE
+#
+# GitHub's scheduler is best-effort and routinely runs 3-15 minutes behind,
+# and */5 schedules in particular get throttled. That would be disqualifying
+# if quote freshness gated correctness — but it does not.
+#
+# apply_trade and _fill_limit_order_core both price from quote_cache with NO
+# cached_at_ms check: they require the row to EXIST, not to be fresh. A
+# seven-day-old row satisfies them identically to a five-second-old one. So
+# lateness costs nothing, and the earlier idea of moving this onto the
+# Cloudflare Worker's per-minute cron was solving a problem that isn't there
+# (that Worker is also not deployed — see AGENTS.md).
+#
+# WHY NOT WARM EVERYTHING, OFTEN
+#
+# All 4,619 symbols every 5 minutes is ~350k Yahoo requests/day from IP ranges
+# Yahoo already throttles. Yahoo is the ONLY price source — verified
+# 2026-09-14 that DHAN_ACCESS_TOKEN is unset and all 3,655 cached rows are
+# source='yahoo' — so getting the range blocked takes down prices for the
+# whole app, not just the coach. The tiering is a safety constraint.
+#
+# Needs: CRON_SECRET repo secret (same value as the Vercel env var).
+
+on:
+  schedule:
+    # Tier A (~300 symbols: held, pending orders, watchlist, Nifty100) twice
+    # an hour during market hours. 03:30-10:30 UTC = 09:00-16:00 IST, Mon-Fri.
+    - cron: "5,35 3-10 * * 1-5"
+    # Tier B (~1,000 indexed equities) at 09:20 and 15:45 IST — just after the
+    # open and just before the close, which is when a screen is most likely to
+    # be asked for.
+    - cron: "50 3 * * 1-5"
+    - cron: "15 10 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      tier:
+        description: "Tier to warm (a, b, or c)"
+        required: false
+        default: "a"
+
+concurrency:
+  group: quote-warmer
+  cancel-in-progress: false
+
+jobs:
+  warm:
+    name: Warm quote_cache
+    runs-on: ubuntu-latest
+    steps:
+      - name: Guard — secret must be configured
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET repo secret is not set."
+            exit 1
+          fi
+
+      - name: Pick tier
+        id: tier
+        run: |
+          # Schedule -> tier. Tier B runs on the two daily crons; everything
+          # else (including the half-hourly ticks) is tier A.
+          case "${{ github.event.schedule }}" in
+            "50 3 * * 1-5"|"15 10 * * 1-5") echo "tier=b" >> "$GITHUB_OUTPUT" ;;
+            "") echo "tier=${{ github.event.inputs.tier || 'a' }}" >> "$GITHUB_OUTPUT" ;;
+            *) echo "tier=a" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - name: Warm
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          TIER: ${{ steps.tier.outputs.tier }}
+        run: |
+          # Page rather than assuming one call covers the tier: vercel.json
+          # caps api/*.py at maxDuration 60 and a 1,000-symbol fan-out will
+          # not finish inside it. The handler reports `more` so we can stop.
+          offset=0
+          total_warmed=0
+          for page in 1 2 3 4 5 6; do
+            body=$(curl -sS --max-time 120 \
+              -H "Authorization: Bearer $CRON_SECRET" \
+              "https://stocksaathi.co.in/api/admin-warm-quotes?tier=$TIER&offset=$offset&limit=240") || {
+                echo "::warning::request failed at offset $offset"; break; }
+            echo "  page $page (offset=$offset): $(echo "$body" | head -c 300)"
+            ok=$(echo "$body" | sed -n 's/.*"ok":\([a-z]*\).*/\1/p')
+            if [ "$ok" != "true" ]; then
+              echo "::error::warmer returned ok=$ok"
+              exit 1
+            fi
+            w=$(echo "$body" | sed -n 's/.*"warmed":\([0-9]*\).*/\1/p')
+            total_warmed=$(( total_warmed + ${w:-0} ))
+            more=$(echo "$body" | sed -n 's/.*"more":\([a-z]*\).*/\1/p')
+            [ "$more" = "true" ] || break
+            offset=$(( offset + 240 ))
+            sleep 3
+          done
+          echo "tier=$TIER warmed=$total_warmed"
+          # A tier that warms nothing at all means the symbol query or the
+          # quote path is broken. Failing loudly here is the whole point —
+          # the previous generation of this idea was a comment in
+          # universe-quotes.py referring to a cron that did not exist.
+          if [ "$total_warmed" = "0" ]; then
+            echo "::error::warmed 0 symbols — check /api/live-quote and dhan_instruments"
+            exit 1
+          fi
