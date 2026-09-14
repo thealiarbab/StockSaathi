@@ -656,8 +656,25 @@ async function sendAndReply(userText) {
     reRenderOuter();   // show typing indicator
     let replyText = null;
     let errorText = null;
+    // DECLARED HERE, NOT INSIDE THE try BELOW.
+    //
+    // It used to live inside the try, whose block scope ends ~15 lines later.
+    // The lookup-offer escalation further down is in THIS block but outside
+    // that try, so its `system + nudge` skipped the dead binding and resolved
+    // to the function-level `const system` declared in the streaming path
+    // (~line 788) - which has not been initialised at that point.
+    //
+    // Every escalation attempt therefore threw
+    //   "Cannot access 'system' before initialization"
+    // straight into its own catch, which logged a warning and moved on. The
+    // escalation has never once run. COACH_FIXES §22 presents it as the CODE
+    // layer behind the prompt layer, on the argument that "a prompt rule is a
+    // preference, not a guarantee" - and the guarantee was a no-op.
+    //
+    // Found by reading the browser console during adversarial testing, not by
+    // any test: it fails silently by construction.
+    const system = `${SYSTEM_PROMPT}\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# TOOL USE\nYou have tools for live data: get_stock_price, get_crypto_price, search_stocks, get_market_news, get_user_portfolio, get_trade_history, get_watchlist, get_limit_orders. USE them whenever the user asks about any specific stock, crypto, market state, or their portfolio. Never guess numbers — always call the tool.\n\nCRITICAL: Call tools via the STRUCTURED tool_calls API only. NEVER write literal text like 'CALL search_stocks(...)' or '[Tool call: ...]' or fenced ` + "```tool_calls```" + ` JSON in your visible response. Those are internal scaffolding the user must never see. If you want to call a tool, emit the tool_call JSON block and let the system handle it. Your visible reply either (a) answers the user's question with real data you just received from a tool, or (b) says you'll look it up — never describes the mechanics of looking it up.\n\n# TONE\nKeep replies conversational and short by default (1–3 sentences). Only go longer when the user asks for explanation or depth.`;
     try {
-      const system = `${SYSTEM_PROMPT}\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# TOOL USE\nYou have tools for live data: get_stock_price, get_crypto_price, search_stocks, get_market_news, get_user_portfolio, get_trade_history, get_watchlist, get_limit_orders. USE them whenever the user asks about any specific stock, crypto, market state, or their portfolio. Never guess numbers — always call the tool.\n\nCRITICAL: Call tools via the STRUCTURED tool_calls API only. NEVER write literal text like 'CALL search_stocks(...)' or '[Tool call: ...]' or fenced ` + "```tool_calls```" + ` JSON in your visible response. Those are internal scaffolding the user must never see. If you want to call a tool, emit the tool_call JSON block and let the system handle it. Your visible reply either (a) answers the user's question with real data you just received from a tool, or (b) says you'll look it up — never describes the mechanics of looking it up.\n\n# TONE\nKeep replies conversational and short by default (1–3 sentences). Only go longer when the user asks for explanation or depth.`;
       replyText = await runAgent({
         apiKey: state.settings.llmApiKey || null,
         system,
@@ -785,11 +802,14 @@ You already offered to look this up and the user already asked. Do NOT ask again
     }
   }, dripIntervalMs);
 
-  const system = `${SYSTEM_PROMPT}\n\n${NO_TOOLS_NOTE}\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# TONE\nKeep replies conversational and short by default (1–3 sentences). Only go longer when the user asks for explanation or depth.`;
+  // Named distinctly from the tool path's `system`. Two same-named consts in
+  // nested scopes is what produced the TDZ bug above; keeping them distinct
+  // means a stray reference is a loud ReferenceError, not a silent no-op.
+  const streamSystem = `${SYSTEM_PROMPT}\n\n${NO_TOOLS_NOTE}\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# TONE\nKeep replies conversational and short by default (1–3 sentences). Only go longer when the user asks for explanation or depth.`;
   let result = null;
   try {
     result = await streamChat({
-      system,
+      system: streamSystem,
       messages,
       profile: "chat",
       signal: m_abortController.signal,
