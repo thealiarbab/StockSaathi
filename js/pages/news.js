@@ -3,6 +3,7 @@
 // =============================================================================
 
 import { getNews, fmtRelativeTime, labelSentiment } from "../data/news.js";
+import { track } from "../features/track.js";
 import { getState, subscribe } from "../state.js";
 
 let filter = "all";    // all | holdings | watchlist
@@ -122,6 +123,10 @@ function render(main) {
     el.addEventListener("click", (e) => {
       e.preventDefault();
       const url = el.dataset.newsurl;
+      // The headline, not the URL, is what the coach can talk about.
+      track("news_click", el.getAttribute("aria-label") || url, {
+        host: (() => { try { return new URL(url).hostname; } catch { return null; } })(),
+      });
       if (url && url !== "#") window.open(url, "_blank", "noopener,noreferrer");
     });
   });

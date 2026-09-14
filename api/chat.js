@@ -435,6 +435,29 @@ export default async function handler(req) {
     const effort = REASONING_EFFORT[profile];
     if (effort) payload.reasoning_effort = effort;
   }
+  // OUTBOUND SECRET SCRUB.
+  //
+  // COACH_FIXES §39: a pasted ADMIN_PATH value sat in a user's chat log and
+  // reached an LLM provider when the message was answered. It was redacted
+  // from our storage afterwards, but the copy that left the building could
+  // not be recalled — the entry still says "the value still needs rotating".
+  //
+  // That was a one-off. The dossier makes the class of accident structural:
+  // user content is now attached to every single turn automatically, so
+  // anything secret-shaped that lands in a user's data would ride along
+  // forever without anyone pasting it again.
+  //
+  // redact() is the SAME function already used on error bodies (see its
+  // definition above): it matches API-key prefixes and bearer tokens only. It
+  // cannot match a stock symbol, a rupee figure, a name, or a sentence, so it
+  // cannot degrade a coach reply. That is the whole reason it is safe to run
+  // on the happy path and not just on errors.
+  if (Array.isArray(payload.messages)) {
+    for (const m of payload.messages) {
+      if (typeof m?.content === "string") m.content = redact(m.content);
+    }
+  }
+
   if (!Array.isArray(payload.messages) || payload.messages.length === 0) {
     return jsonResponse(400, { error: "bad_messages" }, origin);
   }

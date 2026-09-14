@@ -42,6 +42,7 @@
 import { getState } from "../state.js";
 import { getInstrument } from "../data/universe.js";
 import { getQuoteBatch } from "../data/marketData.js";
+import { sb } from "../db/supabase.js";
 
 const MAX_POSITIONS_SHOWN = 12;
 
@@ -84,6 +85,55 @@ function realisedPaise(transactions) {
  */
 function isCorrupt(h) {
   return !Number.isFinite(h?.qty) || h.qty > 1e9 || !Number.isFinite(h?.avgCostPaise) || h.avgCostPaise <= 0;
+}
+
+/**
+ * A short behavioural summary from user_events.
+ *
+ * This is the half of the dossier that is not derivable from the portfolio.
+ * Joining what someone LOOKED AT against what they BOUGHT is what makes real
+ * bias coaching possible — "you opened IDEA fourteen times in three days and
+ * then bought at the top" — which the product already claims to do
+ * (transactions.bias_flags exists) and previously had no data for.
+ *
+ * Kept to ~60-80 tokens and failure-tolerant: telemetry is a nice-to-have in
+ * the prompt, and a slow or empty query must never delay or break a reply.
+ */
+async function activitySummary() {
+  try {
+    const client = await sb();
+    if (!client) return null;
+    const since = new Date(Date.now() - 14 * 86400000).toISOString();
+    const { data, error } = await client
+      .from("user_events")
+      .select("kind,subject")
+      .gte("occurred_at", since)
+      .order("occurred_at", { ascending: false })
+      .limit(400);
+    if (error || !Array.isArray(data) || !data.length) return null;
+
+    const byKind = {};
+    const viewed = {};
+    const searches = [];
+    for (const e of data) {
+      byKind[e.kind] = (byKind[e.kind] || 0) + 1;
+      if (e.kind === "stock_view" && e.subject) viewed[e.subject] = (viewed[e.subject] || 0) + 1;
+      if (e.kind === "search" && e.subject && searches.length < 3) searches.push(e.subject);
+    }
+    const top = Object.entries(viewed).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    const bits = [];
+    if (byKind.stock_view) {
+      bits.push(`${byKind.stock_view} stock pages` +
+        (top.length ? ` (${top.map(([sym, n]) => `${sym} x${n}`).join(", ")})` : ""));
+    }
+    if (byKind.news_click) bits.push(`${byKind.news_click} news clicks`);
+    if (searches.length) bits.push(`searches: ${searches.map((q) => `"${q}"`).join(", ")}`);
+    if (byKind.coach_open) bits.push(`opened the coach ${byKind.coach_open}x`);
+    if (!bits.length) return null;
+    return `Behaviour (14d): ${bits.join(", ")}.`;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -198,6 +248,9 @@ export async function buildDossier() {
   } else {
     L.push(`Trades 0 — this user has NEVER placed a trade. Say exactly that if asked; do not invent one.`);
   }
+
+  const activity = await activitySummary();
+  if (activity) L.push(activity);
 
   const wl = Array.isArray(s.watchlist) ? s.watchlist.length : 0;
   const tf = Array.isArray(s.transfers) ? s.transfers.length : 0;

@@ -3,6 +3,7 @@
 // =============================================================================
 
 import { renderLanding } from "./pages/landing.js";
+import { track, installTracking } from "./features/track.js";
 import { renderPortfolio } from "./pages/portfolio.js";
 import { renderStocks } from "./pages/stocks.js";
 import { renderStockDetail } from "./pages/stockDetail.js";
@@ -170,6 +171,11 @@ export function mountRouter() {
     if (_pendingRouteCheck) { _pendingRouteCheck(); _pendingRouteCheck = null; }
 
     const r = currentRoute();
+    // page_view is recorded HERE rather than on the hashchange listener.
+    // route() is also called directly at the bottom of this file on boot, so
+    // a listener-only hook would miss the first page of every session — which
+    // is the landing page, i.e. the most interesting one.
+    track("page_view", location.hash || "#/", { name: r?.name || null });
     const user = currentUser();
     const state = getState();
 
@@ -282,6 +288,7 @@ export function mountRouter() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  installTracking();
   window.addEventListener("hashchange", route);
   route();
 }

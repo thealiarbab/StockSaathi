@@ -5,6 +5,7 @@
 // =============================================================================
 
 import { getState, subscribe, setSetting } from "../state.js";
+import { track } from "../features/track.js";
 import { getInstrument } from "../data/universe.js";
 import { getNews } from "../data/news.js";
 import { formatRupees, formatPct } from "../money.js";
@@ -153,7 +154,9 @@ export function mountCoachPanel() {
   fab.setAttribute("aria-label", "Open coach");
   fab.innerHTML = `<span>💬</span>`;
   fab.addEventListener("click", () => {
-    setSetting("coachPanelOpen", !getState().settings.coachPanelOpen);
+    const opening = !getState().settings.coachPanelOpen;
+    setSetting("coachPanelOpen", opening);
+    if (opening) track("coach_open", location.hash || "#/");
   });
   document.body.appendChild(fab);
 

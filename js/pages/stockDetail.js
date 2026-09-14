@@ -4,6 +4,7 @@
 // =============================================================================
 
 import { getInstrument, ensureMfUniverseLoaded } from "../data/universe.js";
+import { track } from "../features/track.js";
 import { getQuote, getHistory, getMfHistory, subscribeToQuotes, quoteAge, getFundamentals, getFreshCachedQuote } from "../data/marketData.js";
 import { placeLimitOrder } from "../features/limitOrders.js";
 import { buildOrderBook, buildRecentTrades } from "../data/orderBook.js";
@@ -189,6 +190,9 @@ function computeChartWidth() {
 export function renderStockDetail(main, params) {
   const symbol = params.symbol;
   const inst = getInstrument(symbol);
+  // Throttled to one row per symbol per minute in track.js, so a
+  // re-render or a quick back-and-forth does not inflate the count.
+  track("stock_view", symbol, { sector: inst?.sector || null, kind: inst?.kind || null });
   // Reset the per-mount AI-why memo whenever the viewed symbol changes.
   if (_stockWhyKey && !_stockWhyKey.startsWith(symbol + "_")) {
     _stockWhyKey = null;
@@ -1280,8 +1284,13 @@ function attachListeners(main, inst, symbol, curPrice, holding, chartOhlc, sessi
   }
 
   main.querySelector(".watch-btn")?.addEventListener("click", () => {
-    if (getState().watchlist.includes(symbol)) removeFromWatchlist(symbol);
-    else addToWatchlist(symbol);
+    if (getState().watchlist.includes(symbol)) {
+      removeFromWatchlist(symbol);
+      track("watchlist_remove", symbol);
+    } else {
+      addToWatchlist(symbol);
+      track("watchlist_add", symbol);
+    }
   });
 
   main.querySelector("#place-trade-btn")?.addEventListener("click", async () => {
