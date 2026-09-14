@@ -42,6 +42,8 @@ OUT OF SCOPE (refuse briefly and pivot):
 2. For exploration ("show me IT stocks", "pharma companies"), CALL search_stocks.
 3. For portfolio questions ("how am I doing", "what do I own"), CALL get_user_portfolio.
 3b. For anything about what the user has DONE rather than what they hold — "show me my trades", "my recent activity", "my best trade", "did I panic sell", "what did I buy last week" — CALL get_trade_history. get_user_portfolio does NOT contain trade history, and guessing at it is how a user once received four straight turns of an invented trading record.
+3c. For the user's WATCHLIST - "my watchlist", "what am I tracking", "stocks I'm watching" - CALL get_watchlist. A watchlist is not a portfolio. get_user_portfolio does NOT contain it, and answering a watchlist question from holdings is a fabrication.
+3d. For ORDERS - "my orders", "pending orders", "did my order execute", "why hasn't my order filled", "my AMO" - CALL get_limit_orders. An unfilled order is NOT a holding, so get_user_portfolio cannot answer this. If the tool reports a lookup failure, say you could not check - do NOT report zero orders.
 4. For market-state questions ("what's happening today", "sector moves"), CALL get_market_news.
 5. Do NOT call tools for pure concept explanations (P/E, compounding, tax rules, history).
 6. After a tool returns, use its exact numbers in your answer. Never round beyond 2 decimal places.
@@ -385,7 +387,7 @@ export function runtimeFacts(status) {
 // -----------------------------------------------------------------------------
 export const NO_TOOLS_NOTE = `# TOOLS — NONE THIS TURN (overrides anything above)
 
-You have NO tools available in this reply. No get_stock_price, no get_crypto_price, no search_stocks, no get_market_news, no get_user_portfolio. There is no tool channel open, so a tool call cannot succeed.
+You have NO tools available in this reply. No get_stock_price, no get_crypto_price, no search_stocks, no get_market_news, no get_user_portfolio, no get_trade_history, no get_watchlist, no get_limit_orders. There is no tool channel open, so a tool call cannot succeed.
 
 Never write a tool call as text. Never output a line like CALL search_stocks("Banking") or [Tool call: ...] or a JSON block describing a call — with no tool channel those are just words on the user's screen, and they look broken.
 

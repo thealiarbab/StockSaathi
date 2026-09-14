@@ -27,8 +27,17 @@
 //   - Origin allowlist (rejects cross-site abuse).
 //   - Body size cap.
 //   - max_tokens cap server-side (client can't upgrade to expensive generations).
-//   - `tools` / `tool_choice` stripped (client can't plug arbitrary tools).
 //   - Error bodies redact bearer tokens + API-key-shaped strings.
+//
+// NOT a safety property, despite what this list said until 2026-09-14:
+// `tools` / `tool_choice` are NOT stripped. They are passed through, because
+// the coach agent needs function-calling (see the max_tokens block below).
+// Nothing in this file removes them; the only runtime reference to `tools` is
+// the wantsStream check. The claim sat here for months and is exactly the kind
+// of thing the next person builds on — a client CAN send arbitrary tool
+// definitions. That is low-severity today because tools are only ever
+// EXECUTED client-side, so a forged definition costs the caller tokens and
+// nothing else. Do not rely on this endpoint to sanitise them.
 // =============================================================================
 
 export const config = { runtime: "edge" };
@@ -311,7 +320,13 @@ async function callUpstream(desc, payload) {
   // It only bounds time-to-HEADERS; once a stream starts, the body is piped
   // without further limit.
   const ctrl = new AbortController();
-  const killer = setTimeout(() => ctrl.abort(), UPSTREAM_TIMEOUT_MS);
+  // Distinguishing "we gave up on this upstream" from "the network broke" is
+  // the whole point of the flag. Without it every stall is recorded as a
+  // generic failure, which is exactly how a 9s timeout on the tool lane went
+  // unnoticed: measured 2026-09-14, ~1 request in 5 on `fast` hung past the
+  // budget and fell through to a slower model, and nothing anywhere said so.
+  let timedOut = false;
+  const killer = setTimeout(() => { timedOut = true; ctrl.abort(); }, UPSTREAM_TIMEOUT_MS);
   let res;
   try {
     res = await fetch(desc.url, {
@@ -320,6 +335,14 @@ async function callUpstream(desc, payload) {
       body: JSON.stringify({ ...payload, model: modelForApi }),
       signal: ctrl.signal,
     });
+  } catch (e) {
+    if (timedOut) {
+      const err = new Error("upstream_timeout");
+      err.__timeout = true;
+      err.__ms = UPSTREAM_TIMEOUT_MS;
+      throw err;
+    }
+    throw e;
   } finally {
     clearTimeout(killer);
   }
@@ -432,21 +455,44 @@ export default async function handler(req) {
 
   let last = null;
   let lastText = null;
+  // OBSERVABILITY — the attempt trail.
+  //
+  // Before this existed a degraded chain was completely invisible: the client
+  // saw only X-Chat-Upstream naming whoever finally answered, with no record
+  // that two upstreams ahead of it had stalled for 9s each. Measured on
+  // 2026-09-14, ~10% of requests fell through and cost 11-18s, and no log
+  // anywhere showed it. Every attempt is now recorded with its outcome and
+  // duration, returned as a header and written to the Vercel log.
+  const attempts = [];
+  const tReq = performance.now();
+  const trail = () => attempts.join(",") || "none";
   for (const desc of order) {
     try {
       const r = await callUpstream(desc, payload);
       // Pass any 2xx through immediately. Streaming responses get their body
       // piped; non-streaming ones get their body read + forwarded as JSON.
       if (r.status >= 200 && r.status < 300) {
+        attempts.push(`${desc.label}:ok:${r.ttftMs}ms`);
+        // Server-side timing log. The Server-Timing header below is sent to the
+        // browser and then discarded, which is why no latency distribution for
+        // this endpoint has ever existed — Vercel's runtime logs carry status
+        // but no duration. One line here makes p50/p90 answerable from logs.
+        console.log(JSON.stringify({
+          evt: "chat_upstream", profile, ok: true, upstream: desc.label,
+          ttft_ms: r.ttftMs, stream: wantsStream,
+          tools: Array.isArray(payload.tools) ? payload.tools.length : 0,
+          attempts: trail(),
+        }));
         const outHeaders = new Headers({
           ...Object.fromEntries(corsHeaders(origin)),
           "X-Chat-Upstream": desc.label,
+          "X-Chat-Attempts": trail(),
         });
         // Same-origin clients can read Server-Timing without exposure
         // headers, but Vercel preview deployments and any future split-
         // origin setup need this — make it explicit so devtools always
         // sees the LLM timings.
-        outHeaders.set("Access-Control-Expose-Headers", "Server-Timing, X-Chat-Upstream");
+        outHeaders.set("Access-Control-Expose-Headers", "Server-Timing, X-Chat-Upstream, X-Chat-Attempts");
         if (wantsStream) {
           // Streaming path — TTFT is the only number we know yet; total
           // generation time isn't available until the stream ends, which
@@ -480,6 +526,18 @@ export default async function handler(req) {
       const errText = await r.res.text().catch(() => "");
       last = { status: r.status, text: errText, upstream: desc.label };
       lastText = errText;
+      attempts.push(`${desc.label}:${r.status}:${r.ttftMs}ms`);
+      // LOG THE UPSTREAM ERROR BODY. It was previously read and thrown away on
+      // every fallthrough, so the ~4% of Vertex calls returning HTTP 409 have
+      // never been explained — GCP Data Access audit logs are off by default
+      // (Logs Explorer returns 0 results over 7 days) and Vercel records the
+      // status without the body. redact() strips key-shaped strings first.
+      console.log(JSON.stringify({
+        evt: "chat_upstream", profile, ok: false, upstream: desc.label,
+        status: r.status, ttft_ms: r.ttftMs,
+        body: redact(errText).slice(0, 400),
+        attempts: trail(),
+      }));
       // Fall over on any infrastructure/config failure at the upstream:
       //   - 5xx server-down
       //   - 429 rate limited
@@ -499,19 +557,41 @@ export default async function handler(req) {
                       || r.status === 408
                       || r.status === 409;
       if (isFallover) continue;
+      const directHeaders = corsHeaders(origin);
+      directHeaders.set("X-Chat-Upstream", desc.label);
+      directHeaders.set("X-Chat-Attempts", trail());
+      directHeaders.set("Access-Control-Expose-Headers", "Server-Timing, X-Chat-Upstream, X-Chat-Attempts");
       return new Response(errText, {
         status: r.status,
-        headers: corsHeaders(origin),
+        headers: directHeaders,
       });
     } catch (e) {
-      last = { status: 502, text: JSON.stringify({ error: "upstream_unreachable", detail: redact(e?.message).slice(0, 140) }), upstream: desc.label };
+      // A timeout is recorded distinctly from an unreachable host. These look
+      // identical from the outside but mean opposite things: the first says
+      // the upstream is slow (raise the budget or hedge), the second says it
+      // is down (fix the chain).
+      const timedOut = !!e?.__timeout;
+      attempts.push(`${desc.label}:${timedOut ? `timeout:${e.__ms}ms` : "unreachable"}`);
+      console.log(JSON.stringify({
+        evt: "chat_upstream", profile, ok: false, upstream: desc.label,
+        status: timedOut ? "timeout" : "unreachable",
+        detail: redact(e?.message).slice(0, 140),
+        attempts: trail(),
+      }));
+      last = { status: 502, text: JSON.stringify({ error: timedOut ? "upstream_timeout" : "upstream_unreachable", detail: redact(e?.message).slice(0, 140) }), upstream: desc.label };
       lastText = last.text;
     }
   }
 
   // Exhausted the chain — every upstream was throttled or unreachable.
+  console.log(JSON.stringify({
+    evt: "chat_exhausted", profile, attempts: trail(),
+    total_ms: Math.round(performance.now() - tReq),
+  }));
   const headers = corsHeaders(origin);
   headers.set("X-Chat-Upstream", last?.upstream || "none");
+  headers.set("X-Chat-Attempts", trail());
+  headers.set("Access-Control-Expose-Headers", "Server-Timing, X-Chat-Upstream, X-Chat-Attempts");
   return new Response(lastText || JSON.stringify({ error: "all_upstreams_unavailable" }), {
     status: last?.status || 503,
     headers,

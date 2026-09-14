@@ -9,6 +9,7 @@ name: perf-syntax
 #   - The pregen admin script parses cleanly
 #   - PERF_AUDIT.md still references each open perf/* branch by name
 #   - CURRENT_PROMPT_VERSION matches between customCrash.js and pregen-crashes.mjs
+#   - Coach reply guards still catch the replies they were built for
 #
 # What it does NOT do:
 #   - No live LLM calls (would burn Gemini credits per CI run).
@@ -55,6 +56,13 @@ jobs:
           else
             echo "scripts/pregen-crashes.mjs not present on this branch — skipped"
           fi
+
+      # Coach reply guards. These are the code layer behind the prompt rules —
+      # COACH_FIXES §22: "a prompt rule is a preference, not a guarantee."
+      # Every case in the suite is a reply captured from production or a
+      # documented false positive that must keep passing.
+      - name: Coach guards — looksLikePricelessList regression suite
+        run: node scripts/test-coach-guards.mjs
 
   prompt-version-sync:
     name: CURRENT_PROMPT_VERSION matches across customCrash.js and pregen-crashes.mjs

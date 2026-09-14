@@ -8,7 +8,8 @@
 // =============================================================================
 
 import { getInstrument, getAllInstruments, STOCKS, MUTUAL_FUNDS } from "../data/universe.js";
-import { getQuote } from "../data/marketData.js";
+import { getQuote, getQuoteBatch } from "../data/marketData.js";
+import { listPendingOrders, listAllOrders } from "../features/limitOrders.js";
 import { getNews } from "../data/news.js";
 import { getState, getPortfolioValue } from "../state.js";
 
@@ -145,6 +146,45 @@ const TOOLS = [
         properties: {
           limit: { type: "number", description: "Max trades to return (default 20, max 50)." },
           symbol: { type: "string", description: "Optional — only trades in this NSE ticker." },
+        },
+      },
+    },
+  },
+  // ---------------------------------------------------------------------------
+  // The two tools below close a fabrication vector measured on 2026-09-14.
+  //
+  // With neither tool present, an eval of 30 real questions showed the model
+  // answering "what's on my watchlist" and "do i have any pending orders" by
+  // calling get_user_portfolio — which returns cash and holdings and contains
+  // NEITHER. It then has data that cannot answer the question and must either
+  // invent an answer or deny having one. That is precisely the COACH_FIXES §1
+  // pattern, where the coach invented a whole trading record and defended it
+  // for four turns because it had get_user_portfolio and no get_trade_history.
+  //
+  // Telling the model not to guess was never the fix. Giving it the data is.
+  // ---------------------------------------------------------------------------
+  {
+    type: "function",
+    function: {
+      name: "get_watchlist",
+      description:
+        "The symbols the user has saved to their watchlist, with current prices. Use for 'my watchlist', 'what am I tracking', 'stocks I'm watching'. This is DIFFERENT from what they own — get_user_portfolio does NOT contain the watchlist.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_limit_orders",
+      description:
+        "The user's limit orders and AMOs — pending, filled and cancelled. Use for 'my orders', 'pending orders', 'did my order execute', 'why hasn't my order filled', 'cancel', 'AMO'. get_user_portfolio does NOT contain orders; an unfilled order is not a holding yet.",
+      parameters: {
+        type: "object",
+        properties: {
+          status: {
+            type: "string",
+            description: "Filter: 'pending' (default), 'filled', 'cancelled', or 'all'.",
+          },
         },
       },
     },
@@ -394,6 +434,106 @@ async function execGetTradeHistory(input) {
   };
 }
 
+/**
+ * The user's watchlist, with live prices.
+ *
+ * Uses getQuoteBatch rather than a getQuote loop. The single-symbol path goes
+ * to /api/quote, which is the ONE quote endpoint with no Supabase cache layer
+ * and a 4-way serial Yahoo retry; the batch path goes to /api/live-quote, which
+ * reads and writes the shared quote_cache. N symbols cost one request, not N.
+ */
+async function execGetWatchlist() {
+  const state = getState();
+  const symbols = Array.isArray(state?.watchlist) ? state.watchlist.filter(Boolean) : [];
+  if (!symbols.length) {
+    return {
+      ok: true,
+      count: 0,
+      watchlist: [],
+      note: "The watchlist is EMPTY. Say exactly that. Do not list holdings instead — a watchlist and a portfolio are different things.",
+    };
+  }
+  let quotes = {};
+  try { quotes = (await getQuoteBatch(symbols)) || {}; } catch { quotes = {}; }
+  return {
+    ok: true,
+    count: symbols.length,
+    // Field names follow normalizeFromApi in data/marketData.js: quotes are
+    // normalised to pricePaise / changePct, and changePct is a FRACTION, not a
+    // percentage — hence the ×100, matching execGetStockPrice above. Reading
+    // q.price here would silently yield undefined for every row and report the
+    // whole watchlist as unpriceable.
+    watchlist: symbols.map((sym) => {
+      const inst = getInstrument(sym);
+      const q = quotes[sym];
+      const hasPrice = q && Number.isFinite(q.pricePaise);
+      return {
+        symbol: sym,
+        name: inst?.name || sym,
+        price_inr: hasPrice ? +(q.pricePaise / 100).toFixed(2) : null,
+        day_change_pct: q && Number.isFinite(q.changePct) ? +(q.changePct * 100).toFixed(2) : null,
+        price_unavailable: hasPrice ? undefined : true,
+      };
+    }),
+    note: "These are symbols the user is TRACKING, not ones they own.",
+  };
+}
+
+/**
+ * The user's limit orders / AMOs.
+ *
+ * The null-vs-empty distinction is load-bearing and must survive to the model.
+ * listPendingOrders() returns [] when the user genuinely has no orders and
+ * null when the lookup FAILED — and the comment above it in limitOrders.js
+ * says why: a real pending RELIANCE AMO once existed while the page showed 0,
+ * and "silently showing zero is the worst possible failure here." A coach that
+ * turns "I couldn't check" into "you have none" recreates that bug in prose.
+ */
+async function execGetLimitOrders(args = {}) {
+  const status = String(args.status || "pending").toLowerCase();
+  let rows;
+  try {
+    rows = status === "pending"
+      ? await listPendingOrders()
+      : await listAllOrders(50);
+  } catch {
+    rows = null;
+  }
+  if (rows === null) {
+    return {
+      ok: false,
+      error: "lookup_failed",
+      note: "Could NOT read the user's orders — this is a failure, NOT an empty list. Tell them you couldn't check right now and to try again. Never say they have no orders based on this.",
+    };
+  }
+  const filtered = (status === "pending" || status === "all")
+    ? rows
+    : rows.filter((r) => String(r.status).toLowerCase() === status);
+  if (!filtered.length) {
+    return {
+      ok: true,
+      count: 0,
+      orders: [],
+      note: `No ${status === "all" ? "" : status + " "}orders found. The lookup SUCCEEDED and the list is genuinely empty — say so plainly.`,
+    };
+  }
+  return {
+    ok: true,
+    count: filtered.length,
+    orders: filtered.slice(0, 25).map((r) => ({
+      symbol: r.symbol,
+      side: r.side,
+      qty: r.qty,
+      limit_price_inr: r.limit_price_paise != null ? r.limit_price_paise / 100 : null,
+      status: r.status,
+      placed_at: r.created_at,
+      filled_at: r.filled_at || undefined,
+      filled_price_inr: r.filled_price_paise != null ? r.filled_price_paise / 100 : undefined,
+    })),
+    note: "A PENDING order is not a holding yet. The only honest reasons one is unfilled are (a) the market has not opened, or (b) the price has not reached their limit. Order matching runs server-side on a schedule — the user does NOT need the app open. If they say it has been stuck for days, that is OUR bug: tell them to report it, never explain it away.",
+  };
+}
+
 const EXECUTORS = {
   get_stock_price: execGetStockPrice,
   get_trade_history: execGetTradeHistory,
@@ -401,6 +541,8 @@ const EXECUTORS = {
   search_stocks: execSearchStocks,
   get_market_news: execGetMarketNews,
   get_user_portfolio: execGetUserPortfolio,
+  get_watchlist: execGetWatchlist,
+  get_limit_orders: execGetLimitOrders,
 };
 
 // -----------------------------------------------------------------------------
@@ -1155,6 +1297,45 @@ export function looksLikeLookupOffer(text) {
   // Long replies are explanations that happen to end with an offer.
   if (s.length > 400) return false;
   return OFFER_RE.test(s);
+}
+
+// -----------------------------------------------------------------------------
+// The bare-list escape hatch.
+//
+// looksLikeLookupOffer above is deliberately narrow — short, figure-free, and
+// matching a known offer phrase. That narrowness was validated 12/12 against
+// real logged replies and must not be loosened; widening OFFER_RE re-opens the
+// false positives it was built to avoid (a correct refusal reads a lot like an
+// offer).
+//
+// But it leaves one shape uncovered, and it is the single most-reported one.
+// Measured against production 2026-09-14, "fetch a list of 20 top bank stocks"
+// returned, twice, ~750 chars of bank names with no prices at all, ending:
+//
+//   "Which of these categories interests you most?"
+//
+// That misses on BOTH counts: the reply is over the 400-char cap, and the
+// closing phrase matches none of OFFER_RE's alternatives. So the escalation
+// never fired and the user got exactly what persona.js forbids —
+// "Do not hand over a bare list and ask whether they want the prices."
+//
+// This detector targets that shape specifically: a discovery answer that names
+// several instruments and carries no figures. It does not care how the reply
+// is phrased, which is why it catches an offer worded in a way nobody
+// anticipated.
+export function looksLikePricelessList(replyText, userText) {
+  const s = String(replyText || "").trim();
+  if (!s) return false;
+  // Any rupee figure or percentage means numbers were delivered. Not our case.
+  if (/₹\s?[0-9]|[0-9]+(?:\.[0-9]+)?\s?%/.test(s)) return false;
+  // Only applies when the user actually asked a discovery/screening question.
+  // A concept answer that happens to mention tickers is not a failed lookup.
+  if (!DISCOVERY_RE.test(String(userText || ""))) return false;
+  // Instrument-shaped mentions, e.g. "HDFC Bank (HDFCBANK)". Three distinct
+  // parenthesised tickers is a list; ordinary prose does not reach it.
+  const m = s.match(/\(([A-Z][A-Z0-9&._-]{2,14})\)/g) || [];
+  const tickers = new Set(m.map((t) => t.slice(1, -1)));
+  return tickers.size >= 3;
 }
 
 export function isToolCallOnly(raw) {
