@@ -43,7 +43,7 @@
 export const config = { runtime: "edge" };
 
 const MAX_BODY = 64 * 1024;
-const MAX_OUTPUT_TOKENS = 4000;
+export const MAX_OUTPUT_TOKENS = 4000;
 
 // How long any ONE upstream gets to return response headers before we give
 // up and try the next in the chain.
@@ -52,7 +52,7 @@ const MAX_OUTPUT_TOKENS = 4000;
 // first slow provider eats that entire budget and the caller gets a 504 with
 // nothing at all — which is strictly worse than a fallback answer. 9s leaves
 // room for two full attempts plus overhead inside the limit.
-const UPSTREAM_TIMEOUT_MS = Number(globalThis.process?.env?.UPSTREAM_TIMEOUT_MS) || 9000;
+export const UPSTREAM_TIMEOUT_MS = Number(globalThis.process?.env?.UPSTREAM_TIMEOUT_MS) || 9000;
 
 // Per-profile thinking budget. See the block where this is applied for the
 // measurements behind it. Env-overridable so the trade can be retuned
@@ -176,7 +176,7 @@ function allowOrigin(origin) {
 
 const REDACT_BEARER = /(Bearer\s+)[A-Za-z0-9._\-]+/gi;
 const REDACT_KEY = /((?:sk-|sk-proj-|gsk_|xai-|re_|AIza)[A-Za-z0-9._\-]{8,})/g;
-const redact = (s) => String(s || "").replace(REDACT_BEARER, "$1<redacted>").replace(REDACT_KEY, "<redacted>");
+export const redact = (s) => String(s || "").replace(REDACT_BEARER, "$1<redacted>").replace(REDACT_KEY, "<redacted>");
 
 function corsHeaders(origin) {
   const h = new Headers({
@@ -201,7 +201,7 @@ function jsonResponse(status, body, origin) {
 // Each descriptor can `enabled()` (env var present) and `call(body)` returning
 // a Response-like { status, bodyText } pair. All upstreams are OpenAI-
 // compatible except Gemini which has a native OpenAI-compat endpoint too.
-function providerDescriptors() {
+export function providerDescriptors() {
   const env = globalThis.process?.env || {};
   return {
     openai: {
@@ -262,7 +262,7 @@ function providerDescriptors() {
 // for meaningfully faster streaming throughput vs GPT Pro — on a
 // user-facing chat, "smart in 1 s" beats "slightly smarter in 4 s".
 // GPT sits behind it as the escalation for anything Pro can't handle.
-function chainFor(profile) {
+export function chainFor(profile) {
   switch (profile) {
     case "chat":
       // Live-typing coach chat. Leads with the smartest model (see
@@ -286,7 +286,7 @@ function chainFor(profile) {
   }
 }
 
-async function callUpstream(desc, payload) {
+export async function callUpstream(desc, payload) {
   // Vertex AI's OpenAI-compat endpoint uses x-goog-api-key for API-key auth,
   // NOT Authorization: Bearer (which is reserved for OAuth access tokens on
   // that endpoint). Every other upstream (OpenAI, Groq, Cerebras, AI Studio

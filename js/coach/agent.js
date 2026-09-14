@@ -663,7 +663,7 @@ function resolveCryptoId(q) {
 // -----------------------------------------------------------------------------
 // Transport — client-direct OR via backend proxy
 // -----------------------------------------------------------------------------
-async function callLLM({ apiKey, system, messages, tools, profile = "fast" }) {
+async function callLLM({ apiKey, system, messages, tools, profile = "fast", reasoningEffort }) {
   // Convert chat history (role/content string) to OpenAI format
   const openaiMessages = [
     { role: "system", content: system },
@@ -682,6 +682,34 @@ async function callLLM({ apiKey, system, messages, tools, profile = "fast" }) {
     // analysis, crash replay JSON) pass profile:"reasoning" explicitly.
     profile,
   };
+
+  // PER-PHASE THINKING BUDGET.
+  //
+  // api/chat.js applies its per-profile default ONLY when the caller leaves
+  // reasoning_effort undefined ("a caller that sets reasoning_effort
+  // explicitly always wins"), so this is a real lever from here with no
+  // server change required.
+  //
+  // It matters because the two phases of a tool turn want opposite things,
+  // and the `fast` profile's single "low" setting was serving both:
+  //
+  //   deciding WHICH tool to call — a genuine judgement, ~30 tokens out
+  //   WRITING the answer          — no decision left, data already in hand,
+  //                                 and the output is long
+  //
+  // Measured against production 2026-09-14, same model, same prompt, streamed:
+  //
+  //   "low"      ttft 3.24-4.37s, complete 5.4-8.2s — and one run at
+  //              17.8s/20.2s, which blew past the 9s upstream timeout and
+  //              fell through to a slower model
+  //   "minimal"  ttft 0.97-1.93s, complete 4.3-5.0s
+  //
+  // A 30-question eval showed "minimal" costs NOTHING in tool-choice accuracy
+  // (27/29 both ways, 29/30 identical selections) but buys no latency on the
+  // short decision turns either — the entire win is in the long writing turn.
+  // So: keep the budget where the decision is, drop it where only prose is
+  // left to emit.
+  if (reasoningEffort) body.reasoning_effort = reasoningEffort;
 
   // If user has their own Groq key → direct call (fastest path)
   if (apiKey) {
@@ -731,9 +759,17 @@ export async function runAgent({ apiKey, system, messages, onStep, profile = "fa
   let loops = 0;
   const conv = messages.map(m => ({ ...m }));
 
+  // Tracks whether the previous turn executed tools. If it did, THIS turn has
+  // the results in hand and is only writing the answer, so it needs no
+  // thinking budget — see the note in callLLM.
+  let lastTurnRanTools = false;
+
   while (loops < MAX_TOOL_LOOPS) {
     loops++;
-    const resp = await callLLM({ apiKey, system, messages: conv, tools: TOOLS, profile });
+    const resp = await callLLM({
+      apiKey, system, messages: conv, tools: TOOLS, profile,
+      reasoningEffort: lastTurnRanTools ? "minimal" : undefined,
+    });
     if (!resp) {
       console.warn("LLM unreachable (attempt", loops, ")");
       return null;
@@ -791,6 +827,7 @@ export async function runAgent({ apiKey, system, messages, onStep, profile = "fa
       }));
 
       conv.push(...results);
+      lastTurnRanTools = true;
       continue;
     }
 
