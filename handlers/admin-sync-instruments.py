@@ -1,28 +1,38 @@
-"""GET/POST /api/admin-sync-instruments — daily NSE universe sync.
+"""GET/POST /api/admin-sync-instruments — instrument master sync.
 
-Ports scripts/build-universe.mjs to Python and upserts the NSE equity + ETF
-universe into Supabase public.dhan_instruments via service-role. Soft-deletes
-any symbol present in DB but absent from a fresh fetch (sets is_active=false
-rather than deleting, so historical holdings keep their references).
+Upserts the NSE equity + ETF universe into Supabase public.dhan_instruments
+via service-role, from the committed js/data/universeFull.json artifact.
+Soft-deletes any symbol present in the DB but absent from the artifact (sets
+is_active=false rather than deleting, so historical holdings keep their
+references).
+
+IT NO LONGER FETCHES FROM NSE, AND THAT IS THE POINT.
+
+Until 2026-09-14 this handler fetched EQUITY_L.csv from nseindia.com directly.
+NSE blocks Vercel's IP range, so that fetch failed on every single run for
+months — the endpoint returned HTTP 500 with "sanity_fail: only 0 equities
+(expected >=1800)" and public.dhan_instruments sat at 0 rows for its entire
+life. The error was honest; the approach was impossible from this runtime.
+
+.github/workflows/universe-refresh.yml already fetches the same data daily and
+SUCCEEDS, because GitHub-hosted runners are not blocked, then commits it to
+js/data/universeFull.json. So the data was always one step from the database
+and nothing carried it across. This handler is that step: it reads the artifact
+out of its own deployment, which cannot be blocked by anyone.
 
 Auth (either accepted):
   Authorization: Bearer <ADMIN_TOKEN>     # manual trigger via /api/ai
-  Authorization: Bearer <CRON_SECRET>     # Vercel cron auto-injects
+  Authorization: Bearer <CRON_SECRET>     # scheduler
 
-Stdlib-only — no requirements.txt entry needed (Vercel @vercel/python ships
-urllib/csv/json/concurrent.futures + ssl by default).
+Stdlib-only — no requirements.txt entry needed.
 """
 
-import csv
-import gzip
 import io
 import json
 import os
 import time
 import urllib.request
 import urllib.error
-from concurrent.futures import ThreadPoolExecutor
-from http.cookiejar import CookieJar
 from http.server import BaseHTTPRequestHandler
 
 # ── env ─────────────────────────────────────────────────────────────────────
@@ -32,52 +42,7 @@ ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "").strip()
 CRON_SECRET = os.environ.get("CRON_SECRET", "").strip()
 
 # ── browser-like session (NSE/niftyindices 403 anything else) ───────────────
-UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-      "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
-BROWSER_HEADERS = {
-    "User-Agent": UA,
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.9",
-    "Accept-Encoding": "gzip, deflate",
-    "Connection": "keep-alive",
-    "Upgrade-Insecure-Requests": "1",
-    "Sec-Fetch-Dest": "document",
-    "Sec-Fetch-Mode": "navigate",
-    "Sec-Fetch-Site": "none",
-}
-
-def _build_opener():
-    jar = CookieJar()
-    opener = urllib.request.build_opener(
-        urllib.request.HTTPCookieProcessor(jar),
-        urllib.request.HTTPRedirectHandler(),
-    )
-    opener.addheaders = list(BROWSER_HEADERS.items())
-    return opener, jar
-
-def _fetch(opener, url, referer=None, accept=None, timeout=12):
-    req = urllib.request.Request(url)
-    if referer:
-        req.add_header("Referer", referer)
-    if accept:
-        req.add_header("Accept", accept)
-    with opener.open(req, timeout=timeout) as r:
-        data = r.read()
-        if r.headers.get("Content-Encoding") == "gzip":
-            data = gzip.decompress(data)
-        return data
-
-def _warm(opener, host):
-    try:
-        _fetch(opener, f"https://{host}/", timeout=8)
-    except Exception:
-        pass
-
 # ── CSV helpers ─────────────────────────────────────────────────────────────
-def _parse_csv(blob_bytes):
-    text = blob_bytes.decode("utf-8-sig", errors="replace")
-    return list(csv.DictReader(io.StringIO(text)))
-
 def _stripq(s):
     return (s or "").strip().strip('"')
 
@@ -104,39 +69,9 @@ NSE_TO_SS = {
     "Forest Materials": "Other", "Paper Forest & Jute Products": "Other",
     "Textiles": "Other", "Diversified": "Conglomerate",
 }
-def _map_sector(ind, symbol="", name=""):
-    if not ind:
-        return "Other"
-    base = NSE_TO_SS.get(_stripq(ind), "Other")
-    # Refine "Financial Services" macro: split Banks / Insurance / Exchange / Fintech / NBFC.
-    if base == "NBFC" and (ind == "Financial Services"):
-        u = symbol.upper()
-        n = name.upper()
-        if "BANK" in u or "BANK" in n: return "Banking"
-        if "INSURANCE" in n or "LIFE" in n: return "Insurance"
-        if u in ("BSE", "MCX", "IEX", "NSDL", "CDSL"): return "Exchange"
-        if u in ("PAYTM", "POLICYBZR") or "FINTECH" in n: return "Fintech"
-    return base
-
 # ── idx bitmask + classifiers ───────────────────────────────────────────────
 IDX_N50, IDX_N100, IDX_N500 = 1<<0, 1<<1, 1<<2
 IDX_MID150, IDX_SMALL250    = 1<<3, 1<<4
-
-def _cap_bucket(idx):
-    if idx & IDX_N50:       return "mega"
-    if idx & IDX_N100:      return "large"
-    if idx & IDX_N500:      return "mid"
-    if idx & IDX_MID150:    return "mid"
-    if idx & IDX_SMALL250:  return "small"
-    return "micro"
-
-def _risk(idx, series):
-    if idx & IDX_N50:   return "low"
-    if idx & IDX_N100:  return "low"
-    if idx & IDX_N500:  return "med"
-    if idx & IDX_MID150:return "med"
-    if series in ("BE","BZ"): return "high"
-    return "high"
 
 # ── Supabase helpers ────────────────────────────────────────────────────────
 def _supa_headers(extra=None):
@@ -200,113 +135,92 @@ def _auth_ok(authz_header):
     return False
 
 # ── core sync ───────────────────────────────────────────────────────────────
-NIFTY_FILES = {
-    "n50":      "ind_nifty50list.csv",
-    "n100":     "ind_nifty100list.csv",
-    "n500":     "ind_nifty500list.csv",
-    "mid150":   "ind_niftymidcap150list.csv",
-    "small250": "ind_niftysmallcap250list.csv",
-    "tm":       "ind_niftytotalmarket_list.csv",
-}
+def _load_universe_json():
+    """Read the committed js/data/universeFull.json out of the deployment.
 
-def _fetch_nifty(opener, file):
-    url = f"https://niftyindices.com/IndexConstituent/{file}"
-    rows = _parse_csv(_fetch(opener, url, referer="https://niftyindices.com/indices/equity"))
-    syms = set()
-    for r in rows:
-        sym = _stripq(r.get("Symbol") or r.get("symbol") or r.get("SYMBOL"))
-        if sym: syms.add(sym)
-    return syms, rows
+    Path resolution mirrors handlers/screener.py: the relative location depends
+    on the runtime cwd, which differs between the Vercel bundle (/var/task),
+    the local dev server, and the Fly.io backup image.
+    """
+    candidates = [
+        os.path.join(os.path.dirname(__file__), "..", "js", "data", "universeFull.json"),
+        os.path.join(os.getcwd(), "js", "data", "universeFull.json"),
+        os.path.join("/var/task", "js", "data", "universeFull.json"),
+    ]
+    for c in candidates:
+        try:
+            with open(c, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except FileNotFoundError:
+            continue
+    raise RuntimeError("universeFull.json not found in the deployment")
+
+
+# dhan_instruments_kind_check allows EQUITY | ETF | BOND only. Mutual funds have
+# their own table (mf_master); merging them here would fail the constraint and
+# reject the entire chunk.
+_ALLOWED_KINDS = {"EQUITY", "ETF", "BOND"}
+_EXCHANGE_SEGMENT = {"NSE": "NSE_EQ", "NSE_SME": "NSE_EQ", "BSE": "BSE_EQ"}
+
 
 def _run_sync():
+    """Push the committed universe artifact into public.dhan_instruments.
+
+    HISTORY - this function used to fetch EQUITY_L.csv from NSE directly, and
+    that is why the table has been empty for its entire life. NSE blocks
+    Vercel's IP range, so the fetch failed and the sanity gate below tripped
+    ("only 0 equities") on every single run for months. The failure was real
+    and correctly reported; the approach was simply impossible from here.
+
+    Meanwhile .github/workflows/universe-refresh.yml already fetches exactly
+    this data every day and succeeds, because GitHub-hosted runners are NOT
+    blocked, and commits it to js/data/universeFull.json. The data has always
+    been one step from the database. This reads that artifact instead, so the
+    sync runs entirely on data that is already in the deployment - no outbound
+    NSE call, nothing that can be blocked.
+
+    The sanity gate, upsert and deactivate paths below are unchanged.
+    """
     t0 = time.time()
-    opener, _jar = _build_opener()
-    _warm(opener, "www.nseindia.com")
+    rows = _load_universe_json()
+    if not isinstance(rows, list) or not rows:
+        raise RuntimeError("universeFull.json is empty or not a list")
 
-    eq_blob = _fetch(
-        opener,
-        "https://nsearchives.nseindia.com/content/equities/EQUITY_L.csv",
-        referer="https://www.nseindia.com/market-data/securities-available-for-trading",
-    )
-    equities = _parse_csv(eq_blob)
-
-    _warm(opener, "niftyindices.com")
-    constituents = {}
-    industry_by_sym = {}
-    def _try(key):
-        try: return key, _fetch_nifty(opener, NIFTY_FILES[key])
-        except Exception: return key, (set(), [])
-    with ThreadPoolExecutor(max_workers=6) as ex:
-        for key, (syms, rows) in ex.map(_try, NIFTY_FILES.keys()):
-            constituents[key] = syms
-            if key == "tm":
-                for r in rows:
-                    sym = _stripq(r.get("Symbol"))
-                    ind = _stripq(r.get("Industry") or r.get("Macro-Economic Sector"))
-                    if sym and ind: industry_by_sym[sym] = ind
-
-    etfs = []
-    try:
-        etf_blob = _fetch(
-            opener,
-            "https://www.nseindia.com/api/etf",
-            referer="https://www.nseindia.com/market-data/exchange-traded-funds-etf",
-            accept="application/json,text/plain,*/*",
-        )
-        etfs = (json.loads(etf_blob).get("data") or [])
-    except Exception:
-        pass
-
-    out = []
-    seen = set()
-    for r in equities:
-        sym = _stripq(r.get("SYMBOL"))
-        ser = _stripq(r.get("SERIES"))
-        if not sym or ser not in ("EQ","BE","BZ") or sym in seen:
+    out, seen = [], set()
+    for r in rows:
+        sym = _stripq(r.get("symbol"))
+        if not sym or sym in seen:
             continue
-        idx = 0
-        if sym in constituents.get("n50",      ()): idx |= IDX_N50
-        if sym in constituents.get("n100",     ()): idx |= IDX_N100
-        if sym in constituents.get("n500",     ()): idx |= IDX_N500
-        if sym in constituents.get("mid150",   ()): idx |= IDX_MID150
-        if sym in constituents.get("small250", ()): idx |= IDX_SMALL250
-        try: lot = int(_stripq(r.get("MARKET LOT") or r.get(" MARKET LOT") or "1"))
-        except ValueError: lot = 1
-        name = _stripq(r.get("NAME OF COMPANY") or r.get("NAME OF COMPANY "))
-        out.append({
-            "symbol": sym,
-            "name":   name,
-            "series": ser,
-            "isin":   _stripq(r.get("ISIN NUMBER") or r.get(" ISIN NUMBER")),
-            "idx_tags": idx,
-            "sector": _map_sector(industry_by_sym.get(sym, ""), sym, name),
-            "cap_bucket": _cap_bucket(idx),
-            "risk_tier":  _risk(idx, ser),
-            "lot_size": lot,
-            "kind":   "EQUITY",
-            "is_active": True,
-        })
+        kind = str(r.get("kind") or "EQUITY").upper()
+        if kind not in _ALLOWED_KINDS:
+            continue
         seen.add(sym)
+        out.append({
+            "symbol":     sym,
+            "name":       _stripq(r.get("name")) or sym,
+            # Empty string -> NULL. ETFs carry no ISIN in the artifact, and an
+            # empty string in a nullable text column is a third state nobody
+            # checks for ("" is falsy in JS but NOT NULL in SQL).
+            "series":     _stripq(r.get("series")) or None,
+            "isin":       _stripq(r.get("isin")) or None,
+            "idx_tags":   int(r.get("idx") or 0),
+            "sector":     r.get("sector"),
+            "cap_bucket": r.get("capBucket"),
+            "risk_tier":  r.get("risk"),
+            "lot_size":   int(r.get("lot") or 1),
+            "kind":       kind,
+            "exchange_segment": _EXCHANGE_SEGMENT.get(r.get("exchange"), "NSE_EQ"),
+            "is_active":  True,
+            # security_id is deliberately omitted, not set to None. PostgREST
+            # writes only the keys present in the body, so leaving it out
+            # preserves whatever a future Dhan sync writes there. Sending None
+            # would stamp null over it. Note this sync cannot populate it:
+            # Dhan ids come from api-scrip-master.csv, which nothing reads now.
+            # Verified 2026-09-14 that the Dhan path has never served a quote
+            # (DHAN_ACCESS_TOKEN unset; all quote_cache rows are source=yahoo).
+        })
 
-    eq_count = len(out)
-    for e in etfs:
-        sym = _stripq(e.get("symbol"))
-        if not sym or sym in seen: continue
-        meta = e.get("meta") or {}
-        out.append({
-            "symbol": sym,
-            "name":   _stripq(meta.get("companyName") or e.get("assets") or sym),
-            "series": "EQ",
-            "isin":   _stripq(meta.get("isin") or e.get("isin")),
-            "idx_tags": 0,
-            "sector": "ETF",
-            "cap_bucket": "unknown",
-            "risk_tier":  "med",
-            "lot_size": 1,
-            "kind":   "ETF",
-            "is_active": True,
-        })
-        seen.add(sym)
+    eq_count  = sum(1 for o in out if o["kind"] == "EQUITY")
     etf_count = len(out) - eq_count
 
     if eq_count < 1800:

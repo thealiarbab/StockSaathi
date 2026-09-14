@@ -57,24 +57,27 @@ jobs:
           echo "HTTP $code"; head -c 600 /tmp/instruments.json; echo
           # This endpoint runs on Vercel, and NSE blocks Vercel: it fails its
           # own gate with "sanity_fail: only 0 equities (expected >=1800)".
-          # Measured again 2026-09-13 (run 34772112882) -- still HTTP 500.
+          # FIXED 2026-09-14. This step warned on every run for months.
           #
-          # It used to `exit 1` here, which aborted the JOB, so the two steps
-          # below never ran at all. That is why fundamentals_cache stayed empty
-          # and handlers/screener.py kept falling back to the 140-day-old
-          # js/data/fundamentals_full.json: the step that feeds the cache was
-          # never reached, not failing on its own merits.
+          # The handler used to fetch EQUITY_L.csv from nseindia.com while
+          # running on Vercel, and NSE blocks Vercel, so it tripped its own
+          # sanity gate ("only 0 equities") every time and dhan_instruments
+          # sat at 0 rows for its entire life. The old comment here correctly
+          # identified the cause and proposed fetching on the runner instead.
           #
-          # Nothing user-facing depends on dhan_instruments -- the app serves
-          # the committed js/data/universeFull.json -- so warn and continue,
-          # the same way the fundamentals step already does.
+          # The simpler fix was already sitting in the repo: universe-refresh.yml
+          # ALREADY fetches this data daily on a GitHub runner (which NSE does
+          # not block) and commits it to js/data/universeFull.json. The handler
+          # now reads that committed artifact out of its own deployment, so no
+          # outbound NSE call happens at all and nothing can block it.
           #
-          # Worth revisiting: GitHub-hosted runners CAN reach NSE directly
-          # (measured 2026-09-13, run 34761640980 -- EQUITY_L.csv returned 200
-          # with 2,568 rows). Doing this fetch on the runner and POSTing the
-          # rows, rather than asking Vercel to fetch them, would make this step
-          # actually work.
-          [ "$code" = "200" ] || echo "::warning::instrument sync failed (HTTP $code) - NSE blocks Vercel, see comment"
+          # This is a hard failure again, deliberately: it now has no legitimate
+          # reason to fail, and a silent warning is what let it rot for months.
+          if [ "$code" != "200" ]; then
+            echo "::error::instrument sync failed (HTTP $code)"
+            cat /tmp/i.json 2>/dev/null | head -c 500
+            exit 1
+          fi
 
       - name: Sync fundamentals (5 pages, sequential)
         env:
