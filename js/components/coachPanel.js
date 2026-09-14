@@ -11,6 +11,7 @@ import { formatRupees, formatPct } from "../money.js";
 import { SYSTEM_PROMPT, matchTemplate, isOffTopic, offTopicRedirect, STARTER_QUESTIONS, runtimeFacts, NO_TOOLS_NOTE } from "../coach/persona.js";
 import { marketStatus } from "../data/prices.js";
 import { runAgent, streamChat, needsLiveData, logChatTurn, isToolCallOnly, looksLikeLookupOffer, looksLikePricelessList } from "../coach/agent.js";
+import { buildDossier } from "../coach/dossier.js";
 
 const CHAT_LOG_KEY = "ss.coachchat.v1";
 
@@ -85,31 +86,29 @@ function smartTemplateReply(userText, state) {
   });
 }
 
-function summarisePortfolio(state) {
-  if (!state?.holdings) return "Not logged in.";
-  const syms = Object.keys(state.holdings);
-  if (!syms.length) return `Cash: ${formatRupees(state.portfolio.cashPaise, { compact: true })}. No holdings yet.`;
-  const lines = syms.slice(0, 8).map(s => {
-    const h = state.holdings[s];
-    return `${s} × ${h.qty} @ avg ₹${(h.avgCostPaise / 100).toFixed(2)}`;
-  });
-  // Label this explicitly. A live probe had the model read this block and
-  // answer "Your total portfolio is worth ₹38,100.00 ... you're down ₹4,000"
-  // — arithmetic invented out of average costs, with no live price anywhere
-  // in sight. Average cost is what was PAID; current value needs a quote.
-  return `Cash: ${formatRupees(state.portfolio.cashPaise, { compact: true })}\n`
-    + `Holdings (${syms.length}), shown as quantity @ AVERAGE BUY PRICE (what they paid — NOT current value): ${lines.join(", ")}\n`
-    + `No live prices in this block. Do not compute a total, a profit, or a return % from it.`;
-}
+// summarisePortfolio was removed 2026-09-14. It rendered the user's holdings
+// as "SYM x QTY @ avg RsN" - cost basis only, no market value - and
+// COACH_FIXES §3 records the model multiplying that roster and presenting
+// the product as a portfolio valuation ("worth Rs 38,100.00... down
+// Rs 4,000.00", every number invented).
+//
+// js/coach/dossier.js replaces it and states market value directly, so the
+// model has no arithmetic to do. Do not reintroduce a second portfolio
+// block alongside it: two of them in one prompt is how §3 happened.
 
 async function callLlmAgent(apiKey, history, state) {
   // No client-side off-topic pre-filter. Let the LLM decide how to handle
   // off-topic questions per the system prompt — previously we'd intercept
   // "hello" and return a canned redirect before the model ever saw it,
   // which made the coach feel like a decision tree instead of a coach.
-  const portfolioSummary = summarisePortfolio(state);
+  // summarisePortfolio built this block from quantity @ AVERAGE BUY PRICE,
+  // which the model multiplied into a fabricated market value - COACH_FIXES
+  // §3. The dossier carries market value ALREADY COMPUTED, so there is no
+  // arithmetic left to get wrong. The two must never coexist: two portfolio
+  // blocks in one prompt is exactly how §3 happened.
+  const dossier = await buildDossier();
   const newsContext = newsSnap.slice(0, 5).map(n => `- ${n.headline} (${n.source}) [${n.sentiment}]`).join("\n");
-  const system = `${SAATHI_SYSTEM}\n\n${runtimeFacts(marketStatus())}\n\n# RUNTIME CONTEXT\n## User portfolio\n${portfolioSummary}\n\n## Latest market headlines\n${newsContext || "(none loaded)"}\n\n# TONE\nKeep replies short by default (1–3 sentences). Go longer only when asked for depth.`;
+  const system = `${SAATHI_SYSTEM}\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# RUNTIME CONTEXT\n## Latest market headlines\n${newsContext || "(none loaded)"}\n\n# TONE\nKeep replies short by default (1–3 sentences). Go longer only when asked for depth.`;
 
   const messages = history.slice(-12).map(m => ({
     role: m.role === "user" ? "user" : "assistant",
@@ -276,9 +275,9 @@ function render() {
       const placeholderIdx = chatHistory.length;
       chatHistory.push({ role: "assistant", text: "", ts: Date.now(), streaming: true });
       render();
-      const portfolioSummary = summarisePortfolio(s);
+      const dossier = await buildDossier();
       const newsContext = newsSnap.slice(0, 5).map(n => `- ${n.headline} (${n.source}) [${n.sentiment}]`).join("\n");
-      const system = `${SAATHI_NO_TOOLS}\n\n${runtimeFacts(marketStatus())}\n\n# RUNTIME CONTEXT\n## User portfolio\n${portfolioSummary}\n\n## Latest market headlines\n${newsContext || "(none loaded)"}\n\n# TONE\nKeep replies short by default (1–3 sentences). Go longer only when asked for depth.`;
+      const system = `${SAATHI_NO_TOOLS}\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# RUNTIME CONTEXT\n## Latest market headlines\n${newsContext || "(none loaded)"}\n\n# TONE\nKeep replies short by default (1–3 sentences). Go longer only when asked for depth.`;
       const messages = chatHistory.slice(-12).filter(m => !m.streaming || m === chatHistory[placeholderIdx]).slice(0, -1).map(m => ({
         role: m.role === "user" ? "user" : "assistant",
         content: m.text,

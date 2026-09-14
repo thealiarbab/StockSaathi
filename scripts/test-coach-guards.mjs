@@ -122,6 +122,61 @@ const CASES = [
   ["null user text", PRODUCTION_BARE_LIST, null, false],
 ];
 
+// -----------------------------------------------------------------------------
+// Dossier arithmetic — the COACH_FIXES §3 regression.
+//
+// §3 (CRITICAL): asked "what's my total portfolio value?", the coach answered
+// "Rs 38,100.00 ... you're currently down Rs 4,000.00" with every number
+// invented, because it had been handed quantity @ AVERAGE BUY PRICE and
+// multiplied it as though it were market value.
+//
+// The dossier's job is to make that arithmetic impossible by doing it first.
+// These cases assert it actually does. If the total ever stops equalling
+// cash + SUM(qty x last price), the structural fix has quietly degraded back
+// into being prompt text, which is what §3 proved is not enough.
+// -----------------------------------------------------------------------------
+async function dossierChecks() {
+  let src = fs.readFileSync(path.join(ROOT, "js/coach/dossier.js"), "utf8");
+  src = src.replace(/^import .*$/gm, "").replace(/export (async )?function/g, "$1function");
+  const mk = new Function("getState", "getInstrument", "getQuoteBatch",
+    src + "; return { buildDossier, realisedPaise, isCorrupt };");
+
+  const state = {
+    isAuthed: true, username: "aarav", profile: { age: 15, riskProfile: "balanced" },
+    portfolio: { cashPaise: 4210000, startingCashPaise: 10000000, reservedCashPaise: 0 },
+    holdings: {
+      VEDL:  { qty: 40,  avgCostPaise: 41200 },
+      IDEA:  { qty: 500, avgCostPaise: 1200 },
+      GHOST: { qty: 9999999999, avgCostPaise: 0 },  // corrupt (COACH_FIXES §6)
+      NOPX:  { qty: 5,   avgCostPaise: 10000 },     // no quote available
+    },
+    transactions: [
+      { id: "t1", symbol: "VEDL", side: "BUY",  qty: 40,   pricePaise: 41200, valuePaise: 1648000, ts: Date.parse("2026-08-01") },
+      { id: "t2", symbol: "IDEA", side: "BUY",  qty: 1000, pricePaise: 1200,  valuePaise: 1200000, ts: Date.parse("2026-08-10") },
+      { id: "t3", symbol: "IDEA", side: "SELL", qty: 500,  pricePaise: 1000,  valuePaise: 500000,  ts: Date.parse("2026-09-01") },
+    ],
+    watchlist: ["TCS", "INFY"], transfers: [],
+  };
+  const quotes = { VEDL: { pricePaise: 43820 }, IDEA: { pricePaise: 980 } };
+  const m = mk(() => state, (x) => ({ name: x + " Ltd" }), async () => quotes);
+
+  const expectedTotal = 4210000 + 40 * 43820 + 500 * 980;   // cash + market values
+  const totalStr = (expectedTotal / 100).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const text = await m.buildDossier();
+  const signedOut = mk(() => ({ isAuthed: false }), () => null, async () => ({}));
+  const emptyText = await signedOut.buildDossier();
+
+  return [
+    ["TOTAL equals cash + SUM(qty x last price)", text.includes(totalStr), true],
+    ["states market value, not just cost basis", text.includes("438.20") && text.includes("17,528.00"), true],
+    ["corrupt row flagged, not narrated as free shares", text.includes("GHOST") && text.includes("CORRUPT"), true],
+    ["unpriced row refuses estimation", text.includes("NOPX") && text.includes("NO PRICE AVAILABLE"), true],
+    ["realised P&L walk: (1000-1200)*500 paise", m.realisedPaise(state.transactions), -100000],
+    ["signed out yields no dossier at all", emptyText, ""],
+  ];
+}
+
 let pass = 0;
 const failures = [];
 for (const [name, reply, user, want] of CASES) {
@@ -132,7 +187,15 @@ for (const [name, reply, user, want] of CASES) {
   else { failures.push(`  ${name}\n    got ${got}, want ${want}`); }
 }
 
+const dossierResults = await dossierChecks();
+let dPass = 0;
+for (const [name, got, want] of dossierResults) {
+  if (got === want) dPass++;
+  else failures.push(`  dossier: ${name}\n    got ${got}, want ${want}`);
+}
+
 console.log(`coach guards: ${pass}/${CASES.length} passing`);
+console.log(`dossier:      ${dPass}/${dossierResults.length} passing`);
 if (failures.length) {
   console.error("\nFAILURES:\n" + failures.join("\n"));
   process.exit(1);
