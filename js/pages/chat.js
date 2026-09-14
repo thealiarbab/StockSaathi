@@ -8,7 +8,7 @@ import { getState } from "../state.js";
 import { getInstrument } from "../data/universe.js";
 import { SYSTEM_PROMPT, matchTemplate, isOffTopic, offTopicRedirect, STARTER_QUESTIONS, runtimeFacts, NO_TOOLS_NOTE } from "../coach/persona.js";
 import { marketStatus } from "../data/prices.js";
-import { runAgent, streamChat, needsLiveData, logChatTurn, stripToolCallScaffolding, isToolCallOnly, looksLikeLookupOffer, looksLikePricelessList } from "../coach/agent.js";
+import { runAgent, streamChat, needsLiveData, logChatTurn, stripToolCallScaffolding, isToolCallOnly, looksLikeLookupOffer, looksLikePricelessList, isDiscoveryQuery } from "../coach/agent.js";
 import { buildDossier } from "../coach/dossier.js";
 import {
   loadSessions, saveSessions, getActiveSession, setActiveSession,
@@ -673,7 +673,22 @@ async function sendAndReply(userText) {
     //
     // Found by reading the browser console during adversarial testing, not by
     // any test: it fails silently by construction.
-    const system = `${SYSTEM_PROMPT}\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# TOOL USE\nYou have tools for live data: get_stock_price, get_crypto_price, search_stocks, get_market_news, get_user_portfolio, get_trade_history, get_watchlist, get_limit_orders. USE them whenever the user asks about any specific stock, crypto, market state, or their portfolio. Never guess numbers — always call the tool.\n\nCRITICAL: Call tools via the STRUCTURED tool_calls API only. NEVER write literal text like 'CALL search_stocks(...)' or '[Tool call: ...]' or fenced ` + "```tool_calls```" + ` JSON in your visible response. Those are internal scaffolding the user must never see. If you want to call a tool, emit the tool_call JSON block and let the system handle it. Your visible reply either (a) answers the user's question with real data you just received from a tool, or (b) says you'll look it up — never describes the mechanics of looking it up.\n\n# TONE\nKeep replies conversational and short by default (1–3 sentences). Only go longer when the user asks for explanation or depth.`;
+    // Discovery queries get the price instruction UP FRONT rather than via the
+    // escalation below. persona.js already demands "names AND numbers in one
+    // reply" for a sector question, and the model still returns a bare list
+    // often enough that the detector fires. Letting the retry fix it costs a
+    // whole second agent loop: measured 6 LLM hops, 40 quote requests and 30s
+    // wall clock, against ~half that when the instruction rides the first call.
+    //
+    // The escalation stays as the safety net. This just stops it being the
+    // normal path.
+    const discoveryNudge = isDiscoveryQuery(userText)
+      ? `
+
+# THIS TURN
+This is a discovery question. Search for the instruments AND call get_stock_price for every symbol you plan to name - in parallel, in ONE turn - then reply with the names and their prices together. A list of names with no prices is not an acceptable answer, and do not ask whether the user wants the prices.`
+      : "";
+    const system = `${SYSTEM_PROMPT}\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# TOOL USE\nYou have tools for live data: get_stock_price, get_crypto_price, search_stocks, get_market_news, get_user_portfolio, get_trade_history, get_watchlist, get_limit_orders. USE them whenever the user asks about any specific stock, crypto, market state, or their portfolio. Never guess numbers — always call the tool.\n\nCRITICAL: Call tools via the STRUCTURED tool_calls API only. NEVER write literal text like 'CALL search_stocks(...)' or '[Tool call: ...]' or fenced ` + "```tool_calls```" + ` JSON in your visible response. Those are internal scaffolding the user must never see. If you want to call a tool, emit the tool_call JSON block and let the system handle it. Your visible reply either (a) answers the user's question with real data you just received from a tool, or (b) says you'll look it up — never describes the mechanics of looking it up.\n\n# TONE\nKeep replies conversational and short by default (1–3 sentences). Only go longer when the user asks for explanation or depth.` + discoveryNudge;
     try {
       replyText = await runAgent({
         apiKey: state.settings.llmApiKey || null,

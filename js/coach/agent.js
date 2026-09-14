@@ -1360,6 +1360,20 @@ export function looksLikeLookupOffer(text) {
 // several instruments and carries no figures. It does not care how the reply
 // is phrased, which is why it catches an offer worded in a way nobody
 // anticipated.
+/**
+ * Is this a discovery / screening question — "bank stocks", "suggest pharma",
+ * "top 10 IT companies"?
+ *
+ * Exposed so the surfaces can strengthen the FIRST system prompt instead of
+ * detecting a bare list afterwards and paying for a second full agent loop.
+ * Measured 2026-09-14: letting the retry handle it cost 6 LLM hops, 40 quote
+ * requests and 30s wall clock, versus roughly half that when the instruction
+ * rides along on the first call.
+ */
+export function isDiscoveryQuery(text) {
+  return DISCOVERY_RE.test(String(text || ""));
+}
+
 export function looksLikePricelessList(replyText, userText) {
   const s = String(replyText || "").trim();
   if (!s) return false;
