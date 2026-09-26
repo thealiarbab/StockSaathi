@@ -57,10 +57,14 @@ Stdlib-only.
 
 import json
 import os
+import sys
 import time
 import urllib.parse
 import urllib.request
 from http.server import BaseHTTPRequestHandler
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _budget import Budget  # noqa: E402
 
 SUPA_URL = os.environ.get("SUPABASE_URL", "").strip().rstrip("/")
 SUPA_SRV = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "").strip()
@@ -167,7 +171,7 @@ def _tier_symbols(tier):
     return out
 
 
-def _warm(symbols):
+def _warm(symbols, budget):
     """Warm via /api/live-quote, which owns the fetch-and-cache path.
 
     One retry per chunk. A cold fan-out against Yahoo is genuinely slow
@@ -175,24 +179,33 @@ def _warm(symbols):
     symbol in it — which is what happened on the first run (80 of 198 lost to
     one chunk). The retry is cheap because a partially-warmed chunk is already
     cached, so the second attempt mostly hits the cache and returns fast.
+
+    Returns (warmed, failed, processed). `processed` can be short of
+    len(symbols): once the budget says stop, no new chunk or retry starts.
+    Without that, 6 chunks x (45s timeout + retry) ran straight through
+    Vercel's limit on every cold-cache run and the caller got an HTML
+    FUNCTION_INVOCATION_TIMEOUT page instead of a resumable answer.
     """
-    warmed, failed = 0, 0
+    warmed, failed, processed = 0, 0, 0
     for i in range(0, len(symbols), BATCH):
+        if not budget.can_start():
+            break
         chunk = symbols[i : i + BATCH]
         url = f"{PUBLIC_ORIGIN}/api/live-quote?symbols=" + urllib.parse.quote(",".join(chunk))
         got = None
         for attempt in (1, 2):
+            if attempt == 2 and not budget.can_start():
+                break
             try:
                 req = urllib.request.Request(url, headers={"User-Agent": "StockSaathi-Warmer/1.0"})
-                with urllib.request.urlopen(req, timeout=45) as r:
+                with urllib.request.urlopen(req, timeout=budget.timeout(45)) as r:
                     payload = json.loads(r.read().decode("utf-8") or "{}")
                 got = len(payload.get("quotes") or {})
                 break
             except Exception:
-                if attempt == 2:
-                    got = None
-                else:
+                if attempt == 1:
                     time.sleep(1.5)
+        processed += len(chunk)
         if got is None:
             failed += len(chunk)
         else:
@@ -200,28 +213,29 @@ def _warm(symbols):
             # quotes may come back short of the chunk if a symbol has no
             # upstream data at all. Count the shortfall rather than pretending.
             failed += max(0, len(chunk) - got)
-    return warmed, failed
+    return warmed, failed, processed
 
 
 def _run(tier, offset, limit):
-    t0 = time.time()
+    budget = Budget()
     all_syms = _tier_symbols(tier)
     window = all_syms[offset : offset + limit]
-    warmed, failed = _warm(window)
+    warmed, failed, processed = _warm(window, budget)
+    next_offset = offset + processed
     return {
         "ok": True,
         "tier": tier,
         "offset": offset,
         "limit": limit,
         "tierTotal": len(all_syms),
-        "attempted": len(window),
+        "attempted": processed,
         "warmed": warmed,
         "failed": failed,
-        # The caller is expected to page until done rather than assume one call
-        # covers the tier: vercel.json caps api/*.py at maxDuration 60 and a
-        # 1,000-symbol fan-out will not finish inside it.
-        "more": offset + limit < len(all_syms),
-        "durationMs": int((time.time() - t0) * 1000),
+        # Callers must follow nextOffset, not offset+limit: the handler stops
+        # itself before Vercel's maxDuration and may return short of `limit`.
+        "nextOffset": next_offset,
+        "more": next_offset < len(all_syms),
+        "durationMs": int(budget.elapsed() * 1000),
     }
 
 

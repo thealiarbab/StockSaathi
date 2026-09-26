@@ -77,18 +77,23 @@ jobs:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
           TIER: ${{ steps.tier.outputs.tier }}
         run: |
-          # Page rather than assuming one call covers the tier: vercel.json
-          # caps api/*.py at maxDuration 60 and a 1,000-symbol fan-out will
-          # not finish inside it. The handler reports `more` so we can stop.
+          # Page rather than assuming one call covers the tier, and follow the
+          # handler's nextOffset rather than stepping by the requested limit:
+          # the handler stops itself before Vercel's maxDuration and may cover
+          # less than `limit`. Stepping by +240 would silently skip the rest.
           offset=0
           total_warmed=0
           total_failed=0
-          for page in 1 2 3 4 5 6; do
-            body=$(curl -sS --max-time 120 \
-              -H "Authorization: Bearer $CRON_SECRET" \
-              "https://stocksaathi.co.in/api/admin-warm-quotes?tier=$TIER&offset=$offset&limit=240") || {
+          for page in $(seq 1 15); do
+            body=$(curl -sS --max-time 120               -H "Authorization: Bearer $CRON_SECRET"               "https://stocksaathi.co.in/api/admin-warm-quotes?tier=$TIER&offset=$offset&limit=240") || {
                 echo "::warning::request failed at offset $offset"; break; }
             echo "  page $page (offset=$offset): $(echo "$body" | head -c 300)"
+            # A Vercel timeout returns an HTML page, not JSON. Say so, instead
+            # of letting jq die with "Invalid numeric literal ... exit code 5".
+            if ! echo "$body" | jq -e . >/dev/null 2>&1; then
+              echo "::error::non-JSON response at offset $offset (Vercel FUNCTION_INVOCATION_TIMEOUT?): $(echo "$body" | head -c 200)"
+              exit 1
+            fi
             # jq, not sed. The first version parsed with a sed pattern that
             # assumed '"ok":true' with no space. Python's json.dumps writes
             # '"ok": true' WITH one, so it always produced an empty string and
@@ -105,7 +110,12 @@ jobs:
             total_failed=$(( total_failed + f ))
             more=$(echo "$body" | jq -r '.more // false')
             [ "$more" = "true" ] || break
-            offset=$(( offset + 240 ))
+            next=$(echo "$body" | jq -r ".nextOffset // $(( offset + 240 ))")
+            if [ "$next" -le "$offset" ]; then
+              echo "::error::warmer made no progress at offset $offset — it spent its whole budget before the first chunk"
+              exit 1
+            fi
+            offset=$next
             sleep 3
           done
           echo "tier=$TIER warmed=$total_warmed failed=$total_failed"
