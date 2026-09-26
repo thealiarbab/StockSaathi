@@ -137,6 +137,48 @@ async function activitySummary() {
 }
 
 /**
+ * Pending limit/AMO orders, as dossier lines.
+ *
+ * Found in the 2026-09-27 chat audit: a user who had just placed a buy AMO
+ * asked "I learn how to buy but I can't sell it", and the coach — whose
+ * context said "NO HOLDINGS, say they have not bought anything yet" — told
+ * them their portfolio was empty and to go buy something. The order existed;
+ * the coach simply could not see it, because get_limit_orders only fires on
+ * explicit order questions. An unfilled order is exactly what a beginner
+ * mistakes for a purchase, so it belongs in the always-on context.
+ *
+ * Returns null on a lookup failure so the caller can say "could not check"
+ * rather than "no orders" (same contract as listPendingOrders).
+ */
+async function pendingOrderLines() {
+  try {
+    const { listPendingOrders } = await import("../features/limitOrders.js");
+    const orders = await listPendingOrders();
+    if (orders === null) return null;
+    if (!orders.length) return [];
+    const lines = [`PENDING ORDERS (${orders.length}) — placed but NOT filled, so NOT holdings yet:`];
+    for (const o of orders.slice(0, 6)) {
+      const placed = new Date(o.created_at).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short" });
+      lines.push(`  ${o.side} ${Number(o.qty)} ${o.symbol} limit ${inr(o.limit_price_paise)} (placed ${placed})`);
+    }
+    if (orders.length > 6) lines.push(`  …and ${orders.length - 6} more — call get_limit_orders for all of them.`);
+    lines.push(`Our server checks pending orders every 5 minutes in market hours (09:15-15:30 IST, Mon-Fri) and fills one as soon as the price reaches its limit; the app does not need to be open. If the user says they bought something they cannot see or sell, it is almost certainly one of these orders — tell them so.`);
+    return lines;
+  } catch {
+    return null;
+  }
+}
+
+// A quote older than this is a thinly traded stock's last trade, not a live
+// price. Saying so stops the model narrating an old price as a move.
+const OLD_PRICE_MS = 3 * 86400000;
+const priceAge = (q) => {
+  const ts = Number(q?.ts);
+  if (!Number.isFinite(ts) || Date.now() - ts < OLD_PRICE_MS) return "";
+  return ` (LAST TRADED ${new Date(ts).toISOString().slice(0, 10)} — thinly traded, this price is old)`;
+};
+
+/**
  * Build the dossier block. Returns "" when signed out — the coach works
  * signed-out and must not claim to know a user it cannot see.
  */
@@ -207,9 +249,13 @@ export async function buildDossier() {
   ].filter(Boolean).join(", ");
   if (who) L.push(who);
 
+  const pending = await pendingOrderLines();
+
   if (!symbols.length) {
-    L.push(`Cash ${inr(cash)}. NO HOLDINGS — this user owns nothing right now.`);
-    L.push(`Do not invent positions. If asked what they own, say they have not bought anything yet.`);
+    L.push(`Cash ${inr(cash)}${reserved > 0 ? ` (${inr(reserved)} reserved by pending orders)` : ""}. NO HOLDINGS — no order has filled yet.`);
+    L.push(pending && pending.length
+      ? `Do not invent positions. They HAVE placed the pending orders listed below; those are not holdings until filled.`
+      : `Do not invent positions. If asked what they own, say they have not bought anything yet.`);
   } else {
     L.push(`Cash ${inr(cash)}${reserved > 0 ? ` (${inr(reserved)} reserved by pending orders)` : ""} · Holdings ${inr(holdingsValue)} · TOTAL ${inr(total)}`);
     if (vsStart != null) L.push(`Started ${inr(started)} → ${signed(vsStart)} (${pct(vsStartPct)})`);
@@ -218,7 +264,7 @@ export async function buildDossier() {
     L.push(`Positions (${priced.length + unpriced}) — qty · avg cost · LAST PRICE · market value · P&L:`);
     for (const r of priced.slice(0, MAX_POSITIONS_SHOWN)) {
       const name = getInstrument(r.sym)?.name || r.sym;
-      L.push(`  ${r.sym} ${r.h.qty} · ${inr(r.h.avgCostPaise)} · ${inr(r.last)} · ${inr(r.mkt)} · ${signed(r.pl)} (${pct(r.plPct)})  [${name}]`);
+      L.push(`  ${r.sym} ${r.h.qty} · ${inr(r.h.avgCostPaise)} · ${inr(r.last)}${priceAge(quotes[r.sym])} · ${inr(r.mkt)} · ${signed(r.pl)} (${pct(r.plPct)})  [${name}]`);
     }
     if (priced.length > MAX_POSITIONS_SHOWN) {
       const restVal = priced.slice(MAX_POSITIONS_SHOWN).reduce((n, r) => n + r.mkt, 0);
@@ -232,6 +278,12 @@ export async function buildDossier() {
         (best ? ` Best ${best.sym} ${pct(best.plPct)}.` : "") +
         (worst && worst !== best ? ` Worst ${worst.sym} ${pct(worst.plPct)}.` : ""));
     }
+  }
+
+  if (pending === null) {
+    L.push(`Pending orders: COULD NOT CHECK right now. If asked, say you could not load them — never say there are none.`);
+  } else if (pending.length) {
+    L.push(...pending);
   }
 
   if (corrupt.length) {

@@ -1385,7 +1385,27 @@ function attachListeners(main, inst, symbol, curPrice, holding, chartOhlc, sessi
   });
 }
 
+// One trade at a time, whichever button started it. reviewTrade disables
+// #place-trade-btn to block double taps, but the mutual-fund Invest/Redeem
+// buttons call it too and that element does not exist on a fund page — so a
+// double tap there placed two orders. Found 2026-09-27: two identical
+// Rs 10,000 liquid-fund orders from one user, created 50 ms apart.
+let _tradeInFlight = false;
+
 async function reviewTrade(inst, symbol, curPrice, holding) {
+  if (_tradeInFlight) {
+    console.warn("[trade] ignored a second submit while one is in flight");
+    return;
+  }
+  _tradeInFlight = true;
+  try {
+    return await _reviewTrade(inst, symbol, curPrice, holding);
+  } finally {
+    _tradeInFlight = false;
+  }
+}
+
+async function _reviewTrade(inst, symbol, curPrice, holding) {
   const qty = qtySelectorHandle?.get?.() ?? ui.qty;
   if (!qty || qty <= 0) { toast({ kind: "error", message: "Enter a valid quantity." }); return; }
   if (ui.side === "SELL" && (!holding || holding.qty < qty - 1e-9)) {
