@@ -276,3 +276,33 @@ def test_shim_runs_handlers_off_the_event_loop(monkeypatch):
         f"a fast request waited {fast_done:.1f}s behind a slow one: the shim is "
         "running blocking handlers on the event loop again"
     )
+
+
+# ---------------------------------------------------------------------------
+# Yahoo's frozen meta price for mislabelled SME listings
+# ---------------------------------------------------------------------------
+
+def test_stale_meta_price_loses_to_newer_bars():
+    """AILIMITED, 2026-09-26: meta.regularMarketPrice Rs 94 stamped 2024-07-24
+    while the bars traded Rs 15.60. Users bought at 6x and a limit order filled
+    956 shares at Rs 94."""
+    from _yahoo_price import pick_price
+
+    day = 86400
+    t0 = 1790000000
+    stale = {
+        "meta": {"regularMarketPrice": 94.0, "regularMarketTime": 1721764800},
+        "timestamp": [t0 - 2 * day, t0 - day, t0],
+        "indicators": {"quote": [{"close": [16.4, 15.75, 15.6]}]},
+    }
+    price, ts, prev = pick_price(stale)
+    assert price == 15.6 and ts == t0 and prev == 15.75
+
+    live = {
+        "meta": {"regularMarketPrice": 1226.0, "regularMarketTime": t0 + 3600},
+        "timestamp": [t0 - day, t0],
+        "indicators": {"quote": [{"close": [1219.2, 1225.0]}]},
+    }
+    price, ts, prev = pick_price(live)
+    assert price == 1226.0, "a fresh meta price is the live intraday price and must win"
+    assert prev == 1219.2

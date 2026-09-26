@@ -722,8 +722,25 @@ async function fetchYahooQuote(symbol) {
   const data = await fetchYahooUrl(url);
   const r = data?.chart?.result?.[0];
   if (!r) return null;
-  const meta = r.meta || {};
-  const price = meta.regularMarketPrice;
+  let meta = r.meta || {};
+  // Yahoo mislabels some NSE SME listings as MUTUALFUND and freezes their
+  // meta.regularMarketPrice at 2024-07-23 while the bars keep trading
+  // (AILIMITED: meta Rs 94, real Rs 15.60). Believe the newest bar when it is
+  // more than 3 days newer than the meta price. Mirrors handlers/_yahoo_price.py.
+  let price = meta.regularMarketPrice;
+  const stamps = r.timestamp || [];
+  const closes = r.indicators?.quote?.[0]?.close || [];
+  let lastIdx = -1;
+  for (let i = Math.min(stamps.length, closes.length) - 1; i >= 0; i--) {
+    if (closes[i] != null) { lastIdx = i; break; }
+  }
+  if (lastIdx >= 0 && (price == null
+      || (meta.regularMarketTime && stamps[lastIdx] - meta.regularMarketTime > 3 * 86400))) {
+    let prev = null;
+    for (let i = lastIdx - 1; i >= 0; i--) { if (closes[i] != null) { prev = closes[i]; break; } }
+    price = closes[lastIdx];
+    meta = { chartPreviousClose: prev, regularMarketTime: stamps[lastIdx], currency: meta.currency };
+  }
   const prevClose = meta.chartPreviousClose || meta.previousClose || price;
   if (price == null) return null;
   return {

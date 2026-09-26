@@ -13,6 +13,10 @@ import concurrent.futures
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs, quote as url_quote
 
+import os as _os_yp, sys as _sys_yp
+_sys_yp.path.insert(0, _os_yp.path.dirname(_os_yp.path.abspath(__file__)))
+from _yahoo_price import pick_price  # noqa: E402
+
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
       "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -50,9 +54,12 @@ def fetch_one(symbol):
             if not result:
                 continue
             meta = result[0].get("meta") or {}
-            price = meta.get("regularMarketPrice")
+            # pick_price, not meta.regularMarketPrice -- see _yahoo_price.py.
+            price, picked_ts, _prev = pick_price(result[0])
             if price is None:
                 continue
+            if picked_ts is not None and picked_ts != (meta.get("regularMarketTime") or 0):
+                meta = {}  # every meta field is as stale as its price
             # Yahoo strips regularMarketPreviousClose + previousClose when
             # rate-limiting. Parse closes[] to pull yesterday from the chart
             # array directly — second-to-last non-null entry (closes[-1] is
@@ -77,7 +84,7 @@ def fetch_one(symbol):
                 "day_high": float(meta.get("regularMarketDayHigh") or price),
                 "day_low": float(meta.get("regularMarketDayLow") or price),
                 "volume": int(meta.get("regularMarketVolume") or 0),
-                "ts_ms": int((meta.get("regularMarketTime") or 0)) * 1000,
+                "ts_ms": int(picked_ts or 0) * 1000,
                 "currency": meta.get("currency") or "INR",
                 "source": "yahoo",
             }

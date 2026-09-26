@@ -37,6 +37,10 @@ from datetime import datetime
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs, quote as url_quote
 
+import os as _os_yp, sys as _sys_yp
+_sys_yp.path.insert(0, _os_yp.path.dirname(_os_yp.path.abspath(__file__)))
+from _yahoo_price import pick_price  # noqa: E402
+
 try:
     from zoneinfo import ZoneInfo  # py3.9+
     _IST = ZoneInfo("Asia/Kolkata")
@@ -268,34 +272,30 @@ def fetch_yahoo_one(symbol):
             if not result:
                 continue
             meta = result[0].get("meta") or {}
-            price = meta.get("regularMarketPrice")
+            # pick_price, not meta.regularMarketPrice: for Yahoo's mislabelled
+            # SME listings the meta price is frozen at 2024-07-23 while bars
+            # keep trading. See handlers/_yahoo_price.py.
+            price, picked_ts, prev_from_chart = pick_price(result[0])
             if price is None:
                 continue
-            # Yahoo strips regularMarketPreviousClose + previousClose when
-            # rate-limiting Vercel's IP pool. Fall back to the chart closes[]
-            # array — second-to-last non-null value is yesterday's close
-            # (last entry is today's in-progress bar).
-            closes_arr = ((result[0].get("indicators", {}).get("quote") or [{}])[0]
-                          .get("close") or [])
-            prev_from_chart = None
-            for i in range(len(closes_arr) - 2, -1, -1):
-                if closes_arr[i] is not None:
-                    prev_from_chart = closes_arr[i]
-                    break
-            prev = (meta.get("regularMarketPreviousClose")
-                    or meta.get("previousClose")
-                    or prev_from_chart
-                    or meta.get("chartPreviousClose")
-                    or price)
-            ts_ms = int((meta.get("regularMarketTime") or 0)) * 1000 or int(time.time() * 1000)
+            stale_meta = picked_ts is not None and picked_ts != (meta.get("regularMarketTime") or 0)
+            if stale_meta:
+                prev = prev_from_chart or price
+            else:
+                prev = (meta.get("regularMarketPreviousClose")
+                        or meta.get("previousClose")
+                        or prev_from_chart
+                        or meta.get("chartPreviousClose")
+                        or price)
+            ts_ms = int(picked_ts or 0) * 1000 or int(time.time() * 1000)
             return {
                 "symbol": symbol,
                 "price": float(price),
                 "prev_close": float(prev),
                 "change_pct": ((float(price) - float(prev)) / float(prev)) if prev else 0.0,
-                "day_high": float(meta.get("regularMarketDayHigh") or price),
-                "day_low": float(meta.get("regularMarketDayLow") or price),
-                "volume": int(meta.get("regularMarketVolume") or 0),
+                "day_high": float((not stale_meta and meta.get("regularMarketDayHigh")) or price),
+                "day_low": float((not stale_meta and meta.get("regularMarketDayLow")) or price),
+                "volume": int((not stale_meta and meta.get("regularMarketVolume")) or 0),
                 "ts_ms": ts_ms,
                 "source": "yahoo",
                 "currency": meta.get("currency") or "INR",
