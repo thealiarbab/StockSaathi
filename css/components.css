@@ -4109,6 +4109,25 @@
 }
 .notice-order-row + .notice-order-row { border-top: 1px solid var(--border); }
 .notice-order-row strong { color: var(--text-strong); }
+.notice-row-note { margin-left: auto; font-size: 12px; color: var(--text-muted); }
+.notice-row-note.positive { color: var(--positive); font-weight: 700; }
+.notice-section-label {
+  margin-top: var(--sp-4);
+  font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--text-muted);
+}
+.notice-section-label + .notice-orders { margin-top: 6px; }
+.notice-refund {
+  margin-top: var(--sp-4);
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  padding: 12px 14px;
+  border-radius: var(--r);
+  background: var(--positive-soft);
+  color: var(--text-strong);
+  font-size: var(--text-sm);
+}
+.notice-refund-amt { font-size: 22px; font-weight: 800; color: var(--positive); }
+.notice-signoff { margin-top: var(--sp-4); font-weight: 600; }
 
 /* ===================== CHAT COMPOSER (premium) =======================
    Shared by the /chat page and the right-side coach panel.

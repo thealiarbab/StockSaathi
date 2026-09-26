@@ -88,6 +88,40 @@ function presentOne(client, notice) {
       .join("");
 
     const orders = Array.isArray(notice.payload?.orders) ? notice.payload.orders : [];
+    // 2026-09-27 remediation notices carry `items` instead: orders filled
+    // late (with when the market actually reached the user's price) and buys
+    // re-priced after the Yahoo frozen-price bug (paid vs real, cash back).
+    const items = Array.isArray(notice.payload?.items) ? notice.payload.items : [];
+    const fills = items.filter((i) => i.kind === "late_fill");
+    const fixes = items.filter((i) => i.kind === "reprice");
+    const refund = Number(notice.payload?.refund_total_inr) || 0;
+    const itemsHtml = !items.length ? "" : `
+      ${refund > 0 ? `
+        <div class="notice-refund">
+          <span class="notice-refund-amt">+₹${escapeHtml(fmtPrice(refund))}</span>
+          <span>added back to your cash</span>
+        </div>` : ""}
+      ${fills.length ? `
+        <div class="notice-section-label">Orders we filled for you</div>
+        <div class="notice-orders">
+          ${fills.map((o) => `
+            <div class="notice-order-row">
+              <span class="pill ${o.side === "BUY" ? "pill-green" : "pill-red"}">${escapeHtml(o.side)}</span>
+              <strong>${escapeHtml(o.symbol)}</strong>
+              <span class="dim">${escapeHtml(fmtQty(o.qty))} @ ₹${escapeHtml(fmtPrice(o.fill_inr))}</span>
+              <span class="notice-row-note">market hit your price ${escapeHtml(o.hit_at || "")}</span>
+            </div>`).join("")}
+        </div>` : ""}
+      ${fixes.length ? `
+        <div class="notice-section-label">Prices we corrected</div>
+        <div class="notice-orders">
+          ${fixes.map((o) => `
+            <div class="notice-order-row">
+              <strong>${escapeHtml(o.symbol)}</strong>
+              <span class="dim">${escapeHtml(fmtQty(o.qty))} shares · paid <s>₹${escapeHtml(fmtPrice(o.paid_inr))}</s> → real ₹${escapeHtml(fmtPrice(o.real_inr))}</span>
+              <span class="notice-row-note positive">+₹${escapeHtml(fmtPrice(o.refund_inr))}</span>
+            </div>`).join("")}
+        </div>` : ""}`;
     const table = orders.length
       ? `<div class="notice-orders">
            ${orders.map((o) => `
@@ -115,7 +149,7 @@ function presentOne(client, notice) {
               <h2 id="notice-title">${escapeHtml(notice.title || "A quick note")}</h2>
             </div>
           </div>
-          <div class="modal-body">${paras}${table}</div>
+          <div class="modal-body">${paras}${itemsHtml}${table}${notice.payload?.signoff ? `<p class="notice-signoff">${escapeHtml(notice.payload.signoff)}</p>` : ""}</div>
           <div class="modal-foot">
             <button class="btn btn-primary" id="notice-ok">Got it</button>
           </div>
