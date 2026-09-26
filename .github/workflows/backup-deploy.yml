@@ -81,7 +81,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install test deps
-        run: pip install pytest fastapi uvicorn
+        run: pip install pytest fastapi uvicorn httpx
       - name: Verify every app/api/*.py is registered in api-backup/main.py
         working-directory: .
         run: pytest api-backup/tests/ -v

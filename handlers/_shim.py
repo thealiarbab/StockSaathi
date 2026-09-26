@@ -36,6 +36,7 @@ import sys
 from typing import Optional
 
 from fastapi import FastAPI, Request
+from starlette.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, Response
 
 _DIR = pathlib.Path(__file__).resolve().parent
@@ -238,7 +239,16 @@ def create_app(title: str = "StockSaathi API") -> FastAPI:
         fn = getattr(h, f"do_{request.method}", None)
         if fn is None:
             return Response(status_code=405, content=b"")
-        fn()
+        # In a worker thread, NEVER inline. The handlers are blocking
+        # (urllib, time.sleep). Called directly from this async function, one
+        # request froze the event loop for its whole duration, and with Fluid
+        # compute several requests share an instance. Measured 2026-09-26: the
+        # quote warmer calls /api/live-quote on this same deployment; when
+        # that landed on the warmer's own instance it could not run until the
+        # warmer finished, and the warmer was waiting on it, so the chunk sat
+        # at the 45s urlopen timeout. A 40s fundamentals page stalled user
+        # quote requests the same way.
+        await run_in_threadpool(fn)
 
         merged = {}
         for k, v in h._headers_out:

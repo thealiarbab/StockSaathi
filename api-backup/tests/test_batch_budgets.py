@@ -227,3 +227,52 @@ def test_yahoo_batch_returns_partial_results_on_timeout(monkeypatch):
     took = time.monotonic() - t
     assert set(out) == {"A", "B", "C"}, "fast symbols must survive a slow one"
     assert took < 2, f"batch waited {took:.1f}s for a straggler instead of abandoning it"
+
+
+# ---------------------------------------------------------------------------
+# _shim: a blocking handler must not freeze the event loop for other requests
+# ---------------------------------------------------------------------------
+
+def test_shim_runs_handlers_off_the_event_loop(monkeypatch):
+    """With Fluid compute several requests share an instance. The warmer calls
+    /api/live-quote on its own deployment; when the shim ran handlers inline
+    on the event loop, that call could not start until the warmer finished,
+    and the warmer was waiting on it: 45s urlopen timeout, every time."""
+    import asyncio
+    import types
+
+    import httpx
+
+    import _shim
+
+    def make(delay):
+        class handler:
+            def do_GET(self):
+                time_mod.sleep(delay)
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b"{}")
+        return types.SimpleNamespace(handler=handler)
+
+    import time as time_mod
+    mods = {"health": make(1.5), "index": make(0)}
+    monkeypatch.setattr(_shim, "_load", lambda stem: mods[stem])
+    app = _shim.create_app()
+
+    async def run():
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://t") as c:
+            t0 = time_mod.monotonic()
+            slow = asyncio.create_task(c.get("/api/health"))
+            await asyncio.sleep(0.1)
+            fast = await c.get("/api/index")
+            fast_done = time_mod.monotonic() - t0
+            await slow
+            return fast.status_code, fast_done
+
+    code, fast_done = asyncio.run(run())
+    assert code == 200
+    assert fast_done < 1.0, (
+        f"a fast request waited {fast_done:.1f}s behind a slow one: the shim is "
+        "running blocking handlers on the event loop again"
+    )
