@@ -67,11 +67,18 @@ jobs:
   prompt-version-sync:
     name: CURRENT_PROMPT_VERSION matches across customCrash.js and pregen-crashes.mjs
     runs-on: ubuntu-latest
-    if: hashFiles('scripts/pregen-crashes.mjs') != ''
+    # The branch check lives in the step, not a job-level `if:`. hashFiles()
+    # is not available in job-level conditions, and using it there made GitHub
+    # reject this whole file: every push from 2026-05-03 to 2026-09-26 "failed"
+    # in 0s without running a single step.
     steps:
       - uses: actions/checkout@v4
       - name: Extract + compare versions
         run: |
+          if [ ! -f scripts/pregen-crashes.mjs ]; then
+            echo "scripts/pregen-crashes.mjs not present on this branch — skipped"
+            exit 0
+          fi
           v1=$(grep -oE 'CURRENT_PROMPT_VERSION = "[^"]+"' js/features/customCrash.js | head -1 | sed 's/.*"\(.*\)"/\1/')
           v2=$(grep -oE 'CURRENT_PROMPT_VERSION = "[^"]+"' scripts/pregen-crashes.mjs | head -1 | sed 's/.*"\(.*\)"/\1/')
           echo "customCrash.js  -> $v1"
