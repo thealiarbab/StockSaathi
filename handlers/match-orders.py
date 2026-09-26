@@ -234,8 +234,27 @@ def equity_prices(symbols):
                 lq.write_cache(rows)
             except Exception:
                 pass
+
+    # Stocks no live feed covers. Yahoo has no listing for many new NSE SME
+    # stocks, so without this their orders could never match. The exchange's
+    # own end-of-day close (nightly admin-ingest-eod) is the best price that
+    # exists for them. Only that source, and only a recent close: matching
+    # against a months-old cached price is what the 90-second rule above
+    # exists to prevent.
+    missing = [s for s in symbols if s not in out]
+    if missing:
+        try:
+            cutoff = int(time.time() * 1000) - EOD_FALLBACK_MAX_AGE_MS
+            for sym, row in (lq.read_cache(missing, ttl_ms=EOD_FALLBACK_MAX_AGE_MS) or {}).items():
+                if row.get("source") == "nse_eod" and row.get("price_paise") and (row.get("ts_ms") or 0) >= cutoff:
+                    out[sym] = int(row["price_paise"])
+        except Exception:
+            pass
     return out
 
+
+# A Friday close must still count on Monday afternoon, plus one holiday.
+EOD_FALLBACK_MAX_AGE_MS = 4 * 24 * 3600 * 1000
 
 _mf_static_cache = None
 

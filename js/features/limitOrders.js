@@ -140,6 +140,16 @@ export async function placeLimitOrder({ symbol, side, qty, limitPricePaise }) {
     throw new Error("Limit price must be greater than ₹0.");
   }
   if (side !== "BUY" && side !== "SELL") throw new Error("Side must be BUY or SELL.");
+  // Give the server its own price for this symbol before placing. Since
+  // 2026-09-27 place_limit_order refuses a symbol with no quote_cache row —
+  // the same rule the matcher fills by — because the page falls back to an
+  // INVENTED price (prices.js synthetic walk) when it has none, and orders at
+  // invented prices sat forever with cash reserved. The stock page itself
+  // reads /api/quote, which does not write quote_cache; /api/live-quote does.
+  // Best-effort: a failure here just lets the RPC give the real answer.
+  if (!symbol.startsWith("MF_")) {
+    try { await fetch(`/api/live-quote?symbols=${encodeURIComponent(symbol)}`); } catch {}
+  }
   // NO pre-flight getSession in v136 — see the block comment above.
   // The RPC call itself enforces auth via RLS; missing/expired JWT
   // bubbles back as a PostgREST error we can catch below.

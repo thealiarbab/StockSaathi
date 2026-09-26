@@ -1,0 +1,96 @@
+name: nse-eod
+
+# NSE's official end-of-day bhavcopy -> quote_cache. A second price source
+# behind Yahoo, and the check on it.
+#
+# WHY: Yahoo was the only price source. On 2026-09-26 it was found freezing
+# ten SME stocks at 2024 prices (users bought at up to 6x) and having no
+# listing at all for new SME stocks (the app then showed invented prices).
+# The bhavcopy covers every NSE stock including SME, straight from the
+# exchange. See supabase/migrations/2026-09-27c_nse_eod_second_price_source.sql.
+#
+# WHY A RUNNER: NSE blocks Vercel's IPs but not GitHub's (universe-refresh.yml
+# already relies on this). The runner downloads and parses; Vercel stores.
+#
+# Lateness is harmless: GitHub fires schedules hours late here, and an
+# end-of-day file is still correct whenever it lands.
+#
+# Needs: CRON_SECRET repo secret (same value as the Vercel env var).
+
+on:
+  schedule:
+    # 13:30 UTC = 19:00 IST, after NSE publishes (~18:00 IST). Mon-Fri.
+    - cron: "30 13 * * 1-5"
+  workflow_dispatch: {}
+
+concurrency:
+  group: nse-eod
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Guard — secret must be configured
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          [ -n "$CRON_SECRET" ] || { echo "::error::CRON_SECRET repo secret is not set."; exit 1; }
+
+      - name: Fetch the latest bhavcopy and ingest it
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          python3 - <<'PY'
+          import csv, datetime as dt, io, json, os, sys, urllib.request, zipfile
+
+          UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131 Safari/537.36"}
+          IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
+          today = dt.datetime.now(IST).date()
+
+          def fetch(day):
+              url = ("https://nsearchives.nseindia.com/content/cm/"
+                     f"BhavCopy_NSE_CM_0_0_0_{day:%Y%m%d}_F_0000.csv.zip")
+              try:
+                  with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=60) as r:
+                      z = zipfile.ZipFile(io.BytesIO(r.read()))
+                  with z.open(z.namelist()[0]) as fh:
+                      return list(csv.DictReader(io.TextIOWrapper(fh, encoding="utf-8")))
+              except Exception as e:
+                  print(f"  {day}: {e}")
+                  return None
+
+          # Latest published trading day within the last week.
+          for back in range(0, 8):
+              day = today - dt.timedelta(days=back)
+              if day.weekday() >= 5:
+                  continue
+              rows = fetch(day)
+              if rows:
+                  break
+          else:
+              print("::error::no bhavcopy found in the last 8 days"); sys.exit(1)
+
+          trade_date = rows[0]["TradDt"]
+          payload = [[r["TckrSymb"], r["SctySrs"], r["OpnPric"], r["HghPric"], r["LwPric"], r["ClsPric"],
+                      r["PrvsClsgPric"], r["TtlTradgVol"]] for r in rows]
+          print(f"bhavcopy {trade_date}: {len(payload)} rows")
+
+          req = urllib.request.Request(
+              "https://stocksaathi.co.in/api/admin-ingest-eod",
+              data=json.dumps({"trade_date": trade_date, "rows": payload}).encode(),
+              headers={"Authorization": "Bearer " + os.environ["CRON_SECRET"], "Content-Type": "application/json"},
+              method="POST")
+          try:
+              with urllib.request.urlopen(req, timeout=120) as r:
+                  res = json.loads(r.read())
+          except urllib.error.HTTPError as e:
+              print(f"::error::ingest HTTP {e.code}: {e.read()[:400]}"); sys.exit(1)
+          print(json.dumps({k: v for k, v in res.items() if k != "divergent"}))
+          if not res.get("ok"):
+              print("::error::ingest failed"); sys.exit(1)
+          # A same-day Yahoo price >15% away from the exchange's own close is a
+          # feed error, not a market move. Loud, so it cannot rot unnoticed.
+          for d in res.get("divergent") or []:
+              print(f"::warning::{d['symbol']}: Yahoo {d['yahoo']} vs NSE close {d['nse_close']} ({d['ratio']}x)")
+          PY

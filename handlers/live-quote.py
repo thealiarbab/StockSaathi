@@ -307,6 +307,11 @@ def fetch_yahoo_one(symbol):
 
 YAHOO_BATCH_TIMEOUT_S = 8
 
+# How old a cached REAL price may be and still be served when nothing fresher
+# exists (by write time, cached_at_ms). Beyond this, null — and the UI says
+# "no price" rather than showing a months-old number as current.
+LAST_KNOWN_MAX_AGE_MS = 14 * 24 * 3600 * 1000
+
 
 def fetch_yahoo_batch(symbols):
     out = {}
@@ -422,6 +427,17 @@ class handler(BaseHTTPRequestHandler):
         if fresh:
             write_cache([_to_cache_row(q) for q in fresh.values()])
 
+        # 3b. Last known REAL price for anything still missing. A symbol with
+        # no live feed (Yahoo has no listing for many new NSE SME stocks) used
+        # to come back null, and the browser then displayed an INVENTED price
+        # from its synthetic walk — users placed orders at those numbers
+        # (ADISOFT at Rs 1,186.95; its real NSE close was Rs 259.50). An old
+        # real price, labelled with its own timestamp, beats a made-up one.
+        # The nightly NSE end-of-day ingest (admin-ingest-eod) keeps these
+        # rows populated for every listed stock.
+        still_missing = [s for s in syms if s not in fresh and s not in cached]
+        last_known = read_cache(still_missing, ttl_ms=LAST_KNOWN_MAX_AGE_MS) if still_missing else {}
+
         # 4. Build response
         quotes = {}
         for s in syms:
@@ -429,6 +445,8 @@ class handler(BaseHTTPRequestHandler):
                 quotes[s] = fresh[s]
             elif s in cached:
                 quotes[s] = _quote_from_cache_row(cached[s])
+            elif s in last_known:
+                quotes[s] = _quote_from_cache_row(last_known[s])
             else:
                 quotes[s] = None
 

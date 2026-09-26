@@ -75,6 +75,7 @@ ROUTES = {
     "admin-refresh-fundamentals": "admin-refresh-fundamentals",
     "admin-snapshot-portfolios": "admin-snapshot-portfolios",
     "admin-warm-quotes": "admin-warm-quotes",
+    "admin-ingest-eod": "admin-ingest-eod",
     "match-orders": "match-orders",
 }
 
