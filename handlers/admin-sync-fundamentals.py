@@ -8,11 +8,19 @@ don't hammer Yahoo or Tickertape.
 Auth: Authorization: Bearer <ADMIN_TOKEN>  (manual trigger via /api/ai)
    OR Authorization: Bearer <CRON_SECRET>  (Vercel cron auto-injects)
 
-Vercel maxDuration is 60s; at ~2300 stocks × 80ms ≈ 3 min total, we have
-to chunk. Strategy: accept `?offset=0&limit=400` query params; the cron
-fires multiple times per day (e.g. 13:15 / 13:20 / 13:25 / 13:30 / 13:35
-/ 13:40 UTC) with different offsets so each invocation finishes in well
-under 60s. Idempotent — re-running with the same offset is harmless.
+Symbols come STALEST FIRST from the fundamentals_refresh_queue RPC, not from
+an offset. Real throughput is ~1 symbol/s (each one walks up to four upstream
+tiers), so a page covers a few dozen symbols before the time budget stops it.
+The old caller stepped a fixed offset by +500 per page regardless, which
+refreshed the same ~225 symbols every night and never reached the rest of the
+4,457 -- including SBIN, SUNPHARMA, TITAN and WIPRO. A staleness queue cannot
+skip: whatever this page doesn't reach is still stalest for the next one.
+
+Every attempt, success or not, is written to fundamentals_sync_attempts so a
+symbol with no upstream data can't sit at the head of the queue forever.
+
+The caller pages until `processed` is 0 or its nightly cap is reached.
+`offset` is only honoured by the committed-universe fallback.
 """
 
 import json
@@ -22,11 +30,14 @@ import time
 import urllib.request
 import urllib.error
 from http.server import BaseHTTPRequestHandler
+from datetime import datetime, timezone
 from urllib.parse import urlparse, parse_qs, quote as url_quote
 
 # Same path-injection as fundamentals.py — Vercel doesn't auto-add api/ to
 # sys.path so sibling imports fail silently without this.
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from _budget import Budget  # noqa: E402
 
 # Sibling helpers (api/_yahoo_session.py + api/_tickertape.py + api/fundamentals.py)
 try:
@@ -136,6 +147,40 @@ def fetch_active_symbols(offset=0, limit=400):
     return fallback
 
 
+def fetch_queue_symbols(limit):
+    """Stalest-first slice from public.fundamentals_refresh_queue. [] on any
+    failure, so the caller can fall back to the committed universe."""
+    url = f"{SUPA_URL}/rest/v1/rpc/fundamentals_refresh_queue"
+    body = json.dumps({"p_limit": int(limit)}).encode("utf-8")
+    try:
+        req = urllib.request.Request(url, data=body, method="POST",
+                                     headers=_supa_headers({"Accept": "application/json"}))
+        with urllib.request.urlopen(req, timeout=10) as r:
+            return [row["symbol"] for row in json.loads(r.read()) if row.get("symbol")]
+    except Exception as exc:
+        print(f"[sync-fundamentals] refresh queue read failed: {exc}", flush=True)
+        return []
+
+
+def record_attempts(results):
+    """Upsert (symbol, attempted_at, ok) for every symbol this page touched."""
+    if not (SUPA_URL and SUPA_SRV) or not results:
+        return 0
+    now = datetime.now(timezone.utc).isoformat()
+    rows = [{"symbol": s, "attempted_at": now, "ok": ok} for s, ok in results]
+    url = f"{SUPA_URL}/rest/v1/fundamentals_sync_attempts"
+    headers = _supa_headers({"Prefer": "resolution=merge-duplicates,return=minimal"})
+    try:
+        req = urllib.request.Request(url, data=json.dumps(rows).encode("utf-8"),
+                                     headers=headers, method="POST")
+        with urllib.request.urlopen(req, timeout=10) as r:
+            r.read()
+        return len(rows)
+    except Exception as exc:
+        print(f"[sync-fundamentals] recording attempts failed: {exc}", flush=True)
+        return 0
+
+
 def fetch_known_sids():
     """Read tickertape_sids table to warm the in-process cache and skip
     redundant search round-trips."""
@@ -196,52 +241,69 @@ def _run_sync(offset, limit):
     if fetch_fundamentals is None:
         return {"ok": False, "error": "imports_failed"}
 
-    t0 = time.time()
+    budget = Budget()
     # 1) Warm sid cache from DB so we skip search round-trips for known stocks.
     if warm_sid_cache:
         warm_sid_cache(fetch_known_sids())
 
-    # 2) Pull the symbol slice.
-    symbols = fetch_active_symbols(offset=offset, limit=limit)
+    # 2) Pull the symbol slice: stalest first, else the committed universe.
+    source = "queue"
+    symbols = fetch_queue_symbols(limit)
     if not symbols:
-        return {"ok": True, "processed": 0, "offset": offset, "limit": limit, "next_offset": None}
+        source = "fallback"
+        symbols = fetch_active_symbols(offset=offset, limit=limit)
+    if not symbols:
+        return {"ok": True, "processed": 0, "offset": offset, "limit": limit,
+                "next_offset": None, "source": source}
 
     # 3) Refresh each. fetch_fundamentals(allow_cache=False) skips the DB
     #    read but write_back=True still upserts the new row. This always
     #    pulls fresh upstream data.
     success = 0
     failed = 0
+    attempts = []
     for sym in symbols:
+        # Stop before the platform does. A killed function returns an HTML
+        # page and the caller can't tell how far we got.
+        if not budget.can_start():
+            break
+        ok = False
         try:
             r = fetch_fundamentals(sym, allow_cache=False, write_back=True)
-            if r and not r.get("error") and (r.get("market_cap") is not None or r.get("pe_ratio") is not None):
-                success += 1
-            else:
-                failed += 1
+            ok = bool(r and not r.get("error") and (r.get("market_cap") is not None or r.get("pe_ratio") is not None))
         except Exception:
+            ok = False
+        if ok:
+            success += 1
+        else:
             failed += 1
+        attempts.append((sym, ok))
         # Soft throttle.
         time.sleep(INTER_REQUEST_DELAY_MS / 1000.0)
-        # Bail out if we're close to Vercel's 60s timeout — return what we have.
-        if (time.time() - t0) > 50:
-            break
+    recorded = record_attempts(attempts)
 
     # 4) Persist any new sid mappings the Tickertape calls picked up.
     new_sids = 0
     if get_sid_cache:
         new_sids = persist_sid_cache(get_sid_cache())
 
-    next_offset = offset + len(symbols) if len(symbols) >= limit else None
+    # Advance by what was actually processed, never by the slice length: the
+    # budget usually stops us well short of `limit`. Only meaningful for the
+    # fallback path; the queue path ignores offset.
+    processed = success + failed
+    next_offset = offset + processed if processed else None
 
     return {
         "ok": True,
         "offset": offset,
         "limit": limit,
-        "processed": success + failed,
+        "source": source,
+        "processed": processed,
         "success": success,
         "failed": failed,
+        "recorded": recorded,
         "new_sids": new_sids,
-        "duration_ms": int((time.time() - t0) * 1000),
+        "duration_ms": int(budget.elapsed() * 1000),
         "next_offset": next_offset,
     }
 

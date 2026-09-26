@@ -79,23 +79,51 @@ jobs:
             exit 1
           fi
 
-      - name: Sync fundamentals (5 pages, sequential)
+      - name: Sync fundamentals (stalest first, capped per night)
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
-          fail=0
-          for offset in 0 500 1000 1500 2000; do
+          # The handler pulls the STALEST symbols from fundamentals_refresh_queue
+          # and stops itself on a time budget, so a page covers however many it
+          # reached (~30-45 at maxDuration 60). Keep calling until it runs dry
+          # or the nightly cap is hit.
+          #
+          # This replaced a fixed `for offset in 0 500 1000 1500 2000` loop.
+          # Each page only got through ~45 symbols, then the loop jumped +500,
+          # so the same ~225 symbols were refreshed every night and the other
+          # 90% of 4,457 equities (including SBIN, TITAN, WIPRO) never were.
+          #
+          # CAP: Yahoo is the app's only price source and throttles Vercel IPs.
+          # ~1,500/night rotates the whole universe every ~3 nights, which is
+          # plenty for fundamentals and keeps upstream load bounded.
+          cap=1500
+          total=0; ok_total=0; fail_pages=0
+          for page in $(seq 1 80); do
             code=$(curl -sS -o /tmp/f.json -w '%{http_code}' --max-time 120 \
               -H "Authorization: Bearer $CRON_SECRET" \
-              "https://stocksaathi.co.in/api/admin-sync-fundamentals?offset=$offset&limit=500")
-            echo "offset=$offset -> HTTP $code"; head -c 300 /tmp/f.json; echo
-            [ "$code" = "200" ] || fail=1
-            sleep 5
+              "https://stocksaathi.co.in/api/admin-sync-fundamentals?limit=500") || code=000
+            echo "page $page -> HTTP $code: $(head -c 300 /tmp/f.json)"
+            if [ "$code" != "200" ] || ! jq -e . /tmp/f.json >/dev/null 2>&1; then
+              fail_pages=$(( fail_pages + 1 ))
+              [ "$fail_pages" -ge 3 ] && { echo "::warning::3 failed pages, stopping"; break; }
+              sleep 10; continue
+            fi
+            n=$(jq -r '.processed // 0' /tmp/f.json)
+            s=$(jq -r '.success // 0' /tmp/f.json)
+            total=$(( total + n )); ok_total=$(( ok_total + s ))
+            [ "$n" -gt 0 ] || break
+            [ "$total" -lt "$cap" ] || break
+            sleep 3
           done
-          # Fundamentals are best-effort: upstream (Yahoo/Tickertape) rate-limits
-          # aggressively and a partial refresh is still useful. Warn, don't fail
-          # the whole run, so the MF step below still gets a chance.
-          [ "$fail" = "0" ] || echo "::warning::at least one fundamentals page failed"
+          echo "fundamentals: processed=$total success=$ok_total failed_pages=$fail_pages"
+          # Best-effort (upstream rate-limits), so warn rather than fail and
+          # let the MF step still run. But zero success means the chain is
+          # broken, not throttled -- that should be loud.
+          [ "$fail_pages" = "0" ] || echo "::warning::$fail_pages fundamentals page(s) failed"
+          if [ "$ok_total" = "0" ]; then
+            echo "::error::fundamentals refreshed 0 symbols"
+            exit 1
+          fi
 
       - name: Sync AMFI mutual-fund master
         env:

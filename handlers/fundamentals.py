@@ -20,6 +20,7 @@ import json
 import time
 import urllib.request
 import urllib.error
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs, quote as url_quote
 
@@ -153,6 +154,9 @@ def write_cache(symbol, data):
         "two_hundred_day_avg":  _to_float(data.get("two_hundred_day_average")),
         "source":               "+".join(data.get("source_tiers") or []),
         "cached_at_ms":         int(time.time() * 1000),
+        # Explicit: the column's default only fires on INSERT, so without this
+        # every upsert left updated_at at first-insert time.
+        "updated_at":           datetime.now(timezone.utc).isoformat(),
     }
     body = json.dumps(row).encode("utf-8")
     url = f"{SUPA_URL}/rest/v1/fundamentals_cache"
