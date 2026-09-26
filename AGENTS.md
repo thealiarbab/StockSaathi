@@ -35,8 +35,15 @@ Vanilla-JS SPA + Python serverless (Vercel) + Postgres (Supabase). Virtual-money
 Limit orders and AMOs are matched by `/api/match-orders` (`handlers/match-orders.py`)
 on a schedule. The user does **not** need the app open.
 
-- **ACTUAL tick:** `.github/workflows/order-matcher.yml`, every 5 min during
-  market hours. **This is the only matcher running.**
+- **PRIMARY tick:** Supabase `pg_cron` job `order-matcher` (`*/5 3-10 * * 1-5`)
+  → `pg_net` POST to `/api/match-orders`, bearer from Vault secret `cron_secret`
+  (migration `2026-09-26b`). Responses: `net._http_response`; runs:
+  `cron.job_run_details`. Same pattern ticks `portfolio-snapshot`.
+- **Backstop tick:** `.github/workflows/order-matcher.yml`. It *says* every 5 min
+  but GitHub drops most `*/5` runs: measured 2026-09-21..25 it ran **2x/day**,
+  ~08:00 UTC and after 13:00 UTC (market closed → skip), and every workflow
+  here fires ~5h late. Median order-to-fill was 2,384 min. Double ticks are
+  safe (fill core locks the row; "already filled" is treated as a lost race).
 - **Aspirational tick:** Cloudflare front-door Worker cron, `* * * * *` (see
   `edge/front-door/wrangler.toml` + its `scheduled()` export). **NOT DEPLOYED** -
   `wrangler.toml` still carries the literal placeholder

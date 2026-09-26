@@ -158,3 +158,17 @@ def test_holiday_fallback_matches_prices_js():
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-v"]))
+
+
+def test_pg_cron_schedules_the_matcher():
+    """GitHub's */5 schedule really ran ~2x a day (measured 2026-09-21..25),
+    so the punctual tick is pg_cron in the database. Don't lose it."""
+    migs = sorted((ROOT / "supabase" / "migrations").glob("*.sql"))
+    text = "\n".join(m.read_text(encoding="utf-8") for m in migs)
+    assert re.search(r"cron\.schedule\(\s*'order-matcher'", text), (
+        "No migration schedules 'order-matcher' with pg_cron. Without it the "
+        "only tick is GitHub Actions, which drops most */5 runs."
+    )
+    assert "/api/match-orders" in text and "vault.decrypted_secrets" in text, (
+        "The pg_cron matcher job must call /api/match-orders with the Vault secret."
+    )
