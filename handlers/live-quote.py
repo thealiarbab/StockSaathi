@@ -305,20 +305,34 @@ def fetch_yahoo_one(symbol):
     return None
 
 
+YAHOO_BATCH_TIMEOUT_S = 8
+
+
 def fetch_yahoo_batch(symbols):
     out = {}
     if not symbols:
         return out
-    with concurrent.futures.ThreadPoolExecutor(max_workers=min(40, len(symbols))) as ex:
+    # NOT `with ThreadPoolExecutor` + `as_completed(timeout=8)`. That pair
+    # never bounded anything: as_completed RAISED TimeoutError out of this
+    # function (uncaught upstream, so the whole request failed), and leaving
+    # the `with` block first waited for every thread -- up to 2 tickers x 2
+    # hosts x 3.5s each. One slow symbol cost the entire batch, quotes that
+    # had already arrived were never cached, and a cold 40-symbol chunk took
+    # 24-45s (measured 2026-09-26). wait() returns what finished; stragglers
+    # are abandoned rather than awaited.
+    ex = concurrent.futures.ThreadPoolExecutor(max_workers=min(40, len(symbols)))
+    try:
         futures = {ex.submit(fetch_yahoo_one, s): s for s in symbols}
-        for f in concurrent.futures.as_completed(futures, timeout=8):
-            s = futures[f]
+        done, _ = concurrent.futures.wait(futures, timeout=YAHOO_BATCH_TIMEOUT_S)
+        for f in done:
             try:
                 r = f.result()
                 if r:
-                    out[s] = r
+                    out[futures[f]] = r
             except Exception:
                 pass
+    finally:
+        ex.shutdown(wait=False, cancel_futures=True)
     return out
 
 

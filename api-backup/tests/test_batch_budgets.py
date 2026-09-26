@@ -199,3 +199,31 @@ def test_no_hashfiles_in_job_level_if():
     for wf in (ROOT / ".github" / "workflows").glob("*.yml"):
         for m in re.finditer(r"^( {4})if:.*hashFiles", wf.read_text(encoding="utf-8"), re.M):
             pytest.fail(f"{wf.name}: hashFiles() in a job-level if: -- {m.group(0).strip()}")
+
+
+# ---------------------------------------------------------------------------
+# live-quote: one slow symbol must not fail or stall the whole batch
+# ---------------------------------------------------------------------------
+
+def test_yahoo_batch_returns_partial_results_on_timeout(monkeypatch):
+    import threading
+
+    mod = _load("live-quote")
+    release = threading.Event()
+
+    def fake_one(sym):
+        if sym == "SLOW":
+            release.wait(5)
+            return {"symbol": sym}
+        return {"symbol": sym}
+
+    monkeypatch.setattr(mod, "fetch_yahoo_one", fake_one)
+    monkeypatch.setattr(mod, "YAHOO_BATCH_TIMEOUT_S", 0.3)
+    t = time.monotonic()
+    try:
+        out = mod.fetch_yahoo_batch(["A", "B", "SLOW", "C"])
+    finally:
+        release.set()
+    took = time.monotonic() - t
+    assert set(out) == {"A", "B", "C"}, "fast symbols must survive a slow one"
+    assert took < 2, f"batch waited {took:.1f}s for a straggler instead of abandoning it"

@@ -97,15 +97,21 @@ class handler(BaseHTTPRequestHandler):
             self._json(400, {"ok": False, "error": "no_valid_symbols"})
             return
 
-        quotes = {}
-        with concurrent.futures.ThreadPoolExecutor(max_workers=WORKERS) as ex:
+        # wait(), not `with` + as_completed(timeout=...): that raised
+        # TimeoutError on one slow symbol, failing the whole request after
+        # waiting for every thread anyway. See live-quote.fetch_yahoo_batch.
+        quotes = {s: None for s in syms}
+        ex = concurrent.futures.ThreadPoolExecutor(max_workers=WORKERS)
+        try:
             fut = {ex.submit(fetch_one, s): s for s in syms}
-            for f in concurrent.futures.as_completed(fut, timeout=9):
-                s = fut[f]
+            done, _ = concurrent.futures.wait(fut, timeout=9)
+            for f in done:
                 try:
-                    quotes[s] = f.result()
+                    quotes[fut[f]] = f.result()
                 except Exception:
-                    quotes[s] = None
+                    pass
+        finally:
+            ex.shutdown(wait=False, cancel_futures=True)
 
         hits = sum(1 for v in quotes.values() if v)
         self._json(200, {"ok": True, "quotes": quotes, "hits": hits, "total": len(syms)})
