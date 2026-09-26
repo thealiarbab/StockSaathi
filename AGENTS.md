@@ -10,9 +10,19 @@ Vanilla-JS SPA + Python serverless (Vercel) + Postgres (Supabase). Virtual-money
   `quote_cache` TTL layer. **Yahoo is the ONLY source.** `fetch_dhan_ltp` exists
   in `handlers/live-quote.py` but has never served a single quote:
   `DHAN_ACCESS_TOKEN` is unset and all 3,655 `quote_cache` rows across five
-  months are `source='yahoo'` (verified 2026-09-14). There is no second price
-  source behind Yahoo - treat its rate limit as a hard ceiling, not a
-  degraded mode.
+  months are `source='yahoo'` (verified 2026-09-14). There is no second
+  INTRADAY source behind Yahoo - treat its rate limit as a hard ceiling.
+  **Second, end-of-day source since 2026-09-27:** NSE's official bhavcopy,
+  fetched nightly on a GitHub runner (`.github/workflows/nse-eod.yml`; NSE
+  blocks Vercel, not runners) → `/api/admin-ingest-eod` → `nse_eod_prices` +
+  `apply_nse_eod()`, which fills `quote_cache` for stocks Yahoo lacks (new SME
+  listings), replaces prices older than that trading day, and warns on any
+  stock where Yahoo is >15% off the exchange close. Rows have `source='nse_eod'`.
+- **Yahoo trap:** for some NSE SME stocks Yahoo's `meta.regularMarketPrice` is
+  frozen at 2024-07-23 while the bars keep trading. Always read prices via
+  `handlers/_yahoo_price.py::pick_price`, never the meta field directly.
+- **Never show or trade an invented price.** `marketData.js`'s synthetic walk is
+  for charts only; `place_limit_order` refuses symbols the server cannot price.
 - **LLM:** Google **Vertex AI** Gemini, proxied via `api/chat.js` (Edge). Project
   `gen-lang-client-0129344832`. Profiles: `chat`/`fast` -> `gemini-3-flash-preview`,
   `reasoning` -> `gemini-3.1-pro-preview`, `json` -> `gemini-2.5-flash-lite`.

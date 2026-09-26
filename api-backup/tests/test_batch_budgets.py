@@ -306,3 +306,27 @@ def test_stale_meta_price_loses_to_newer_bars():
     price, ts, prev = pick_price(live)
     assert price == 1226.0, "a fresh meta price is the live intraday price and must win"
     assert prev == 1219.2
+
+
+# ---------------------------------------------------------------------------
+# NSE end-of-day ingest: parsing and one-row-per-symbol
+# ---------------------------------------------------------------------------
+
+def test_eod_ingest_parses_rupees_to_paise_and_prefers_equity_series(monkeypatch):
+    mod = _load("admin-ingest-eod")
+    posted = []
+    monkeypatch.setattr(mod, "_post", lambda path, payload, **kw:
+                        posted.append((path, payload)) or ({"ok": True, "added": 1} if "rpc" in path else None))
+    rows = [
+        ["ADISOFT", "SM", "250", "262", "249.5", "259.50", "255", "12000"],
+        ["DUAL", "BE", "10", "11", "9", "10.5", "10", "5"],
+        ["DUAL", "EQ", "10", "11", "9", "10.6", "10", "7"],
+        ["bad sym!", "EQ", "1", "1", "1", "1", "1", "1"],
+        ["ZERO", "EQ", "0", "0", "0", "0", "0", "0"],
+    ]
+    out = mod.ingest("2026-09-25", rows)
+    stored = {r["symbol"]: r for r in posted[0][1]}
+    assert out["stored"] == 2 and set(stored) == {"ADISOFT", "DUAL"}
+    assert stored["ADISOFT"]["close_paise"] == 25950
+    assert stored["DUAL"]["series"] == "EQ" and stored["DUAL"]["close_paise"] == 1060
+    assert posted[-1][0] == "rpc/apply_nse_eod"
