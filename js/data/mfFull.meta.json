@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-09-27T08:28:00.267Z",
+  "generated_at": "2026-09-28T08:52:59.251Z",
   "source": "https://portal.amfiindia.com/spages/NAVAll.txt",
-  "row_count": 14155,
+  "row_count": 14161,
   "distinct_amcs": 54,
   "distinct_categories": 101,
   "by_bucket": {
     "Equity": 2754,
-    "Index": 1684,
+    "Index": 1690,
     "Hybrid": 988,
     "Debt": 6455,
     "Solution": 186,
@@ -15,10 +15,10 @@
     "Other": 1291
   },
   "by_plan": {
-    "Direct": 4250,
-    "Regular": 9905
+    "Direct": 4253,
+    "Regular": 9908
   },
-  "sha8": "ff2d9e1c",
-  "raw_bytes": 5854371,
-  "brotli_bytes": 240171
+  "sha8": "f3acc324",
+  "raw_bytes": 5857084,
+  "brotli_bytes": 240317
 }
