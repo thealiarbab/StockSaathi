@@ -64,7 +64,130 @@ export function renderCrashReplay(main, params) {
     main.innerHTML = `<div class="empty-state"><span class="emoji">🔍</span><h3>Scenario not found</h3><a href="/crash-replay" class="btn btn-primary">Back</a></div>`;
     return;
   }
-  renderReplay(main, scenario);
+  if (scenario._partial || wasBuiltThisSession(scenario.id)) {
+    renderReplay(main, scenario);
+    return;
+  }
+  const path = location.pathname;
+  const mine = ++_buildSeq;
+  playBuildSequence(main, scenario).then(() => {
+    if (mine !== _buildSeq) return;              // a newer render took over
+    markBuiltThisSession(scenario.id);
+    if (location.pathname === path) renderReplay(main, scenario);
+  });
+}
+
+// -----------------------------------------------------------------------------
+// BUILD SEQUENCE — shown before a replay that is already built: the curated
+// three, cached featured replays and shared links. Those used to appear
+// instantly, which felt canned next to a live generation. This steps through
+// the replay's OWN data on screen (its real closes, the day-3 sale, the real
+// low, the opening narration), so every line shown is true; only the pacing
+// is added. About 3.5 s, skippable, once per replay per session, and skipped
+// right after a live generation the user has just watched.
+// -----------------------------------------------------------------------------
+const BUILT_KEY = "ss.replayBuilt.v1";
+// The router can render the same route twice during boot (auth settling
+// fires another navigation event), so only the newest build may finish.
+let _buildSeq = 0;
+let _cancelBuild = null;
+const BUILD_STAGES = [
+  { id: "prices",  shortLabel: "Prices" },
+  { id: "sim",     shortLabel: "Simulate" },
+  { id: "moments", shortLabel: "Key moments" },
+  { id: "story",   shortLabel: "Story" },
+];
+
+function builtSet() {
+  try { return new Set(JSON.parse(sessionStorage.getItem(BUILT_KEY) || "[]")); } catch { return new Set(); }
+}
+function wasBuiltThisSession(id) { return builtSet().has(id); }
+function markBuiltThisSession(id) {
+  try {
+    const s = builtSet(); s.add(id);
+    sessionStorage.setItem(BUILT_KEY, JSON.stringify([...s].slice(-50)));
+  } catch {}
+}
+
+function playBuildSequence(main, scenario) {
+  const frames = scenario.frames || [];
+  if (frames.length < 4) return Promise.resolve();
+  const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  const k = reduce ? 0.25 : 1;           // time scale
+  const rupee = (v) => "₹" + Math.round(v).toLocaleString("en-IN");
+  const pct = (v) => `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`;
+  const closes = frames.map(f => f.nifty);
+  const c0 = closes[0];
+  const low = closes.reduce((m, c, i) => (c < closes[m] ? i : m), 0);
+  const last = frames[frames.length - 1];
+  const sold = frames.find(f => f.day === 3) || frames[Math.min(3, frames.length - 1)];
+  const firstNarr = sanitizeNarration(scenario.narrations?.[frames[0].n] || scenario.description || "");
+
+  main.innerHTML = `<div class="container" style="max-width: 880px; padding-top: var(--sp-6);">
+    <div class="card" id="custom-crash-card"></div>
+    <p style="text-align: right; margin-top: var(--sp-2);">
+      <button class="btn btn-ghost btn-sm" id="build-skip" type="button">Skip ⏭</button>
+    </p>
+  </div>`;
+  renderGeneratingStage(main, scenario.title, {
+    stages: BUILD_STAGES,
+    headerHtml: `<span class="gen-pulse"></span>
+      <strong>Building</strong>
+      <h1 class="gen-query replay-build-title">${escapeHtml(scenario.title)} replay</h1>`,
+  });
+
+  return new Promise((resolve) => {
+    const timers = [];
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      timers.forEach(clearTimeout);
+      resolve();
+    };
+    const at = (ms, fn) => timers.push(setTimeout(() => { if (!done) fn(); }, ms * k));
+    _cancelBuild?.();
+    _cancelBuild = finish;
+    main.querySelector("#build-skip")?.addEventListener("click", finish);
+
+    // 1. Prices: the replay's real closes, as a tape.
+    at(0, () => advanceGeneratingStage(main, "prices", "active", `${closes.length} closes`));
+    const picks = [...new Set([0, 1, 2, 3, low, Math.floor(closes.length * 0.6), closes.length - 1])].sort((x, y) => x - y);
+    picks.forEach((i, n) => at(120 + n * 130, () => {
+      const d = i === 0 ? 0 : (closes[i] / c0 - 1) * 100;
+      appendGenFeedRow(main, `<span class="day">D${frames[i].day}</span><span class="px">${Math.round(closes[i]).toLocaleString("en-IN")}</span>` +
+        (i ? `<span class="${d >= 0 ? "delta-up" : "delta-down"}">${pct(d)}</span>` : ""));
+    }));
+    at(250, () => drawGenSparkline(main, closes));
+    // 2. Simulate: both portfolios from the same ₹1,00,000.
+    at(1150, () => { advanceGeneratingStage(main, "prices", "done"); advanceGeneratingStage(main, "sim", "active"); });
+    at(1300, () => appendGenFeedRow(main, `<span class="day">D0</span><span class="px">${rupee(frames[0].held)} invested</span>`));
+    at(1600, () => appendGenFeedRow(main, `<span class="day">D${sold.day}</span><span class="px">Panic-sell at close → ${rupee(sold.panic)} cash</span>`));
+    at(1900, () => appendGenFeedRow(main, `<span class="day">D${last.day}</span><span class="px">Held portfolio ${rupee(last.held)}</span>`));
+    // 3. Key moments: the real low and who finished ahead.
+    at(2200, () => { advanceGeneratingStage(main, "sim", "done"); advanceGeneratingStage(main, "moments", "active"); });
+    at(2350, () => appendGenFeedRow(main, `<span class="day">Low</span><span class="px">Day ${frames[low].day}</span><span class="delta-down">${pct((closes[low] / c0 - 1) * 100)}</span>`));
+    at(2650, () => {
+      const heldWon = last.held >= last.panic;
+      const gap = heldWon ? (last.held / last.panic - 1) * 100 : (last.panic / last.held - 1) * 100;
+      appendGenFeedRow(main, `<span class="day">End</span><span class="px">${heldWon ? "Holding" : "Panic-selling"} ahead</span><span class="${heldWon ? "delta-up" : "delta-down"}">${pct(gap)}</span>`);
+    });
+    // 4. Story: type the replay's opening narration.
+    at(2950, () => {
+      advanceGeneratingStage(main, "moments", "done", `${frames.filter(f => f.n).length} moments`);
+      advanceGeneratingStage(main, "story", "active");
+      startGenFeedNarrative(main);
+    });
+    const words = firstNarr.split(" ");
+    const per = Math.max(12, Math.min(35, 700 / Math.max(1, words.length)));
+    words.forEach((_, i) => at(3000 + i * per, () => updateGenFeedNarrative(main, words.slice(0, i + 1).join(" "))));
+    const end = 3000 + words.length * per + 350;
+    at(end, () => {
+      advanceGeneratingStage(main, "story", "done");
+      main.querySelector("#gen-stage")?.classList.add("gen-fading-out");
+    });
+    at(end + 150, finish);
+  });
 }
 
 function renderSelector(main) {
@@ -269,6 +392,8 @@ function renderSelector(main) {
       // needs the visual cue that we're done.
       const elapsed = performance.now() - triggerStartedAt;
       const FAST_THRESHOLD = 600;
+      // They just watched it being generated; skip the build sequence.
+      if (elapsed >= FAST_THRESHOLD) markBuiltThisSession(scenario.id);
       const FADE_MS = elapsed < FAST_THRESHOLD ? 0 : 80;
       if (FADE_MS > 0) {
         const stage = main.querySelector("#gen-stage");
@@ -1092,8 +1217,12 @@ function updateGenFeedNarrative(main, text) {
 // progress line), a real-time mini-sparkline that builds as Phase B
 // prices arrive, and a compact source-chain detail line. Far less
 // "bland separate page" and more "live console below the input".
-function renderGeneratingStage(main, queryText) {
+function renderGeneratingStage(main, queryText, opts = {}) {
   const safeQuery = escapeHtml(queryText);
+  const stages = opts.stages || GEN_STAGES;
+  const header = opts.headerHtml || `<span class="gen-pulse"></span>
+        <strong>Generating</strong>
+        <span class="gen-query">"${safeQuery}"</span>`;
   // Find the input card and inject the generating UI into it,
   // collapsing the input area but keeping the rest of the page intact.
   const card = main.querySelector("#custom-crash-card");
@@ -1102,25 +1231,23 @@ function renderGeneratingStage(main, queryText) {
     const stub = document.createElement("div");
     main.insertBefore(stub, main.firstChild);
     stub.innerHTML = `<div class="card" id="custom-crash-card"></div>`;
-    return renderGeneratingStage(main, queryText);
+    return renderGeneratingStage(main, queryText, opts);
   }
   // Cache the original card HTML so trigger()'s catch can restore on
   // error if needed (currently we render inline error inside the stage).
   card.innerHTML = `
     <div class="generating-stage gen-inline" id="gen-stage">
       <div class="gen-header">
-        <span class="gen-pulse"></span>
-        <strong>Generating</strong>
-        <span class="gen-query">"${safeQuery}"</span>
+        ${header}
       </div>
       <div class="gen-flow" role="progressbar">
-        ${GEN_STAGES.map((s, i) => `
+        ${stages.map((s, i) => `
           <div class="gen-flow-node" data-stage="${s.id}" data-state="pending">
             <span class="gen-flow-dot"></span>
             <span class="gen-flow-label">${escapeHtml(s.shortLabel || s.label)}</span>
             <span class="gen-flow-detail"></span>
           </div>
-          ${i < GEN_STAGES.length - 1 ? `<div class="gen-flow-link" data-link="${i}"></div>` : ""}
+          ${i < stages.length - 1 ? `<div class="gen-flow-link" data-link="${i}"></div>` : ""}
         `).join("")}
       </div>
       <div class="gen-body">

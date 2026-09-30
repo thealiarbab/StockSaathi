@@ -2942,6 +2942,8 @@ table.compare { min-width: 560px; }
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.95em;
 }
+/* The build sequence's title is the page's <h1> while it runs. */
+.gen-inline .replay-build-title { margin: 0; font-weight: 600; line-height: 1.3; }
 
 /* Stage flow — dots connected by lines, glowing as they complete */
 .gen-flow {
