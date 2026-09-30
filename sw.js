@@ -5,16 +5,17 @@
 // Bump this on every deploy so old cached JS/HTML isn't served forever. The
 // activate step below deletes any cache whose name doesn't match. Include a
 // date so it is obvious in DevTools which build is live.
-const CACHE_NAME = "stocksaathi-v294-20260930c";
+const CACHE_NAME = "stocksaathi-v295-20260930d";
 const STATIC = [
   "./",
-  "./index.html",
+  "./app-shell",
   "./manifest.json",
   "./logo.svg",
-  "./privacy.html",
-  "./terms.html",
-  "./grievance.html",
-  "./og-image.svg",
+  "./privacy",
+  "./terms",
+  "./grievance",
+  "./favicon.ico",
+  "./images/icon-192.png",
   "./robots.txt",
   "./sitemap.xml",
   "./css/main.css",
@@ -23,6 +24,8 @@ const STATIC = [
   "./js/state.js",
   "./js/money.js",
   "./js/router.js",
+  "./js/pageTitles.js",
+  "./js/pages/staticPage.js",
   "./js/navigation.js",
   "./js/va.js",
   "./js/auth/accounts.js",
@@ -161,7 +164,9 @@ self.addEventListener("fetch", (event) => {
           caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
         }
         return res;
-      }).catch(() => caches.match(event.request).then(c => c || caches.match("./index.html")))
+      }).catch(() => caches.match(event.request)
+        .then(c => c || caches.match("./app-shell"))      // offline deep link: SPA shell renders the route
+        .then(c => c || caches.match("./")))
     );
     return;
   }

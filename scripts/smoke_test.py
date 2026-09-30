@@ -19,9 +19,12 @@ Exit code 0 = pass. Extra routes: pass paths as arguments.
 """
 
 import json
+import re
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -60,7 +63,37 @@ ROUTES = [
     ("/docs/seo-plan.md", 404, None),
     ("/js/db/sync.js", 200, None),
     ("/js/db/supabase.js", 200, None),
+    # Phase 3: pre-rendered pages + assets
+    ("/learn-stock-market", 200, "#main h1"),
+    ("/for-students", 200, "#main h1"),
+    ("/compare/devion", 200, "#main table.compare"),
+    ("/stocks/M%26M", 200, "#main"),
+    ("/llms.txt", 200, None),
+    ("/favicon.ico", 200, None),
+    ("/images/og-image.png", 200, None),
+    ("/images/icon-512.png", 200, None),
+    ("/partials/landing.html", 404, None),
 ]
+
+# Crawler view (JavaScript OFF): path -> (expected <h1> fragment, indexable?)
+CRAWLER_PAGES = {
+    "/": ("Invest virtually", True),
+    "/stocks": ("NSE and BSE stocks", True),
+    "/stocks/RELIANCE": ("Reliance Industries", True),
+    "/stocks/M&M": ("Mahindra", True),
+    "/crash-replay": ("crash simulator", True),
+    "/crash-replay/COVID_2020": ("COVID-19", True),
+    "/crash-replay/GFC_2008": ("Global Financial Crisis", True),
+    "/crash-replay/DEMO_2016": ("Demonetisation", True),
+    "/chat": ("AI stock market coach", True),
+    "/learn-stock-market": ("learn the stock market", True),
+    "/for-students": ("students", True),
+    "/compare/devion": ("Devion", True),
+    "/news": ("news", False),
+    "/login": (None, False),          # app shell
+    "/portfolio": (None, False),
+    "/stocks/SPICEJET": (None, False),  # outside the Nifty 500: shell, noindex
+}
 
 # Console noise judged elsewhere. "Failed to load resource" carries no URL, so
 # failed requests are instead judged per-URL by the response listener: a
@@ -69,6 +102,11 @@ ROUTES = [
 IGNORE = (
     "Failed to load resource",
 )
+
+
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *a, **k):
+        return None
 
 
 def wait_for_server():
@@ -84,11 +122,12 @@ def wait_for_server():
 def main():
     extra = [(p, 200, "#main") for p in sys.argv[1:]]
     routes = ROUTES + extra
-    gen = subprocess.run([sys.executable, str(ROOT / "scripts" / "build_landing.py"), "--check"],
-                         cwd=ROOT, capture_output=True, text=True)
-    if gen.returncode != 0:
-        print("FAIL  generated landing files are stale:", gen.stdout.strip())
-        sys.exit(1)
+    for gen_script in ("build_landing.py", "prerender.py"):
+        gen = subprocess.run([sys.executable, str(ROOT / "scripts" / gen_script), "--check"],
+                             cwd=ROOT, capture_output=True, text=True)
+        if gen.returncode != 0:
+            print("FAIL  generated files are stale (%s): %s" % (gen_script, gen.stdout.strip()))
+            sys.exit(1)
     srv = subprocess.Popen([sys.executable, str(ROOT / "scripts" / "dev_server.py"), str(PORT), "-q"],
                            cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     failures, report = [], []
@@ -125,7 +164,7 @@ def main():
                     ok = page.locator(selector).count() > 0
                     if not ok:
                         errs.append("selector missing: " + selector)
-                if ok and want == 200 and path.split("?")[0] not in ("/robots.txt", "/sitemap.xml", "/manifest.json"):
+                if ok and want == 200 and selector:
                     txt = page.evaluate("() => (document.getElementById('main')||document.body).innerText.trim().length")
                     if txt < 20:
                         ok = False
@@ -184,6 +223,44 @@ def main():
             checks.append(("crawler text == SPA text on /", static_txt == app_txt and len(static_txt) > 1500))
             for must in ("NSE and BSE", "ages 13", "Frequently asked questions", "Is StockSaathi free?"):
                 checks.append(("raw HTML has '%s'" % must, must in static_txt))
+
+            # 6. crawler view of every public page (JS off): own title, own h1,
+            #    self canonical, right robots directive.
+            seen_titles = {}
+            for path, (h1_frag, indexable) in CRAWLER_PAGES.items():
+                raw = urllib.request.urlopen(BASE + urllib.parse.quote(path, safe="/"), timeout=10).read().decode("utf-8")
+                title = re.search(r"<title>(.*?)</title>", raw, re.S).group(1)
+                robots = re.search(r'<meta name="robots" content="([^"]+)"', raw).group(1)
+                ok = ("noindex" not in robots) == indexable
+                if indexable:
+                    canon = re.search(r'<link rel="canonical" href="([^"]+)"', raw)
+                    ok = ok and canon is not None and canon.group(1) == "https://stocksaathi.co.in" + path
+                    ok = ok and title not in seen_titles
+                    seen_titles[title] = path
+                if h1_frag:
+                    h1 = re.search(r"<h1[^>]*>(.*?)</h1>", raw, re.S)
+                    ok = ok and h1 is not None and h1_frag.lower() in re.sub(r"<[^>]+>", "", h1.group(1)).lower()
+                checks.append(("crawler view %s" % path, ok))
+
+            # 7. static content page survives SPA boot and in-app navigation
+            page.goto(BASE + "/learn-stock-market", wait_until="networkidle")
+            checks.append(("static page kept after boot", page.locator("#main h1").inner_text().startswith("How to learn")))
+            page.goto(BASE + "/", wait_until="networkidle")
+            page.locator("footer a[href='/compare/devion']").click()
+            page.wait_for_timeout(1500)
+            checks.append(("footer link → /compare/devion client-side",
+                           page.url == BASE + "/compare/devion" and page.locator("#main table.compare").count() == 1))
+            checks.append(("document.title follows route", "Devion" in page.title()))
+
+            # 8. cleanUrls: .html paths redirect to the clean URL
+            for legacy_html, clean in (("/index.html", "/"), ("/privacy.html", "/privacy")):
+                req = urllib.request.Request(BASE + legacy_html, method="HEAD")
+                try:
+                    code, loc = 200, None
+                    urllib.request.build_opener(NoRedirect).open(req, timeout=5)
+                except urllib.error.HTTPError as err:
+                    code, loc = err.code, err.headers.get("Location")
+                checks.append(("%s → 308 %s" % (legacy_html, clean), code == 308 and loc == clean))
 
             for name, passed in checks:
                 report.append({"check": name, "ok": bool(passed)})

@@ -11,7 +11,7 @@
       <stop offset="100%" stop-color="#4ADE80" stop-opacity="1"/>
     </linearGradient>
     <linearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#22C55E" stop-opacity="0.35"/>
+      <stop offset="0%" stop-color="#22C55E" stop-opacity="0.30"/>
       <stop offset="100%" stop-color="#22C55E" stop-opacity="0"/>
     </linearGradient>
     <radialGradient id="glow" cx="0.78" cy="0.25" r="0.7">
@@ -19,11 +19,11 @@
       <stop offset="60%" stop-color="#22C55E" stop-opacity="0"/>
     </radialGradient>
     <style>
-      .wm { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-weight: 800; letter-spacing: -1.5px; }
-      .sub { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-weight: 500; }
-      .pill { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-weight: 600; letter-spacing: 0.2px; }
-      .url { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-weight: 600; letter-spacing: 0.5px; }
-      .accent { fill: #22C55E; }
+      .wm   { font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-weight: 800; letter-spacing: -1.5px; }
+      .head { font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-weight: 700; letter-spacing: -0.5px; }
+      .sub  { font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-weight: 500; }
+      .pill { font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-weight: 600; letter-spacing: 0.2px; }
+      .url  { font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-weight: 600; letter-spacing: 0.5px; }
     </style>
   </defs>
 
@@ -37,46 +37,32 @@
     <line x1="0" y1="520" x2="1200" y2="520"/>
   </g>
 
-  <g transform="translate(0,0)">
-    <path d="M 0 470 L 80 455 L 160 475 L 240 430 L 320 445 L 400 395 L 480 410 L 560 360 L 640 335 L 720 290 L 800 245 L 880 210 L 960 165 L 1040 140 L 1120 110 L 1200 85 L 1200 630 L 0 630 Z" fill="url(#fill)"/>
-    <path d="M 0 470 L 80 455 L 160 475 L 240 430 L 320 445 L 400 395 L 480 410 L 560 360 L 640 335 L 720 290 L 800 245 L 880 210 L 960 165 L 1040 140 L 1120 110 L 1200 85" fill="none" stroke="url(#line)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-    <circle cx="1120" cy="110" r="9" fill="#4ADE80"/>
-    <circle cx="1120" cy="110" r="18" fill="#4ADE80" opacity="0.25"/>
-  </g>
+  <!-- Decorative trend line (illustration, not data). -->
+  <path d="M 640 470 L 700 455 L 760 468 L 820 430 L 880 440 L 940 395 L 1000 404 L 1060 350 L 1120 318 L 1200 270 L 1200 630 L 640 630 Z" fill="url(#fill)"/>
+  <path d="M 640 470 L 700 455 L 760 468 L 820 430 L 880 440 L 940 395 L 1000 404 L 1060 350 L 1120 318 L 1200 270" fill="none" stroke="url(#line)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
 
-  <g transform="translate(72,128)">
+  <g transform="translate(72,96)">
     <rect x="0" y="0" width="14" height="56" rx="3" fill="#22C55E"/>
-    <text x="34" y="48" class="wm" font-size="92" fill="#ffffff">StockSaathi</text>
+    <text x="34" y="48" class="wm" font-size="76" fill="#ffffff">StockSaathi</text>
   </g>
 
-  <text x="86" y="248" class="sub" font-size="34" fill="#CBD5E1">
-    AI-coached Indian stock simulator for teens
-  </text>
+  <text x="86" y="232" class="head" font-size="50" fill="#ffffff">Invest virtually.</text>
+  <text x="86" y="292" class="head" font-size="50" fill="#22C55E">Learn for real.</text>
 
-  <g transform="translate(86,300)">
-    <rect x="0" y="0" width="640" height="58" rx="29" fill="#0F1F18" stroke="#22C55E" stroke-width="1.5" opacity="0.95"/>
-    <circle cx="32" cy="29" r="6" fill="#22C55E"/>
-    <text x="56" y="38" class="pill" font-size="22" fill="#E5E7EB">
-      <tspan fill="#22C55E" font-weight="800">₹1,00,000</tspan> virtual money  ·  Real prices  ·  Free
-    </text>
-  </g>
+  <text x="86" y="350" class="sub" font-size="28" fill="#CBD5E1">Free stock market simulator for Indian teens, 13–18</text>
 
-  <g transform="translate(86,420)">
-    <g transform="translate(0,0)">
-      <rect x="0" y="0" width="160" height="78" rx="14" fill="#11221A" stroke="#22C55E" stroke-opacity="0.25" stroke-width="1"/>
-      <text x="16" y="32" class="sub" font-size="14" fill="#94A3B8">RELIANCE</text>
-      <text x="16" y="62" class="pill" font-size="22" fill="#22C55E">+2.4%</text>
-    </g>
-    <g transform="translate(180,0)">
-      <rect x="0" y="0" width="160" height="78" rx="14" fill="#11221A" stroke="#22C55E" stroke-opacity="0.25" stroke-width="1"/>
-      <text x="16" y="32" class="sub" font-size="14" fill="#94A3B8">TCS</text>
-      <text x="16" y="62" class="pill" font-size="22" fill="#22C55E">+1.8%</text>
-    </g>
-    <g transform="translate(360,0)">
-      <rect x="0" y="0" width="160" height="78" rx="14" fill="#11221A" stroke="#22C55E" stroke-opacity="0.25" stroke-width="1"/>
-      <text x="16" y="32" class="sub" font-size="14" fill="#94A3B8">INFY</text>
-      <text x="16" y="62" class="pill" font-size="22" fill="#22C55E">+0.9%</text>
-    </g>
+  <g transform="translate(86,396)" class="pill" font-size="22">
+    <rect x="0" y="0" width="300" height="54" rx="27" fill="#0F1F18" stroke="#22C55E" stroke-width="1.5"/>
+    <text x="24" y="35" fill="#E5E7EB"><tspan fill="#22C55E" font-weight="800">₹1,00,000</tspan> virtual money</text>
+
+    <rect x="316" y="0" width="236" height="54" rx="27" fill="#0F1F18" stroke="#22C55E" stroke-width="1.5"/>
+    <text x="340" y="35" fill="#E5E7EB">NSE + BSE stocks</text>
+
+    <rect x="0" y="70" width="300" height="54" rx="27" fill="#0F1F18" stroke="#22C55E" stroke-width="1.5"/>
+    <text x="24" y="105" fill="#E5E7EB">AI coach for beginners</text>
+
+    <rect x="316" y="70" width="236" height="54" rx="27" fill="#0F1F18" stroke="#22C55E" stroke-width="1.5"/>
+    <text x="340" y="105" fill="#E5E7EB">Crash replays</text>
   </g>
 
   <g transform="translate(1130,592)" text-anchor="end">

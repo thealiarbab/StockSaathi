@@ -1,11 +1,30 @@
 # robots.txt for stocksaathi.co.in
-# Open access — search engines AND AI bots welcome.
-# Owner explicitly chose to allow AI crawlers (training + retrieval)
-# because AI assistants are an increasingly important discovery channel
-# for the target audience (Indian teens 13-18).
+# Search engines AND AI assistants are welcome: they are how most students
+# find StockSaathi. The only things kept out are the admin console and the
+# noindex app shell that signed-in pages load into.
+
+User-agent: Googlebot
+User-agent: Bingbot
+User-agent: DuckDuckBot
+User-agent: YandexBot
+User-agent: Applebot
+User-agent: GPTBot
+User-agent: OAI-SearchBot
+User-agent: ChatGPT-User
+User-agent: ClaudeBot
+User-agent: Claude-User
+User-agent: Claude-SearchBot
+User-agent: PerplexityBot
+User-agent: Perplexity-User
+User-agent: Google-Extended
+User-agent: CCBot
+Allow: /
+Disallow: /a/
+Disallow: /app-shell
 
 User-agent: *
 Allow: /
+Disallow: /a/
+Disallow: /app-shell
 
-# --- Sitemap ---
 Sitemap: https://stocksaathi.co.in/sitemap.xml

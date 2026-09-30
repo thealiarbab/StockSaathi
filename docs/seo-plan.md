@@ -122,4 +122,35 @@ Fair positioning: Devion is course-first; StockSaathi is practice-first (learn b
 - Phase 1 — clean URLs.
 - Phase 2 — homepage copy. Source: `partials/landing.html` → `python scripts/build_landing.py` (injects into index.html + js/pages/landingContent.js, rebuilds the FAQPage JSON-LD from the visible FAQ).
 - Phase 3 — metadata, pre-rendering, structured data, sitemap, robots, llms.txt, manifest, icons.
+  - `scripts/prerender.py` writes 513 pages from `index.html` + `universeFull.json` + `crashes.js` + `partials/pages/`. The daily `universe-refresh` workflow re-runs it.
+  - Indexable: `/`, `/stocks`, 497 Nifty 500 stock pages, `/crash-replay` + 3 curated replays, `/chat`, `/learn-stock-market`, `/for-students`, `/compare/devion`, legal pages. `noindex`: `/news`, `/app-shell` (gated routes + stocks outside the Nifty 500 + `CUSTOM_*` replays), `404.html`.
+  - Images: `scripts/render_assets.py` renders `images/*.png` + `favicon.ico` from `logo.svg` / `og-image.svg` (the old OG image showed invented ticker moves; replaced).
+  - Data fix: `GFC_2008.finalDelta` was `0.4` (claimed holding won); its own numbers say the panic-seller finished 41.5% ahead within the window.
 - Phase 4 — admin URL cleanup.
+
+## 8. Search Console + Bing Webmaster Tools (owner to do)
+
+1. **Google Search Console** → Add property → **Domain** `stocksaathi.co.in` → verify with the DNS TXT record at the registrar (covers `www` and every path; no code change). If you prefer the URL-prefix method instead, send the `google-site-verification` meta tag content and it goes in `index.html`'s `<head>` above `<!-- meta:start -->` (outside the generated block), then `python scripts/prerender.py` copies it to every page.
+2. GSC → **Sitemaps** → submit `https://stocksaathi.co.in/sitemap.xml`.
+3. GSC → **URL inspection** → request indexing for `/`, `/stocks`, `/crash-replay`, `/learn-stock-market`, `/for-students`, `/compare/devion`, `/crash-replay/COVID_2020`.
+4. **Bing Webmaster Tools** → **Import from Google Search Console** (fastest; copies the verified site and sitemap). Otherwise add the site, verify by DNS CNAME or the `msvalidate.01` meta tag (same placement rule as step 1), and submit the sitemap.
+5. Bing → **IndexNow**: optional later; Bing, Yandex and others accept pings for changed URLs.
+6. Recheck in 1–2 weeks: GSC **Pages** report (indexed vs "Crawled — currently not indexed" for stock pages), **Enhancements** for breadcrumbs and FAQ parse errors.
+
+## 9. Wikidata entity draft (owner to review and submit; not submitted)
+
+Wikidata requires notability (serious, public, independent references). Create the item only once there is at least one independent source (press coverage, an event results page, an app-store listing); otherwise it is likely to be deleted.
+
+- **Label (en):** StockSaathi
+- **Description (en):** free web-based stock market simulator for Indian teenagers
+- **Aliases:** Stock Saathi
+- **instance of (P31):** web application (search Wikidata for the item's QID before adding)
+- **genre / main subject (P921):** stock market simulator; financial literacy
+- **country of origin (P495):** India (Q668)
+- **language of work (P407):** English (Q1860)
+- **official website (P856):** https://stocksaathi.co.in/
+- **founded by (P112):** Ali Arbab (create/link a person item only if it meets notability separately)
+- **inception (P571):** 2026
+- **source code repository (P1324):** https://github.com/thealiarbab/StockSaathi
+- **use (P366):** education; financial literacy
+- **References:** each statement needs a reference URL (the official site suffices for self-descriptive facts like website and repository; independent sources are needed for notability).

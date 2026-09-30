@@ -153,6 +153,13 @@ jobs:
           print("sanity gate passed")
           PY
 
+      # The pre-rendered stock pages, markets hub and sitemap are built from
+      # universeFull.json (scripts/prerender.py). Regenerate them from the new
+      # data so a listing, delisting or index change reaches search engines the
+      # same day. A page's sitemap <lastmod> only moves when its HTML changes.
+      - name: Regenerate pre-rendered pages
+        run: python3 scripts/prerender.py
+
       - name: Commit if changed
         run: |
           git config user.name  "github-actions[bot]"
@@ -163,6 +170,7 @@ jobs:
                   js/data/mfFull.*.json js/data/mfFull.*.json.br 2>/dev/null || true
           # -A picks up the pruned old content-hashed files the build deletes.
           git add -A js/data/
+          git add -A stocks/ stocks.html sitemap.xml js/pageTitles.js scripts/prerender-state.json
           if git diff --cached --quiet; then
             echo "universe unchanged — nothing to commit"
             exit 0

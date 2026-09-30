@@ -29,6 +29,41 @@ import { renderGrievance } from "./pages/grievance.js";
 import { currentUser, refreshCurrentUser } from "./auth/accounts.js";
 import { getState, subscribe } from "./state.js";
 import { go, installNavigation, upgradeLegacyHash, NAV_EVENT } from "./navigation.js";
+import { renderStaticPage, captureBootMain } from "./pages/staticPage.js";
+import { PAGE_TITLES } from "./pageTitles.js";
+import { getInstrument } from "./data/universe.js";
+
+const DEFAULT_TITLE = PAGE_TITLES["/"] || "StockSaathi";
+const APP_TITLES = {
+  login: "Log in | StockSaathi",
+  register: "Create a free account | StockSaathi",
+  "reset-req": "Reset your password | StockSaathi",
+  "reset-password": "Set a new password | StockSaathi",
+  onboarding: "Welcome | StockSaathi",
+  portfolio: "Portfolio | StockSaathi",
+  "report-card": "Report card | StockSaathi",
+  friends: "Friends | StockSaathi",
+  settings: "Settings | StockSaathi",
+  privacy: "Privacy Policy | StockSaathi",
+  terms: "Terms of Use | StockSaathi",
+  grievance: "Grievance | StockSaathi",
+  "404": "Page not found | StockSaathi",
+};
+
+// document.title for in-app navigation. Public pages reuse the exact
+// pre-rendered <title> (js/pageTitles.js is generated alongside the HTML).
+function titleFor(r) {
+  const path = (location.pathname.replace(/\/+$/, "") || "/");
+  if (PAGE_TITLES[path]) return PAGE_TITLES[path];
+  if (r.name === "stock-detail") {
+    const inst = getInstrument(r.params.symbol);
+    const name = inst && inst.name && inst.name !== r.params.symbol ? inst.name : null;
+    return name ? `${name} (${r.params.symbol}): Practice Trading | StockSaathi`
+                : `${r.params.symbol} | StockSaathi`;
+  }
+  if (r.name === "admin-slug") return "StockSaathi";
+  return APP_TITLES[r.name] || DEFAULT_TITLE;
+}
 
 const ROUTES = [
   { name: "home",          match: /^$|^\/$/,                              render: renderLanding, public: true },
@@ -68,6 +103,11 @@ const ROUTES = [
   { name: "privacy",       match: /^\/privacy\/?$/,                        render: renderPrivacy, public: true },
   { name: "terms",         match: /^\/terms\/?$/,                          render: renderTerms, public: true },
   { name: "grievance",     match: /^\/grievance\/?$/,                      render: renderGrievance, public: true },
+  // Pre-rendered content pages (scripts/prerender.py). The router keeps the
+  // server's markup on a cold load and fetches it on in-app navigation.
+  { name: "learn",         match: /^\/learn-stock-market\/?$/,             render: renderStaticPage, public: true },
+  { name: "for-students",  match: /^\/for-students\/?$/,                   render: renderStaticPage, public: true },
+  { name: "compare-devion", match: /^\/compare\/devion\/?$/,               render: renderStaticPage, public: true },
   // Admin path is NOT /admin — that 404s. Real path is /a/<slug> where
   // <slug> must match ADMIN_PATH env var on the server. The server returns
   // the same 404 shape for wrong slugs, so scanning the URL space gets you
@@ -277,6 +317,7 @@ export function mountRouter() {
     // Now the user sees a recoverable "something went wrong" card with a
     // retry button, and the error is logged to the console for debugging.
     try {
+      document.title = titleFor(r);
       r.render(main, r.params);
     } catch (err) {
       console.error(`[router] ${r.name} render failed:`, err);
@@ -316,6 +357,9 @@ export function mountRouter() {
   }
 
   installTracking();
+  // Keep the server's pre-rendered <main> for routes that have no JS renderer
+  // of their own (js/pages/staticPage.js), before route() clears it.
+  captureBootMain(main);
   upgradeLegacyHash();
   installNavigation(isAppPath);
   window.addEventListener(NAV_EVENT, route);

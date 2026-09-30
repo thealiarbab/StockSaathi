@@ -1,0 +1,37 @@
+# StockSaathi
+
+> StockSaathi is a free stock market simulator for Indian teenagers aged 13 to 18. Users practise investing with ₹1,00,000 of virtual money on real NSE and BSE stocks, ETFs and mutual funds at real market prices, and an AI coach flags beginner mistakes, such as panic-selling and FOMO buying, as they make them. It is built for complete beginners, uses no real money, and is not a broker or investment adviser.
+
+StockSaathi teaches by doing rather than through lessons: there are no course modules or quizzes. Learning comes from placing practice trades, being coached on your own decisions, replaying real Indian market crashes, and reviewing a report card that grades decision quality.
+
+## Key facts
+
+- Price: free. No paid plan, no subscription, no in-app purchases; it never asks for payment details.
+- Audience: Indian teens aged 13–18, including complete beginners, school and college students. Anyone 13 or older can sign up.
+- Money: ₹1,00,000 of virtual money per account. Nothing can be deposited, withdrawn or converted into anything real. No real shares are bought or sold.
+- Markets: 4,000+ stocks listed on the NSE and BSE (including NSE SME listings), 300+ ETFs and 10,000+ mutual fund schemes, at real market prices. No futures and options, crypto or foreign stocks.
+- Orders: market orders, limit orders and after-market orders (AMOs). Pending orders are filled on the server even when the app is closed.
+- AI coach ("Saathi"): checks every trade for nine common mistakes — panic-selling, FOMO buying, pump-chasing, anchoring to 52-week highs or lows, single-stock concentration, sector concentration, the disposition effect, churning and overtrading — and explains what it noticed in the user's own numbers. It answers finance questions in English, or in Hinglish if the user turns that on. It never recommends buying or selling a security and does not predict prices.
+- Panic-sell intervention: before a likely panic-sell, the app pauses and shows how long similar past dips took to recover, then lets the user decide.
+- Crash replays ("Time Travel"): hand-built day-by-day replays of the COVID-19 crash (2020), the 2008 global financial crisis and the 2016 demonetisation shock, comparing a portfolio that held with one that panic-sold on day three. Featured AI-built replays cover the Harshad Mehta scam (1992), the dot-com crash (2000), Satyam (2009), IL&FS (2018), DHFL (2019), YES Bank (2020), the Paytm IPO (2021) and the Adani–Hindenburg report (2023); users can generate replays of other events.
+- Report card: a letter grade from A+ to D that updates after every decision and weighs behaviour more than returns, with badges for habits like diversifying and holding long term.
+- Social: users can send virtual cash to friends by @username or redeem code. There is deliberately no leaderboard ranking users by returns.
+- News: Indian market headlines from major business news sources, tagged bullish, bearish or neutral.
+- Without an account, visitors can browse markets and charts, read news, chat with the AI coach and play the curated crash replays. Trading and keeping a portfolio need a free account.
+- Compliance: StockSaathi is an educational simulator. It is not a SEBI-registered broker, investment adviser or research analyst, and is not affiliated with SEBI, NSE or BSE. Users under 18 should use it with a parent's or guardian's knowledge; a parent can request deletion of an account and its data at grievance@stocksaathi.co.in.
+
+## Pages
+
+- [Home](https://stocksaathi.co.in/): what StockSaathi is, with an FAQ.
+- [Markets](https://stocksaathi.co.in/stocks): 4,000+ NSE and BSE stocks, ETFs and mutual funds; Nifty 500 stocks by sector.
+- [Crash replays](https://stocksaathi.co.in/crash-replay): replay real Indian market crashes.
+- [COVID-19 crash replay (2020)](https://stocksaathi.co.in/crash-replay/COVID_2020)
+- [Global financial crisis replay (2008)](https://stocksaathi.co.in/crash-replay/GFC_2008)
+- [Demonetisation replay (2016)](https://stocksaathi.co.in/crash-replay/DEMO_2016)
+- [AI coach](https://stocksaathi.co.in/chat): ask Saathi about investing and Indian markets.
+- [Learn the stock market](https://stocksaathi.co.in/learn-stock-market): a beginner's guide for Indian teens.
+- [For students, parents and teachers](https://stocksaathi.co.in/for-students)
+- [StockSaathi vs Devion](https://stocksaathi.co.in/compare/devion): an honest comparison with another simulator for Indian teens.
+- [Privacy policy](https://stocksaathi.co.in/privacy), [Terms of use](https://stocksaathi.co.in/terms), [Grievance officer](https://stocksaathi.co.in/grievance)
+
+Individual stock pages follow the pattern https://stocksaathi.co.in/stocks/SYMBOL (for example https://stocksaathi.co.in/stocks/RELIANCE).

@@ -120,7 +120,11 @@ const GFC_2008 = {
   description: "The Lehman collapse. Sensex lost 64% from peak to trough over 10 months — but 3 years later it set a new high.",
   startLabel: "Jan 8, 2008",
   endLabel: "Oct 27, 2008",
-  finalDelta: 0.4,    // 10-month window: held ≈ panic early on. Over 3y, held wins massively.
+  // Negative = the panic-seller finished ahead inside this 10-month window
+  // (held ₹41,800 vs panic-sold ₹71,500: 41,800 / 71,500 − 1 = −41.5%).
+  // Was 0.4, which made the replay claim holding won — the opposite of its
+  // own numbers and narration. Over ~3 years, holding wins; not shown here.
+  finalDelta: -41.5,
   heldEnd: 41800,     // 10 months later
   panicEnd: 71500,    // panic-sold at day 3, stayed in cash
   indexDrop: -63.7,

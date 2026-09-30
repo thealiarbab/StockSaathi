@@ -3,7 +3,20 @@
 Vanilla-JS SPA + Python serverless (Vercel) + Postgres (Supabase). Virtual-money Indian stock-trading simulator for teens. Live at https://stocksaathi.co.in.
 
 ## Stack
-- **Frontend:** vanilla JS modules (no framework, no build step), SW-cached, hash router
+- **Frontend:** vanilla JS modules (no framework, no build step), SW-cached,
+  History-API router with clean URLs (`js/router.js` + `js/navigation.js`;
+  legacy `#/x` links are upgraded in place). `vercel.json` has `cleanUrls`.
+- **Pre-rendered HTML (SEO):** every public URL is a committed static file
+  generated from `index.html` + real data. After changing copy, data shape or
+  the template, run `python scripts/build_landing.py` (home body + FAQ JSON-LD,
+  source `partials/landing.html`) then `python scripts/prerender.py` (every
+  other page, `sitemap.xml`, `robots.txt`, `js/pageTitles.js`; content pages
+  from `partials/pages/`). `scripts/smoke.cmd` fails if either is stale.
+  Claims in any public copy must be in `docs/seo-plan.md` §2.
+- **Pre-push gate:** `scripts\smoke.cmd` (local server that mirrors
+  `vercel.json` + `.vercelignore`, headless Chromium). Anchor `.vercelignore`
+  directories with a leading `/`: an unanchored `db/` once removed `js/db/`
+  from production.
 - **Backend:** Vercel Python serverless functions in `api/*.py`
 - **Database:** Supabase Postgres, RLS-enforced, RPCs for cross-user reads
 - **Data:** Yahoo Finance free tier (rate-limited for Vercel IPs) with a Supabase
