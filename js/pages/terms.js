@@ -37,10 +37,9 @@ export function renderTerms(main) {
       <div class="card" style="margin-bottom: var(--sp-4);">
         <h3 style="margin-bottom: var(--sp-3);">2. Eligibility</h3>
         <p class="text-sm" style="line-height: 1.75;">
-          StockSaathi is intended for users who understand that the service is educational
-          and non-advisory. If you are under 18 years of age, please use the service
-          only with the knowledge and consent of a parent or lawful guardian. By
-          registering you confirm that you meet this requirement.
+          StockSaathi is intended for users aged 13 or older who understand that the
+          service is educational and non-advisory. By registering you confirm that you
+          meet this requirement.
         </p>
       </div>
 

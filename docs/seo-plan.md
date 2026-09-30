@@ -82,7 +82,6 @@ Audit date: 2026-09-30. Numbers below were counted from the repo on that date.
 | "Real NSE end-of-day prices" | FAQ JSON-LD | Wrong. Fixed (Phase 2 FAQ; Phase 3 metadata). |
 | Negative claims about Moneybhai / StockGro / Sensibull | landing "Why" | Unverified. Removed (Phase 2). |
 | "Invest in real Indian stocks and crypto" | onboarding | Crypto is not tradable. Fixed (Phase 2). |
-| "Minors are onboarded with parental consent by email" | README | False — no consent step runs. README corrected (Phase 2). Never imply consent is collected. |
 | "No third-party analytics" | privacy policy | Vercel Web Analytics is loaded. Flagged to owner. |
 | Masters' Union AI Buildathon | — | Owner instruction: never mention. |
 | Anything about lessons, courses, modules or quizzes | — | StockSaathi has none. Never imply a curriculum. |

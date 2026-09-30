@@ -112,7 +112,6 @@ do not let Supabase's default grants hand `anon` TRUNCATE, which bypasses RLS.
 - `/api/history?symbol=X&range=1mo&interval=1d` — OHLC for charts
 - `/api/fundamentals?symbol=X` — 3-tier fallback (v7 → v10 → v8/chart)
 - `/api/chat` — LLM proxy
-- `/api/send-consent` — parent email
 
 ## Do not
 - Commit secrets (`.env` is gitignored)

@@ -126,9 +126,6 @@ jobs:
             --exclude='.pytest_cache/' \
             --exclude='node_modules/' \
             --exclude='*.pyc' \
-            --exclude='backend.py' \
-            --exclude='run.sh' \
-            --exclude='run.bat' \
             --exclude='.env*' \
             --exclude='SUPABASE_SETUP.md' \
             --exclude='AGENTS.md' \

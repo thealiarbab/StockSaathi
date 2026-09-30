@@ -18,7 +18,7 @@ StockSaathi teaches by doing rather than through lessons: there are no course mo
 - Social: users can send virtual cash to friends by @username or redeem code. There is deliberately no leaderboard ranking users by returns.
 - News: Indian market headlines from major business news sources, tagged bullish, bearish or neutral.
 - Without an account, visitors can browse markets and charts, read news, chat with the AI coach and play the curated crash replays. Trading and keeping a portfolio need a free account.
-- Compliance: StockSaathi is an educational simulator. It is not a SEBI-registered broker, investment adviser or research analyst, and is not affiliated with SEBI, NSE or BSE. Users under 18 should use it with a parent's or guardian's knowledge; a parent can request deletion of an account and its data at grievance@stocksaathi.co.in.
+- Compliance: StockSaathi is an educational simulator. It is not a SEBI-registered broker, investment adviser or research analyst, and is not affiliated with SEBI, NSE or BSE. Any account and its data can be deleted from Settings or via grievance@stocksaathi.co.in.
 
 ## Pages
 

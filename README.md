@@ -47,8 +47,7 @@ research analyst, and it is not affiliated with SEBI, NSE, or BSE. No real order
 and no real money is ever handled. Published terms, privacy policy, and a grievance channel
 (`grievance@stocksaathi.co.in`) ship with the product rather than being retrofitted later.
 
-Users under 18 are asked to use the service with the knowledge and consent of a parent or guardian,
-who can request deletion of the account and its data through the grievance channel.
+Any account and its data can be deleted from Settings or through the grievance channel.
 
 ## Engineering
 

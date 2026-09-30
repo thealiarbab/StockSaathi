@@ -30,7 +30,6 @@ export function renderGrievance(main) {
         <ul class="text-sm" style="line-height: 1.9; padding-left: var(--sp-5); margin: 0;">
           <li>A request to <strong>access, correct, or erase</strong> your personal data under the DPDP Act 2023.</li>
           <li>A request to exercise your right to <strong>nominate</strong> another person to act on your behalf.</li>
-          <li>A request by a <strong>parent or guardian</strong> about a minor&rsquo;s account.</li>
           <li>A complaint about something that appears on the service and should not (e.g. impersonation, harassment, misleading content).</li>
           <li>A <strong>takedown notice</strong> from a rights holder or government authority.</li>
           <li>A <strong>dispute</strong> about the operation of the simulator (e.g. incorrect trade execution,

@@ -44,8 +44,7 @@ _DIR = pathlib.Path(__file__).resolve().parent
 # Handlers do `from _yahoo_session import ...` for their sibling underscore
 # helpers. When run as Vercel functions each file's own directory happened to
 # be on sys.path; loading them via spec_from_file_location gives no such
-# guarantee, so put it there explicitly. send-consent.py in particular has a
-# bare `from _email import ...` fallback with no sys.path.insert of its own.
+# guarantee, so put it there explicitly.
 if str(_DIR) not in sys.path:
     sys.path.insert(0, str(_DIR))
 
@@ -68,7 +67,6 @@ ROUTES = {
     "mf-history": "mf-history",
     "fundamentals": "fundamentals",
     "screener": "screener",
-    "send-consent": "send-consent",
     "admin-sync-instruments": "admin-sync-instruments",
     "admin-sync-fundamentals": "admin-sync-fundamentals",
     "admin-sync-mf": "admin-sync-mf",

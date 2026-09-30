@@ -1273,7 +1273,7 @@ async function opAdminOverview(req, origin) {
       aiCacheCountRes, quoteCacheCountRes, dhanCountRes, auditCountRes,
       histCountRes,
     ] = await Promise.all([
-      sbAdminFetch(`/rest/v1/profiles?select=id,username,display_name,email,age,school,city,risk_profile,onboarded,parent_consent_at,created_at,updated_at,avatar_color,class_code,parent_email&order=created_at.desc&limit=5000`),
+      sbAdminFetch(`/rest/v1/profiles?select=id,username,display_name,email,age,school,city,risk_profile,onboarded,created_at,updated_at,avatar_color,class_code&order=created_at.desc&limit=5000`),
       sbAdminFetch(`/rest/v1/portfolios?select=user_id,cash_paise,starting_cash_paise,updated_at&limit=5000`),
       sbAdminFetch(`/rest/v1/transactions?select=id,user_id,symbol,side,qty,price_paise,value_paise,bias_flags,created_at&order=created_at.desc&limit=50000`),
       sbAdminFetch(`/rest/v1/coach_messages?select=id,user_id,event_type,trigger_symbol,model,created_at&limit=50000`),
@@ -1367,10 +1367,7 @@ async function opAdminOverview(req, origin) {
         city: p.city,
         riskProfile: p.risk_profile,
         avatarColor: p.avatar_color,
-        parentEmail: p.parent_email,
         onboarded: p.onboarded,
-        parentConsented: !!p.parent_consent_at,
-        parentConsentAt: p.parent_consent_at,
         createdAt: p.created_at,
         updatedAt: p.updated_at,
         cashRupees,
@@ -1399,7 +1396,6 @@ async function opAdminOverview(req, origin) {
     const totalHoldingsValueRupees = users.reduce((a, u) => a + (u.holdingsValueRupees || 0), 0);
     const onboardedCount = users.filter(u => u.onboarded).length;
     const activeCount = users.filter(u => u.tradeCount > 0).length;
-    const consentedCount = users.filter(u => u.parentConsented).length;
 
     // Top-10 leaderboards
     const top = {
@@ -1419,7 +1415,6 @@ async function opAdminOverview(req, origin) {
         onboardedPct: users.length ? Math.round((onboardedCount / users.length) * 100) : 0,
         active: activeCount,
         activePct: users.length ? Math.round((activeCount / users.length) * 100) : 0,
-        consented: consentedCount,
         totalCashRupees,
         totalHoldingsValueRupees,
         totalPortfolioRupees: totalCashRupees + totalHoldingsValueRupees,
@@ -1857,7 +1852,7 @@ async function opAdminProfilePatch(req, origin) {
   // Whitelist editable columns — never let an admin accidentally rewrite id / created_at.
   const ALLOWED = new Set([
     "display_name", "email", "age", "school", "class_code", "city",
-    "risk_profile", "parent_email", "avatar_color", "onboarded",
+    "risk_profile", "avatar_color", "onboarded",
   ]);
   const cleanPatch = {};
   for (const [k, v] of Object.entries(patch)) if (ALLOWED.has(k)) cleanPatch[k] = v;
@@ -3156,7 +3151,7 @@ async function opSignupCount(req, origin) {
     // stats per user. Server-role only; anyone hitting ?detailed=1 gets
     // real PII, so consider gating with a shared admin token before you
     // expose this beyond your own dashboard.
-    const profilesRes = await sbFetch(`/rest/v1/profiles?select=id,username,display_name,email,age,school,city,risk_profile,onboarded,created_at,parent_consent_at&order=created_at.desc&limit=200`);
+    const profilesRes = await sbFetch(`/rest/v1/profiles?select=id,username,display_name,email,age,school,city,risk_profile,onboarded,created_at&order=created_at.desc&limit=200`);
     const profiles = profilesRes.ok ? await profilesRes.json() : [];
 
     const portRes = await sbFetch(`/rest/v1/portfolios?select=user_id,cash_paise,starting_cash_paise,updated_at&limit=2000`);
@@ -3179,7 +3174,6 @@ async function opSignupCount(req, origin) {
       city: p.city,
       riskProfile: p.risk_profile,
       onboarded: p.onboarded,
-      parentConsented: !!p.parent_consent_at,
       createdAt: p.created_at,
       cashRupees: portByUser[p.id] ? Math.round((portByUser[p.id].cash_paise || 0) / 100) : null,
       startingCashRupees: portByUser[p.id] ? Math.round((portByUser[p.id].starting_cash_paise || 100000) / 100) : 100000,

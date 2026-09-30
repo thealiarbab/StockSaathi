@@ -5,7 +5,7 @@
 // Bump this on every deploy so old cached JS/HTML isn't served forever. The
 // activate step below deletes any cache whose name doesn't match. Include a
 // date so it is obvious in DevTools which build is live.
-const CACHE_NAME = "stocksaathi-v296-20260930e";
+const CACHE_NAME = "stocksaathi-v297-20260930f";
 const STATIC = [
   "./",
   "./app-shell",
@@ -146,8 +146,8 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== location.origin) return;
 
   // Never cache our own /api/* routes — they should always hit network.
-  // Previously these were cache-first and could return stale config / health /
-  // consent responses on subsequent loads.
+  // Previously these were cache-first and could return stale config / health
+  // responses on subsequent loads.
   if (url.pathname.startsWith("/api/")) return;
 
   // Network-first for HTML shell so users get new builds fast. Fallback

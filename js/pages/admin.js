@@ -45,7 +45,6 @@ const state = {
     search: "",
     onboarded: "any",         // any | yes | no
     riskProfile: "any",       // any | cautious | balanced | bold
-    consent: "any",           // any | yes | no
     traded: "any",            // any | yes | no
     coached: "any",           // any | yes | no
     ageBracket: "any",        // any | 13-15 | 16-17 | 18+
@@ -297,7 +296,6 @@ function renderOverview(host, main) {
       <div class="stat-tile"><div class="l">Users</div><div class="v tabular">${a.users}</div></div>
       <div class="stat-tile"><div class="l">Onboarded</div><div class="v tabular">${a.onboarded} <span class="dim text-sm">(${a.onboardedPct}%)</span></div></div>
       <div class="stat-tile"><div class="l">Traded ever</div><div class="v tabular">${a.active} <span class="dim text-sm">(${a.activePct}%)</span></div></div>
-      <div class="stat-tile"><div class="l">Consented</div><div class="v tabular">${a.consented}</div></div>
       <div class="stat-tile"><div class="l">Total portfolio</div><div class="v tabular">${formatRupees((a.totalPortfolioRupees || 0) * 100, { compact: true })}</div></div>
       <div class="stat-tile"><div class="l">Total cash</div><div class="v tabular">${formatRupees(a.totalCashRupees * 100, { compact: true })}</div></div>
       <div class="stat-tile"><div class="l">Total trades</div><div class="v tabular">${a.totalTrades}</div></div>
@@ -364,7 +362,6 @@ function renderUsersTab(host, main) {
       <input id="u-search" class="input" placeholder="Search username / name / email / school / city" value="${escapeAttr(state.filters.search)}" style="flex:1; min-width: 240px;" />
       <div id="u-onboarded" class="u-filter-slot"></div>
       <div id="u-risk"      class="u-filter-slot"></div>
-      <div id="u-consent"   class="u-filter-slot"></div>
       <div id="u-traded"    class="u-filter-slot"></div>
       <div id="u-coached"   class="u-filter-slot"></div>
       <div id="u-age"       class="u-filter-slot"></div>
@@ -403,11 +400,6 @@ function renderUsersTab(host, main) {
     value: state.filters.riskProfile,
     options: [{ value: "any", label: "Risk: any" }, { value: "cautious", label: "Cautious" }, { value: "balanced", label: "Balanced" }, { value: "bold", label: "Bold" }],
     onChange: v => setF("riskProfile", v),
-  });
-  mountThemedSelect(host.querySelector("#u-consent"), {
-    value: state.filters.consent,
-    options: [{ value: "any", label: "Consent: any" }, { value: "yes", label: "Consented" }, { value: "no", label: "No consent" }],
-    onChange: v => setF("consent", v),
   });
   mountThemedSelect(host.querySelector("#u-traded"), {
     value: state.filters.traded,
@@ -562,7 +554,6 @@ function applyFiltersAndSort(users) {
   }
   if (f.onboarded !== "any")      list = list.filter(u => f.onboarded === "yes" ? !!u.onboarded : !u.onboarded);
   if (f.riskProfile !== "any")    list = list.filter(u => u.riskProfile === f.riskProfile);
-  if (f.consent !== "any")        list = list.filter(u => f.consent === "yes" ? u.parentConsented : !u.parentConsented);
   if (f.traded !== "any")         list = list.filter(u => f.traded === "yes" ? u.tradeCount > 0 : u.tradeCount === 0);
   if (f.coached !== "any")        list = list.filter(u => f.coached === "yes" ? u.coachMsgCount > 0 : u.coachMsgCount === 0);
   if (f.ageBracket !== "any") {
@@ -674,8 +665,6 @@ function paintUserModal() {
           ${kv("Avatar color", profile.avatar_color)}
         </div>
         <div>
-          ${kv("Parent email", profile.parent_email)}
-          ${kv("Consent at", profile.parent_consent_at ? formatDatePrecise(profile.parent_consent_at) : "—")}
           ${kv("Onboarded", profile.onboarded ? "Yes" : "No")}
           ${kv("Joined", formatDatePrecise(profile.created_at))}
           ${kv("Last active", formatDatePrecise(profile.updated_at))}

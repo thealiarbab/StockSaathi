@@ -1,5 +1,5 @@
 // =============================================================================
-// ONBOARDING — 3 quick steps. No parent consent. No email link.
+// ONBOARDING — 3 quick steps.
 //   1) Welcome
 //   2) Profile (school + class — optional)
 //   3) Investing style

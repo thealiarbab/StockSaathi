@@ -20,9 +20,7 @@ export function renderPrivacy(main) {
           Act, 2023 (&ldquo;DPDP Act&rdquo;) and the DPDP Rules, 2025.
         </p>
         <p class="text-sm" style="line-height: 1.75; margin-top: var(--sp-3);">
-          If you are a minor (under 18 years old in India), a parent or lawful guardian must
-          provide verifiable consent before we process your personal data. Contact details for
-          the grievance officer are at the bottom of this page.
+          Contact details for the grievance officer are at the bottom of this page.
         </p>
       </div>
 
@@ -58,7 +56,9 @@ export function renderPrivacy(main) {
         </p>
         <p class="text-sm" style="line-height: 1.75; margin-top: var(--sp-2);">
           <strong>Technical data:</strong> IP address (seen by our hosting provider), user
-          agent, referral URL, session timestamps. We do not set advertising cookies.
+          agent, referral URL, session timestamps. We use Vercel Web Analytics to count page
+          views; it sets no cookies and does not track you across other websites. We do not
+          set advertising cookies.
         </p>
       </div>
 
@@ -124,13 +124,11 @@ export function renderPrivacy(main) {
       </div>
 
       <div class="card" style="margin-bottom: var(--sp-4);">
-        <h3 style="margin-bottom: var(--sp-3);">8. Children&rsquo;s data (under 18)</h3>
+        <h3 style="margin-bottom: var(--sp-3);">8. Teen users</h3>
         <p class="text-sm" style="line-height: 1.75;">
           StockSaathi is an educational tool designed to be usable by teenagers learning
-          about markets. If you are under 18, please use the service with the knowledge and
-          consent of a parent or lawful guardian. A parent may email the grievance officer
-          below at any time to request that we erase a minor&rsquo;s account and all associated
-          data.
+          about markets. Any user can delete their account and all associated data from
+          Settings, or ask the grievance officer below to erase it.
         </p>
         <p class="text-sm" style="line-height: 1.75; margin-top: var(--sp-3);">
           We do not use children&rsquo;s personal data for advertising, tracking across third-party

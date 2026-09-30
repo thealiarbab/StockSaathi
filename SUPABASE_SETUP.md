@@ -38,7 +38,7 @@ Ship to real users with a real Postgres backend, cross-device accounts, email fr
      https://stocksaathi.co.in/**
      https://*.vercel.app/**
      ```
-     Add `http://localhost:7348/**` ONLY if you also run `run.sh` / `backend.py` locally for development — production users don't need it.
+     Add `http://127.0.0.1:7350/**` ONLY if you test auth emails against the local dev server (`python scripts/dev_server.py`) — production users don't need it.
 
    Without a matching allowlist entry, password-reset and confirm-signup links get rejected by Supabase with "redirect URL not allowed."
 
