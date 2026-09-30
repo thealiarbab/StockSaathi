@@ -7,11 +7,12 @@
   <meta name="theme-color" content="#0A0B0F" media="(prefers-color-scheme: dark)" />
   <meta name="color-scheme" content="light dark" />
 
-  <script src="/js/va.js"></script>
+  <!-- defer keeps order: the beforeSend filter in va.js is queued before insights loads. -->
+  <script defer src="/js/va.js"></script>
   <script defer src="/_vercel/insights/script.js"></script>
   <!-- meta:start -->
   <title>Global Financial Crisis (2008) Replay: Hold or Panic-Sell? | StockSaathi</title>
-  <meta name="description" content="Replay the Global Financial Crisis (2008) day by day with ₹1,00,000 of virtual money. The index fell 64%. See holding vs panic-selling. Free." />
+  <meta name="description" content="Replay the Global Financial Crisis (2008) day by day with ₹1,00,000 of virtual money. The index fell 60%. See holding vs panic-selling. Free." />
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
   <link rel="canonical" href="https://stocksaathi.co.in/crash-replay/GFC_2008" />
   <link rel="alternate" hreflang="en-IN" href="https://stocksaathi.co.in/crash-replay/GFC_2008" />
@@ -20,7 +21,7 @@
   <meta property="og:locale" content="en_IN" />
   <meta property="og:type" content="website" />
   <meta property="og:title" content="Global Financial Crisis (2008) Replay: Hold or Panic-Sell? | StockSaathi" />
-  <meta property="og:description" content="Replay the Global Financial Crisis (2008) day by day with ₹1,00,000 of virtual money. The index fell 64%. See holding vs panic-selling. Free." />
+  <meta property="og:description" content="Replay the Global Financial Crisis (2008) day by day with ₹1,00,000 of virtual money. The index fell 60%. See holding vs panic-selling. Free." />
   <meta property="og:url" content="https://stocksaathi.co.in/crash-replay/GFC_2008" />
   <meta property="og:image" content="https://stocksaathi.co.in/images/og-image.png" />
   <meta property="og:image:type" content="image/png" />
@@ -30,7 +31,7 @@
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:site" content="@thealiarbab" />
   <meta name="twitter:title" content="Global Financial Crisis (2008) Replay: Hold or Panic-Sell? | StockSaathi" />
-  <meta name="twitter:description" content="Replay the Global Financial Crisis (2008) day by day with ₹1,00,000 of virtual money. The index fell 64%. See holding vs panic-selling. Free." />
+  <meta name="twitter:description" content="Replay the Global Financial Crisis (2008) day by day with ₹1,00,000 of virtual money. The index fell 60%. See holding vs panic-selling. Free." />
   <meta name="twitter:image" content="https://stocksaathi.co.in/images/og-image.png" />
   <meta name="twitter:image:alt" content="StockSaathi: Invest virtually. Learn for real. A free stock market simulator for Indian teens." />
   <script type="application/ld+json">
@@ -42,7 +43,7 @@
       "@id": "https://stocksaathi.co.in/crash-replay/GFC_2008#webpage",
       "url": "https://stocksaathi.co.in/crash-replay/GFC_2008",
       "name": "Global Financial Crisis (2008) Replay: Hold or Panic-Sell? | StockSaathi",
-      "description": "Replay the Global Financial Crisis (2008) day by day with ₹1,00,000 of virtual money. The index fell 64%. See holding vs panic-selling. Free.",
+      "description": "Replay the Global Financial Crisis (2008) day by day with ₹1,00,000 of virtual money. The index fell 60%. See holding vs panic-selling. Free.",
       "inLanguage": "en-IN",
       "isPartOf": {
         "@id": "https://stocksaathi.co.in/#website"
@@ -80,7 +81,7 @@
       "@type": "LearningResource",
       "@id": "https://stocksaathi.co.in/crash-replay/GFC_2008#replay",
       "name": "Global Financial Crisis replay",
-      "description": "The Lehman collapse. Sensex lost 64% from peak to trough over 10 months — but 3 years later it set a new high.",
+      "description": "The Lehman-era crash. The Nifty 50 lost 60% between January and October 2008: the replay where selling early really did win.",
       "learningResourceType": "Interactive simulation",
       "educationalLevel": "Beginner",
       "isAccessibleForFree": true,
@@ -134,18 +135,20 @@
        the same source js/pages/landing.js renders — so crawlers that do
        not run JavaScript read the real page and the SPA takes over with no
        visible flash. Edit the partial, never this block. -->
-  <main id="main" class="main" aria-live="polite" tabindex="-1">
+  <main id="main" class="main" tabindex="-1">
     <!-- landing:start -->
     <article class="container static-page">
       <nav class="crumbs" aria-label="Breadcrumb"><a href="/">Home</a> <span aria-hidden="true">›</span> <a href="/crash-replay">Crash replays</a> <span aria-hidden="true">›</span> <span>Global Financial Crisis</span></nav>
       <h1 class="tight">Global Financial Crisis replay: hold or panic-sell?</h1>
       <p class="lede">
-        The Lehman collapse. Sensex lost 64% from peak to trough over 10 months — but 3 years later it set a new high. In this replay a ₹1,00,000 portfolio splits in two on day three: one investor holds,
-        the other panic-sells. Within this window, the panic-seller finished 41.5% ahead of holding.
+        The Lehman-era crash. The Nifty 50 lost 60% between January and October 2008: the replay where selling early really did win. In this replay a ₹1,00,000 portfolio that moves with the Nifty 50 splits in two on
+        day three: one investor holds, the other sells everything at that day's close and stays in cash.
+        Within this window, the panic-seller finished 145.6% ahead of holding.
       </p>
-      <dl class="stat-list"><dt>Window</dt><dd>Jan 8, 2008 to Oct 27, 2008</dd><dt>Index fall at its worst</dt><dd>63.7%</dd><dt>Recovery</dt><dd>780 trading days</dd><dt>Held portfolio at the end</dt><dd>₹41,800</dd><dt>Panic-sold on day 3</dt><dd>₹71,500</dd></dl>
+      <p class="muted">Every step of the replay is a real daily closing level of the Nifty 50.</p>
+      <dl class="stat-list"><dt>Window</dt><dd>Jan 8, 2008 to Oct 27, 2008</dd><dt>Index fall at its worst</dt><dd>59.9%</dd><dt>Recovery</dt><dd>496 trading days</dd><dt>Held portfolio at the end</dt><dd>₹40,144</dd><dt>Panic-sold on day 3</dt><dd>₹98,604</dd></dl>
       <h2>What happened, day by day</h2>
-      <ol class="timeline"><li><strong>Day 0.</strong> Jan 8, 2008. Sensex at 21,206 — the bull market of the century. You&#x27;re fully invested in equities. Every Diwali headline says &#x27;buy the dip&#x27;.</li><li><strong>Day 3.</strong> Day 3 — down 13%. The brokers call it &#x27;a correction&#x27;. You sell at ₹71,500. The cash feels safe.</li><li><strong>Day 70.</strong> Month 3. Sensex down 40%. If you&#x27;re watching this in real time, it looks endless. At THIS moment, the panic seller looks like a genius — they sold before this. This is the emotional peak where most holders cave.</li><li><strong>Day 150.</strong> Sep 15, 2008. Lehman Brothers files Chapter 11. Global markets in freefall. The worst is still 40 trading days away.</li><li><strong>Day 190.</strong> Oct 27, 2008 — ₹36,300. Down 64% from peak. Held portfolio looks catastrophic. But here&#x27;s the crucial context: from this exact day, Sensex would take 779 days to set a NEW all-time high. Holders outperformed panic-sellers by year 3.</li><li><strong>Day 200.</strong> Inside our 10-month snapshot, the panic seller IS winning — ₹71,500 vs your ₹41,800. This scenario shows the inverse: sometimes the panic call works in the short run. But this ends badly — the cash waited until 2014 to re-enter. Time in the market beats timing the market.</li></ol>
+      <ol class="timeline"><li><strong>Day 0.</strong> 8 Jan 2008. The Nifty 50 closes at a record 6,287.85 after a five-year bull run. Your ₹1,00,000 is invested across the Nifty 50.</li><li><strong>Day 3.</strong> Day 3. The Nifty is only 1.4% off its record, but American banks keep reporting losses on subprime loans. You sell everything at the close and keep ₹98,604 in cash.</li><li><strong>Day 10.</strong> 22 Jan. The market falls so fast at the open that trading is halted for an hour. In two sessions the Nifty has lost 14%. It is now 22% below your start.</li><li><strong>Day 48.</strong> 17 Mar. The US bank Bear Stearns has been rescued over the weekend. The Nifty closes 28% below your start, and the panic-seller looks like a genius.</li><li><strong>Day 170.</strong> 15 Sep. Lehman Brothers files for bankruptcy in New York. The Nifty falls 3.7% and is 35% below your start. The worst is still six weeks away.</li><li><strong>Day 198.</strong> 27 Oct 2008. The Nifty closes at 2,524.2, 59.9% below your start. Held: ₹40,144. Panic-sold: ₹98,604, almost two and a half times as much. Here, selling early won. The catch: the Nifty was back above its January 2008 level by 9 Nov 2010, and anyone still waiting in cash for the right moment missed that recovery.</li></ol>
       <h2>The lesson</h2>
       <p>
         Crashes feel endless from the inside, and the urge to sell is strongest near the bottom. Replaying one lets
@@ -154,7 +157,7 @@
         then lets you decide.
       </p>
       <h2>More crash replays</h2>
-      <ul class="link-list"><li><a href="/crash-replay/COVID_2020">COVID-19 Crash</a> (Feb 19 – May 18, 2020)</li><li><a href="/crash-replay/DEMO_2016">Demonetisation Shock</a> (Nov 2016 – Feb 2017)</li></ul>
+      <ul class="link-list"><li><a href="/crash-replay/COVID_2020">COVID-19 Crash</a> (Feb – Nov 2020)</li><li><a href="/crash-replay/DEMO_2016">Demonetisation Shock</a> (Nov 2016 – Feb 2017)</li></ul>
       <p class="cta-line"><a href="/register" class="btn btn-primary btn-lg">Create a free account →</a>
       <a href="/learn-stock-market" class="btn btn-ghost btn-lg">Beginner's guide</a></p>
     </article>    <!-- landing:end -->

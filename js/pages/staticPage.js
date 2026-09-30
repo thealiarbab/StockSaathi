@@ -13,11 +13,24 @@ const cache = new Map();      // path -> main innerHTML
 
 export function captureBootMain(main) {
   if (boot || !main) return;
-  boot = { path: location.pathname.replace(/\/+$/, "") || "/", html: main.innerHTML };
+  boot = {
+    path: location.pathname.replace(/\/+$/, "") || "/",
+    html: main.innerHTML,
+    title: document.title,
+    // The app shell and 404 are noindex; only real pre-rendered pages count.
+    indexable: !document.querySelector('meta[name="robots"][content*="noindex"]'),
+  };
 }
 
 function currentPath() {
   return location.pathname.replace(/\/+$/, "") || "/";
+}
+
+// The pre-rendered <title> for the page the browser loaded, or null. The
+// router keeps it on that first render instead of guessing one before the
+// data it needs (e.g. the stock universe) has loaded.
+export function bootTitleFor(path) {
+  return boot && boot.indexable && boot.path === path && boot.title ? boot.title : null;
 }
 
 export function renderStaticPage(main) {
@@ -46,4 +59,36 @@ export function renderStaticPage(main) {
       // Hard navigation is always correct: the server has the page.
       if (currentPath() === path) location.reload();
     });
+}
+
+// -----------------------------------------------------------------------------
+// BOOT COMPANION — app routes that also have a pre-rendered page (/stocks,
+// /stocks/<SYMBOL>, /crash-replay, /crash-replay/<ID>).
+//
+// The router clears <main> and draws the app UI there, which used to throw
+// the pre-rendered article away: Google indexes the rendered DOM, so it saw
+// "Markets" and no links where the server had sent a titled, linked page.
+// On the load that arrived with that HTML, keep the article and show it
+// after <main>, below the app, to everyone. Same text for people and
+// crawlers, so nothing is hidden or cloaked. Outside <main> it survives the
+// app's own re-renders; it is removed as soon as the user navigates away.
+// -----------------------------------------------------------------------------
+const COMPANION_ID = "seo-companion";
+
+export function syncBootCompanion(main, keep) {
+  const existing = document.getElementById(COMPANION_ID);
+  const path = currentPath();
+  const want = keep && boot && boot.path === path && boot.indexable &&
+    boot.html.includes('class="container static-page"');
+  if (!want) { existing?.remove(); return; }
+  if (existing && existing.dataset.path === path) return;
+  existing?.remove();
+  const section = document.createElement("section");
+  section.id = COMPANION_ID;
+  section.className = "seo-companion";
+  section.dataset.path = path;
+  section.setAttribute("aria-label", "About this page");
+  // The app view owns the page's <h1>; the article's heading becomes an <h2>.
+  section.innerHTML = boot.html.replace(/<h1(\s[^>]*)?>([\s\S]*?)<\/h1>/, "<h2$1>$2</h2>");
+  main.after(section);
 }

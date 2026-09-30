@@ -7,7 +7,8 @@
   <meta name="theme-color" content="#0A0B0F" media="(prefers-color-scheme: dark)" />
   <meta name="color-scheme" content="light dark" />
 
-  <script src="/js/va.js"></script>
+  <!-- defer keeps order: the beforeSend filter in va.js is queued before insights loads. -->
+  <script defer src="/js/va.js"></script>
   <script defer src="/_vercel/insights/script.js"></script>
   <!-- meta:start -->
   <title>StockSaathi</title>
@@ -66,7 +67,7 @@
        the same source js/pages/landing.js renders — so crawlers that do
        not run JavaScript read the real page and the SPA takes over with no
        visible flash. Edit the partial, never this block. -->
-  <main id="main" class="main" aria-live="polite" tabindex="-1">
+  <main id="main" class="main" tabindex="-1">
     <!-- landing:start -->
     <div class="empty-state" style="padding-top: var(--sp-12);">
       <div class="spinner" aria-hidden="true" style="margin: 0 auto var(--sp-4);"></div>

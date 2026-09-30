@@ -18,6 +18,7 @@ Needs Playwright. On this machine it lives in the claude-seo runtime:
 Exit code 0 = pass. Extra routes: pass paths as arguments.
 """
 
+import html
 import json
 import re
 import subprocess
@@ -250,6 +251,25 @@ def main():
             checks.append(("footer link → /for-students client-side",
                            page.url == BASE + "/for-students" and page.locator("#main h1").count() == 1))
             checks.append(("document.title follows route", "Students" in page.title()))
+
+            # 7b. what Google indexes is the rendered DOM: on a cold load of an
+            #     app route the pre-rendered <title> survives, the pre-rendered
+            #     article stays below the app (#seo-companion), there is exactly
+            #     one <h1>, and the article goes away on in-app navigation.
+            for path, frag in (("/stocks/RELIANCE", "How RELIANCE has recovered"),
+                               ("/crash-replay/COVID_2020", "What happened, day by day")):
+                raw = urllib.request.urlopen(BASE + path, timeout=10).read().decode("utf-8")
+                raw_title = html.unescape(re.search(r"<title>(.*?)</title>", raw, re.S).group(1))
+                page.goto(BASE + path, wait_until="networkidle")
+                page.wait_for_timeout(1500)
+                comp = page.locator("#seo-companion")
+                checks.append(("rendered %s keeps pre-rendered title" % path, page.title() == raw_title))
+                checks.append(("rendered %s keeps article below app" % path,
+                               comp.count() == 1 and frag in comp.inner_text()))
+                checks.append(("rendered %s has one h1" % path, page.locator("h1").count() == 1))
+            page.locator("footer a[href='/learn-stock-market']").click()
+            page.wait_for_timeout(1500)
+            checks.append(("companion removed on in-app navigation", page.locator("#seo-companion").count() == 0))
 
             # 8. cleanUrls: .html paths redirect to the clean URL
             for legacy_html, clean in (("/index.html", "/"), ("/privacy.html", "/privacy")):

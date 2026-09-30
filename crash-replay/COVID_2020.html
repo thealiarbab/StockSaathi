@@ -7,11 +7,12 @@
   <meta name="theme-color" content="#0A0B0F" media="(prefers-color-scheme: dark)" />
   <meta name="color-scheme" content="light dark" />
 
-  <script src="/js/va.js"></script>
+  <!-- defer keeps order: the beforeSend filter in va.js is queued before insights loads. -->
+  <script defer src="/js/va.js"></script>
   <script defer src="/_vercel/insights/script.js"></script>
   <!-- meta:start -->
   <title>COVID-19 Crash (2020) Replay: Hold or Panic-Sell? | StockSaathi</title>
-  <meta name="description" content="Replay the COVID-19 Crash (2020) day by day with ₹1,00,000 of virtual money. The index fell 35%. See holding vs panic-selling. Free." />
+  <meta name="description" content="Replay the COVID-19 Crash (2020) day by day with ₹1,00,000 of virtual money. The index fell 37%. See holding vs panic-selling. Free." />
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
   <link rel="canonical" href="https://stocksaathi.co.in/crash-replay/COVID_2020" />
   <link rel="alternate" hreflang="en-IN" href="https://stocksaathi.co.in/crash-replay/COVID_2020" />
@@ -20,7 +21,7 @@
   <meta property="og:locale" content="en_IN" />
   <meta property="og:type" content="website" />
   <meta property="og:title" content="COVID-19 Crash (2020) Replay: Hold or Panic-Sell? | StockSaathi" />
-  <meta property="og:description" content="Replay the COVID-19 Crash (2020) day by day with ₹1,00,000 of virtual money. The index fell 35%. See holding vs panic-selling. Free." />
+  <meta property="og:description" content="Replay the COVID-19 Crash (2020) day by day with ₹1,00,000 of virtual money. The index fell 37%. See holding vs panic-selling. Free." />
   <meta property="og:url" content="https://stocksaathi.co.in/crash-replay/COVID_2020" />
   <meta property="og:image" content="https://stocksaathi.co.in/images/og-image.png" />
   <meta property="og:image:type" content="image/png" />
@@ -30,7 +31,7 @@
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:site" content="@thealiarbab" />
   <meta name="twitter:title" content="COVID-19 Crash (2020) Replay: Hold or Panic-Sell? | StockSaathi" />
-  <meta name="twitter:description" content="Replay the COVID-19 Crash (2020) day by day with ₹1,00,000 of virtual money. The index fell 35%. See holding vs panic-selling. Free." />
+  <meta name="twitter:description" content="Replay the COVID-19 Crash (2020) day by day with ₹1,00,000 of virtual money. The index fell 37%. See holding vs panic-selling. Free." />
   <meta name="twitter:image" content="https://stocksaathi.co.in/images/og-image.png" />
   <meta name="twitter:image:alt" content="StockSaathi: Invest virtually. Learn for real. A free stock market simulator for Indian teens." />
   <script type="application/ld+json">
@@ -42,7 +43,7 @@
       "@id": "https://stocksaathi.co.in/crash-replay/COVID_2020#webpage",
       "url": "https://stocksaathi.co.in/crash-replay/COVID_2020",
       "name": "COVID-19 Crash (2020) Replay: Hold or Panic-Sell? | StockSaathi",
-      "description": "Replay the COVID-19 Crash (2020) day by day with ₹1,00,000 of virtual money. The index fell 35%. See holding vs panic-selling. Free.",
+      "description": "Replay the COVID-19 Crash (2020) day by day with ₹1,00,000 of virtual money. The index fell 37%. See holding vs panic-selling. Free.",
       "inLanguage": "en-IN",
       "isPartOf": {
         "@id": "https://stocksaathi.co.in/#website"
@@ -80,7 +81,7 @@
       "@type": "LearningResource",
       "@id": "https://stocksaathi.co.in/crash-replay/COVID_2020#replay",
       "name": "COVID-19 Crash replay",
-      "description": "India's fastest bear market. Sensex lost 35% in 33 days — and took about 8 months to fully recover.",
+      "description": "The pandemic crash. The Nifty 50 fell 37% in 33 days, then took until November 2020 to climb back.",
       "learningResourceType": "Interactive simulation",
       "educationalLevel": "Beginner",
       "isAccessibleForFree": true,
@@ -134,18 +135,20 @@
        the same source js/pages/landing.js renders — so crawlers that do
        not run JavaScript read the real page and the SPA takes over with no
        visible flash. Edit the partial, never this block. -->
-  <main id="main" class="main" aria-live="polite" tabindex="-1">
+  <main id="main" class="main" tabindex="-1">
     <!-- landing:start -->
     <article class="container static-page">
       <nav class="crumbs" aria-label="Breadcrumb"><a href="/">Home</a> <span aria-hidden="true">›</span> <a href="/crash-replay">Crash replays</a> <span aria-hidden="true">›</span> <span>COVID-19 Crash</span></nav>
       <h1 class="tight">COVID-19 Crash replay: hold or panic-sell?</h1>
       <p class="lede">
-        India&#x27;s fastest bear market. Sensex lost 35% in 33 days — and took about 8 months to fully recover. In this replay a ₹1,00,000 portfolio splits in two on day three: one investor holds,
-        the other panic-sells. Holding finished 38.4% ahead of panic-selling.
+        The pandemic crash. The Nifty 50 fell 37% in 33 days, then took until November 2020 to climb back. In this replay a ₹1,00,000 portfolio that moves with the Nifty 50 splits in two on
+        day three: one investor holds, the other sells everything at that day's close and stays in cash.
+        Holding finished 5.6% ahead of panic-selling.
       </p>
-      <dl class="stat-list"><dt>Window</dt><dd>Feb 19, 2020 to May 18, 2020</dd><dt>Index fall at its worst</dt><dd>35.3%</dd><dt>Recovery</dt><dd>163 trading days</dd><dt>Held portfolio at the end</dt><dd>₹92,400</dd><dt>Panic-sold on day 3</dt><dd>₹66,800</dd></dl>
+      <p class="muted">Every step of the replay is a real daily closing level of the Nifty 50.</p>
+      <dl class="stat-list"><dt>Window</dt><dd>Feb 19, 2020 to Nov 9, 2020</dd><dt>Index fall at its worst</dt><dd>37.2%</dd><dt>Recovery</dt><dd>157 trading days</dd><dt>Held portfolio at the end</dt><dd>₹1,02,764</dd><dt>Panic-sold on day 3</dt><dd>₹97,295</dd></dl>
       <h2>What happened, day by day</h2>
-      <ol class="timeline"><li><strong>Day 0.</strong> Feb 19, 2020. Nifty at an all-time high of 12,125. The headlines mention a new virus in China — but nobody is selling. You own a diversified ₹1,00,000 portfolio across 5 large caps.</li><li><strong>Day 2.</strong> Day 3. Nifty down 2.4%. Twitter is loud. Your WhatsApp family group is louder. Fear of being stuck in a crash kicks in.</li><li><strong>Day 3.</strong> Day 3 — you panic-sold everything at ₹66,800. In that moment it feels safe. Anchored here, you will wait on the sidelines hoping to &#x27;re-enter lower&#x27;.</li><li><strong>Day 6.</strong> One week in. Nifty down 14%. The news is scary, but markets have seen scarier — and survived.</li><li><strong>Day 10.</strong> March 13, 2020. Lower circuit hit. Trading halts. If you&#x27;re holding and watching a red screen, this is where most people capitulate.</li><li><strong>Day 12.</strong> Nifty down 29.6%. Most first-time investors sell here — at the most expensive emotional cost.</li><li><strong>Day 14.</strong> March 23, 2020 — the trough. ₹62,700 against your ₹1L original. From here, the market only goes one way: up. The held line is about to do something remarkable.</li><li><strong>Day 15.</strong> First sign of life. A single green day is rarely &#x27;the bottom&#x27; — but it often is. You don&#x27;t know that yet.</li><li><strong>Day 30.</strong> One month from the bottom. Held portfolio: ₹75,900. Already recovered 21% from the low. Panic-sold portfolio: still ₹66,800, compounding at 0%.</li><li><strong>Day 55.</strong> Phase shift. Stimulus announcements globally, vaccine research begins. The held line starts climbing faster.</li><li><strong>Day 61.</strong> 3 months after the crash. Held portfolio: ₹91,500 — 8.5% below start. Panic-sold: ₹66,800 — 33% below start. The held investor saw their portfolio back at the original ₹1L by September 2020. The panic-seller was still waiting &#x27;for the right moment&#x27;.</li></ol>
+      <ol class="timeline"><li><strong>Day 0.</strong> 19 Feb 2020. The Nifty 50 closes at 12,125.9, about 2% below the record it set in January. The news mentions a new virus in China, but nobody is selling. Your ₹1,00,000 is invested across the Nifty 50.</li><li><strong>Day 2.</strong> Day 2. The Nifty falls 2.1% in one session. Cases are rising outside China, and your family WhatsApp group is getting loud.</li><li><strong>Day 3.</strong> Day 3. The Nifty is 2.7% below where you started. You sell everything at the close and keep ₹97,295 in cash. From here, the panic-sold line stays flat.</li><li><strong>Day 14.</strong> 12 Mar. The day after the WHO calls COVID-19 a pandemic, the Nifty falls 8.3% in a single session. It is now 20.9% below your start.</li><li><strong>Day 15.</strong> 13 Mar. The market falls 10% within minutes of opening, hits the lower circuit, and trading halts for 45 minutes. Then it turns and closes 3.8% up. Days like this are when most people give up.</li><li><strong>Day 21.</strong> 23 Mar. The Nifty drops 13% in a day and closes at 7,610.25, 37.2% below your start, 33 days after it began. Held portfolio: ₹62,760. Nobody knows yet that this is the bottom.</li><li><strong>Day 23.</strong> 25 Mar. The Nifty jumps 6.6% in one session. One green day proves nothing, but this is where the recovery starts.</li><li><strong>Day 56.</strong> 18 May. Two months on, the held portfolio is ₹72,764, still 27% down. The panic-seller&#x27;s ₹97,295 in cash looks like the smart call.</li><li><strong>Day 130.</strong> 31 Aug. Held: ₹93,911. The gap to the panic-seller&#x27;s ₹97,295 has almost closed, and the market has not stopped climbing.</li><li><strong>Day 178.</strong> 6 Nov. The Nifty closes above its 19 Feb level for the first time, 157 trading days after the bottom. The held portfolio is back above ₹1,00,000.</li><li><strong>Day 179.</strong> 9 Nov 2020. The Nifty closes at a record 12,461. Held: ₹1,02,764. Panic-sold: ₹97,295 in cash. Selling on day 3 dodged the crash but missed the whole recovery, and holding finished 5.6% ahead. The gap kept growing: the Nifty ended 2020 at 13,981.75.</li></ol>
       <h2>The lesson</h2>
       <p>
         Crashes feel endless from the inside, and the urge to sell is strongest near the bottom. Replaying one lets

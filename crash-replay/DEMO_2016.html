@@ -7,11 +7,12 @@
   <meta name="theme-color" content="#0A0B0F" media="(prefers-color-scheme: dark)" />
   <meta name="color-scheme" content="light dark" />
 
-  <script src="/js/va.js"></script>
+  <!-- defer keeps order: the beforeSend filter in va.js is queued before insights loads. -->
+  <script defer src="/js/va.js"></script>
   <script defer src="/_vercel/insights/script.js"></script>
   <!-- meta:start -->
   <title>Demonetisation Shock (2016) Replay: Hold or Panic-Sell? | StockSaathi</title>
-  <meta name="description" content="Replay the Demonetisation Shock (2016) day by day with ₹1,00,000 of virtual money. The index fell 9%. See holding vs panic-selling. Free." />
+  <meta name="description" content="Replay the Demonetisation Shock (2016) day by day with ₹1,00,000 of virtual money. The index fell 7%. See holding vs panic-selling. Free." />
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
   <link rel="canonical" href="https://stocksaathi.co.in/crash-replay/DEMO_2016" />
   <link rel="alternate" hreflang="en-IN" href="https://stocksaathi.co.in/crash-replay/DEMO_2016" />
@@ -20,7 +21,7 @@
   <meta property="og:locale" content="en_IN" />
   <meta property="og:type" content="website" />
   <meta property="og:title" content="Demonetisation Shock (2016) Replay: Hold or Panic-Sell? | StockSaathi" />
-  <meta property="og:description" content="Replay the Demonetisation Shock (2016) day by day with ₹1,00,000 of virtual money. The index fell 9%. See holding vs panic-selling. Free." />
+  <meta property="og:description" content="Replay the Demonetisation Shock (2016) day by day with ₹1,00,000 of virtual money. The index fell 7%. See holding vs panic-selling. Free." />
   <meta property="og:url" content="https://stocksaathi.co.in/crash-replay/DEMO_2016" />
   <meta property="og:image" content="https://stocksaathi.co.in/images/og-image.png" />
   <meta property="og:image:type" content="image/png" />
@@ -30,7 +31,7 @@
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:site" content="@thealiarbab" />
   <meta name="twitter:title" content="Demonetisation Shock (2016) Replay: Hold or Panic-Sell? | StockSaathi" />
-  <meta name="twitter:description" content="Replay the Demonetisation Shock (2016) day by day with ₹1,00,000 of virtual money. The index fell 9%. See holding vs panic-selling. Free." />
+  <meta name="twitter:description" content="Replay the Demonetisation Shock (2016) day by day with ₹1,00,000 of virtual money. The index fell 7%. See holding vs panic-selling. Free." />
   <meta name="twitter:image" content="https://stocksaathi.co.in/images/og-image.png" />
   <meta name="twitter:image:alt" content="StockSaathi: Invest virtually. Learn for real. A free stock market simulator for Indian teens." />
   <script type="application/ld+json">
@@ -42,7 +43,7 @@
       "@id": "https://stocksaathi.co.in/crash-replay/DEMO_2016#webpage",
       "url": "https://stocksaathi.co.in/crash-replay/DEMO_2016",
       "name": "Demonetisation Shock (2016) Replay: Hold or Panic-Sell? | StockSaathi",
-      "description": "Replay the Demonetisation Shock (2016) day by day with ₹1,00,000 of virtual money. The index fell 9%. See holding vs panic-selling. Free.",
+      "description": "Replay the Demonetisation Shock (2016) day by day with ₹1,00,000 of virtual money. The index fell 7%. See holding vs panic-selling. Free.",
       "inLanguage": "en-IN",
       "isPartOf": {
         "@id": "https://stocksaathi.co.in/#website"
@@ -80,7 +81,7 @@
       "@type": "LearningResource",
       "@id": "https://stocksaathi.co.in/crash-replay/DEMO_2016#replay",
       "name": "Demonetisation Shock replay",
-      "description": "Overnight cash ban. Markets panicked briefly, recovered entirely within 4 months, then rallied 30% over the next year.",
+      "description": "The overnight note ban. The Nifty 50 slipped 7% over seven weeks and was back above its 8 November level by late January 2017.",
       "learningResourceType": "Interactive simulation",
       "educationalLevel": "Beginner",
       "isAccessibleForFree": true,
@@ -134,18 +135,20 @@
        the same source js/pages/landing.js renders — so crawlers that do
        not run JavaScript read the real page and the SPA takes over with no
        visible flash. Edit the partial, never this block. -->
-  <main id="main" class="main" aria-live="polite" tabindex="-1">
+  <main id="main" class="main" tabindex="-1">
     <!-- landing:start -->
     <article class="container static-page">
       <nav class="crumbs" aria-label="Breadcrumb"><a href="/">Home</a> <span aria-hidden="true">›</span> <a href="/crash-replay">Crash replays</a> <span aria-hidden="true">›</span> <span>Demonetisation Shock</span></nav>
       <h1 class="tight">Demonetisation Shock replay: hold or panic-sell?</h1>
       <p class="lede">
-        Overnight cash ban. Markets panicked briefly, recovered entirely within 4 months, then rallied 30% over the next year. In this replay a ₹1,00,000 portfolio splits in two on day three: one investor holds,
-        the other panic-sells. Holding finished 13.1% ahead of panic-selling.
+        The overnight note ban. The Nifty 50 slipped 7% over seven weeks and was back above its 8 November level by late January 2017. In this replay a ₹1,00,000 portfolio that moves with the Nifty 50 splits in two on
+        day three: one investor holds, the other sells everything at that day's close and stays in cash.
+        Holding finished 7.0% ahead of panic-selling.
       </p>
-      <dl class="stat-list"><dt>Window</dt><dd>Nov 8, 2016 to Feb 28, 2017</dd><dt>Index fall at its worst</dt><dd>8.7%</dd><dt>Recovery</dt><dd>92 trading days</dd><dt>Held portfolio at the end</dt><dd>₹1,02,600</dd><dt>Panic-sold on day 3</dt><dd>₹90,700</dd></dl>
+      <p class="muted">Every step of the replay is a real daily closing level of the Nifty 50.</p>
+      <dl class="stat-list"><dt>Window</dt><dd>Nov 8, 2016 to Feb 28, 2017</dd><dt>Index fall at its worst</dt><dd>7.4%</dd><dt>Recovery</dt><dd>22 trading days</dd><dt>Held portfolio at the end</dt><dd>₹1,03,933</dd><dt>Panic-sold on day 3</dt><dd>₹97,106</dd></dl>
       <h2>What happened, day by day</h2>
-      <ol class="timeline"><li><strong>Day 0.</strong> Nov 8, 2016, 8 PM. PM Modi announces ₹500 and ₹1000 notes invalid from midnight. Nifty opens down 1.3% next day. Headlines predict chaos.</li><li><strong>Day 3.</strong> Day 3. Nifty down 5.1%. Cash-heavy businesses are in crisis. You sell at ₹90,700, convinced this is the start of something worse.</li><li><strong>Day 16.</strong> Nov 24 — Nifty at 7908. Peak panic. News is saturated with queues outside ATMs. In hindsight, this is almost exactly the bottom.</li><li><strong>Day 50.</strong> By mid-January, the market has fully priced in the news. Digital payments start booming. Holders are back to break-even.</li><li><strong>Day 70.</strong> 4 months later. Held portfolio: ₹1,02,650 — you&#x27;re up 2.6%. Panic-sold: still ₹90,700. Over the next 12 months, the Nifty rallied another 27%. Demonetisation felt world-ending, and was forgotten in a quarter.</li></ol>
+      <ol class="timeline"><li><strong>Day 0.</strong> 8 Nov 2016. The market has closed with the Nifty 50 at 8,543.55. At 8 PM, the Prime Minister announces that ₹500 and ₹1,000 notes stop being legal tender at midnight. Your ₹1,00,000 is invested across the Nifty 50.</li><li><strong>Day 1.</strong> 9 Nov. The Nifty closes 1.3% lower on a day that also brings the surprise US election result.</li><li><strong>Day 3.</strong> Day 3. The Nifty is 2.9% below where you started, and bank queues fill every news channel. You sell everything at the close and keep ₹97,106 in cash.</li><li><strong>Day 8.</strong> 21 Nov. The Nifty is 7.2% below 8 November. Cash-heavy businesses are struggling, and the headlines predict a slowdown.</li><li><strong>Day 33.</strong> 26 Dec. The lowest close of the replay: 7,908.25, 7.4% below your start. Held: ₹92,564. The panic-seller is still ahead.</li><li><strong>Day 55.</strong> 25 Jan 2017. The Nifty closes above its 8 November level again, 22 trading days after the low.</li><li><strong>Day 77.</strong> 28 Feb 2017. Held: ₹1,03,933, up 3.9%. Panic-sold: ₹97,106 in cash. Holding finished 7.0% ahead. By the end of 2017, the Nifty was 33% above its December 2016 low.</li></ol>
       <h2>The lesson</h2>
       <p>
         Crashes feel endless from the inside, and the urge to sell is strongest near the bottom. Replaying one lets
@@ -154,7 +157,7 @@
         then lets you decide.
       </p>
       <h2>More crash replays</h2>
-      <ul class="link-list"><li><a href="/crash-replay/COVID_2020">COVID-19 Crash</a> (Feb 19 – May 18, 2020)</li><li><a href="/crash-replay/GFC_2008">Global Financial Crisis</a> (Jan – Oct 2008)</li></ul>
+      <ul class="link-list"><li><a href="/crash-replay/COVID_2020">COVID-19 Crash</a> (Feb – Nov 2020)</li><li><a href="/crash-replay/GFC_2008">Global Financial Crisis</a> (Jan – Oct 2008)</li></ul>
       <p class="cta-line"><a href="/register" class="btn btn-primary btn-lg">Create a free account →</a>
       <a href="/learn-stock-market" class="btn btn-ghost btn-lg">Beginner's guide</a></p>
     </article>    <!-- landing:end -->

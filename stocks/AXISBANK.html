@@ -7,10 +7,11 @@
   <meta name="theme-color" content="#0A0B0F" media="(prefers-color-scheme: dark)" />
   <meta name="color-scheme" content="light dark" />
 
-  <script src="/js/va.js"></script>
+  <!-- defer keeps order: the beforeSend filter in va.js is queued before insights loads. -->
+  <script defer src="/js/va.js"></script>
   <script defer src="/_vercel/insights/script.js"></script>
   <!-- meta:start -->
-  <title>Axis Bank Limited (AXISBANK): Practice Trading with Virtual Money</title>
+  <title>Axis Bank (AXISBANK) Paper Trading Simulator | StockSaathi</title>
   <meta name="description" content="Practice trading Axis Bank Limited (AXISBANK) shares with ₹1,00,000 of virtual money. A free stock market simulator for Indian teens." />
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
   <link rel="canonical" href="https://stocksaathi.co.in/stocks/AXISBANK" />
@@ -41,7 +42,7 @@
       "@type": "WebPage",
       "@id": "https://stocksaathi.co.in/stocks/AXISBANK#webpage",
       "url": "https://stocksaathi.co.in/stocks/AXISBANK",
-      "name": "Axis Bank Limited (AXISBANK): Practice Trading with Virtual Money",
+      "name": "Axis Bank (AXISBANK) Paper Trading Simulator | StockSaathi",
       "description": "Practice trading Axis Bank Limited (AXISBANK) shares with ₹1,00,000 of virtual money. A free stock market simulator for Indian teens.",
       "inLanguage": "en-IN",
       "isPartOf": {
@@ -54,7 +55,7 @@
       "about": {
         "@type": "Corporation",
         "name": "Axis Bank Limited",
-        "tickerSymbol": "NSE:AXISBANK",
+        "tickerSymbol": "NSE AXISBANK",
         "identifier": {
           "@type": "PropertyValue",
           "propertyID": "ISIN",
@@ -125,7 +126,7 @@
        the same source js/pages/landing.js renders — so crawlers that do
        not run JavaScript read the real page and the SPA takes over with no
        visible flash. Edit the partial, never this block. -->
-  <main id="main" class="main" aria-live="polite" tabindex="-1">
+  <main id="main" class="main" tabindex="-1">
     <!-- landing:start -->
     <article class="container static-page">
       <nav class="crumbs" aria-label="Breadcrumb"><a href="/">Home</a> <span aria-hidden="true">›</span> <a href="/stocks">Markets</a> <span aria-hidden="true">›</span> <span>Axis Bank Limited</span></nav>
@@ -145,12 +146,19 @@
       </ul>
       <p>
         As you trade AXISBANK, the coach watches for beginner mistakes: buying only after a big run-up,
-        panic-selling after a sharp drop, or letting a single stock grow past 40% of your portfolio. It explains
-        what it noticed in your own numbers and never tells you what to buy or sell.
+        panic-selling after a sharp drop, or buying so much of one stock that it becomes more than 40% of your
+        portfolio. It explains what it noticed in your own numbers and never tells you what to buy or sell.
+      </p>
+      <h2>How AXISBANK has recovered from past dips</h2>
+      <p>
+        Since 2011, Axis Bank Limited has fallen 10% or more below a previous high and then climbed back to that high
+        13 times. The median recovery took 83 trading days; the fastest took
+        14 and the slowest 854. One fall of 10% or more has not recovered yet. StockSaathi shows figures like these
+        before a likely panic-sell. Past recoveries don't guarantee future ones.
       </p>
       <h2>Other Banking stocks in the Nifty 500</h2>
       <ul class="link-list"><li><a href="/stocks/BANDHANBNK">Bandhan Bank Limited (BANDHANBNK)</a></li><li><a href="/stocks/BANKBARODA">Bank of Baroda (BANKBARODA)</a></li><li><a href="/stocks/BANKINDIA">Bank of India (BANKINDIA)</a></li><li><a href="/stocks/MAHABANK">Bank of Maharashtra (MAHABANK)</a></li><li><a href="/stocks/CANBK">Canara Bank (CANBK)</a></li><li><a href="/stocks/CENTRALBK">Central Bank of India (CENTRALBK)</a></li><li><a href="/stocks/CUB">City Union Bank Limited (CUB)</a></li><li><a href="/stocks/HDFCBANK">HDFC Bank Limited (HDFCBANK)</a></li></ul>
-      <p class="fineprint">Live prices and charts load in the app. StockSaathi is an educational simulator, not a
+      <p class="fineprint">Prices and charts load in the app and can be delayed. StockSaathi is an educational simulator, not a
       SEBI-registered broker or adviser, and is not affiliated with NSE or BSE.</p>
     </article>    <!-- landing:end -->
   </main>

@@ -7,7 +7,8 @@
   <meta name="theme-color" content="#0A0B0F" media="(prefers-color-scheme: dark)" />
   <meta name="color-scheme" content="light dark" />
 
-  <script src="/js/va.js"></script>
+  <!-- defer keeps order: the beforeSend filter in va.js is queued before insights loads. -->
+  <script defer src="/js/va.js"></script>
   <script defer src="/_vercel/insights/script.js"></script>
   <!-- meta:start -->
   <title>Stock Market Crash Simulator: Replay Indian Crashes | StockSaathi</title>
@@ -109,7 +110,7 @@
        the same source js/pages/landing.js renders — so crawlers that do
        not run JavaScript read the real page and the SPA takes over with no
        visible flash. Edit the partial, never this block. -->
-  <main id="main" class="main" aria-live="polite" tabindex="-1">
+  <main id="main" class="main" tabindex="-1">
     <!-- landing:start -->
     <article class="container static-page">
       <nav class="crumbs" aria-label="Breadcrumb"><a href="/">Home</a> <span aria-hidden="true">›</span> <span>Crash replays</span></nav>
@@ -121,18 +122,18 @@
       </p>
       <section class="replay-summary">
         <h2><a href="/crash-replay/COVID_2020">COVID-19 Crash</a></h2>
-        <p class="dim">Feb 19, 2020 to May 18, 2020</p>
-        <p>India&#x27;s fastest bear market. Sensex lost 35% in 33 days — and took about 8 months to fully recover.</p>
+        <p class="dim">Feb 19, 2020 to Nov 9, 2020</p>
+        <p>The pandemic crash. The Nifty 50 fell 37% in 33 days, then took until November 2020 to climb back.</p>
       </section>
       <section class="replay-summary">
         <h2><a href="/crash-replay/GFC_2008">Global Financial Crisis</a></h2>
         <p class="dim">Jan 8, 2008 to Oct 27, 2008</p>
-        <p>The Lehman collapse. Sensex lost 64% from peak to trough over 10 months — but 3 years later it set a new high.</p>
+        <p>The Lehman-era crash. The Nifty 50 lost 60% between January and October 2008: the replay where selling early really did win.</p>
       </section>
       <section class="replay-summary">
         <h2><a href="/crash-replay/DEMO_2016">Demonetisation Shock</a></h2>
         <p class="dim">Nov 8, 2016 to Feb 28, 2017</p>
-        <p>Overnight cash ban. Markets panicked briefly, recovered entirely within 4 months, then rallied 30% over the next year.</p>
+        <p>The overnight note ban. The Nifty 50 slipped 7% over seven weeks and was back above its 8 November level by late January 2017.</p>
       </section>
 
       <h2>Featured replays and your own</h2>

@@ -29,7 +29,7 @@ import { renderGrievance } from "./pages/grievance.js";
 import { currentUser, refreshCurrentUser } from "./auth/accounts.js";
 import { getState, subscribe } from "./state.js";
 import { go, installNavigation, upgradeLegacyHash, NAV_EVENT } from "./navigation.js";
-import { renderStaticPage, captureBootMain } from "./pages/staticPage.js";
+import { renderStaticPage, captureBootMain, bootTitleFor, syncBootCompanion } from "./pages/staticPage.js";
 import { PAGE_TITLES } from "./pageTitles.js";
 import { getInstrument } from "./data/universe.js";
 
@@ -55,15 +55,25 @@ const APP_TITLES = {
 function titleFor(r) {
   const path = (location.pathname.replace(/\/+$/, "") || "/");
   if (PAGE_TITLES[path]) return PAGE_TITLES[path];
+  // Cold load of a pre-rendered page: keep the server's <title>. Stock pages
+  // are not in PAGE_TITLES, and before the universe loads getInstrument()
+  // has no name, so this used to downgrade the title to "RELIANCE | StockSaathi".
+  const boot = bootTitleFor(path);
+  if (boot) return boot;
   if (r.name === "stock-detail") {
     const inst = getInstrument(r.params.symbol);
-    const name = inst && inst.name && inst.name !== r.params.symbol ? inst.name : null;
-    return name ? `${name} (${r.params.symbol}): Practice Trading | StockSaathi`
+    const name = inst && inst.name && inst.name !== r.params.symbol
+      ? inst.name.replace(/[\s,]+(Limited|Ltd\.?)$/i, "") : null;
+    return name ? `${name} (${r.params.symbol}) Paper Trading | StockSaathi`
                 : `${r.params.symbol} | StockSaathi`;
   }
   if (r.name === "admin-slug") return "StockSaathi";
   return APP_TITLES[r.name] || DEFAULT_TITLE;
 }
+
+// App routes whose pre-rendered article stays on the page below the app UI
+// on a cold load (see syncBootCompanion in js/pages/staticPage.js).
+const COMPANION_ROUTES = new Set(["stocks", "stock-detail", "crash-replay", "crash-replay-scenario"]);
 
 const ROUTES = [
   { name: "home",          match: /^$|^\/$/,                              render: renderLanding, public: true },
@@ -357,6 +367,7 @@ export function mountRouter() {
       d.textContent = String(s ?? "");
       return d.innerHTML;
     }
+    syncBootCompanion(main, COMPANION_ROUTES.has(r.name));
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 

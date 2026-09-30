@@ -71,7 +71,55 @@ def load_universe():
     equities = [r for r in rows if r.get("kind") == "EQUITY"]
     etfs = [r for r in rows if r.get("kind") == "ETF"]
     nifty500 = sorted((r for r in equities if (r.get("idx") or 0) & 4), key=lambda r: r["name"].lower())
+    # A failed index-CSV fetch in the universe build leaves every idx at 0,
+    # which would silently drop all stock pages from the site and sitemap.
+    if len(nifty500) < 450:
+        raise SystemExit("only %d Nifty 500 rows in universeFull.json; refusing to drop stock pages" % len(nifty500))
+    check_claim_floors(equities, etfs)
     return equities, etfs, nifty500
+
+
+# Rounded-down counts used in public copy (partials/, llms.txt, this file).
+# The build fails if the data ever drops below one, so copy can't over-claim.
+CLAIM_FLOORS = {"stocks": 4000, "etfs": 300, "active mutual funds": 8000}
+
+
+def check_claim_floors(equities, etfs):
+    mfs = json.loads((ROOT / "js" / "data" / "mfFull.json").read_text(encoding="utf-8"))
+    cutoff = (dt.date.today() - dt.timedelta(days=365)).isoformat()
+    # Same rule as _isMfTerminated() in js/pages/stocks.js.
+    active = sum(1 for m in mfs if not ((isinstance(m.get("nav"), (int, float)) and m["nav"] < 0.01)
+                                        or (m.get("nav_date") and m["nav_date"][:10] < cutoff)))
+    have = {"stocks": len(equities), "etfs": len(etfs), "active mutual funds": active}
+    for k, floor in CLAIM_FLOORS.items():
+        if have[k] < floor:
+            raise SystemExit("copy claims %s+ %s but the data has %d; update the copy" % (format(floor, ","), k, have[k]))
+
+
+def check_crash(cid, body, n):
+    """Refuse to publish a replay whose numbers contradict its own frames.
+
+    The first published versions sold the panic portfolio on day 3 for far
+    less than it was worth that day (COVID: ₹66,800 against a ₹95,900
+    portfolio), which flipped every headline result. See the model notes at
+    the top of js/data/crashes.js.
+    """
+    frames = [tuple(float(x) for x in f) for f in
+              re.findall(r"frame\((\d+),\s*([\d.]+),\s*(\d+),\s*(\d+)", body)]
+    by_day = {int(d): (idx, held, panic) for d, idx, held, panic in frames}
+    assert 3 in by_day, "%s: no day-3 frame" % cid
+    sold = by_day[3][1]
+    for day, (idx, held, panic) in by_day.items():
+        want = held if day <= 3 else sold
+        assert abs(panic - want) <= 1, "%s day %d: panic %d, expected %d" % (cid, day, panic, want)
+        assert abs(held - 100000 * idx / by_day[0][0]) <= 1, "%s day %d: held not proportional to index" % (cid, day)
+    last = by_day[max(by_day)]
+    held_end, panic_end = n("heldEnd"), n("panicEnd")
+    assert abs(held_end - last[1]) <= 1 and abs(panic_end - sold) <= 1, "%s: heldEnd/panicEnd != frames" % cid
+    delta = (held_end / panic_end - 1) * 100 if held_end >= panic_end else -(panic_end / held_end - 1) * 100
+    assert abs(delta - n("finalDelta")) < 0.06, "%s: finalDelta %s, frames say %.1f" % (cid, n("finalDelta"), delta)
+    drop = (min(v[0] for v in by_day.values()) / by_day[0][0] - 1) * 100
+    assert abs(drop - n("indexDrop")) < 0.06, "%s: indexDrop %s, frames say %.1f" % (cid, n("indexDrop"), drop)
 
 
 def load_crashes():
@@ -94,6 +142,7 @@ def load_crashes():
         narr = dict(re.findall(r'(\w+):\s*"((?:[^"\\]|\\.)*)"', narr_block))
         order = re.findall(r"frame\((\d+),[^)]*?\"(\w+)\"\)", body)
         timeline = [(int(day), narr[key].replace('\\"', '"')) for day, key in order if key in narr]
+        check_crash(cid, body, n)
         out.append({
             "id": cid, "title": s("title"), "subtitle": s("subtitle"), "description": s("description"),
             "start": s("startLabel"), "end": s("endLabel"), "finalDelta": n("finalDelta"),
@@ -130,6 +179,52 @@ def stock_path(sym):
     return "/stocks/" + sym
 
 
+def short_name(name):
+    """'Reliance Industries Limited' -> 'Reliance Industries' for titles."""
+    return re.sub(r"[\s,]+(Limited|Ltd\.?)$", "", name.strip(), flags=re.I)
+
+
+def stock_title(name, sym, limit=60):
+    """Shortest honest title that fits in a search result (~60 characters)."""
+    n = short_name(name)
+    for t in ("%s (%s) Paper Trading Simulator | StockSaathi", "%s (%s) Paper Trading | StockSaathi",
+              "%s (%s) Paper Trading", "%s (%s) | StockSaathi"):
+        title = t % (n, sym)
+        if len(title) <= limit:
+            return title
+    return "%s (%s)" % (n, sym)
+
+
+def load_dips():
+    """Real dip-recovery stats written by scripts/build_dip_stats.py."""
+    src = (ROOT / "js" / "data" / "dipStats.js").read_text(encoding="utf-8")
+
+    def obj(name):
+        m = re.search(r"export const %s = (\{.*?\n\});" % name, src, re.S)
+        return json.loads(m.group(1))
+    return obj("DIPS"), obj("DIP_SINCE")
+
+
+DIPS, DIP_SINCE = load_dips()
+
+
+def dip_html(sym, name):
+    """One real, stock-specific paragraph where the history exists."""
+    st = DIPS.get(sym, {}).get("10")
+    if not st or st["sampleSize"] < 3:
+        return ""
+    since = DIP_SINCE.get(sym, "")[:4]
+    still = " One fall of 10% or more has not recovered yet." if st.get("open") else ""
+    return f"""
+  <h2>How {e(sym)} has recovered from past dips</h2>
+  <p>
+    Since {since}, {e(name)} has fallen 10% or more below a previous high and then climbed back to that high
+    {st['sampleSize']} times. The median recovery took {st['recoveryDays']} trading days; the fastest took
+    {st['minRecoveryDays']} and the slowest {st['maxRecoveryDays']}.{still} StockSaathi shows figures like these
+    before a likely panic-sell. Past recoveries don't guarantee future ones.
+  </p>"""
+
+
 def stock_description(name, sym, limit=158):
     """Longest honest variant that fits in a search snippet."""
     for tail in (" A free stock market simulator for Indian teens.", " Free for Indian teens.", ""):
@@ -144,6 +239,8 @@ def stock_description(name, sym, limit=158):
 def org_node():
     return {
         "@type": "Organization", "@id": ORG_ID, "name": "StockSaathi", "url": SITE + "/",
+        "alternateName": ["Stock Saathi"],
+        "slogan": "Invest virtually. Learn for real.",
         "logo": {"@type": "ImageObject", "url": SITE + "/images/logo-512.png", "width": 512, "height": 512},
         "description": "StockSaathi makes a free stock market simulator that teaches Indian teenagers to invest with virtual money.",
         "founder": {"@id": FOUNDER_ID},
@@ -151,7 +248,7 @@ def org_node():
         "sameAs": ["https://github.com/thealiarbab/StockSaathi"],
         "contactPoint": {"@type": "ContactPoint", "contactType": "customer support",
                          "email": "grievance@stocksaathi.co.in", "areaServed": "IN",
-                         "availableLanguage": ["English", "Hindi"]},
+                         "availableLanguage": ["English"]},
     }
 
 
@@ -168,8 +265,9 @@ def website_node():
 def app_node():
     return {
         "@type": "WebApplication", "@id": APP_ID, "name": "StockSaathi", "url": SITE + "/",
+        "alternateName": ["Stock Saathi"],
         "applicationCategory": "FinanceApplication",
-        "applicationSubCategory": "Stock market simulator",
+        "applicationSubCategory": "Stock market simulator and paper trading app",
         "operatingSystem": "Any (web browser)",
         "description": ("A free stock market simulator for Indian teens aged 13–18. Practise with ₹1,00,000 of virtual "
                         "money on real NSE and BSE stocks, ETFs and mutual funds at real market prices, with an AI coach "
@@ -181,11 +279,11 @@ def app_node():
                      "geographicArea": {"@type": "Country", "name": "India"}},
         "featureList": [
             "₹1,00,000 of virtual money",
-            "4,000+ NSE and BSE stocks, ETFs and mutual funds at real market prices",
+            "4,000+ NSE and BSE stocks, 300+ ETFs and 8,000+ mutual funds at real market prices",
             "Market, limit and after-market orders",
             "AI coach that checks every trade for nine common investing mistakes",
-            "Pause before a likely panic-sell with historical recovery data",
-            "Replays of the 2020 COVID-19 crash, the 2008 financial crisis and 2016 demonetisation",
+            "Pause before a likely panic-sell showing how long past dips took to recover",
+            "Replays of the 2020 COVID-19 crash, the 2008 financial crisis and 2016 demonetisation, built from real Nifty 50 closes",
             "Report card that grades decision quality from A+ to D",
             "Optional Hinglish mode",
         ],
@@ -319,12 +417,12 @@ def stock_main(r, siblings):
   </ul>
   <p>
     As you trade {e(sym)}, the coach watches for beginner mistakes: buying only after a big run-up,
-    panic-selling after a sharp drop, or letting a single stock grow past 40% of your portfolio. It explains
-    what it noticed in your own numbers and never tells you what to buy or sell.
-  </p>
+    panic-selling after a sharp drop, or buying so much of one stock that it becomes more than 40% of your
+    portfolio. It explains what it noticed in your own numbers and never tells you what to buy or sell.
+  </p>{dip_html(sym, name)}
   <h2>{e(sib_title)}</h2>
   <ul class="link-list">{sib}</ul>
-  <p class="fineprint">Live prices and charts load in the app. StockSaathi is an educational simulator, not a
+  <p class="fineprint">Prices and charts load in the app and can be delayed. StockSaathi is an educational simulator, not a
   SEBI-registered broker or adviser, and is not affiliated with NSE or BSE.</p>
 </article>"""
 
@@ -344,8 +442,8 @@ def stocks_hub_main(equities, etfs, nifty500):
   <h1 class="tight">Stock market simulator with 4,000+ NSE and BSE stocks</h1>
   <p class="lede">
     Practise trading real Indian stocks with ₹1,00,000 of virtual money. StockSaathi's markets cover more than
-    4,000 stocks listed on the NSE and BSE, including NSE SME listings, plus 300+ ETFs and more than 10,000
-    mutual fund schemes, all at real market prices. Browsing is open to everyone; placing trades needs a free
+    4,000 stocks listed on the NSE and BSE, including NSE SME listings, plus 300+ ETFs and more than 8,000
+    active mutual fund schemes, all at real market prices. Browsing is open to everyone; placing trades needs a free
     account.
   </p>
   <h2>How the markets page works</h2>
@@ -417,9 +515,11 @@ def crash_main(c, others):
   {crumbs_html([("Home", "/"), ("Crash replays", "/crash-replay"), (c["title"], "/crash-replay/" + c["id"])])}
   <h1 class="tight">{e(c['title'])} replay: hold or panic-sell?</h1>
   <p class="lede">
-    {e(c['description'])} In this replay a ₹1,00,000 portfolio splits in two on day three: one investor holds,
-    the other panic-sells. {e(delta_line)}
+    {e(c['description'])} In this replay a ₹1,00,000 portfolio that moves with the Nifty 50 splits in two on
+    day three: one investor holds, the other sells everything at that day's close and stays in cash.
+    {e(delta_line)}
   </p>
+  <p class="muted">Every step of the replay is a real daily closing level of the Nifty 50.</p>
   <dl class="stat-list">{dl}</dl>
   <h2>What happened, day by day</h2>
   <ol class="timeline">{tl}</ol>
@@ -448,9 +548,9 @@ def chat_main():
   </p>
   <h2>Things you can ask</h2>
   <ul class="checklist">
-    <li>"What's TCS at?" Live stock prices, looked up rather than guessed.</li>
+    <li>"What's TCS at?" Current stock prices, looked up rather than guessed.</li>
     <li>"How does compounding work?" and "Explain P/E in one go."</li>
-    <li>"Should I sell when the market crashes?" with what history says.</li>
+    <li>"Should I sell when the market crashes?" with what past crashes actually did.</li>
     <li>How Indian taxes on investing work, like short- and long-term capital gains.</li>
     <li>"How do I spot a finfluencer scam?"</li>
   </ul>
@@ -518,15 +618,15 @@ def build_pages():
 
     # Home: head only (main comes from partials/landing.html via build_landing.py).
     home = {"path": "/", "file": "index.html", "headOnly": True, "priority": "1.0", "changefreq": "weekly",
-            "title": "StockSaathi: Free Stock Market Simulator for Indian Teens",
-            "description": ("Free stock market simulator for Indian teens, 13–18. Practise with ₹1,00,000 virtual "
+            "title": "StockSaathi: Free Paper Trading & Stock Market Simulator for Teens",
+            "description": ("Free paper trading app for Indian teens, 13–18. Practise with ₹1,00,000 of virtual "
                             "money on real NSE and BSE stocks, with an AI coach that spots mistakes."),
             "images": [(SITE + "/images/og-image.png", OG_ALT),
                        (SITE + "/images/screenshot-wide.png", "The StockSaathi home page on a desktop screen"),
                        (SITE + "/images/screenshot-narrow.png", "The StockSaathi home page on a phone")],
             "graph": [website_node(), org_node(), founder_node(), app_node(),
                       {"@type": "WebPage", "@id": SITE + "/#webpage", "url": SITE + "/",
-                       "name": "StockSaathi: Free Stock Market Simulator for Indian Teens", "inLanguage": "en-IN",
+                       "name": "StockSaathi: Free Paper Trading & Stock Market Simulator for Teens", "inLanguage": "en-IN",
                        "isPartOf": {"@id": SITE_ID}, "about": {"@id": APP_ID}, "primaryImageOfPage": OG_IMAGE}],
             "index": True, "sitemap": True}
     pages.append(home)
@@ -549,11 +649,15 @@ def build_pages():
             j = nifty500.index(r)
             sib += [s for s in nifty500[j + 1:j + 9] if s not in sib][:8 - len(sib)]
         sym, name = r["symbol"], r["name"]
-        corp = {"@type": "Corporation", "name": name, "tickerSymbol": "NSE:" + sym}
+        corp = {"@type": "Corporation", "name": name, "tickerSymbol": "NSE " + sym}
         if r.get("isin"):
             corp["identifier"] = {"@type": "PropertyValue", "propertyID": "ISIN", "value": r["isin"]}
+        # Only Nifty 100 pages are indexable. The rest share almost all of their
+        # text, so they stay reachable for people (noindex, follow) but out of
+        # the index and the sitemap until they carry something page-specific.
         add(path=stock_path(sym), file="stocks/%s.html" % sym, priority="0.5", changefreq="monthly",
-            title="%s (%s): Practice Trading with Virtual Money" % (name, sym),
+            index=bool((r.get("idx") or 0) & 2),
+            title=stock_title(name, sym),
             ogTitle="Practice trading %s (%s) | StockSaathi" % (name, sym),
             description=stock_description(name, sym),
             crumbs=[("Home", "/"), ("Markets", "/stocks"), (name, stock_path(sym))],
@@ -601,8 +705,8 @@ def build_pages():
         pageType="Article", ogType="article",
         title="How to Learn the Stock Market as a Teenager in India",
         ogTitle="How to learn the stock market as a teenager in India, without real money",
-        description=("A beginner's guide for Indian teens: key words, a free practice portfolio with virtual "
-                     "money, nine mistakes to avoid, and what past crashes teach."),
+        description=("A beginner's guide for Indian teens: key words, whether under-18s can invest, a free "
+                     "practice portfolio with virtual money and nine mistakes to avoid."),
         crumbs=[("Home", "/"), ("Learn the stock market", "/learn-stock-market")],
         webpageExtra={"headline": "How to learn the stock market as a teenager in India, without real money",
                       "author": {"@id": ORG_ID}, "publisher": {"@id": ORG_ID},
@@ -611,9 +715,9 @@ def build_pages():
         main=learn)
 
     add(path="/for-students", file="for-students.html", priority="0.8", changefreq="monthly",
-        title="Free Stock Market Simulator for Students in India | StockSaathi",
-        description=("StockSaathi is a free stock market simulator for Indian students aged 13–18: virtual money, "
-                     "real NSE and BSE stocks, and an AI coach. Safe for teens; no payments."),
+        title="Stock Market Game for School Students in India | StockSaathi",
+        description=("A free virtual stock market game for Indian students aged 13–18: ₹1,00,000 of virtual money, "
+                     "real NSE and BSE stocks and an AI coach. No payments, no ads."),
         crumbs=[("Home", "/"), ("For students", "/for-students")],
         main=partial("for-students.html", "/for-students"))
 

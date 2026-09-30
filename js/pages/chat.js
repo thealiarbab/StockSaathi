@@ -137,7 +137,7 @@ export function renderChat(main) {
       <div style="max-width: 760px; margin: 0 auto;">
         <div style="margin-bottom: var(--sp-4);">
           <div class="flex items-center gap-3 wrap">
-            <h1 style="margin: 0;">Saathi</h1>
+            <h1 style="margin: 0;">Saathi <span class="dim" style="font-size: 0.55em; font-weight: 500;">AI stock market coach</span></h1>
             <div class="chat-session-bar" style="margin-left: auto; display: flex; gap: 8px; align-items: center;">
               <div class="chat-session-picker-wrap" style="position: relative;">
                 <button id="chat-session-picker" class="btn btn-ghost btn-sm" type="button" aria-haspopup="listbox" aria-expanded="false" style="max-width: 220px; display: inline-flex; align-items: center; gap: 6px;" title="Switch chat session">

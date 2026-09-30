@@ -1265,6 +1265,8 @@
 }
 
 /* Pre-rendered content pages (scripts/prerender.py). */
+/* Pre-rendered article kept below the app view on a cold load (staticPage.js). */
+.seo-companion { border-top: 1px solid var(--border); margin-top: var(--sp-8); }
 .static-page { max-width: 880px; padding-top: var(--sp-8); padding-bottom: var(--sp-16); }
 .static-page h1 { font-size: clamp(1.7rem, 4vw, 2.5rem); line-height: 1.15; margin: var(--sp-3) 0 var(--sp-4); color: var(--text-strong); }
 .static-page h2 { font-size: var(--text-xl); margin: var(--sp-10) 0 var(--sp-3); color: var(--text-strong); }
@@ -2870,10 +2872,12 @@ table.compare { min-width: 560px; }
   flex: 1 1 auto;
   min-width: 0;
 }
-.replay-title-inline strong {
+.replay-title-inline strong,
+.replay-title-inline .replay-title-h1 {
   font-size: var(--text-lg);
   color: var(--text-strong);
 }
+.replay-title-inline .replay-title-h1 { margin: 0; font-weight: 700; line-height: 1.3; }
 .replay-controls-top {
   margin: 0;
   justify-content: flex-end;
@@ -3316,7 +3320,8 @@ table.compare { min-width: 560px; }
   .replay-topbar { top: 56px; flex-direction: column; align-items: stretch; }
   .replay-controls-top { justify-content: center; }
   .replay-controls-top .btn-sm { flex: 1 0 auto; }
-  .replay-title-inline strong { font-size: var(--text-md); }
+  .replay-title-inline strong,
+  .replay-title-inline .replay-title-h1 { font-size: var(--text-md); }
 }
 .replay-narration {
   background: var(--bg-soft);

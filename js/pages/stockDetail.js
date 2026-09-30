@@ -892,7 +892,7 @@ function render(inst, symbol) {
           ` : ""}
         </div>
 
-        <div class="card stock-why-card" id="stock-why-card" style="margin-top: var(--sp-4);">
+        <div class="card stock-why-card" id="stock-why-card" data-nosnippet style="margin-top: var(--sp-4);">
           <div class="card-head">
             <h3><span class="pf-digest-label">Saathi</span> Why is this moving today?</h3>
           </div>
@@ -1587,7 +1587,7 @@ async function _reviewTrade(inst, symbol, curPrice, holding) {
               model: "template",
               payload: {
                 reflection: `You paused a panic-sell on ${inst.name}. Doing nothing in the middle of a drop is the rarest skill in investing. The muscle you just used is the one that actually matters long-term.`,
-                historical_context: analog ? `Median recovery for dips of this size on ${inst.name}: ${analog.recoveryDays} trading days (n=${analog.sampleSize}).` : null,
+                historical_context: analog ? `Median recovery for dips of this size on ${analog.source === "nifty" ? "the Nifty 50 index" : inst.name}: ${analog.recoveryDays} trading days (n=${analog.sampleSize}).` : null,
                 warning_level: "info",
                 suggested_q: "Set a rule right now — if this drops another 5%, what will you do? Write it down.",
                 citations: ["hold_decision", "panic_averted"],

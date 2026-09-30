@@ -7,11 +7,12 @@
   <meta name="theme-color" content="#0A0B0F" media="(prefers-color-scheme: dark)" />
   <meta name="color-scheme" content="light dark" />
 
-  <script src="/js/va.js"></script>
+  <!-- defer keeps order: the beforeSend filter in va.js is queued before insights loads. -->
+  <script defer src="/js/va.js"></script>
   <script defer src="/_vercel/insights/script.js"></script>
   <!-- meta:start -->
-  <title>StockSaathi: Free Stock Market Simulator for Indian Teens</title>
-  <meta name="description" content="Free stock market simulator for Indian teens, 13–18. Practise with ₹1,00,000 virtual money on real NSE and BSE stocks, with an AI coach that spots mistakes." />
+  <title>StockSaathi: Free Paper Trading &amp; Stock Market Simulator for Teens</title>
+  <meta name="description" content="Free paper trading app for Indian teens, 13–18. Practise with ₹1,00,000 of virtual money on real NSE and BSE stocks, with an AI coach that spots mistakes." />
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
   <link rel="canonical" href="https://stocksaathi.co.in/" />
   <link rel="alternate" hreflang="en-IN" href="https://stocksaathi.co.in/" />
@@ -19,8 +20,8 @@
   <meta property="og:site_name" content="StockSaathi" />
   <meta property="og:locale" content="en_IN" />
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="StockSaathi: Free Stock Market Simulator for Indian Teens" />
-  <meta property="og:description" content="Free stock market simulator for Indian teens, 13–18. Practise with ₹1,00,000 virtual money on real NSE and BSE stocks, with an AI coach that spots mistakes." />
+  <meta property="og:title" content="StockSaathi: Free Paper Trading &amp; Stock Market Simulator for Teens" />
+  <meta property="og:description" content="Free paper trading app for Indian teens, 13–18. Practise with ₹1,00,000 of virtual money on real NSE and BSE stocks, with an AI coach that spots mistakes." />
   <meta property="og:url" content="https://stocksaathi.co.in/" />
   <meta property="og:image" content="https://stocksaathi.co.in/images/og-image.png" />
   <meta property="og:image:type" content="image/png" />
@@ -29,8 +30,8 @@
   <meta property="og:image:alt" content="StockSaathi: Invest virtually. Learn for real. A free stock market simulator for Indian teens." />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:site" content="@thealiarbab" />
-  <meta name="twitter:title" content="StockSaathi: Free Stock Market Simulator for Indian Teens" />
-  <meta name="twitter:description" content="Free stock market simulator for Indian teens, 13–18. Practise with ₹1,00,000 virtual money on real NSE and BSE stocks, with an AI coach that spots mistakes." />
+  <meta name="twitter:title" content="StockSaathi: Free Paper Trading &amp; Stock Market Simulator for Teens" />
+  <meta name="twitter:description" content="Free paper trading app for Indian teens, 13–18. Practise with ₹1,00,000 of virtual money on real NSE and BSE stocks, with an AI coach that spots mistakes." />
   <meta name="twitter:image" content="https://stocksaathi.co.in/images/og-image.png" />
   <meta name="twitter:image:alt" content="StockSaathi: Invest virtually. Learn for real. A free stock market simulator for Indian teens." />
   <script type="application/ld+json">
@@ -52,6 +53,10 @@
       "@id": "https://stocksaathi.co.in/#org",
       "name": "StockSaathi",
       "url": "https://stocksaathi.co.in/",
+      "alternateName": [
+        "Stock Saathi"
+      ],
+      "slogan": "Invest virtually. Learn for real.",
       "logo": {
         "@type": "ImageObject",
         "url": "https://stocksaathi.co.in/images/logo-512.png",
@@ -75,8 +80,7 @@
         "email": "grievance@stocksaathi.co.in",
         "areaServed": "IN",
         "availableLanguage": [
-          "English",
-          "Hindi"
+          "English"
         ]
       }
     },
@@ -95,8 +99,11 @@
       "@id": "https://stocksaathi.co.in/#app",
       "name": "StockSaathi",
       "url": "https://stocksaathi.co.in/",
+      "alternateName": [
+        "Stock Saathi"
+      ],
       "applicationCategory": "FinanceApplication",
-      "applicationSubCategory": "Stock market simulator",
+      "applicationSubCategory": "Stock market simulator and paper trading app",
       "operatingSystem": "Any (web browser)",
       "description": "A free stock market simulator for Indian teens aged 13–18. Practise with ₹1,00,000 of virtual money on real NSE and BSE stocks, ETFs and mutual funds at real market prices, with an AI coach that flags beginner mistakes as you make them.",
       "offers": {
@@ -117,11 +124,11 @@
       },
       "featureList": [
         "₹1,00,000 of virtual money",
-        "4,000+ NSE and BSE stocks, ETFs and mutual funds at real market prices",
+        "4,000+ NSE and BSE stocks, 300+ ETFs and 8,000+ mutual funds at real market prices",
         "Market, limit and after-market orders",
         "AI coach that checks every trade for nine common investing mistakes",
-        "Pause before a likely panic-sell with historical recovery data",
-        "Replays of the 2020 COVID-19 crash, the 2008 financial crisis and 2016 demonetisation",
+        "Pause before a likely panic-sell showing how long past dips took to recover",
+        "Replays of the 2020 COVID-19 crash, the 2008 financial crisis and 2016 demonetisation, built from real Nifty 50 closes",
         "Report card that grades decision quality from A+ to D",
         "Optional Hinglish mode"
       ],
@@ -134,7 +141,7 @@
       "@type": "WebPage",
       "@id": "https://stocksaathi.co.in/#webpage",
       "url": "https://stocksaathi.co.in/",
-      "name": "StockSaathi: Free Stock Market Simulator for Indian Teens",
+      "name": "StockSaathi: Free Paper Trading & Stock Market Simulator for Teens",
       "inLanguage": "en-IN",
       "isPartOf": {
         "@id": "https://stocksaathi.co.in/#website"
@@ -154,6 +161,14 @@
   "@type": "FAQPage",
   "@id": "https://stocksaathi.co.in/#faq",
   "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is StockSaathi?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "StockSaathi (also written Stock Saathi) at stocksaathi.co.in is a free paper trading app and stock market simulator for Indian teenagers. You practise investing in real NSE and BSE stocks with ₹1,00,000 of virtual money while an AI coach explains your decisions. It is only a learning simulator: it never sells subscriptions, stock tips, trading signals or trading bots."
+      }
+    },
     {
       "@type": "Question",
       "name": "Is StockSaathi good for complete beginners?",
@@ -183,7 +198,7 @@
       "name": "Which markets and stocks can I trade?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Over 4,000 Indian stocks listed on the NSE and BSE, including NSE SME listings, plus 300+ ETFs and more than 10,000 mutual fund schemes. Trades use real market prices. Futures and options, crypto and foreign stocks are not available."
+        "text": "Over 4,000 Indian stocks listed on the NSE and BSE, including NSE SME listings, plus 300+ ETFs and more than 8,000 active mutual fund schemes. Trades use real market prices. Futures and options, crypto and foreign stocks are not available."
       }
     },
     {
@@ -223,7 +238,7 @@
       "name": "Is StockSaathi safe for teenagers?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "StockSaathi uses only virtual money, collects no payment details, shows no ads and does not sell personal data. The AI coach never recommends buying or selling anything, and any account can be deleted with all its data, from Settings or by writing to grievance@stocksaathi.co.in."
+        "text": "StockSaathi uses only virtual money, collects no payment details, shows no ads and does not sell personal data. The AI coach never recommends buying or selling anything. To have your account and all its data deleted, write to grievance@stocksaathi.co.in."
       }
     },
     {
@@ -279,7 +294,7 @@
        the same source js/pages/landing.js renders — so crawlers that do
        not run JavaScript read the real page and the SPA takes over with no
        visible flash. Edit the partial, never this block. -->
-  <main id="main" class="main" aria-live="polite" tabindex="-1">
+  <main id="main" class="main" tabindex="-1">
     <!-- landing:start -->
     <section class="hero">
       <div style="margin-bottom: var(--sp-5);">
@@ -287,7 +302,7 @@
       </div>
       <h1 class="tight">Invest virtually.<br /><span class="grad-accent">Learn for real.</span></h1>
       <p class="tagline">
-        StockSaathi is a free stock market simulator for Indian teens, ages 13–18. Start with
+        StockSaathi is a free stock market simulator and paper trading app for Indian teens, ages 13–18. Start with
         <strong>₹1,00,000 of virtual money</strong> and buy real <strong>NSE and BSE stocks</strong>, ETFs and
         mutual funds at real market prices. Never invested before? It's built for you: an AI coach watches every
         trade and catches beginner mistakes, like panic-selling or FOMO buying, the moment you make them.
@@ -309,7 +324,7 @@
         </div>
         <div class="stat">
           <span class="n tabular">4,000+</span>
-          <span class="l">stocks from NSE and BSE, plus ETFs and 10,000+ mutual fund schemes.</span>
+          <span class="l">stocks from NSE and BSE, plus ETFs and 8,000+ active mutual fund schemes.</span>
         </div>
         <div class="stat">
           <span class="n tabular">9</span>
@@ -359,9 +374,10 @@
           <a href="/crash-replay/COVID_2020">COVID-19 crash of 2020</a>, the
           <a href="/crash-replay/GFC_2008">2008 global financial crisis</a> or the
           <a href="/crash-replay/DEMO_2016">2016 demonetisation shock</a>, and watch the same ₹1,00,000 portfolio
-          split in two: one investor who held, and one who panic-sold on day three. The COVID-19 replay ends with
-          holding ahead of panic-selling by 38.4%, while the 2008 replay shows the uncomfortable case where selling
-          looked smart for months. Featured replays go further, from the Harshad Mehta scam of 1992 and Satyam in
+          split in two: one investor who held, and one who panic-sold on day three. Every step is a real Nifty 50
+          closing level. In the COVID-19 replay, selling dodged the crash but missed the whole recovery, and holding
+          finished 5.6% ahead once the Nifty set a new record in November 2020. The 2008 replay shows the
+          uncomfortable opposite: within its window, selling early really did win. Featured replays go further, from the Harshad Mehta scam of 1992 and Satyam in
           2009 to the YES Bank crisis, the Paytm IPO and the Adani–Hindenburg report, and you can type almost any
           market event to generate a replay of your own. The three hand-built replays need no account, so you can
           <a href="/crash-replay">try one right now</a>.
@@ -421,6 +437,10 @@
       <h2 class="tight">Frequently asked questions</h2>
       <div class="faq-list">
         <div class="faq-item">
+          <h3>What is StockSaathi?</h3>
+          <p>StockSaathi (also written Stock Saathi) at stocksaathi.co.in is a free paper trading app and stock market simulator for Indian teenagers. You practise investing in real NSE and BSE stocks with ₹1,00,000 of virtual money while an AI coach explains your decisions. It is only a learning simulator: it never sells subscriptions, stock tips, trading signals or trading bots.</p>
+        </div>
+        <div class="faq-item">
           <h3>Is StockSaathi good for complete beginners?</h3>
           <p>Yes. StockSaathi is built for people who have never invested. You don't need a demat account, a broker, prior knowledge or any money. You learn by placing practice trades with virtual money, and an AI coach explains what happened and flags common beginner mistakes, like panic-selling or FOMO buying, as you make them.</p>
         </div>
@@ -434,7 +454,7 @@
         </div>
         <div class="faq-item">
           <h3>Which markets and stocks can I trade?</h3>
-          <p>Over 4,000 Indian stocks listed on the NSE and BSE, including NSE SME listings, plus 300+ ETFs and more than 10,000 mutual fund schemes. Trades use real market prices. Futures and options, crypto and foreign stocks are not available.</p>
+          <p>Over 4,000 Indian stocks listed on the NSE and BSE, including NSE SME listings, plus 300+ ETFs and more than 8,000 active mutual fund schemes. Trades use real market prices. Futures and options, crypto and foreign stocks are not available.</p>
         </div>
         <div class="faq-item">
           <h3>Who is StockSaathi for?</h3>
@@ -454,7 +474,7 @@
         </div>
         <div class="faq-item">
           <h3>Is StockSaathi safe for teenagers?</h3>
-          <p>StockSaathi uses only virtual money, collects no payment details, shows no ads and does not sell personal data. The AI coach never recommends buying or selling anything, and any account can be deleted with all its data, from Settings or by writing to grievance@stocksaathi.co.in.</p>
+          <p>StockSaathi uses only virtual money, collects no payment details, shows no ads and does not sell personal data. The AI coach never recommends buying or selling anything. To have your account and all its data deleted, write to grievance@stocksaathi.co.in.</p>
         </div>
         <div class="faq-item" lang="hi-Latn">
           <h3>Kya StockSaathi par asli paisa lagta hai?</h3>

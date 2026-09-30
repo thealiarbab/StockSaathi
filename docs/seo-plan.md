@@ -40,10 +40,10 @@ Audit date: 2026-09-30. Numbers below were counted from the repo on that date.
 - **Prices:** Yahoo Finance through the Supabase `quote_cache` layer during market hours; NSE's official end-of-day bhavcopy as a second source since 2026-09-27. Whether intraday quotes are real-time or delayed is not established in code → never say "real-time".
 - **Orders:** market, limit, and after-market orders (AMO). Limit orders and AMOs are matched server-side on a schedule (`handlers/match-orders.py`), so the app does not need to be open.
 - **Coach — nine deterministic detectors** (`js/coach/biasDetectors.js`): panic-sell, pump-chase (>5% up today), FOMO (≥18% up in 7 sessions, new position), anchoring (buy within 2% of 52-week high/low), single-stock concentration (>40%), sector concentration (>55%), disposition effect, churning (≥3 round-trips in 30 days), overtrading (≥10 trades in 24 h). Mutual funds are excluded from the price-based detectors.
-- **Panic-sell intervention** (`js/components/interventionModal.js`): modal before the sell executes; "Sell anyway" is disabled for 3 s; shows the median trading days to recovery for past dips of similar size on the Nifty 50 or the stock.
-- **LLM coach "Saathi":** Gemini via `/api/chat`. Explains; the persona + `outputFilter.js` stop it recommending trades. Optional Hinglish mode (Settings). Can look up crypto prices (lookup only — crypto is not tradable).
+- **Panic-sell intervention** (`js/components/interventionModal.js`): modal before the sell executes; "Sell anyway" is disabled for 3 s; shows the median trading days to recovery for past dips of similar size on the Nifty 50 or the stock. Since 2026-10-01 these are real statistics from daily closes since 2011 (`scripts/build_dip_stats.py` → `js/data/dipStats.js`, 49 stocks + Nifty 50). Before that, `dips.js` generated them from a formula over hand-typed numbers while the UI called them history.
+- **LLM coach "Saathi":** Gemini via `/api/chat`. Explains; the persona + `outputFilter.js` stop it recommending trades. Optional Hinglish mode (Settings); wired into every coach prompt through `runtimeFacts()` in `js/coach/persona.js` since 2026-10-01 (before that the switch was saved but never read). Can look up crypto prices (lookup only — crypto is not tradable).
 - **Crash replays** (`js/data/crashes.js`, `js/pages/crashReplay.js`):
-  - Curated (hand-entered index values): **COVID-19 crash** (Feb 19 – May 18 2020), **Global Financial Crisis** (Jan 8 – Oct 27 2008), **Demonetisation** (Nov 8 2016 – Feb 28 2017).
+  - Curated, every frame a real daily Nifty 50 close (`scripts/build_crash_frames.py`): **COVID-19 crash** (Feb 19 – Nov 9 2020; holding +5.6%), **Global Financial Crisis** (Jan 8 – Oct 27 2008; panic-selling won, Nifty −59.9%), **Demonetisation** (Nov 8 2016 – Feb 28 2017; holding +7.0%). Model: ₹1,00,000 tracking the Nifty 50; the panic-seller sells at the day-3 close and stays in cash. `prerender.py` refuses to build if the frames and summary numbers disagree. The first versions recorded the day-3 sale far below the portfolio's value that day (COVID ₹66,800 vs ₹95,900), which produced the false "holding won by 38.4%".
   - Featured (AI-written narration over Yahoo price data, cached cross-user): Harshad Mehta 1992, Dot-com 2000, GFC 2008, Satyam 2009, IL&FS 2018, DHFL 2019, YES Bank 2020, COVID 2020, Paytm IPO 2021, Adani–Hindenburg 2023.
   - Plus a free-text "replay any event" generator.
 - **Report card** (`js/pages/reportCard.js`): letter grade A+ → D recomputed after every decision (not monthly), self-override rate, 8 badges, AI-written narrative. Score adds up to +10 for positive returns, but is driven mainly by behaviour.
@@ -57,12 +57,12 @@ Audit date: 2026-09-30. Numbers below were counted from the repo on that date.
 
 1. StockSaathi is free. There is no paid plan and no payment of any kind.
 2. You start with ₹1,00,000 of virtual money. No real money is ever involved; nothing can be deposited or withdrawn.
-3. 4,300+ Indian stocks from both NSE and BSE — including NSE Emerge SME listings — plus 350+ ETFs and 14,000+ mutual fund schemes.
-4. Real market prices (never "real-time" / "live" as a promise).
+3. 4,000+ Indian stocks from both NSE and BSE — including NSE Emerge SME listings — plus 300+ ETFs and 8,000+ active mutual fund schemes. (The MF file has ~14,000 rows, but the app hides schemes with no NAV in a year, leaving ~8,900. `prerender.py` fails the build if the data drops below any of these floors.)
+4. Real market prices (never "real-time" / "live" as a promise; say prices can be delayed).
 5. The AI coach watches for nine common investing mistakes as you make them: panic-selling, FOMO, pump-chasing, anchoring, putting too much in one stock, putting too much in one sector, the disposition effect, churning, and overtrading.
-6. Before a likely panic-sell it pauses you and shows how long similar past dips took to recover.
+6. Before a likely panic-sell it pauses you and shows how long similar past dips took to recover, measured from real daily prices since 2011.
 7. The coach explains; it never tells you what to buy or sell.
-8. Replay real Indian market crashes — COVID-19 2020, the 2008 financial crisis, demonetisation 2016 — and compare holding against panic-selling. Featured replays also cover Harshad Mehta 1992, Satyam 2009, YES Bank 2020, Adani–Hindenburg 2023 and more.
+8. Replay real Indian market crashes — COVID-19 2020, the 2008 financial crisis, demonetisation 2016 — built from real daily Nifty 50 closes, and compare holding against panic-selling. Results: COVID holding +5.6% by 9 Nov 2020; 2008 selling early won within the window; demonetisation holding +7.0%. Featured replays also cover Harshad Mehta 1992, Satyam 2009, YES Bank 2020, Adani–Hindenburg 2023 and more.
 9. Market orders, limit orders and after-market orders, like a real trading app.
 10. A report card that grades your decisions, not just your returns.
 11. Built for Indian teens, ages 13–18. (Positioning. Signup accepts 13+ and has no upper limit, so never say "only".)
@@ -70,6 +70,8 @@ Audit date: 2026-09-30. Numbers below were counted from the repo on that date.
 13. No leaderboard of returns — by design.
 14. Hinglish mode for the coach.
 15. Educational simulator; not a SEBI-registered broker or adviser; not affiliated with SEBI, NSE or BSE.
+16. Account and data deletion: on request to grievance@stocksaathi.co.in. (Settings → "Delete account" currently only signs out and flags the profile; never claim deletion from Settings until a real self-delete ships.)
+17. Only Nifty 100 stock pages are indexable; the other Nifty 500 pages are `noindex, follow` and out of the sitemap because their text is almost entirely shared.
 
 ## 3. Cannot verify / contradicted — never publish
 
@@ -116,7 +118,7 @@ Audit date: 2026-09-30. Numbers below were counted from the repo on that date.
 - Phase 2 — homepage copy. Source: `partials/landing.html` → `python scripts/build_landing.py` (injects into index.html + js/pages/landingContent.js, rebuilds the FAQPage JSON-LD from the visible FAQ).
 - Phase 3 — metadata, pre-rendering, structured data, sitemap, robots, llms.txt, manifest, icons.
   - `scripts/prerender.py` writes 513 pages from `index.html` + `universeFull.json` + `crashes.js` + `partials/pages/`. The daily `universe-refresh` workflow re-runs it.
-  - Indexable: `/`, `/stocks`, 497 Nifty 500 stock pages, `/crash-replay` + 3 curated replays, `/chat`, `/learn-stock-market`, `/for-students`, legal pages. `noindex`: `/news`, `/app-shell` (gated routes + stocks outside the Nifty 500 + `CUSTOM_*` replays), `404.html`.
+  - Indexable: `/`, `/stocks`, the 100 Nifty 100 stock pages (the other 397 Nifty 500 pages are generated but `noindex, follow`), `/crash-replay` + 3 curated replays, `/chat`, `/learn-stock-market`, `/for-students`, legal pages. `noindex`: `/news`, `/app-shell` (gated routes + stocks outside the Nifty 500 + `CUSTOM_*` replays), `404.html`.
   - Images: `scripts/render_assets.py` renders `images/*.png` + `favicon.ico` from `logo.svg` / `og-image.svg` (the old OG image showed invented ticker moves; replaced).
   - Data fix: `GFC_2008.finalDelta` was `0.4` (claimed holding won); its own numbers say the panic-seller finished 41.5% ahead within the window.
 - Phase 4 — admin URL cleanup.
