@@ -19,7 +19,9 @@ _headers
 # Internal docs, notes, SQL and tooling: repo-only. Serving them on the
 # production domain let search engines and AI crawlers index files like
 # STATUS.md and docs/SECURITY_FIXES_*.md under stocksaathi.co.in.
-docs/
+# Leading slash = repo root only. An unanchored "db/" also matched js/db/
+# and took the app's Supabase modules off the deployment.
+/docs/
 *.md
-db/
-scripts/
+/db/
+/scripts/
