@@ -107,7 +107,6 @@ const ROUTES = [
   // server's markup on a cold load and fetches it on in-app navigation.
   { name: "learn",         match: /^\/learn-stock-market\/?$/,             render: renderStaticPage, public: true },
   { name: "for-students",  match: /^\/for-students\/?$/,                   render: renderStaticPage, public: true },
-  { name: "compare-devion", match: /^\/compare\/devion\/?$/,               render: renderStaticPage, public: true },
   // Admin path is NOT /admin — that 404s. Real path is /a/<slug> where
   // <slug> must match ADMIN_PATH env var on the server. The server returns
   // the same 404 shape for wrong slugs, so scanning the URL space gets you

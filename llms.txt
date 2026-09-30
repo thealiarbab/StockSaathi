@@ -31,7 +31,6 @@ StockSaathi teaches by doing rather than through lessons: there are no course mo
 - [AI coach](https://stocksaathi.co.in/chat): ask Saathi about investing and Indian markets.
 - [Learn the stock market](https://stocksaathi.co.in/learn-stock-market): a beginner's guide for Indian teens.
 - [For students, parents and teachers](https://stocksaathi.co.in/for-students)
-- [StockSaathi vs Devion](https://stocksaathi.co.in/compare/devion): an honest comparison with another simulator for Indian teens.
 - [Privacy policy](https://stocksaathi.co.in/privacy), [Terms of use](https://stocksaathi.co.in/terms), [Grievance officer](https://stocksaathi.co.in/grievance)
 
 Individual stock pages follow the pattern https://stocksaathi.co.in/stocks/SYMBOL (for example https://stocksaathi.co.in/stocks/RELIANCE).

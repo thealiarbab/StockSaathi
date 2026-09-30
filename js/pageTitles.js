@@ -10,6 +10,5 @@ export const PAGE_TITLES = {
   "/chat": "Ask Saathi: Free AI Stock Market Coach for Beginners | StockSaathi",
   "/news": "Indian Stock Market News with Sentiment | StockSaathi",
   "/learn-stock-market": "How to Learn the Stock Market as a Teenager in India",
-  "/for-students": "Free Stock Market Simulator for Students in India | StockSaathi",
-  "/compare/devion": "StockSaathi vs Devion: An Honest Comparison"
+  "/for-students": "Free Stock Market Simulator for Students in India | StockSaathi"
 };

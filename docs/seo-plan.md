@@ -86,11 +86,6 @@ Audit date: 2026-09-30. Numbers below were counted from the repo on that date.
 | Masters' Union AI Buildathon | — | Owner instruction: never mention. |
 | Anything about lessons, courses, modules or quizzes | — | StockSaathi has none. Never imply a curriculum. |
 
-## 4. Competitor facts (devion.in, rendered 2026-09-30)
-
-NSE only ("2,000+ real NSE stocks"), ₹1,00,000 virtual, 8 modules / 45+ lessons, adaptive quizzes, badges, leaderboards (returns, badges, streaks) with class invite codes, weekly progress reports for parents, English / Hinglish AI tutor. Its raw HTML is almost empty (client-rendered), so non-JS AI crawlers see little of it.
-
-Fair positioning: Devion is course-first; StockSaathi is practice-first (learn by doing, coached on your own decisions). Devion's lessons and quizzes are a real advantage and a comparison page must say so. NSE + BSE is an edge over Devion, not over every Indian simulator.
 
 ## 5. Keyword universe → target page
 
@@ -104,7 +99,6 @@ Fair positioning: Devion is course-first; StockSaathi is practice-first (learn b
 | Questions to AI | best app to practice stocks in india, is there a free stock simulator for students, safest way for a teen to learn investing | `/` FAQ, `/learn-stock-market` |
 | Behaviour | panic selling, FOMO investing, why beginners lose money, AI stock market tutor | `/`, `/chat` |
 | Crash history | covid crash 2020 nifty, 2008 crash sensex, demonetisation stock market, harshad mehta scam replay, crash simulator | `/crash-replay`, `/crash-replay/COVID_2020`, `/crash-replay/GFC_2008`, `/crash-replay/DEMO_2016` |
-| Comparison | stocksaathi vs devion, devion alternative, best free trading simulator india | `/compare/devion` |
 | Stock pages | practice trading <company>, <symbol> share simulator | `/stocks/<symbol>` — Nifty 500 indexed, the rest `noindex` (thin-content guard) |
 | Not indexed | — | login, register, reset-*, onboarding, portfolio, report-card, friends, settings, `/a/*`, `/news` (third-party headlines → `noindex, follow`) |
 | Redirect | /market, /markets | 308 → `/stocks` |
@@ -122,7 +116,7 @@ Fair positioning: Devion is course-first; StockSaathi is practice-first (learn b
 - Phase 2 — homepage copy. Source: `partials/landing.html` → `python scripts/build_landing.py` (injects into index.html + js/pages/landingContent.js, rebuilds the FAQPage JSON-LD from the visible FAQ).
 - Phase 3 — metadata, pre-rendering, structured data, sitemap, robots, llms.txt, manifest, icons.
   - `scripts/prerender.py` writes 513 pages from `index.html` + `universeFull.json` + `crashes.js` + `partials/pages/`. The daily `universe-refresh` workflow re-runs it.
-  - Indexable: `/`, `/stocks`, 497 Nifty 500 stock pages, `/crash-replay` + 3 curated replays, `/chat`, `/learn-stock-market`, `/for-students`, `/compare/devion`, legal pages. `noindex`: `/news`, `/app-shell` (gated routes + stocks outside the Nifty 500 + `CUSTOM_*` replays), `404.html`.
+  - Indexable: `/`, `/stocks`, 497 Nifty 500 stock pages, `/crash-replay` + 3 curated replays, `/chat`, `/learn-stock-market`, `/for-students`, legal pages. `noindex`: `/news`, `/app-shell` (gated routes + stocks outside the Nifty 500 + `CUSTOM_*` replays), `404.html`.
   - Images: `scripts/render_assets.py` renders `images/*.png` + `favicon.ico` from `logo.svg` / `og-image.svg` (the old OG image showed invented ticker moves; replaced).
   - Data fix: `GFC_2008.finalDelta` was `0.4` (claimed holding won); its own numbers say the panic-seller finished 41.5% ahead within the window.
 - Phase 4 — admin URL cleanup.
@@ -131,7 +125,7 @@ Fair positioning: Devion is course-first; StockSaathi is practice-first (learn b
 
 1. **Google Search Console** → Add property → **Domain** `stocksaathi.co.in` → verify with the DNS TXT record at the registrar (covers `www` and every path; no code change). If you prefer the URL-prefix method instead, send the `google-site-verification` meta tag content and it goes in `index.html`'s `<head>` above `<!-- meta:start -->` (outside the generated block), then `python scripts/prerender.py` copies it to every page.
 2. GSC → **Sitemaps** → submit `https://stocksaathi.co.in/sitemap.xml`.
-3. GSC → **URL inspection** → request indexing for `/`, `/stocks`, `/crash-replay`, `/learn-stock-market`, `/for-students`, `/compare/devion`, `/crash-replay/COVID_2020`.
+3. GSC → **URL inspection** → request indexing for `/`, `/stocks`, `/crash-replay`, `/learn-stock-market`, `/for-students`, `/crash-replay/COVID_2020`.
 4. **Bing Webmaster Tools** → **Import from Google Search Console** (fastest; copies the verified site and sitemap). Otherwise add the site, verify by DNS CNAME or the `msvalidate.01` meta tag (same placement rule as step 1), and submit the sitemap.
 5. Bing → **IndexNow**: optional later; Bing, Yandex and others accept pings for changed URLs.
 6. Recheck in 1–2 weeks: GSC **Pages** report (indexed vs "Crawled — currently not indexed" for stock pages), **Enhancements** for breadcrumbs and FAQ parse errors.

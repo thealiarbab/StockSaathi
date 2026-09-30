@@ -24,7 +24,7 @@ Outputs (committed, served by Vercel with cleanUrls):
   crash-replay.html           /crash-replay
   crash-replay/<ID>.html      /crash-replay/<ID> the three curated replays
   chat.html, news.html        /chat, /news (news is noindex: third-party headlines)
-  learn-stock-market.html, for-students.html, compare/devion.html
+  learn-stock-market.html, for-students.html
   app-shell.html              noindex shell for gated / long-tail app routes
   404.html                    branded not-found page
   sitemap.xml, robots.txt, js/pageTitles.js
@@ -617,14 +617,6 @@ def build_pages():
         crumbs=[("Home", "/"), ("For students", "/for-students")],
         main=partial("for-students.html", "/for-students"))
 
-    add(path="/compare/devion", file="compare/devion.html", priority="0.7", changefreq="monthly",
-        title="StockSaathi vs Devion: An Honest Comparison",
-        description=("StockSaathi and Devion compared: exchanges, stocks, lessons, quizzes, AI help and crash "
-                     "replays. Two free simulators for Indian teens, built differently."),
-        crumbs=[("Home", "/"), ("StockSaathi vs Devion", "/compare/devion")],
-        webpageExtra={"about": [{"@id": APP_ID},
-                                {"@type": "WebApplication", "name": "Devion", "url": "https://devion.in/"}]},
-        main=partial("compare-devion.html", "/compare/devion"))
 
     pages.append({"path": "/app-shell", "file": "app-shell.html", "index": False, "sitemap": False,
                   "canonical": False, "title": "StockSaathi",

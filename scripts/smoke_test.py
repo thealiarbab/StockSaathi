@@ -66,13 +66,13 @@ ROUTES = [
     # Phase 3: pre-rendered pages + assets
     ("/learn-stock-market", 200, "#main h1"),
     ("/for-students", 200, "#main h1"),
-    ("/compare/devion", 200, "#main table.compare"),
     ("/stocks/M%26M", 200, "#main"),
     ("/llms.txt", 200, None),
     ("/favicon.ico", 200, None),
     ("/images/og-image.png", 200, None),
     ("/images/icon-512.png", 200, None),
     ("/partials/landing.html", 404, None),
+    ("/compare/devion", 404, None),
 ]
 
 # Crawler view (JavaScript OFF): path -> (expected <h1> fragment, indexable?)
@@ -88,7 +88,6 @@ CRAWLER_PAGES = {
     "/chat": ("AI stock market coach", True),
     "/learn-stock-market": ("learn the stock market", True),
     "/for-students": ("students", True),
-    "/compare/devion": ("Devion", True),
     "/news": ("news", False),
     "/login": (None, False),          # app shell
     "/portfolio": (None, False),
@@ -246,11 +245,11 @@ def main():
             page.goto(BASE + "/learn-stock-market", wait_until="networkidle")
             checks.append(("static page kept after boot", page.locator("#main h1").inner_text().startswith("How to learn")))
             page.goto(BASE + "/", wait_until="networkidle")
-            page.locator("footer a[href='/compare/devion']").click()
+            page.locator("footer a[href='/for-students']").click()
             page.wait_for_timeout(1500)
-            checks.append(("footer link → /compare/devion client-side",
-                           page.url == BASE + "/compare/devion" and page.locator("#main table.compare").count() == 1))
-            checks.append(("document.title follows route", "Devion" in page.title()))
+            checks.append(("footer link → /for-students client-side",
+                           page.url == BASE + "/for-students" and page.locator("#main h1").count() == 1))
+            checks.append(("document.title follows route", "Students" in page.title()))
 
             # 8. cleanUrls: .html paths redirect to the clean URL
             for legacy_html, clean in (("/index.html", "/"), ("/privacy.html", "/privacy")):
