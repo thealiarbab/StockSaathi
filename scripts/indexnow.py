@@ -7,11 +7,16 @@ Usage:
 The key is proven by the file /<KEY>.txt at the site root, which must be
 deployed before pinging. Only ping URLs that actually changed; engines
 throttle hosts that resubmit unchanged pages.
+
+On Windows Git Bash, prefix with MSYS_NO_PATHCONV=1: otherwise "/stocks/X"
+arguments are rewritten to C:/Program Files/Git/stocks/X and rejected (422).
 """
+import html
 import json
 import re
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -23,7 +28,14 @@ BATCH = 10_000  # protocol maximum per request
 
 def sitemap_urls():
     xml = (ROOT / "sitemap.xml").read_text(encoding="utf-8")
-    return re.findall(r"<loc>(https://[^<]+)</loc>", xml)
+    # <loc> values are XML-escaped (M&amp;M); unescape before re-encoding.
+    return [html.unescape(u) for u in re.findall(r"<loc>(https://[^<]+)</loc>", xml)]
+
+
+def encode(url):
+    """Percent-encode the path so symbols like M&M form a valid URL."""
+    parts = urllib.parse.urlsplit(url)
+    return urllib.parse.urlunsplit(parts._replace(path=urllib.parse.quote(parts.path, safe="/")))
 
 
 def main(args):
@@ -32,6 +44,7 @@ def main(args):
     else:
         # Page URLs only; <image:loc> entries also use <loc> but live under /images/.
         urls = [u for u in sitemap_urls() if "/images/" not in u]
+    urls = [encode(u) for u in urls]
     if not (ROOT / f"{KEY}.txt").exists():
         sys.exit(f"missing key file {KEY}.txt at repo root")
 
