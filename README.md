@@ -32,8 +32,8 @@ watches how they trade and coaches the behaviour — not the tip.
 |---|---|
 | **Real market, virtual money** | Live quotes, OHLC charts, fundamentals, limit orders, mutual funds. Real instruments, real volatility, zero financial risk. |
 | **Behavioural coach** | Nine detectors run on every trade — panic-selling, FOMO, anchoring, disposition effect, concentration, sector bias, churning, pump-chasing, overtrading — and an LLM coach grounded in historical recovery data explains what just happened, in the user's own numbers. |
-| **Crash Replay** | Re-live nine real Indian market events — Harshad Mehta 1992, Dot-com 2000, Satyam 2009, GFC 2008, DHFL 2019, Yes Bank 2020, COVID March 2020, Paytm IPO 2021, Adani–Hindenburg 2023 — day by day, with a scrubber, and find out what your instincts would have cost you. |
-| **Monthly report card** | A grade for *decision quality*, not for returns. Luck is not a skill and the scoring says so. |
+| **Crash Replay** | Three hand-built replays (COVID-19 2020, the 2008 financial crisis, demonetisation 2016) plus ten featured AI-built replays — Harshad Mehta 1992, Dot-com 2000, GFC 2008, Satyam 2009, IL&FS 2018, DHFL 2019, YES Bank 2020, COVID 2020, Paytm IPO 2021, Adani–Hindenburg 2023 — scrubbed day by day, holding vs panic-selling. Any other event can be generated on request. |
+| **Report card** | A letter grade for *decision quality*, not for returns, updated after every decision. Luck is not a skill and the scoring says so. |
 | **News, sentiment, social** | Market news with sentiment tagging, an event marquee, friends, and portfolio digests. |
 
 The product deliberately refuses to be a tip service. It gives no buy/sell recommendations, runs
@@ -47,7 +47,8 @@ research analyst, and it is not affiliated with SEBI, NSE, or BSE. No real order
 and no real money is ever handled. Published terms, privacy policy, and a grievance channel
 (`grievance@stocksaathi.co.in`) ship with the product rather than being retrofitted later.
 
-Minors are onboarded with parental consent by email before an account becomes active.
+Users under 18 are asked to use the service with the knowledge and consent of a parent or guardian,
+who can request deletion of the account and its data through the grievance channel.
 
 ## Engineering
 

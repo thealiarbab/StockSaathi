@@ -1218,6 +1218,52 @@
   line-height: 1.65;
 }
 
+/* Landing sections below the hero (partials/landing.html). */
+.landing-compliance-note {
+  margin: var(--sp-4) auto 0;
+  max-width: 560px;
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+  text-align: center;
+  line-height: 1.5;
+}
+.landing-section { margin-top: var(--sp-12); }
+.landing-section > h2 { margin-bottom: var(--sp-4); }
+.landing-section .feature-grid { margin: var(--sp-4) 0 0; }
+.landing-prose {
+  max-width: 760px;
+  color: var(--text-muted);
+  font-size: var(--text-md);
+  line-height: 1.75;
+}
+.landing-prose a { color: var(--brand); font-weight: 600; }
+.landing-try-card {
+  background: linear-gradient(135deg, var(--brand-soft), transparent);
+  border-color: var(--brand);
+}
+.landing-try-card p { max-width: 640px; margin: var(--sp-2) 0 var(--sp-4); }
+#faq { margin-bottom: var(--sp-16); }
+.faq-list { display: grid; gap: var(--sp-3); max-width: 860px; }
+.faq-item {
+  padding: var(--sp-4) var(--sp-5);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+.faq-item h3 {
+  font-size: var(--text-base);
+  margin-bottom: var(--sp-2);
+  color: var(--text-strong);
+}
+.faq-item p {
+  color: var(--text-muted);
+  font-size: var(--text-md);
+  line-height: 1.65;
+}
+@media (max-width: 640px) {
+  .landing-section { margin-top: var(--sp-10); }
+}
+
 /* ============================== PORTFOLIO =========================== */
 .portfolio-hero {
   display: grid;

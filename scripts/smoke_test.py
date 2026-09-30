@@ -53,6 +53,13 @@ ROUTES = [
     ("/sitemap.xml", 200, None),
     ("/manifest.json", 200, None),
     ("/this-route-does-not-exist", 404, None),
+    # Deployment-exclusion guard: internal files must not be served, and the
+    # app's own modules must be (an unanchored .vercelignore rule once
+    # dropped js/db/ from production).
+    ("/STATUS.md", 404, None),
+    ("/docs/seo-plan.md", 404, None),
+    ("/js/db/sync.js", 200, None),
+    ("/js/db/supabase.js", 200, None),
 ]
 
 # Console noise judged elsewhere. "Failed to load resource" carries no URL, so
@@ -77,6 +84,11 @@ def wait_for_server():
 def main():
     extra = [(p, 200, "#main") for p in sys.argv[1:]]
     routes = ROUTES + extra
+    gen = subprocess.run([sys.executable, str(ROOT / "scripts" / "build_landing.py"), "--check"],
+                         cwd=ROOT, capture_output=True, text=True)
+    if gen.returncode != 0:
+        print("FAIL  generated landing files are stale:", gen.stdout.strip())
+        sys.exit(1)
     srv = subprocess.Popen([sys.executable, str(ROOT / "scripts" / "dev_server.py"), str(PORT), "-q"],
                            cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     failures, report = [], []
@@ -100,6 +112,10 @@ def main():
                     else:
                         w.append("%d %s" % (r.status, r.url[:140]))
                 page.on("response", on_response)
+                # A refused / aborted same-origin request never produces a
+                # response event, but a failed module load kills the app.
+                page.on("requestfailed", lambda r, b=bad: r.url.startswith(BASE) and "/api/" not in r.url
+                        and b.append("FAILED %s %s" % (r.url, r.failure)))
                 resp = page.goto(BASE + path, wait_until="networkidle", timeout=45000)
                 status = resp.status if resp else 0
                 page.wait_for_timeout(600)
@@ -154,6 +170,20 @@ def main():
             # 4. /market alias
             page.goto(BASE + "/market", wait_until="networkidle")
             checks.append(("/market → /stocks", page.url == BASE + "/stocks"))
+
+            # 5. crawler view == app view. What a non-JS crawler reads on "/"
+            #    must be what the SPA renders there (no cloaking, no drift).
+            nojs = browser.new_context(java_script_enabled=False).new_page()
+            nojs.goto(BASE + "/", wait_until="load")
+            static_txt = " ".join(nojs.inner_text("#main").split())
+            nojs.context.close()
+            page.goto(BASE + "/news", wait_until="networkidle")
+            page.locator(".brand-logo").first.click()        # logged out → href="/"
+            page.wait_for_timeout(1000)
+            app_txt = " ".join(page.inner_text("#main").split())
+            checks.append(("crawler text == SPA text on /", static_txt == app_txt and len(static_txt) > 1500))
+            for must in ("NSE and BSE", "ages 13", "Frequently asked questions", "Is StockSaathi free?"):
+                checks.append(("raw HTML has '%s'" % must, must in static_txt))
 
             for name, passed in checks:
                 report.append({"check": name, "ok": bool(passed)})

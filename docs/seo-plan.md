@@ -75,14 +75,14 @@ Audit date: 2026-09-30. Numbers below were counted from the repo on that date.
 
 | Claim | Where it was | Action |
 |---|---|---|
-| "92% of Indian teens can't define a mutual fund" | landing stat + "Why" | No source. Remove (Phase 2). |
-| "1st AI coach grounded in historical recovery data" | landing stat | Unprovable superlative. Remove (Phase 2). |
-| "Live quotes… your own Finnhub key… always a synthetic fallback" | landing feature card | No Finnhub setting exists; invented prices are forbidden. Remove (Phase 2). |
-| "Monthly grade" | landing | Grade is continuous. Fix (Phase 2). |
-| "Real NSE end-of-day prices" | FAQ JSON-LD | Wrong. Fix (Phase 2/3). |
-| Negative claims about Moneybhai / StockGro / Sensibull | landing "Why" | Unverified. Remove (Phase 2). |
-| "Invest in real Indian stocks and crypto" | onboarding | Crypto is not tradable. Fix (Phase 2). |
-| "Minors are onboarded with parental consent by email" | README | False — no consent step runs. Do not imply consent is collected anywhere. |
+| "92% of Indian teens can't define a mutual fund" | landing stat + "Why" | No source. Removed (Phase 2). |
+| "1st AI coach grounded in historical recovery data" | landing stat | Unprovable superlative. Removed (Phase 2). |
+| "Live quotes… your own Finnhub key… always a synthetic fallback" | landing feature card | No Finnhub setting exists; invented prices are forbidden. Removed (Phase 2). |
+| "Monthly grade" | landing | Grade is continuous. Fixed (Phase 2). |
+| "Real NSE end-of-day prices" | FAQ JSON-LD | Wrong. Fixed (Phase 2 FAQ; Phase 3 metadata). |
+| Negative claims about Moneybhai / StockGro / Sensibull | landing "Why" | Unverified. Removed (Phase 2). |
+| "Invest in real Indian stocks and crypto" | onboarding | Crypto is not tradable. Fixed (Phase 2). |
+| "Minors are onboarded with parental consent by email" | README | False — no consent step runs. README corrected (Phase 2). Never imply consent is collected. |
 | "No third-party analytics" | privacy policy | Vercel Web Analytics is loaded. Flagged to owner. |
 | Masters' Union AI Buildathon | — | Owner instruction: never mention. |
 | Anything about lessons, courses, modules or quizzes | — | StockSaathi has none. Never imply a curriculum. |
@@ -120,6 +120,6 @@ Fair positioning: Devion is course-first; StockSaathi is practice-first (learn b
 
 - Phase 0 — this document.
 - Phase 1 — clean URLs.
-- Phase 2 — homepage copy.
+- Phase 2 — homepage copy. Source: `partials/landing.html` → `python scripts/build_landing.py` (injects into index.html + js/pages/landingContent.js, rebuilds the FAQPage JSON-LD from the visible FAQ).
 - Phase 3 — metadata, pre-rendering, structured data, sitemap, robots, llms.txt, manifest, icons.
 - Phase 4 — admin URL cleanup.

@@ -61,7 +61,7 @@ function renderStep(s) {
         <div style="font-size: 48px; margin-bottom: var(--sp-3);">📈</div>
         <h2 style="font-size: var(--text-2xl); margin-bottom: var(--sp-2);">Welcome to StockSaathi</h2>
         <p class="muted" style="max-width: 400px; margin: 0 auto var(--sp-5); line-height: 1.6;">
-          You start with <strong style="color: var(--text-strong);">₹1,00,000 of virtual money</strong> to invest in real Indian stocks and crypto. An AI coach reflects on every trade — never tells you what to buy.
+          You start with <strong style="color: var(--text-strong);">₹1,00,000 of virtual money</strong> to invest in real Indian stocks, ETFs and mutual funds. An AI coach reflects on every trade — never tells you what to buy.
         </p>
         <div style="max-width: 460px; margin: 0 auto var(--sp-5); padding: var(--sp-3) var(--sp-4); border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-soft); text-align: left; font-size: var(--text-xs); line-height: 1.6; color: var(--text-muted);">
           <strong style="color: var(--text-strong);">Quick heads-up:</strong> StockSaathi is an

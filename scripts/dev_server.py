@@ -106,6 +106,35 @@ def rule_applies(rule, headers):
     return True
 
 
+def load_vercelignore():
+    """.vercelignore uses gitignore semantics. Supported subset: comments,
+    `/anchored`, `dir/`, `*` / `**` globs, and unanchored patterns matching
+    at any depth — the rule that once took js/db/ off production."""
+    rules = []
+    f = ROOT / ".vercelignore"
+    if not f.is_file():
+        return rules
+    for raw in f.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or line.startswith("!"):
+            continue
+        anchored = line.startswith("/")
+        pat = line.strip("/")
+        is_dir = line.endswith("/")
+        rx = re.escape(pat).replace(r"\*\*", ".*").replace(r"\*", "[^/]*")
+        prefix = "^" if anchored else "^(?:.*/)?"
+        suffix = "(?:/.*)?$" if is_dir or "/" not in pat or anchored else "$"
+        rules.append(re.compile(prefix + rx + suffix))
+    return rules
+
+
+IGNORED = load_vercelignore()
+
+
+def is_ignored(rel):
+    return any(rx.match(rel) for rx in IGNORED)
+
+
 REDIRECTS = [(compile_source(r["source"])[0], r) for r in CONFIG.get("redirects", [])]
 REWRITES = [(compile_source(r["source"])[0], r) for r in CONFIG.get("rewrites", [])]
 HEADERS = [(compile_source(r["source"])[0], r) for r in CONFIG.get("headers", [])]
@@ -117,6 +146,8 @@ def fs_lookup(path):
     rel = urllib.parse.unquote(path).lstrip("/")
     if ".." in Path(rel).parts:
         return None
+    if rel and is_ignored(rel):
+        return None                      # not in the Vercel deployment
     p = ROOT / rel
     if p.is_file():
         return p
@@ -248,9 +279,17 @@ class Handler(BaseHTTPRequestHandler):
         self._send(405, b"", None, parsed.path)
 
 
+class Server(ThreadingHTTPServer):
+    # A cold page load fetches ~80 ES modules at once. The stdlib default
+    # listen backlog of 5 refuses most of that burst on Windows, a module
+    # fails to load, and the app never boots — which looks like an app bug.
+    request_queue_size = 256
+    daemon_threads = True
+
+
 def main():
     port = int(next((a for a in sys.argv[1:] if a.isdigit()), "7350"))
-    srv = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    srv = Server(("127.0.0.1", port), Handler)
     print("serving %s on http://127.0.0.1:%d" % (ROOT, port), flush=True)
     try:
         srv.serve_forever()
