@@ -109,7 +109,7 @@ export async function registerAccount({ username, email, password, displayName }
       email: emailN,
       password,
       options: {
-        emailRedirectTo: `${redirectBase}/#/register?confirmed=1`,
+        emailRedirectTo: `${redirectBase}/register?confirmed=1`,
         data: { username: usernameN, display_name: displayN, avatar_color },
       },
     });
@@ -193,7 +193,7 @@ export async function resendSignupOtp(email) {
 
 /**
  * Send a password-reset email. The link in the email brings the user back
- * to /#/reset-password with a recovery session embedded in the URL hash;
+ * to /reset-password with a recovery session embedded in the URL hash;
  * Supabase-js's detectSessionInUrl picks it up so setNewPassword() can
  * call auth.updateUser({ password }) without a separate verify step.
  */
@@ -205,7 +205,7 @@ export async function requestPasswordReset(email) {
   const redirectBase = (typeof location !== "undefined" && location.origin)
     ? location.origin : "https://stocksaathi.co.in";
   const { error } = await client.auth.resetPasswordForEmail(emailN, {
-    redirectTo: `${redirectBase}/#/reset-password`,
+    redirectTo: `${redirectBase}/reset-password`,
   });
   if (error) throw new Error(prettifySbError(error.message));
   // Supabase silently no-ops for non-existent emails (same enumeration

@@ -42,7 +42,7 @@ export function renderNews(main) {
   loadNews(main, myToken);
   const unsub = subscribe(() => { if (!myToken.cancelled) render(main); });
   const onLeave = () => { myToken.cancelled = true; unsub?.(); };
-  window.addEventListener("hashchange", onLeave, { once: true });
+  window.addEventListener("ss:navigate", onLeave, { once: true });
 }
 
 async function loadNews(main, token) {

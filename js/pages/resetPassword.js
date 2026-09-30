@@ -49,11 +49,11 @@ export function renderResetPassword(main) {
           <div class="error-msg" style="margin-bottom: var(--sp-3);">
             This reset link has expired or is invalid. They're single-use and last 60 minutes.
           </div>
-          <a href="#/reset-password-request" class="btn btn-primary btn-block">Request a new link</a>
+          <a href="/reset-password-request" class="btn btn-primary btn-block">Request a new link</a>
         </div>
 
         <div class="auth-switch">
-          Back to <a href="#/login">log in</a>
+          Back to <a href="/login">log in</a>
         </div>
       </div>
     </div>

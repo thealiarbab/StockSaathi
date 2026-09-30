@@ -105,14 +105,14 @@ export function getInstrument(symbol) {
 // reaches the edge cache, or for older clients pre-Landing-G).
 async function _resolveImmutableUrl(name) {
   try {
-    const metaRes = await fetch(`./js/data/${name}.meta.json`, { cache: "default" });
-    if (!metaRes.ok) return `./js/data/${name}.json`;
+    const metaRes = await fetch(`/js/data/${name}.meta.json`, { cache: "default" });
+    if (!metaRes.ok) return `/js/data/${name}.json`;
     const meta = await metaRes.json();
     if (meta && typeof meta.sha8 === "string" && /^[0-9a-f]{8}$/.test(meta.sha8)) {
-      return `./js/data/${name}.${meta.sha8}.json`;
+      return `/js/data/${name}.${meta.sha8}.json`;
     }
   } catch (_) {}
-  return `./js/data/${name}.json`;
+  return `/js/data/${name}.json`;
 }
 
 // ── Lazy load Tier-2 + upgrade the bootstrap stubs ──────────────────────────

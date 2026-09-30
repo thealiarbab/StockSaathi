@@ -50,6 +50,6 @@ export function mountMarketStatusPopover() {
   mounted = true;
   document.addEventListener("click", onClick, true);
   document.addEventListener("keydown", onKeydown);
-  window.addEventListener("hashchange", () => closeAll());
+  window.addEventListener("ss:navigate", () => closeAll());
   window.addEventListener("scroll", () => closeAll(), { passive: true });
 }

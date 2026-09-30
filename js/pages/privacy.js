@@ -1,6 +1,6 @@
 // =============================================================================
 // PRIVACY POLICY — Static legal page. DPDP Act 2023 + DPDP Rules 2025 aligned.
-// Hash route: #/privacy. No auth required.
+// Route: /privacy. No auth required.
 // =============================================================================
 
 export function renderPrivacy(main) {
@@ -179,9 +179,9 @@ export function renderPrivacy(main) {
       </div>
 
       <div class="flex gap-3" style="margin: var(--sp-6) 0 var(--sp-8); flex-wrap: wrap;">
-        <a href="#/terms" class="btn btn-ghost">Terms of Use</a>
-        <a href="#/grievance" class="btn btn-ghost">Grievance contact</a>
-        <a href="#/" class="btn btn-ghost">Back home</a>
+        <a href="/terms" class="btn btn-ghost">Terms of Use</a>
+        <a href="/grievance" class="btn btn-ghost">Grievance contact</a>
+        <a href="/" class="btn btn-ghost">Back home</a>
       </div>
     </div>
   `;

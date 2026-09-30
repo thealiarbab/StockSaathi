@@ -130,7 +130,7 @@ def main():
             checks = []
 
             # 1. in-app link → pushState, no reload
-            link = page.locator("a[href='/crash-replay'], a[href='/crash-replay/COVID_2020']").first
+            link = page.locator("a[href^='/crash-replay']:visible").first
             if link.count():
                 link.click()
                 page.wait_for_timeout(800)

@@ -1,5 +1,5 @@
 // =============================================================================
-// TERMS OF USE — Static legal page. Hash route: #/terms. Public.
+// TERMS OF USE — Static legal page. Route: /terms. Public.
 // =============================================================================
 
 export function renderTerms(main) {
@@ -151,9 +151,9 @@ export function renderTerms(main) {
       </div>
 
       <div class="flex gap-3" style="margin: var(--sp-6) 0 var(--sp-8); flex-wrap: wrap;">
-        <a href="#/privacy" class="btn btn-ghost">Privacy Policy</a>
-        <a href="#/grievance" class="btn btn-ghost">Grievance contact</a>
-        <a href="#/" class="btn btn-ghost">Back home</a>
+        <a href="/privacy" class="btn btn-ghost">Privacy Policy</a>
+        <a href="/grievance" class="btn btn-ghost">Grievance contact</a>
+        <a href="/" class="btn btn-ghost">Back home</a>
       </div>
     </div>
   `;

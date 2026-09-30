@@ -130,7 +130,7 @@ export function mountEventMarquee() {
     window.addEventListener("ss:universe-loaded", _refresh);
     // Re-evaluate on hashchange (date might have crossed midnight if the
     // user keeps the tab open through midnight IST).
-    window.addEventListener("hashchange", _refresh);
+    window.addEventListener("ss:navigate", _refresh);
   });
 }
 

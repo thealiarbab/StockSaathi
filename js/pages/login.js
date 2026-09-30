@@ -10,7 +10,7 @@ export function renderLogin(main) {
   // Prefill email from ?email= query param — used when register detects
   // the account already exists and redirects here so the user doesn't
   // have to retype.
-  const q = (location.hash.split("?")[1] || "");
+  const q = location.search.slice(1);
   const prefilledEmail = new URLSearchParams(q).get("email") || "";
 
   main.innerHTML = `
@@ -27,7 +27,7 @@ export function renderLogin(main) {
           <div class="field">
             <label class="label" for="l-pw" style="display:flex; justify-content:space-between; align-items:baseline;">
               <span>Password</span>
-              <a href="#/reset-password-request" class="dim text-xs" style="font-weight:500;">Forgot password?</a>
+              <a href="/reset-password-request" class="dim text-xs" style="font-weight:500;">Forgot password?</a>
             </label>
             <div class="auth-pw-wrap">
               <input class="input" id="l-pw" name="password" type="password" required autocomplete="current-password" placeholder="Your password" />
@@ -39,7 +39,7 @@ export function renderLogin(main) {
         </form>
 
         <div class="auth-switch">
-          New to StockSaathi? <a href="#/register">Create an account</a>
+          New to StockSaathi? <a href="/register">Create an account</a>
         </div>
       </div>
     </div>

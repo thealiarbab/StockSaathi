@@ -328,7 +328,7 @@ export function renderPortfolio(main) {
     window.removeEventListener("ss:universe-loaded", onUniLoaded);
     window.removeEventListener("ss:mf-universe-loaded", onMfLoaded);
   };
-  window.addEventListener("hashchange", onLeave, { once: true });
+  window.addEventListener("ss:navigate", onLeave, { once: true });
 
   async function refreshData() {
     const state = getState();
@@ -570,9 +570,9 @@ export function renderPortfolio(main) {
           </div>
         </div>
         <div class="flex gap-2 wrap">
-          <a href="#/stocks" class="btn btn-primary">+ Invest</a>
-          <a href="#/friends" class="btn btn-ghost">Send money</a>
-          <a href="#/report-card" class="btn btn-ghost">Report card</a>
+          <a href="/stocks" class="btn btn-primary">+ Invest</a>
+          <a href="/friends" class="btn btn-ghost">Send money</a>
+          <a href="/report-card" class="btn btn-ghost">Report card</a>
         </div>
       </div>
 
@@ -689,11 +689,11 @@ export function renderPortfolio(main) {
           <div class="card">
             <div class="card-head">
               <h3>In the news</h3>
-              <a href="#/news" class="btn-link">See all →</a>
+              <a href="/news" class="btn-link">See all →</a>
             </div>
             ${newsItems.length
               ? `<div class="flex-col gap-2">${newsItems.slice(0, 5).map(n => `
-                  <a href="#/news" class="news-item" style="padding: 12px;" data-nid="${escapeAttr(n.id)}">
+                  <a href="/news" class="news-item" style="padding: 12px;" data-nid="${escapeAttr(n.id)}">
                     <div class="meta">
                       <span class="news-source">${escapeHtml(n.source)} · ${fmtRelativeTime(n.ts)}</span>
                       <span class="sentiment ${n.sentiment}">${labelSentiment(n.sentiment)}</span>
@@ -707,10 +707,10 @@ export function renderPortfolio(main) {
           <div class="card">
             <div class="card-head"><h3>Quick actions</h3></div>
             <div class="flex-col gap-2">
-              <a href="#/stocks" class="btn btn-ghost">📈 Browse markets</a>
-              <a href="#/news" class="btn btn-ghost">📰 Market news</a>
-              <a href="#/crash-replay" class="btn btn-ghost">⏱ Time travel</a>
-              <a href="#/friends" class="btn btn-ghost">💸 Send money</a>
+              <a href="/stocks" class="btn btn-ghost">📈 Browse markets</a>
+              <a href="/news" class="btn btn-ghost">📰 Market news</a>
+              <a href="/crash-replay" class="btn btn-ghost">⏱ Time travel</a>
+              <a href="/friends" class="btn btn-ghost">💸 Send money</a>
             </div>
           </div>
         </div>
@@ -913,7 +913,7 @@ function renderHoldingsTable(holdings) {
               <td class="num">${todayCell}</td>
               <td class="num">${valueCell}</td>
               <td class="num">${plCell}</td>
-              <td><a class="btn btn-ghost btn-sm" href="#/stocks/${h.sym}">Trade</a></td>
+              <td><a class="btn btn-ghost btn-sm" href="/stocks/${h.sym}">Trade</a></td>
             </tr>
           `;
           }).join("")}
@@ -929,7 +929,7 @@ function renderEmptyHoldings() {
       <span class="emoji">📊</span>
       <h3>No holdings yet</h3>
       <p>Pick a stock or mutual fund to get started. Every trade triggers a behavioral reflection from the coach.</p>
-      <a href="#/stocks" class="btn btn-primary">Browse markets</a>
+      <a href="/stocks" class="btn btn-primary">Browse markets</a>
     </div>
   `;
 }

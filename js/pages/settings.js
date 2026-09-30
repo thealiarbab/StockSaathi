@@ -10,7 +10,7 @@ import { toast } from "../components/toast.js";
 export function renderSettings(main) {
   render();
   const unsub = subscribe(render);
-  window.addEventListener("hashchange", () => unsub?.(), { once: true });
+  window.addEventListener("ss:navigate", () => unsub?.(), { once: true });
 
   function render() {
     const state = getState();
@@ -77,9 +77,9 @@ export function renderSettings(main) {
             it as behavioural reflection, not guidance.
           </p>
           <div class="flex gap-2" style="margin-top: var(--sp-4); flex-wrap: wrap;">
-            <a href="#/privacy" class="btn btn-ghost btn-sm">Privacy Policy</a>
-            <a href="#/terms" class="btn btn-ghost btn-sm">Terms of Use</a>
-            <a href="#/grievance" class="btn btn-ghost btn-sm">Grievance contact</a>
+            <a href="/privacy" class="btn btn-ghost btn-sm">Privacy Policy</a>
+            <a href="/terms" class="btn btn-ghost btn-sm">Terms of Use</a>
+            <a href="/grievance" class="btn btn-ghost btn-sm">Grievance contact</a>
           </div>
         </div>
       </div>

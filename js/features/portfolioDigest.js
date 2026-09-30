@@ -1,6 +1,6 @@
 // =============================================================================
 // PORTFOLIO DIGEST — One-paragraph AI take on the user's portfolio state,
-// shown at the top of /#/portfolio. Generated server-side via Gemini, cached
+// shown at the top of /portfolio. Generated server-side via Gemini, cached
 // per-user per-day in localStorage so reloads are instant.
 // =============================================================================
 

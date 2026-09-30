@@ -1,5 +1,6 @@
 // =============================================================================
-// ROUTER — Hash-based. Auth-aware. Clean auth/onboarding/protected split.
+// ROUTER — History API (clean paths). Auth-aware. Clean auth/onboarding/protected split.
+// Legacy "#/…" URLs are upgraded in place on load (js/navigation.js).
 // =============================================================================
 
 import { renderLanding } from "./pages/landing.js";
@@ -27,6 +28,7 @@ import { renderTerms } from "./pages/terms.js";
 import { renderGrievance } from "./pages/grievance.js";
 import { currentUser, refreshCurrentUser } from "./auth/accounts.js";
 import { getState, subscribe } from "./state.js";
+import { go, installNavigation, upgradeLegacyHash, NAV_EVENT } from "./navigation.js";
 
 const ROUTES = [
   { name: "home",          match: /^$|^\/$/,                              render: renderLanding, public: true },
@@ -36,12 +38,12 @@ const ROUTES = [
   { name: "reset-password", match: /^\/reset-password\/?$/,                render: renderResetPassword, public: true },
   { name: "onboarding",    match: /^\/onboarding\/?$/,                     render: renderOnboarding, needsAuth: true },
   { name: "portfolio",     match: /^\/portfolio\/?$/,                      render: renderPortfolio, needsAuth: true, needsOnboarded: true },
-  // Alias: #/orders is not a real page, but some users have bookmarks
+  // Alias: /orders is not a real page, but some users have bookmarks
   // or PWA shortcuts pointing here (from a mental-model of "orders
   // should be their own page"). Redirect to the portfolio page's
-  // pending-orders card rather than 404 them. Using location.replace
-  // (not assign) so the bad URL doesn't pollute history.
-  { name: "orders-redirect", match: /^\/orders\/?$/,                        render: () => { location.replace("#/portfolio"); setTimeout(() => { document.querySelector("#order-list")?.scrollIntoView({ behavior: "smooth" }); }, 300); }, public: true },
+  // pending-orders card rather than 404 them. A replace navigation
+  // so the bad URL doesn't pollute history.
+  { name: "orders-redirect", match: /^\/orders\/?$/,                        render: () => { go("/portfolio", { replace: true }); setTimeout(() => { document.querySelector("#order-list")?.scrollIntoView({ behavior: "smooth" }); }, 300); }, public: true },
   // Hotfix60a: /stocks + /stocks/<sym> are PUBLIC. The markets browser
   // is read-only for anonymous users — no holdings, no watchlist saves,
   // just live prices and the universe. Previously these were auth-gated
@@ -75,13 +77,24 @@ const ROUTES = [
 ];
 
 export function currentRoute() {
-  const hash = location.hash.slice(1) || "/";
-  const pathOnly = hash.split("?")[0];
+  return matchRoute(location.pathname || "/");
+}
+
+// Pure path → route lookup. Also used by the link interceptor to decide
+// whether a same-origin link is ours to handle client-side.
+export function matchRoute(pathname) {
+  // location.pathname is percent-encoded ("/stocks/M%26M" for M&M); the route
+  // patterns are written against the decoded form. Decode per segment so an
+  // encoded "/" can't create a fake segment, and a malformed escape falls
+  // through to the 404 route instead of throwing.
+  const pathOnly = (pathname || "/").split("/").map(seg => {
+    try { return decodeURIComponent(seg); } catch { return seg; }
+  }).join("/");
   for (const r of ROUTES) {
     const m = pathOnly.match(r.match);
     if (m) {
       const p = {};
-      if (r.param) p[r.param] = decodeURIComponent(m[1]);
+      if (r.param) p[r.param] = m[1];
       return { ...r, params: p };
     }
   }
@@ -94,7 +107,7 @@ function render404(main) {
       <span class="emoji">🔍</span>
       <h3>Page not found</h3>
       <p>The route you tried doesn't exist.</p>
-      <a href="#/" class="btn btn-primary">Back home</a>
+      <a href="/" class="btn btn-primary">Back home</a>
     </div>
   `;
 }
@@ -132,7 +145,7 @@ function showLoadingShell(routeName) {
   })();
   const escapeHatch = hasSession
     ? ""
-    : `<a href="#/login" class="dim text-xs" style="margin-top: var(--sp-4); display:inline-block;">Log in to continue</a>`;
+    : `<a href="/login" class="dim text-xs" style="margin-top: var(--sp-4); display:inline-block;">Log in to continue</a>`;
   main.innerHTML = `
     <div class="empty-state" style="padding-top: var(--sp-12);">
       <div class="spinner" aria-hidden="true" style="margin: 0 auto var(--sp-4);"></div>
@@ -143,7 +156,21 @@ function showLoadingShell(routeName) {
 }
 
 export function navigate(route) {
-  location.hash = "#" + (route.startsWith("/") ? route : "/" + route);
+  go(route.startsWith("/") ? route : "/" + route);
+}
+
+// A path the SPA renders (anything but the 404 fallback). Static pages that
+// also exist as routes (/privacy, /terms, /grievance) count as app paths, so
+// in-app clicks stay client-side; a cold load of those URLs still gets the
+// static HTML file from the server.
+export function isAppPath(pathname) {
+  return matchRoute(pathname).name !== "404";
+}
+
+// Admin slugs are secrets. Never let one reach telemetry.
+function trackablePath() {
+  const p = location.pathname || "/";
+  return p.startsWith("/a/") ? "/a/[redacted]" : p + location.search;
 }
 
 // Strong sync signal that the user IS authed even if refreshCurrentUser
@@ -171,11 +198,11 @@ export function mountRouter() {
     if (_pendingRouteCheck) { _pendingRouteCheck(); _pendingRouteCheck = null; }
 
     const r = currentRoute();
-    // page_view is recorded HERE rather than on the hashchange listener.
+    // page_view is recorded HERE rather than on the navigation listener.
     // route() is also called directly at the bottom of this file on boot, so
     // a listener-only hook would miss the first page of every session — which
     // is the landing page, i.e. the most interesting one.
-    track("page_view", location.hash || "#/", { name: r?.name || null });
+    track("page_view", trackablePath(), { name: r?.name || null });
     const user = currentUser();
     const state = getState();
 
@@ -266,7 +293,7 @@ export function mountRouter() {
           <p class="dim">We logged the error. You can reload or go back.</p>
           <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px;">
             <button class="btn btn-primary" id="route-retry">Reload page</button>
-            <a href="#/" class="btn btn-outline">Go home</a>
+            <a href="/" class="btn btn-outline">Go home</a>
           </div>
           <details style="margin-top:24px; max-width: 720px; margin-left:auto; margin-right:auto; text-align:left;">
             <summary class="dim text-xs" style="cursor:pointer; user-select:none;">Show technical details</summary>
@@ -289,6 +316,8 @@ export function mountRouter() {
   }
 
   installTracking();
-  window.addEventListener("hashchange", route);
+  upgradeLegacyHash();
+  installNavigation(isAppPath);
+  window.addEventListener(NAV_EVENT, route);
   route();
 }

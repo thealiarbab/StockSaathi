@@ -243,5 +243,5 @@ export function mountAiExplainer() {
   document.addEventListener("focusout", onBlur, true);
   document.addEventListener("touchstart", onTouchStart, { passive: false });
   document.addEventListener("scroll", hide, { passive: true });
-  window.addEventListener("hashchange", hide);
+  window.addEventListener("ss:navigate", hide);
 }

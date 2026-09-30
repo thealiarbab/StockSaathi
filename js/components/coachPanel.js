@@ -29,8 +29,8 @@ const COACH_HIDDEN_ROUTES = new Set(["", "/", "/login", "/register"]);
 function isCoachAllowed() {
   const state = getState();
   if (!state.isAuthed) return false;
-  const hash = (location.hash.slice(1) || "/").split("?")[0];
-  if (COACH_HIDDEN_ROUTES.has(hash)) return false;
+  const path = location.pathname || "/";
+  if (COACH_HIDDEN_ROUTES.has(path)) return false;
   return true;
 }
 
@@ -146,7 +146,7 @@ export function mountCoachPanel() {
 
   render();
   subscribe(render);
-  window.addEventListener("hashchange", render);
+  window.addEventListener("ss:navigate", render);
 
   // FAB — only present when the coach is allowed on this route
   fab = document.createElement("button");
@@ -156,7 +156,7 @@ export function mountCoachPanel() {
   fab.addEventListener("click", () => {
     const opening = !getState().settings.coachPanelOpen;
     setSetting("coachPanelOpen", opening);
-    if (opening) track("coach_open", location.hash || "#/");
+    if (opening) track("coach_open", location.pathname.startsWith("/a/") ? "/a/[redacted]" : location.pathname);
   });
   document.body.appendChild(fab);
 
@@ -194,7 +194,7 @@ export function mountCoachPanel() {
   };
   applyVisibility();
   window.addEventListener("resize", applyVisibility);
-  window.addEventListener("hashchange", applyVisibility);
+  window.addEventListener("ss:navigate", applyVisibility);
   subscribe(applyVisibility);
 }
 

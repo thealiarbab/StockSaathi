@@ -26,12 +26,12 @@ let state = {
 };
 
 const QUICK_ACTIONS = [
-  { label: "📊 Go to portfolio", hash: "#/portfolio" },
-  { label: "📈 Markets", hash: "#/stocks" },
-  { label: "📰 News", hash: "#/news" },
-  { label: "⏱ Time travel", hash: "#/crash-replay" },
-  { label: "📋 Report card", hash: "#/report-card" },
-  { label: "👥 Friends", hash: "#/friends" },
+  { label: "📊 Go to portfolio", hash: "/portfolio" },
+  { label: "📈 Markets", hash: "/stocks" },
+  { label: "📰 News", hash: "/news" },
+  { label: "⏱ Time travel", hash: "/crash-replay" },
+  { label: "📋 Report card", hash: "/report-card" },
+  { label: "👥 Friends", hash: "/friends" },
 ];
 
 function ensureRoot() {
@@ -101,7 +101,7 @@ function render() {
   });
   root.querySelector("[data-cmdk-action='open-search']")?.addEventListener("click", () => {
     // Go to stocks page with the search query pre-filled via hash param
-    location.hash = "#/stocks";
+    navigate("/stocks");
     setTimeout(() => {
       const s = document.querySelector("#stocks-search");
       if (s) {
@@ -164,7 +164,7 @@ async function submit() {
     const res = await fetch("/api/ai?op=command", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query: q, context: location.hash.slice(1) || "/" }),
+      body: JSON.stringify({ query: q, context: location.pathname.startsWith("/a/") ? "/a" : (location.pathname || "/") }),
     });
     if (!res.ok) throw new Error("http_" + res.status);
     const data = await res.json();

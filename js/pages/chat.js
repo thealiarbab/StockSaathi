@@ -125,7 +125,7 @@ export function renderChat(main) {
   // the currently-mounted chat page re-renders with the updated state.
   const syncHandler = () => { if (document.getElementById("chat-messages")) render(); };
   document.addEventListener("ss:chat-sessions-sync", syncHandler);
-  window.addEventListener("hashchange", () => {
+  window.addEventListener("ss:navigate", () => {
     document.removeEventListener("ss:chat-sessions-sync", syncHandler);
   }, { once: true });
 

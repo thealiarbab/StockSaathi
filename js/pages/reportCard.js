@@ -31,7 +31,7 @@ export function renderReportCard(main) {
   const initialState = getState();
   maybeFetchAiCard(initialState).then(d => { if (d) { aiCard = d; aiCardLoading = false; render(); } });
   const unsub = subscribe(render);
-  window.addEventListener("hashchange", () => unsub?.(), { once: true });
+  window.addEventListener("ss:navigate", () => unsub?.(), { once: true });
 
   function render() {
     const state = getState();
@@ -124,7 +124,7 @@ export function renderReportCard(main) {
           <span class="emoji" style="font-size: 48px;">📋</span>
           <h3 style="margin: var(--sp-3) 0;">Your report card grows with you</h3>
           <p class="muted" style="max-width: 480px; margin: 0 auto;">Place a few trades. Try a panic-sell. Run a crash replay. Come back — the data here will tell you more about yourself than any personality test.</p>
-          <div style="margin-top: var(--sp-5);"><a href="#/stocks" class="btn btn-primary">Browse markets</a></div>
+          <div style="margin-top: var(--sp-5);"><a href="/stocks" class="btn btn-primary">Browse markets</a></div>
         </div>
       ` : ""}
     `;

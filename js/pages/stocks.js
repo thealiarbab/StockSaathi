@@ -9,6 +9,7 @@ import { sparkline } from "../components/charts.js";
 import { formatRupees, formatPct, deltaClass } from "../money.js";
 import { getState, addToWatchlist, removeFromWatchlist, subscribe } from "../state.js";
 import { toast } from "../components/toast.js";
+import { go } from "../navigation.js";
 
 // Default tab = Stocks (showing the full universe sorted by index prominence
 // — Nifty 50/100 stocks naturally land on top). No Featured/All split.
@@ -467,7 +468,7 @@ export function renderStocks(main) {
     if (_dehydrateObserver) { try { _dehydrateObserver.disconnect(); } catch {} _dehydrateObserver = null; }
     _visibleSymbols.clear();
   };
-  window.addEventListener("hashchange", onLeave, { once: true });
+  window.addEventListener("ss:navigate", onLeave, { once: true });
 
   // Viewport-only polling. At 2,700+ universe symbols, polling all of them
   // every 10s would burn the Vercel function budget AND saturate Yahoo's
@@ -1470,7 +1471,7 @@ export function renderStocks(main) {
       }
       const card = e.target.closest(".stock-card[data-sym]");
       if (card && card.dataset.sym) {
-        location.hash = "#/stocks/" + card.dataset.sym;
+        go("/stocks/" + card.dataset.sym);
       }
     };
   }

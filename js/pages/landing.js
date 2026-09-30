@@ -12,14 +12,14 @@ import { getState, subscribe } from "../state.js";
 // this fragment when auth state hydrates late (see renderLanding below).
 function ctaRowHtml(isAuthed, isOnboarded) {
   if (isAuthed && isOnboarded) {
-    return `<a href="#/portfolio" class="btn btn-primary btn-lg">Open portfolio</a>
-            <a href="#/crash-replay" class="btn btn-ghost btn-lg">Try Time Travel</a>`;
+    return `<a href="/portfolio" class="btn btn-primary btn-lg">Open portfolio</a>
+            <a href="/crash-replay" class="btn btn-ghost btn-lg">Try Time Travel</a>`;
   }
   if (isAuthed) {
-    return `<a href="#/onboarding" class="btn btn-primary btn-lg">Finish onboarding</a>`;
+    return `<a href="/onboarding" class="btn btn-primary btn-lg">Finish onboarding</a>`;
   }
-  return `<a href="#/register" class="btn btn-primary btn-lg">Create account →</a>
-          <a href="#/login" class="btn btn-ghost btn-lg">I already have an account</a>`;
+  return `<a href="/register" class="btn btn-primary btn-lg">Create account →</a>
+          <a href="/login" class="btn btn-ghost btn-lg">I already have an account</a>`;
 }
 
 export function renderLanding(main) {
@@ -111,7 +111,7 @@ export function renderLanding(main) {
           <span class="up font-semi">held</span> vs <span class="down font-semi">panic-sold on day 3</span>.
           The <span class="up font-bold">+38%</span> delta lands in under 10 seconds.
         </p>
-        <a href="#/crash-replay/COVID_2020" class="btn btn-primary btn-lg">Run COVID 2020 →</a>
+        <a href="/crash-replay/COVID_2020" class="btn btn-primary btn-lg">Run COVID 2020 →</a>
       </div>
     </section>
 

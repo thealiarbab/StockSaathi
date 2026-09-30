@@ -23,6 +23,7 @@ import { showInterventionModal } from "../components/interventionModal.js";
 import { mountQuantitySelector } from "../components/quantitySelector.js";
 import { toast } from "../components/toast.js";
 import { termHtml } from "../features/aiExplainer.js";
+import { go } from "../navigation.js";
 
 // Timeframe → Yahoo range/interval. Granularity tuned to match Groww/
 // Zerodha density at every TF the user lives in (1D, 1W, 1M).
@@ -199,7 +200,7 @@ export function renderStockDetail(main, params) {
     _stockWhyLast = null;
   }
   if (!inst) {
-    main.innerHTML = `<div class="empty-state"><span class="emoji">🔍</span><h3>Instrument not found</h3><p>Symbol "${symbol}" isn't in the universe.</p><a href="#/stocks" class="btn btn-primary">Back</a></div>`;
+    main.innerHTML = `<div class="empty-state"><span class="emoji">🔍</span><h3>Instrument not found</h3><p>Symbol "${symbol}" isn't in the universe.</p><a href="/stocks" class="btn btn-primary">Back</a></div>`;
     return;
   }
 
@@ -291,7 +292,7 @@ export function renderStockDetail(main, params) {
     if (_zoomDetach) { _zoomDetach(); _zoomDetach = null; }
     _gestureActive = false;
   };
-  window.addEventListener("hashchange", onLeave, { once: true });
+  window.addEventListener("ss:navigate", onLeave, { once: true });
   // Fetch history
   (async () => {
     try {
@@ -765,7 +766,7 @@ function render(inst, symbol) {
   main.innerHTML = `
     <div style="margin-bottom: var(--sp-5);">
       <div class="flex items-center gap-2">
-        <a href="#/stocks" class="btn btn-ghost btn-sm">← Markets</a>
+        <a href="/stocks" class="btn btn-ghost btn-sm">← Markets</a>
         <span class="dim">/</span>
         <span class="dim text-sm">${escapeHtml(inst.sector || "—")}</span>
       </div>
@@ -1473,7 +1474,7 @@ async function _reviewTrade(inst, symbol, curPrice, holding) {
       // Navigate to portfolio so the queued order is visible in the
       // "Pending limit orders" card — gives the user concrete evidence
       // the AMO landed, not just a toast.
-      location.hash = "#/portfolio";
+      go("/portfolio");
     } catch (e) {
       console.error("[AMO] placeLimitOrder failed:", e);
       toast({

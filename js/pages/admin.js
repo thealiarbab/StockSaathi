@@ -1,6 +1,6 @@
 // =============================================================================
 // ADMIN GOD-MODE PANEL
-// Nine-tab unified ops console at /#/a/<ADMIN_PATH>. Replaces the owner's
+// Nine-tab unified ops console at /a/<ADMIN_PATH>. Replaces the owner's
 // need to open Supabase Studio, Vercel Dashboard, or GitHub Web UI for
 // routine operations.
 //
@@ -83,7 +83,7 @@ function render404Like(main) {
       <span class="emoji">🔍</span>
       <h3>Page not found</h3>
       <p class="muted">The route you tried doesn't exist.</p>
-      <a href="#/" class="btn btn-primary">Back home</a>
+      <a href="/" class="btn btn-primary">Back home</a>
     </div>`;
 }
 function renderLoadingShell(main) {
@@ -110,7 +110,7 @@ function renderTokenForm(main) {
         </div>
         <div class="flex gap-2" style="margin-top: var(--sp-3);">
           <button id="admin-token-save" class="btn btn-primary">Unlock</button>
-          <a href="#/" class="btn btn-ghost">Cancel</a>
+          <a href="/" class="btn btn-ghost">Cancel</a>
         </div>
       </div>
     </div>`;

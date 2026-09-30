@@ -1,7 +1,7 @@
 // =============================================================================
 // RESET PASSWORD — Step 1 of 2. Request the email.
 // User enters email → we call Supabase resetPasswordForEmail → email is
-// sent with a link back to /#/reset-password. Second step lives in
+// sent with a link back to /reset-password. Second step lives in
 // resetPassword.js.
 // =============================================================================
 
@@ -9,7 +9,7 @@ import { requestPasswordReset } from "../auth/accounts.js";
 
 export function renderResetPasswordRequest(main) {
   // Prefill the email if the login page bounced us here with ?email=...
-  const q = (location.hash.split("?")[1] || "");
+  const q = location.search.slice(1);
   const prefilled = new URLSearchParams(q).get("email") || "";
 
   main.innerHTML = `
@@ -40,7 +40,7 @@ export function renderResetPasswordRequest(main) {
         </div>
 
         <div class="auth-switch">
-          Remembered your password? <a href="#/login">Log in</a>
+          Remembered your password? <a href="/login">Log in</a>
         </div>
       </div>
     </div>

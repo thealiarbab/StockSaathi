@@ -13,7 +13,7 @@ let tab = "send";   // send | codes | history
 export function renderFriends(main) {
   render();
   const unsub = subscribe(render);
-  window.addEventListener("hashchange", () => unsub?.(), { once: true });
+  window.addEventListener("ss:navigate", () => unsub?.(), { once: true });
 
   function render() {
     const state = getState();

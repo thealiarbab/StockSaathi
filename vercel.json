@@ -13,7 +13,9 @@
       "has": [{ "type": "host", "value": "www.stocksaathi.co.in" }],
       "destination": "https://stocksaathi.co.in/$1",
       "permanent": true
-    }
+    },
+    { "source": "/market",  "destination": "/stocks", "permanent": true },
+    { "source": "/markets", "destination": "/stocks", "permanent": true }
   ],
   "rewrites": [
     {
@@ -27,7 +29,15 @@
     },
     { "source": "/privacy",   "destination": "/privacy.html" },
     { "source": "/terms",     "destination": "/terms.html" },
-    { "source": "/grievance", "destination": "/grievance.html" }
+    { "source": "/grievance", "destination": "/grievance.html" },
+    {
+      "source": "/:route(login|register|reset-password-request|reset-password|onboarding|portfolio|orders|stocks|crash-replay|report-card|friends|news|chat|settings)",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/:route(stocks|crash-replay|a)/:param",
+      "destination": "/index.html"
+    }
   ],
   "headers": [
     {

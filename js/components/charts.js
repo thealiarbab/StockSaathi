@@ -919,7 +919,7 @@ export function areaChart(values, opts = {}) {
  *     because toFixed(2) on lakhs cannot resolve it;
  *   - the unit flips mid-axis at exactly 1e5, so one tick reads "100.0k" and
  *     the tick above it reads "1.01L" -- the same quantity, two units.
- * Both were visible on #/portfolio's 1M range.
+ * Both were visible on /portfolio's 1M range.
  *
  * Picking the unit from the span keeps every tick in the same unit, and
  * picking decimals from the tick step keeps adjacent ticks distinct.

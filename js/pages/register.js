@@ -87,8 +87,8 @@ export function renderRegister(main) {
               or a SEBI-regulated recommendation. I accept that disputes arising from use of
               this app are not covered by SEBI's investor-protection or grievance-redressal
               mechanisms. I have read and agree to the
-              <a href="#/privacy" target="_blank" rel="noopener">Privacy Policy</a> and
-              <a href="#/terms" target="_blank" rel="noopener">Terms of Use</a>.</span>
+              <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a> and
+              <a href="/terms" target="_blank" rel="noopener">Terms of Use</a>.</span>
             </label>
 
             <div id="reg-error" role="alert"></div>
@@ -96,7 +96,7 @@ export function renderRegister(main) {
           </form>
 
           <div class="auth-switch">
-            Already have an account? <a href="#/login">Log in</a>
+            Already have an account? <a href="/login">Log in</a>
           </div>
         </div>
       </div>
@@ -163,7 +163,7 @@ export function renderRegister(main) {
         if (err.code === "email_already_registered" || /already exists|already registered/i.test(err.message || "")) {
           errBox.innerHTML = `<div class="error-msg">
             An account with <strong>${escapeHtml(email)}</strong> already exists.
-            <a href="#/login?email=${encodeURIComponent(email)}" style="margin-left:6px;">Log in instead →</a>
+            <a href="/login?email=${encodeURIComponent(email)}" style="margin-left:6px;">Log in instead →</a>
           </div>`;
           btn.disabled = false;
           btn.textContent = "Create account";

@@ -16,6 +16,13 @@ import { mountCommandPalette, openCommandPalette } from "./components/commandPal
 import { startServerTimeSync } from "./data/serverTime.js";
 import { mountMarketStatusPopover } from "./features/marketStatusPopover.js";
 import { ensureUniverseLoaded } from "./data/universe.js";
+import { upgradeLegacyHash } from "./navigation.js";
+
+// Old "#/…" links (bookmarks, shared URLs, emails sent before clean URLs) →
+// clean path, before anything reads the URL. Runs ahead of the Supabase
+// client's creation, so a legacy password-reset link's "#access_token=…"
+// ends up in location.hash where supabase-js expects it.
+upgradeLegacyHash();
 
 // Theme ASAP to avoid flash
 (function applyTheme() {
@@ -105,7 +112,10 @@ subscribe((s) => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("./sw.js", { updateViaCache: "none" });
+      // Absolute path: with clean URLs a page can load at /stocks/TCS, where
+      // "./sw.js" would resolve to /stocks/sw.js (404) and scope the worker
+      // to /stocks/.
+      const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" });
       // Periodic update check — long-open tabs catch up to recent
       // deploys without waiting for the browser's own 24h-capped
       // background update cycle. Pre-fix reg.update() ran exactly once
@@ -155,7 +165,7 @@ if ("serviceWorker" in navigator) {
 // Keyboard shortcuts
 document.addEventListener("keydown", (e) => {
   if (e.target.matches("input, textarea, select")) return;
-  if (e.key === "/" && location.hash.startsWith("#/stocks")) {
+  if (e.key === "/" && location.pathname.startsWith("/stocks")) {
     e.preventDefault();
     document.querySelector("#stocks-search")?.focus();
   }

@@ -61,7 +61,7 @@ export function renderCrashReplay(main, params) {
   }
   const scenario = getCrashById(scenarioId);
   if (!scenario) {
-    main.innerHTML = `<div class="empty-state"><span class="emoji">🔍</span><h3>Scenario not found</h3><a href="#/crash-replay" class="btn btn-primary">Back</a></div>`;
+    main.innerHTML = `<div class="empty-state"><span class="emoji">🔍</span><h3>Scenario not found</h3><a href="/crash-replay" class="btn btn-primary">Back</a></div>`;
     return;
   }
   renderReplay(main, scenario);
@@ -140,7 +140,7 @@ function renderSelector(main) {
 
   main.querySelectorAll(".crash-scenario[data-id]").forEach(btn => {
     btn.addEventListener("click", () => {
-      location.hash = "#/crash-replay/" + btn.dataset.id;
+      navigate("/crash-replay/" + btn.dataset.id);
     });
   });
 
@@ -174,7 +174,7 @@ function renderSelector(main) {
     // for ~250ms when the user could have been on the replay page.
     const localId = existingScenarioForQuery(q);
     if (localId) {
-      location.hash = "#/crash-replay/" + localId;
+      navigate("/crash-replay/" + localId);
       return;
     }
     // REVAMP: replace the entire selector main with the generating-stage
@@ -275,7 +275,7 @@ function renderSelector(main) {
         if (stage) stage.classList.add("gen-fading-out");
       }
       setTimeout(() => {
-        location.hash = "#/crash-replay/" + scenario.id;
+        navigate("/crash-replay/" + scenario.id);
       }, FADE_MS);
     } catch (e) {
       const msg = String(e?.message || "unknown error");
@@ -324,9 +324,9 @@ function renderSelector(main) {
           chips.appendChild(c);
         }
         stage.appendChild(chips);
-        // "Back to scenarios" button. CRITICAL: setting location.hash to
-        // the same value (we're ALREADY at #/crash-replay) does NOT fire
-        // hashchange, so the previous bare hash assignment did nothing.
+        // "Back to scenarios" button. CRITICAL: navigating to the URL we are
+        // already on (/crash-replay) is a no-op, so a bare navigate() here
+        // would do nothing.
         // Re-call renderSelector(main) directly to restore the page.
         const back = document.createElement("button");
         back.className = "btn btn-primary btn-sm";
@@ -366,7 +366,7 @@ function renderSelector(main) {
     };
     rotate();
     const h = setInterval(rotate, 4000);
-    window.addEventListener("hashchange", () => clearInterval(h), { once: true });
+    window.addEventListener("ss:navigate", () => clearInterval(h), { once: true });
   }).catch(() => {});
 }
 
@@ -398,7 +398,7 @@ function renderReplay(main, scenario) {
     window.addEventListener("crash-scenario-streaming", onStreaming);
     window.addEventListener("crash-scenario-updated", onUpdated);
     // Also clear the listeners if user navigates away.
-    window.addEventListener("hashchange", () => {
+    window.addEventListener("ss:navigate", () => {
       window.removeEventListener("crash-scenario-streaming", onStreaming);
       window.removeEventListener("crash-scenario-updated", onUpdated);
     }, { once: true });
@@ -417,7 +417,7 @@ function renderReplay(main, scenario) {
 
   main.innerHTML = `
     <div class="replay-topbar">
-      <a href="#/crash-replay" class="btn btn-ghost btn-sm">← Scenarios</a>
+      <a href="/crash-replay" class="btn btn-ghost btn-sm">← Scenarios</a>
       <div class="replay-title-inline">
         <span class="pill pill-brand">⏱ ${escapeHtml(scenario.subtitle || "Time travel")}</span>
         <strong>${escapeHtml(scenario.title)}</strong>
@@ -644,7 +644,7 @@ function renderReplay(main, scenario) {
   // covers that need DURING real generation, so the post-load animation
   // is redundant. We do still keep the chart's SVG draw-in (1.5s) since
   // the scrubber-tick gate makes it run only on first paint and it's a
-  // cheap visual win on direct /#/crash-replay/<id> hits (e.g. shared
+  // cheap visual win on direct /crash-replay/<id> hits (e.g. shared
   // links). For now, no JS-driven typewriter — the chart's CSS-only
   // draw-in is the only intro effect.
 
@@ -763,9 +763,9 @@ function renderReplay(main, scenario) {
   // Cleanup when leaving page
   const cleanup = () => {
     stopPlayback();
-    window.removeEventListener("hashchange", cleanup);
+    window.removeEventListener("ss:navigate", cleanup);
   };
-  window.addEventListener("hashchange", cleanup, { once: true });
+  window.addEventListener("ss:navigate", cleanup, { once: true });
 }
 
 function pickActiveNarration(frames, idx) {
@@ -845,7 +845,7 @@ function playReplayIntroAnimation(main, scenario) {
   }
   // Cancel on hashchange so navigating away doesn't leave timers running.
   const onHashChange = () => cancel();
-  window.addEventListener("hashchange", onHashChange, { once: true });
+  window.addEventListener("ss:navigate", onHashChange, { once: true });
 
   // Stats counter (t=0): held starts at 100k, drops to peak-trough.
   // Day-0 is always 100k so the counter "ticks up" visually from 0.

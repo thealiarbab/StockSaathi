@@ -8,6 +8,7 @@
 import { sb, isSupabaseEnabled } from "./supabase.js";
 import { getState, setState, subscribe as subscribeState } from "../state.js";
 import { refreshCurrentUser, currentUser } from "../auth/accounts.js";
+import { go } from "../navigation.js";
 
 let _booted = false;
 let _syncing = false;
@@ -560,5 +561,5 @@ export async function handleSessionLost() {
     const { logoutAccount } = await import("../auth/accounts.js");
     await logoutAccount();
   } catch {}
-  try { window.location.hash = "#/login"; } catch {}
+  try { go("/login"); } catch {}
 }

@@ -35,7 +35,7 @@ export function mountNav() {
   if (!root) return;
   render();
   subscribe(render);
-  window.addEventListener("hashchange", render);
+  window.addEventListener("ss:navigate", render);
 
   // Click-outside closes user dropdown
   document.addEventListener("click", (e) => {
@@ -57,7 +57,7 @@ export function mountNav() {
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") closeDrawer();
   });
-  window.addEventListener("hashchange", closeDrawer);
+  window.addEventListener("ss:navigate", closeDrawer);
 
   function render() {
     const state = getState();
@@ -117,7 +117,7 @@ export function mountNav() {
               <span class="mbn-link-label">${item.label}</span>
             </button>`;
           }
-          return `<a href="#/${item.route}" class="mbn-link ${isActive ? "active" : ""}">
+          return `<a href="/${item.route}" class="mbn-link ${isActive ? "active" : ""}">
             <span class="mbn-link-icon" aria-hidden="true">${item.icon}</span>
             <span class="mbn-link-label">${item.label}</span>
           </a>`;
@@ -128,14 +128,14 @@ export function mountNav() {
     root.innerHTML = `
       ${mobileNavHtml}
       <div class="nav-inner">
-        <a href="${state.isAuthed ? "#/portfolio" : "#/"}" class="brand-logo" aria-label="StockSaathi home">
+        <a href="${state.isAuthed ? "/portfolio" : "/"}" class="brand-logo" aria-label="StockSaathi home">
           <span class="logo-mark" aria-hidden="true"><svg viewBox="0 0 64 64" width="22" height="22" style="display:block;"><path d="M16 40 L26 28 L34 36 L48 20" stroke="white" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="48" cy="20" r="3.5" fill="white"/></svg></span>
           <span>StockSaathi</span>
         </a>
 
         <nav class="nav-links" aria-label="Main navigation">
           ${topLinks.map(l => `
-            <a href="#/${l.route}" class="nav-link ${active === l.route ? "active" : ""}">${l.label}</a>
+            <a href="/${l.route}" class="nav-link ${active === l.route ? "active" : ""}">${l.label}</a>
           `).join("")}
         </nav>
 
@@ -181,16 +181,16 @@ export function mountNav() {
                   <div class="muted text-xs">@${escapeHtml(state.user.username || "")}</div>
                 </div>
                 <div class="dropdown-divider"></div>
-                <a class="dropdown-item" href="#/report-card">📋 Report card</a>
-                <a class="dropdown-item" href="#/friends">👥 Friends & transfers</a>
-                <a class="dropdown-item" href="#/settings">⚙️ Settings</a>
+                <a class="dropdown-item" href="/report-card">📋 Report card</a>
+                <a class="dropdown-item" href="/friends">👥 Friends & transfers</a>
+                <a class="dropdown-item" href="/settings">⚙️ Settings</a>
                 <div class="dropdown-divider"></div>
                 <button class="dropdown-item danger" id="logout-btn">Log out</button>
               </div>
             </div>
           ` : `
-            <a href="#/login" class="btn btn-ghost btn-sm nav-auth-btn">Log in</a>
-            <a href="#/register" class="btn btn-primary btn-sm nav-auth-btn">Sign up</a>
+            <a href="/login" class="btn btn-ghost btn-sm nav-auth-btn">Log in</a>
+            <a href="/register" class="btn btn-primary btn-sm nav-auth-btn">Sign up</a>
           `}
           <button class="nav-burger" aria-label="Open menu" id="nav-burger-btn">
             <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -310,7 +310,7 @@ function renderDrawer(state, allLinks, active, pfValue, ms) {
 
     <div class="drawer-section">Navigate</div>
     ${allLinks.map(l => `
-      <a href="#/${l.route}" class="drawer-link ${active === l.route ? "active" : ""}" data-close-on-click>
+      <a href="/${l.route}" class="drawer-link ${active === l.route ? "active" : ""}" data-close-on-click>
         <span>${l.icon} ${l.label}</span>
         <span class="muted">›</span>
       </a>
@@ -325,7 +325,7 @@ function renderDrawer(state, allLinks, active, pfValue, ms) {
     ${state.isAuthed ? `
       <div class="drawer-divider"></div>
       <div class="drawer-section">${escapeHtml(state.user.displayName || state.user.username || "")}</div>
-      <a href="#/settings" class="drawer-link" data-close-on-click>
+      <a href="/settings" class="drawer-link" data-close-on-click>
         <span>⚙️ Settings</span>
         <span class="muted">›</span>
       </a>
@@ -334,11 +334,11 @@ function renderDrawer(state, allLinks, active, pfValue, ms) {
       </button>
     ` : `
       <div class="drawer-divider"></div>
-      <a href="#/login" class="drawer-link" data-close-on-click>
+      <a href="/login" class="drawer-link" data-close-on-click>
         <span>Log in</span>
         <span class="muted">›</span>
       </a>
-      <a href="#/register" class="drawer-link" data-close-on-click style="color: var(--brand);">
+      <a href="/register" class="drawer-link" data-close-on-click style="color: var(--brand);">
         <span>Create account</span>
         <span class="muted">›</span>
       </a>
