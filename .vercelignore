@@ -15,3 +15,11 @@ api-backup/
 edge/
 _headers
 .github/
+
+# Internal docs, notes, SQL and tooling: repo-only. Serving them on the
+# production domain let search engines and AI crawlers index files like
+# STATUS.md and docs/SECURITY_FIXES_*.md under stocksaathi.co.in.
+docs/
+*.md
+db/
+scripts/
