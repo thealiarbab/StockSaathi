@@ -141,7 +141,13 @@ if ("serviceWorker" in navigator) {
         });
       });
       let reloaded = false;
+      // Only an UPDATE should reload. On a visitor's very first load the page
+      // starts uncontrolled; the new worker's clients.claim() still fires
+      // controllerchange, which used to reload the page a few seconds after
+      // a first-time visitor arrived, often mid-read or mid-click.
+      const hadController = !!navigator.serviceWorker.controller;
       const safeReload = () => {
+        if (!hadController) return;
         if (reloaded) return;
         reloaded = true;
         // Don't yank the page out from under a user mid-keystroke.

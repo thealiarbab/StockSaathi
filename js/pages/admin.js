@@ -58,6 +58,11 @@ const state = {
 
 let currentTab = "overview";
 
+// Set once the server has accepted the URL slug in THIS tab. Lives only in
+// memory: a reload or a new tab starts false, so a bare /a is a 404 unless
+// the slug was validated moments ago in the same tab.
+let slugValidatedThisTab = false;
+
 // -----------------------------------------------------------------------------
 // Bootstrap
 // -----------------------------------------------------------------------------
@@ -70,11 +75,32 @@ export function renderAdmin(main, params) {
     .then(r => r.ok ? r.json() : null)
     .then(data => {
       if (!data?.ok) return render404Like(main);
-      if (!getToken()) return renderTokenForm(main);
-      currentTab = getLastTab() || "overview";
-      renderTabbedShell(main);
+      slugValidatedThisTab = true;
+      // Drop the secret slug from the address bar and the back stack. The
+      // validation above is unchanged; this only rewrites the visible URL.
+      // replaceState fires no navigation event, so the console stays mounted
+      // and the ADMIN_TOKEN session in localStorage is untouched.
+      try { history.replaceState(history.state, "", "/a"); } catch {}
+      showConsole(main);
     })
     .catch(() => render404Like(main));
+}
+
+/**
+ * Route handler for the bare "/a" path. Only renders the console when the
+ * slug was validated earlier in this tab (e.g. the user went back/forward
+ * after the URL was cleaned); otherwise it is indistinguishable from any
+ * other unknown path.
+ */
+export function renderAdminClean(main) {
+  if (!slugValidatedThisTab) return render404Like(main);
+  showConsole(main);
+}
+
+function showConsole(main) {
+  if (!getToken()) return renderTokenForm(main);
+  currentTab = getLastTab() || "overview";
+  renderTabbedShell(main);
 }
 
 function render404Like(main) {

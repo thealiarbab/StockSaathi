@@ -22,7 +22,7 @@ import { renderResetPassword } from "./pages/resetPassword.js";
 import { renderFriends } from "./pages/friends.js";
 import { renderNews } from "./pages/news.js";
 import { renderChat } from "./pages/chat.js";
-import { renderAdmin } from "./pages/admin.js";
+import { renderAdmin, renderAdminClean } from "./pages/admin.js";
 import { renderPrivacy } from "./pages/privacy.js";
 import { renderTerms } from "./pages/terms.js";
 import { renderGrievance } from "./pages/grievance.js";
@@ -114,6 +114,11 @@ const ROUTES = [
   // nothing. renderAdmin itself calls /api/ai?op=admin-path-check and
   // short-circuits to 404 if the slug isn't valid.
   { name: "admin-slug",    match: /^\/a\/([A-Za-z0-9_-]{1,16384})\/?$/,    render: renderAdmin, param: "slug", public: true },
+  // After validation the address bar is rewritten to /a (see admin.js). This
+  // route only shows the console if the slug was validated in this tab;
+  // otherwise it renders the same "Page not found" as any unknown path. The
+  // server has no rewrite for /a, so a reload of /a is a genuine 404.
+  { name: "admin-clean",   match: /^\/a\/?$/,                              render: renderAdminClean, public: true },
 ];
 
 export function currentRoute() {
