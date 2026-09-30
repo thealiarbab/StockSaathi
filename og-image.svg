@@ -1,73 +1,33 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#0A0B0F"/>
-      <stop offset="55%" stop-color="#0B1812"/>
-      <stop offset="100%" stop-color="#0F1F18"/>
-    </linearGradient>
-    <linearGradient id="line" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="#22C55E" stop-opacity="0.2"/>
-      <stop offset="35%" stop-color="#22C55E" stop-opacity="1"/>
-      <stop offset="100%" stop-color="#4ADE80" stop-opacity="1"/>
-    </linearGradient>
-    <linearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#22C55E" stop-opacity="0.30"/>
-      <stop offset="100%" stop-color="#22C55E" stop-opacity="0"/>
-    </linearGradient>
-    <radialGradient id="glow" cx="0.78" cy="0.25" r="0.7">
-      <stop offset="0%" stop-color="#22C55E" stop-opacity="0.18"/>
-      <stop offset="60%" stop-color="#22C55E" stop-opacity="0"/>
-    </radialGradient>
-    <style>
-      .wm   { font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-weight: 800; letter-spacing: -1.5px; }
-      .head { font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-weight: 700; letter-spacing: -0.5px; }
-      .sub  { font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-weight: 500; }
-      .pill { font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-weight: 600; letter-spacing: 0.2px; }
-      .url  { font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-weight: 600; letter-spacing: 0.5px; }
-    </style>
-  </defs>
+  <!-- Link-preview image. The chart is the real COVID-19 crash replay from
+       js/data/crashes.js (daily Nifty 50 closes, 19 Feb to 9 Nov 2020):
+       a ₹1,00,000 portfolio held versus sold on day 3. Rendered to
+       images/og-image.png by scripts/render_assets.py. -->
+  <rect width="1200" height="630" fill="#F8F9FB"/>
 
-  <rect width="1200" height="630" fill="url(#bg)"/>
-  <rect width="1200" height="630" fill="url(#glow)"/>
-
-  <g opacity="0.08" stroke="#4ADE80" stroke-width="1">
-    <line x1="0" y1="160" x2="1200" y2="160"/>
-    <line x1="0" y1="280" x2="1200" y2="280"/>
-    <line x1="0" y1="400" x2="1200" y2="400"/>
-    <line x1="0" y1="520" x2="1200" y2="520"/>
+  <g transform="translate(72 64)">
+    <rect width="56" height="56" rx="12.25" fill="#00B386"/>
+    <path d="M14 35 L22.75 24.5 L29.75 31.5 L42 17.5" stroke="#FFFFFF" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="42" cy="17.5" r="2.6" fill="#FFFFFF"/>
+    <text x="74" y="40" font-family="Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-size="34" font-weight="800" letter-spacing="-1" fill="#141414">StockSaathi</text>
   </g>
 
-  <!-- Decorative trend line (illustration, not data). -->
-  <path d="M 640 470 L 700 455 L 760 468 L 820 430 L 880 440 L 940 395 L 1000 404 L 1060 350 L 1120 318 L 1200 270 L 1200 630 L 640 630 Z" fill="url(#fill)"/>
-  <path d="M 640 470 L 700 455 L 760 468 L 820 430 L 880 440 L 940 395 L 1000 404 L 1060 350 L 1120 318 L 1200 270" fill="none" stroke="url(#line)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="72" y="262" font-family="Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-size="66" font-weight="800" letter-spacing="-2.4" fill="#141414">Invest virtually.</text>
+  <text x="72" y="340" font-family="Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-size="66" font-weight="800" letter-spacing="-2.4" fill="#00B386">Learn for real.</text>
+  <text x="72" y="404" font-family="Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-size="25" font-weight="500" fill="#5C6473">A free stock market simulator for</text>
+  <text x="72" y="438" font-family="Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-size="25" font-weight="500" fill="#5C6473">Indian teens, with ₹1,00,000 of virtual money.</text>
+  <text x="72" y="566" font-family="Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-size="22" font-weight="600" fill="#5C6473">stocksaathi.co.in</text>
 
-  <g transform="translate(72,96)">
-    <rect x="0" y="0" width="14" height="56" rx="3" fill="#22C55E"/>
-    <text x="34" y="48" class="wm" font-size="76" fill="#ffffff">StockSaathi</text>
-  </g>
-
-  <text x="86" y="232" class="head" font-size="50" fill="#ffffff">Invest virtually.</text>
-  <text x="86" y="292" class="head" font-size="50" fill="#22C55E">Learn for real.</text>
-
-  <text x="86" y="350" class="sub" font-size="28" fill="#CBD5E1">Free stock market simulator for Indian teens, 13–18</text>
-
-  <g transform="translate(86,396)" class="pill" font-size="22">
-    <rect x="0" y="0" width="300" height="54" rx="27" fill="#0F1F18" stroke="#22C55E" stroke-width="1.5"/>
-    <text x="24" y="35" fill="#E5E7EB"><tspan fill="#22C55E" font-weight="800">₹1,00,000</tspan> virtual money</text>
-
-    <rect x="316" y="0" width="236" height="54" rx="27" fill="#0F1F18" stroke="#22C55E" stroke-width="1.5"/>
-    <text x="340" y="35" fill="#E5E7EB">NSE + BSE stocks</text>
-
-    <rect x="0" y="70" width="300" height="54" rx="27" fill="#0F1F18" stroke="#22C55E" stroke-width="1.5"/>
-    <text x="24" y="105" fill="#E5E7EB">AI coach for beginners</text>
-
-    <rect x="316" y="70" width="236" height="54" rx="27" fill="#0F1F18" stroke="#22C55E" stroke-width="1.5"/>
-    <text x="340" y="105" fill="#E5E7EB">Crash replays</text>
-  </g>
-
-  <g transform="translate(1130,592)" text-anchor="end">
-    <text x="0" y="0" class="url" font-size="22" fill="#94A3B8">stocksaathi.co.in</text>
-  </g>
-
-  <rect x="0" y="624" width="1200" height="6" fill="#22C55E"/>
+  <rect x="640" y="120" width="516" height="436" rx="18" fill="#FFFFFF" stroke="#E6E8EE"/>
+  <text x="676" y="166" font-family="Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-size="21" font-weight="700" fill="#141414">The COVID-19 crash, replayed</text>
+  <text x="676" y="192" font-family="Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-size="16" font-weight="500" fill="#878E9C">Real Nifty 50 closes, 19 Feb to 9 Nov 2020</text>
+  <line x1="676" x2="1128" y1="243.5" y2="243.5" stroke="#A8AFBC" stroke-width="1.5" stroke-dasharray="4 5"/>
+  <path d="M676.0,243.5L681.1,245.6L681.1,245.6L676.0,243.5ZM681.1,245.6L686.3,257.5L686.3,257.5L681.1,245.6ZM686.3,257.5L691.4,259.0L691.4,259.0L686.3,257.5ZM1086.9,257.2L1092.0,252.5L1092.0,259.0L1086.9,259.0ZM1092.0,252.5L1097.2,260.6L1097.2,259.0L1092.0,259.0ZM1097.2,260.6L1102.3,252.4L1102.3,259.0L1097.2,259.0ZM1102.3,252.4L1107.5,260.4L1107.5,259.0L1102.3,259.0ZM1117.7,258.2L1122.9,237.0L1122.9,259.0L1117.7,259.0ZM1122.9,237.0L1128.0,227.7L1128.0,259.0L1122.9,259.0Z" fill="#00B386" fill-opacity="0.14"/>
+  <path d="M691.4,259.0L696.5,264.6L696.5,259.0L691.4,259.0ZM696.5,264.6L701.7,266.7L701.7,259.0L696.5,259.0ZM701.7,266.7L706.8,287.1L706.8,259.0L701.7,259.0ZM706.8,287.1L712.0,290.3L712.0,259.0L706.8,259.0ZM712.0,290.3L717.1,282.3L717.1,259.0L712.0,259.0ZM717.1,282.3L722.2,284.7L722.2,259.0L717.1,259.0ZM722.2,284.7L727.4,283.9L727.4,259.0L722.2,259.0ZM727.4,283.9L732.5,297.1L732.5,259.0L727.4,259.0ZM732.5,297.1L737.6,322.4L737.6,259.0L732.5,259.0ZM737.6,322.4L742.8,322.1L742.8,259.0L737.6,259.0ZM742.8,322.1L747.9,363.0L747.9,259.0L742.8,259.0ZM747.9,363.0L753.0,345.8L753.0,259.0L747.9,259.0ZM753.0,345.8L758.2,381.5L758.2,259.0L753.0,259.0ZM758.2,381.5L763.3,392.3L763.3,259.0L758.2,259.0ZM763.3,392.3L768.5,415.8L768.5,259.0L763.3,259.0ZM768.5,415.8L773.6,425.5L773.6,259.0L768.5,259.0ZM773.6,425.5L778.7,402.8L778.7,259.0L773.6,259.0ZM778.7,402.8L783.9,456.3L783.9,259.0L778.7,259.0ZM783.9,456.3L789.0,447.3L789.0,259.0L783.9,259.0ZM789.0,447.3L794.1,422.9L794.1,259.0L789.0,259.0ZM794.1,422.9L799.3,407.7L799.3,259.0L794.1,259.0ZM799.3,407.7L804.4,406.8L804.4,259.0L799.3,259.0ZM804.4,406.8L809.5,424.7L809.5,259.0L804.4,259.0ZM809.5,424.7L814.7,409.8L814.7,259.0L809.5,259.0ZM814.7,409.8L819.8,426.0L819.8,259.0L814.7,259.0ZM819.8,426.0L825.0,434.0L825.0,259.0L819.8,259.0ZM825.0,434.0L830.1,400.6L830.1,259.0L825.0,259.0ZM830.1,400.6L835.2,402.6L835.2,259.0L830.1,259.0ZM835.2,402.6L840.4,385.5L840.4,259.0L835.2,259.0ZM840.4,385.5L845.5,391.1L845.5,259.0L840.4,259.0ZM845.5,391.1L850.6,394.3L850.6,259.0L845.5,259.0ZM850.6,394.3L855.8,391.1L855.8,259.0L850.6,259.0ZM855.8,391.1L860.9,378.2L860.9,259.0L855.8,259.0ZM860.9,378.2L866.0,378.5L866.0,259.0L860.9,259.0ZM866.0,378.5L871.2,391.7L871.2,259.0L866.0,259.0ZM871.2,391.7L876.3,382.0L876.3,259.0L871.2,259.0ZM876.3,382.0L881.5,376.0L881.5,259.0L876.3,259.0ZM881.5,376.0L886.6,372.8L886.6,259.0L881.5,259.0ZM886.6,372.8L891.7,377.0L891.7,259.0L886.6,259.0ZM891.7,377.0L896.9,381.4L896.9,259.0L891.7,259.0ZM896.9,381.4L902.0,381.5L902.0,259.0L896.9,259.0ZM902.0,381.5L907.1,384.4L907.1,259.0L902.0,259.0ZM907.1,384.4L912.3,399.1L912.3,259.0L907.1,259.0ZM912.3,399.1L917.4,387.7L917.4,259.0L912.3,259.0ZM917.4,387.7L922.5,389.4L922.5,259.0L917.4,259.0ZM922.5,389.4L927.7,363.5L927.7,259.0L922.5,259.0ZM927.7,363.5L932.8,340.8L932.8,259.0L927.7,259.0ZM932.8,340.8L938.0,335.8L938.0,259.0L932.8,259.0ZM938.0,335.8L943.1,348.3L943.1,259.0L938.0,259.0ZM943.1,348.3L948.2,347.7L948.2,259.0L943.1,259.0ZM948.2,347.7L953.4,332.2L953.4,259.0L948.2,259.0ZM953.4,332.2L958.5,329.3L958.5,259.0L953.4,259.0ZM958.5,329.3L963.6,329.0L963.6,259.0L958.5,259.0ZM963.6,329.0L968.8,317.7L968.8,259.0L963.6,259.0ZM968.8,317.7L973.9,306.0L973.9,259.0L968.8,259.0ZM973.9,306.0L979.0,307.5L979.0,259.0L973.9,259.0ZM979.0,307.5L984.2,314.6L984.2,259.0L979.0,259.0ZM984.2,314.6L989.3,295.5L989.3,259.0L984.2,259.0ZM989.3,295.5L994.5,286.4L994.5,259.0L989.3,259.0ZM994.5,286.4L999.6,282.4L999.6,259.0L994.5,259.0ZM999.6,282.4L1004.7,293.1L1004.7,259.0L999.6,259.0ZM1004.7,293.1L1009.9,291.8L1009.9,259.0L1004.7,259.0ZM1009.9,291.8L1015.0,283.8L1015.0,259.0L1009.9,259.0ZM1015.0,283.8L1020.1,282.4L1020.1,259.0L1015.0,259.0ZM1020.1,282.4L1025.3,278.4L1025.3,259.0L1020.1,259.0ZM1025.3,278.4L1030.4,279.1L1030.4,259.0L1025.3,259.0ZM1030.4,279.1L1035.5,270.7L1035.5,259.0L1030.4,259.0ZM1035.5,270.7L1040.7,278.3L1040.7,259.0L1035.5,259.0ZM1040.7,278.3L1045.8,271.7L1045.8,259.0L1040.7,259.0ZM1045.8,271.7L1051.0,281.6L1051.0,259.0L1045.8,259.0ZM1051.0,281.6L1056.1,274.7L1056.1,259.0L1051.0,259.0ZM1056.1,274.7L1061.2,268.1L1061.2,259.0L1056.1,259.0ZM1061.2,268.1L1066.4,284.8L1066.4,259.0L1061.2,259.0ZM1066.4,284.8L1071.5,305.7L1071.5,259.0L1066.4,259.0ZM1071.5,305.7L1076.6,286.1L1076.6,259.0L1071.5,259.0ZM1076.6,286.1L1081.8,272.8L1081.8,259.0L1076.6,259.0ZM1081.8,272.8L1086.9,257.2L1086.9,259.0L1081.8,259.0ZM1107.5,260.4L1112.6,265.0L1112.6,259.0L1107.5,259.0ZM1112.6,265.0L1117.7,258.2L1117.7,259.0L1112.6,259.0Z" fill="#EB5757" fill-opacity="0.12"/>
+  <path d="M676.0,243.5L681.1,245.6L686.3,257.5L691.4,259.0L696.5,259.0L701.7,259.0L706.8,259.0L712.0,259.0L717.1,259.0L722.2,259.0L727.4,259.0L732.5,259.0L737.6,259.0L742.8,259.0L747.9,259.0L753.0,259.0L758.2,259.0L763.3,259.0L768.5,259.0L773.6,259.0L778.7,259.0L783.9,259.0L789.0,259.0L794.1,259.0L799.3,259.0L804.4,259.0L809.5,259.0L814.7,259.0L819.8,259.0L825.0,259.0L830.1,259.0L835.2,259.0L840.4,259.0L845.5,259.0L850.6,259.0L855.8,259.0L860.9,259.0L866.0,259.0L871.2,259.0L876.3,259.0L881.5,259.0L886.6,259.0L891.7,259.0L896.9,259.0L902.0,259.0L907.1,259.0L912.3,259.0L917.4,259.0L922.5,259.0L927.7,259.0L932.8,259.0L938.0,259.0L943.1,259.0L948.2,259.0L953.4,259.0L958.5,259.0L963.6,259.0L968.8,259.0L973.9,259.0L979.0,259.0L984.2,259.0L989.3,259.0L994.5,259.0L999.6,259.0L1004.7,259.0L1009.9,259.0L1015.0,259.0L1020.1,259.0L1025.3,259.0L1030.4,259.0L1035.5,259.0L1040.7,259.0L1045.8,259.0L1051.0,259.0L1056.1,259.0L1061.2,259.0L1066.4,259.0L1071.5,259.0L1076.6,259.0L1081.8,259.0L1086.9,259.0L1092.0,259.0L1097.2,259.0L1102.3,259.0L1107.5,259.0L1112.6,259.0L1117.7,259.0L1122.9,259.0L1128.0,259.0" fill="none" stroke="#EB5757" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M676.0,243.5L681.1,245.6L686.3,257.5L691.4,259.0L696.5,264.6L701.7,266.7L706.8,287.1L712.0,290.3L717.1,282.3L722.2,284.7L727.4,283.9L732.5,297.1L737.6,322.4L742.8,322.1L747.9,363.0L753.0,345.8L758.2,381.5L763.3,392.3L768.5,415.8L773.6,425.5L778.7,402.8L783.9,456.3L789.0,447.3L794.1,422.9L799.3,407.7L804.4,406.8L809.5,424.7L814.7,409.8L819.8,426.0L825.0,434.0L830.1,400.6L835.2,402.6L840.4,385.5L845.5,391.1L850.6,394.3L855.8,391.1L860.9,378.2L866.0,378.5L871.2,391.7L876.3,382.0L881.5,376.0L886.6,372.8L891.7,377.0L896.9,381.4L902.0,381.5L907.1,384.4L912.3,399.1L917.4,387.7L922.5,389.4L927.7,363.5L932.8,340.8L938.0,335.8L943.1,348.3L948.2,347.7L953.4,332.2L958.5,329.3L963.6,329.0L968.8,317.7L973.9,306.0L979.0,307.5L984.2,314.6L989.3,295.5L994.5,286.4L999.6,282.4L1004.7,293.1L1009.9,291.8L1015.0,283.8L1020.1,282.4L1025.3,278.4L1030.4,279.1L1035.5,270.7L1040.7,278.3L1045.8,271.7L1051.0,281.6L1056.1,274.7L1061.2,268.1L1066.4,284.8L1071.5,305.7L1076.6,286.1L1081.8,272.8L1086.9,257.2L1092.0,252.5L1097.2,260.6L1102.3,252.4L1107.5,260.4L1112.6,265.0L1117.7,258.2L1122.9,237.0L1128.0,227.7" fill="none" stroke="#00B386" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <text x="676" y="512" font-family="Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-size="17" font-weight="600" fill="#00B386">Held</text>
+  <text x="676" y="538" font-family="Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-size="22" font-weight="700" fill="#141414">₹1,02,764</text>
+  <text x="900" y="512" font-family="Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-size="17" font-weight="600" fill="#EB5757">Sold on day 3</text>
+  <text x="900" y="538" font-family="Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-size="22" font-weight="700" fill="#141414">₹97,295</text>
 </svg>

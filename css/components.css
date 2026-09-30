@@ -4452,3 +4452,201 @@ table.compare { min-width: 560px; }
   .tm-stage, .tm-stage.tm-out { animation: none; }
   .assemble-dot { animation: none; }
 }
+
+/* ==================== Crash replay, 2026-10 redesign ====================
+   One bold idea: the chart is the time machine. Everything around it is
+   quiet: two figures, one sentence about the gap, a slim timeline.
+   Tokens only (brand green = holding, negative red = selling). No gradients. */
+.replay-topbar { gap: var(--sp-2) var(--sp-4); }
+.replay-back {
+  color: var(--text-muted); font-size: var(--text-sm); text-decoration: none;
+  padding: var(--sp-2) 0; min-height: 40px; display: inline-flex; align-items: center;
+}
+.replay-back:hover { color: var(--text-strong); text-decoration: underline; text-underline-offset: 3px; }
+.replay-title-inline { gap: var(--sp-1) var(--sp-3); align-items: baseline; }
+.replay-window { font-size: var(--text-sm); color: var(--text-muted); }
+.mood-indicator { font-size: var(--text-sm); font-weight: 600; background: none; padding: 0; border: 0; }
+.mood-indicator.calm { color: var(--text-muted); }
+.mood-indicator.euphoric { color: var(--positive); }
+.mood-indicator.nervous { color: var(--saffron, #C98A1B); }
+.mood-indicator.panic { color: var(--negative); }
+
+.replay-panel { padding: var(--sp-6) var(--sp-6) var(--sp-5); box-shadow: none; }
+
+/* The two figures: side by side at every width, no boxes. */
+.replay-stats { grid-template-columns: 1fr 1fr; gap: 0; margin-bottom: var(--sp-2); }
+.replay-stat, .replay-stat.held, .replay-stat.panic {
+  background: none; border: 0; border-radius: 0; padding: 0 var(--sp-5) 0 0;
+}
+.replay-stat.panic { padding: 0 0 0 var(--sp-5); border-left: 1px solid var(--border); }
+.replay-stat .header { margin-bottom: var(--sp-2); font-weight: 500; gap: var(--sp-2); flex-wrap: wrap; }
+.replay-stat .who { font-weight: 600; }
+.replay-stat.held .who, .replay-stat.held .header > span:first-child { color: var(--positive); }
+.replay-stat.panic .who, .replay-stat.panic .header > span:first-child { color: var(--negative); }
+.replay-stat .when { color: var(--text-dim); font-size: var(--text-xs); }
+.replay-stat .big { font-size: clamp(1.45rem, 5.2vw, 2.5rem); letter-spacing: -0.04em; }
+.replay-stat .delta { font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 600; font-variant-numeric: tabular-nums; }
+.replay-stat .delta:not(.up):not(.down) { color: var(--text-dim); }
+.replay-stat .delta.up { color: var(--positive); }
+.replay-stat .delta.down { color: var(--negative); }
+
+.replay-gap { margin: var(--sp-4) 0 var(--sp-2); font-size: var(--text-md); font-weight: 600; color: var(--text-muted); }
+.replay-gap.up { color: var(--positive); }
+.replay-gap.down { color: var(--negative); }
+
+/* Chart */
+.replay-chart-wrap { position: relative; margin-top: var(--sp-2); }
+.replay-chart { width: 100%; min-height: 230px; }
+.replay-chart .rp-chart { display: block; font-family: var(--font-sans); overflow: visible; }
+.rp-grid line { stroke: var(--divider, var(--border)); stroke-width: 1; }
+.rp-axis { fill: var(--text-dim); font-size: 11px; font-weight: 500; }
+.rp-start { stroke: var(--text-faint); stroke-width: 1; stroke-dasharray: 3 4; }
+.rp-start-label { fill: var(--text-dim); }
+.rp-held, .rp-panic { fill: none; stroke-width: 2.25; stroke-linejoin: round; stroke-linecap: round; }
+.rp-held { stroke: var(--positive); }
+.rp-panic { stroke: var(--negative); }
+.rp-future { opacity: 0.22; }
+.rp-gap-ahead { fill: var(--positive); opacity: 0.13; }
+.rp-gap-behind { fill: var(--negative); opacity: 0.12; }
+.rp-playhead { stroke: var(--text-strong); stroke-width: 1; }
+.rp-dot { stroke: var(--surface); stroke-width: 2; }
+.rp-dot-held { fill: var(--positive); }
+.rp-dot-panic { fill: var(--negative); }
+.replay-chart-hit { position: absolute; top: 0; bottom: 0; left: 0; right: 0; cursor: ew-resize; touch-action: pan-y; }
+
+/* Timeline under the chart: a hairline with a progress fill and a slim bar
+   for a handle, aligned (by JS) with the chart's plot area. */
+.replay-slider-wrap { background: none; padding: 0; margin: var(--sp-3) 0 var(--sp-5); border-radius: 0; }
+.replay-slider {
+  -webkit-appearance: none; appearance: none; display: block; width: 100%; height: 28px; margin: 0;
+  background: linear-gradient(var(--text-strong), var(--text-strong)) 0 50% / var(--pct, 0%) 2px no-repeat,
+              linear-gradient(var(--border), var(--border)) 0 50% / 100% 2px no-repeat;
+  border-radius: 0; cursor: pointer; touch-action: pan-y;
+}
+.replay-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 6px; height: 22px; border-radius: 3px;
+  background: var(--text-strong); border: 2px solid var(--surface); box-shadow: none; cursor: ew-resize;
+}
+.replay-slider::-moz-range-thumb {
+  width: 6px; height: 22px; border-radius: 3px; background: var(--text-strong);
+  border: 2px solid var(--surface); cursor: ew-resize;
+}
+.replay-slider::-moz-range-track { background: transparent; }
+.replay-slider:focus-visible { outline: none; }
+.replay-slider:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px var(--brand-ring); }
+.replay-slider:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 4px var(--brand-ring); }
+.replay-markers { height: 20px; margin: 0; }
+.replay-marker {
+  font-size: var(--text-xs); font-weight: 500; color: var(--text-dim); padding: 2px 4px;
+  background: none; border: 0; min-height: 24px;
+}
+.replay-marker::before { width: 1px; height: 5px; background: var(--text-faint); }
+.replay-marker:hover, .replay-marker.active { color: var(--text-strong); }
+.replay-marker.active::before { background: var(--text-strong); }
+.replay-slider-meta {
+  font-family: var(--font-sans); font-size: var(--text-xs); color: var(--text-dim);
+  margin: var(--sp-1) 0 0; gap: var(--sp-2);
+}
+.replay-slider-meta #slider-pos { color: var(--text); font-weight: 600; text-align: center; }
+
+/* Narration reads like prose, not a callout box. */
+.replay-narration {
+  background: none; border: 0; border-radius: 0; padding: 0;
+  font-size: var(--text-lg); line-height: 1.6; color: var(--text-strong); max-width: 64ch; min-height: 4.8em;
+}
+.replay-callout {
+  background: none; border: 0; border-top: 1px solid var(--border); border-radius: 0;
+  padding: var(--sp-3) 0 0; margin-top: var(--sp-4); color: var(--text-muted); max-width: 64ch; animation: none;
+}
+.replay-callout strong { color: var(--text-strong); }
+
+.replay-final-banner {
+  background: none; color: var(--text-strong); text-align: left; box-shadow: none; border-radius: 0;
+  border-top: 2px solid var(--text-strong); padding: var(--sp-4) 0 0; margin-top: var(--sp-5); animation: none;
+}
+.replay-final-banner .lead { margin: 0; font-size: var(--text-md); font-weight: 600; color: var(--text-muted); }
+.replay-final-banner .num { font-size: clamp(2rem, 7vw, 3rem); margin: var(--sp-1) 0; letter-spacing: -0.04em; }
+.replay-final-banner .sub { margin: 0; font-size: var(--text-sm); font-weight: 400; color: var(--text-muted); max-width: 60ch; }
+.replay-note-title { margin: 0; font-size: var(--text-md); font-weight: 700; color: var(--text-strong); }
+
+@media (max-width: 640px) {
+  .replay-panel { padding: var(--sp-4) var(--sp-4) var(--sp-3); }
+  .replay-stat, .replay-stat.held { padding-right: var(--sp-3); }
+  .replay-stat.panic { padding-left: var(--sp-3); }
+  .replay-stat .when { display: none; }
+  .replay-narration { font-size: var(--text-md); }
+  .replay-controls-top { width: 100%; justify-content: flex-start; }
+}
+
+/* Replay intro, mixed: time-machine date + live console in one card. */
+.tm-stage { justify-content: flex-start; padding-top: clamp(var(--sp-6), 8vh, var(--sp-16)); gap: var(--sp-3); }
+.tm-title { font-size: var(--text-md); font-weight: 600; color: var(--text-strong); letter-spacing: 0; }
+.tm-card {
+  width: min(640px, 100%); text-align: left;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg);
+  padding: var(--sp-6) var(--sp-6) var(--sp-5);
+}
+.tm-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-2) var(--sp-5); flex-wrap: wrap; }
+.tm-card .tm-date { font-size: clamp(2.1rem, 9vw, 3.6rem); margin: 0; letter-spacing: -0.04em; }
+.tm-card .tm-level { justify-content: flex-start; gap: var(--sp-2); }
+.tm-card .tm-level strong { font-size: var(--text-lg); }
+.tm-spark { display: block; width: 100%; height: 84px; margin: var(--sp-4) 0 var(--sp-5); overflow: visible; }
+.tm-spark-base { stroke: var(--text-faint); stroke-width: 1; stroke-dasharray: 3 4; vector-effect: non-scaling-stroke; }
+.tm-spark-line { fill: none; stroke: var(--brand); stroke-width: 2.25; stroke-linejoin: round; stroke-linecap: round; }
+.tm-steps { list-style: none; margin: 0; padding: var(--sp-4) 0 0; border-top: 1px solid var(--divider); display: grid; gap: var(--sp-2); }
+.tm-steps li {
+  position: relative; padding-left: 28px; font-size: var(--text-sm); line-height: 1.5; color: var(--text-dim);
+  font-variant-numeric: tabular-nums; transition: color 200ms ease;
+}
+.tm-steps li::before {
+  content: ""; position: absolute; left: 0; top: 0.2em; width: 16px; height: 16px; box-sizing: border-box;
+  border-radius: 50%; border: 1.5px solid var(--border);
+}
+.tm-steps li[data-state="active"] { color: var(--text-strong); font-weight: 600; }
+.tm-steps li[data-state="active"]::before { border-color: var(--brand); border-right-color: transparent; animation: tm-spin 0.8s linear infinite; }
+.tm-steps li[data-state="done"] { color: var(--text); }
+.tm-steps li[data-state="done"]::before {
+  border: 0; background: var(--brand);
+}
+.tm-steps li[data-state="done"]::after {
+  content: ""; position: absolute; left: 5px; top: calc(0.2em + 4px); width: 6px; height: 3.5px;
+  border-left: 1.75px solid var(--surface); border-bottom: 1.75px solid var(--surface); transform: rotate(-45deg);
+}
+@keyframes tm-spin { to { transform: rotate(360deg); } }
+.tm-story { margin: var(--sp-4) 0 0; min-height: 3em; font-size: var(--text-md); line-height: 1.6; color: var(--text-strong); max-width: 60ch; }
+.tm-story:empty { min-height: 0; margin: 0; }
+.tm-stage .tm-skip { margin-top: var(--sp-2); }
+@media (max-width: 640px) {
+  .tm-card { padding: var(--sp-5) var(--sp-4) var(--sp-4); border-radius: var(--r); }
+  .tm-spark { height: 64px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tm-steps li[data-state="active"]::before { animation: none; }
+}
+
+/* .btn sets display, which beat the [hidden] attribute on replay buttons. */
+.replay-controls [hidden] { display: none !important; }
+
+/* Replay on phones: one scrolling row of controls, short labels, no leftover
+   pill backgrounds, capitalised short labels when "If you" is dropped. */
+.mood-indicator.calm, .mood-indicator.euphoric, .mood-indicator.nervous, .mood-indicator.panic {
+  background: none; border: 0; padding: 0;
+}
+@media (max-width: 640px) {
+  .replay-topbar { position: static; padding-top: var(--sp-2); }
+  .replay-title-inline { order: -1; width: 100%; }
+  .replay-back { order: -2; min-height: 32px; padding: 0; }
+  .replay-title-inline .replay-title-h1 { font-size: var(--text-md); }
+  .replay-controls-top {
+    flex-wrap: nowrap; overflow-x: auto; gap: var(--sp-2); padding-bottom: 2px;
+    scrollbar-width: none; -webkit-overflow-scrolling: touch; margin: 0 calc(-1 * var(--sp-4)); padding-inline: var(--sp-4);
+  }
+  .replay-controls-top::-webkit-scrollbar { display: none; }
+  .replay-controls-top .btn-sm { flex: 0 0 auto; min-height: 40px; }
+  .assemble-bar { font-size: var(--text-xs); top: calc(var(--nav-h) + var(--sp-1)); }
+}
+.replay-stat .who .short { display: none; }
+@media (max-width: 400px) {
+  .replay-stat .who .long { display: none; }
+  .replay-stat .who .short { display: inline; }
+}

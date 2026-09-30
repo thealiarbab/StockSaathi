@@ -173,127 +173,64 @@ export function lineChart(values, {
 // same duration. Axis labels, scrubber, legend fade in at 1.55s.
 // On scrubber drag the caller passes animate:false so the chart
 // re-renders instantly without replaying the intro animation.
-export function dualLineChart({ held, panic, height = 280, width = 800, currentIndex = null, animate = false }) {
-  if (!held.length) return "";
-  const all = [...held, ...panic];
-  const { min: dataMin, max: dataMax } = minMax(all);
-  const range = dataMax - dataMin;
-  // Hotfix44a: was 0.08 (8%) on each side. User-reported on the YES Bank
-  // Moratorium replay: y-axis MAX label said ₹1.74L while the actual
-  // peak value was ₹1.64L. 3% feels right.
-  const min = dataMin - range * 0.03;
-  const max = dataMax + range * 0.03;
-  const paddingLeft = 60, paddingRight = 20, paddingTop = 20, paddingBottom = 28;
-  const plotW = width - paddingLeft - paddingRight;
-  const plotH = height - paddingTop - paddingBottom;
-  const toX = (i) => paddingLeft + (held.length > 1 ? (i / (held.length - 1)) * plotW : 0);
-  const toY = (v) => paddingTop + plotH - ((v - min) / (max - min)) * plotH;
+export function dualLineChart({ held, panic, height = 280, width = 800, currentIndex = null, geometry = null }) {
+  // The crash replay's chart. Drawn at the container's real pixel width so
+  // text never stretches. Days already replayed are solid, the rest faded;
+  // the space between the two lines fills in as time passes, green where
+  // holding is ahead and red where selling is, so the gap itself is the
+  // thing you watch.
+  const n = held.length;
+  if (!n) return "";
+  const { min: dataMin, max: dataMax } = minMax([...held, ...panic]);
+  const range = dataMax - dataMin || 1;
+  const min = dataMin - range * 0.04;
+  const max = dataMax + range * 0.04;
+  const compact = width < 520;
+  const pl = compact ? 44 : 58, pr = 12, pt = 14, pb = 12;
+  const plotW = width - pl - pr, plotH = height - pt - pb;
+  if (geometry) { geometry.left = pl; geometry.right = pr; }
+  const x = (i) => pl + (n > 1 ? (i / (n - 1)) * plotW : 0);
+  const y = (v) => pt + plotH - ((v - min) / (max - min)) * plotH;
+  const cur = currentIndex == null ? n - 1 : Math.max(0, Math.min(n - 1, currentIndex));
+  const line = (s, a, b) => {
+    let d = "";
+    for (let i = a; i <= b; i++) d += (i === a ? "M" : "L") + x(i).toFixed(1) + "," + y(s[i]).toFixed(1);
+    return d;
+  };
 
-  let heldPath = "", panicPath = "";
-  for (let i = 0; i < held.length; i++) {
-    heldPath += (i === 0 ? "M" : "L") + toX(i).toFixed(1) + "," + toY(held[i]).toFixed(1) + " ";
-    panicPath += (i === 0 ? "M" : "L") + toX(i).toFixed(1) + "," + toY(panic[i]).toFixed(1) + " ";
+  // Gap between the lines, up to today only.
+  let ahead = "", behind = "";
+  for (let i = 0; i < cur; i++) {
+    const q = `M${x(i).toFixed(1)},${y(held[i]).toFixed(1)}L${x(i + 1).toFixed(1)},${y(held[i + 1]).toFixed(1)}` +
+              `L${x(i + 1).toFixed(1)},${y(panic[i + 1]).toFixed(1)}L${x(i).toFixed(1)},${y(panic[i]).toFixed(1)}Z`;
+    if (held[i] + held[i + 1] >= panic[i] + panic[i + 1]) ahead += q; else behind += q;
   }
 
-  const startY = toY(held[0]);
-  let gridLines = "";
-  for (let i = 0; i <= 4; i++) {
-    const y = paddingTop + (i / 4) * plotH;
-    gridLines += `<line x1="${paddingLeft}" x2="${width - paddingRight}" y1="${y}" y2="${y}" />`;
+  let grid = "", labels = "";
+  for (let k = 0; k <= 2; k++) {
+    const gy = pt + (k / 2) * plotH;
+    const v = max - (k / 2) * (max - min);
+    grid += `<line x1="${pl}" x2="${width - pr}" y1="${gy.toFixed(1)}" y2="${gy.toFixed(1)}" />`;
+    labels += `<text class="rp-axis" x="${pl - 8}" y="${(gy + 4).toFixed(1)}" text-anchor="end">₹${formatAxisNumber(v)}</text>`;
   }
-  let yLabels = "";
-  for (let i = 0; i <= 4; i++) {
-    const y = paddingTop + (i / 4) * plotH;
-    const v = max - (i / 4) * (max - min);
-    yLabels += `<text class="chart-axis-label" x="${paddingLeft - 8}" y="${y + 4}" text-anchor="end">₹${formatAxisNumber(v)}</text>`;
-  }
-
-  let scrubber = "";
-  if (currentIndex != null && currentIndex >= 0 && currentIndex < held.length) {
-    const x = toX(currentIndex);
-    const hy = toY(held[currentIndex]);
-    const py = toY(panic[currentIndex]);
-    scrubber = `
-      <line x1="${x}" x2="${x}" y1="${paddingTop}" y2="${paddingTop + plotH}" stroke="var(--brand)" stroke-dasharray="3 3" stroke-width="1" opacity="0.6" />
-      <circle cx="${x}" cy="${hy}" r="5" fill="var(--positive)" stroke="var(--bg)" stroke-width="2" />
-      <circle cx="${x}" cy="${py}" r="5" fill="var(--negative)" stroke="var(--bg)" stroke-width="2" />
-    `;
-  }
-
-  // Generate a stable id so multiple charts on one page don't clip-fight.
-  const uid = "ss" + Math.floor(Math.random() * 1e9).toString(36);
-  const animClass = animate ? "ss-chart-anim" : "";
-  const styleBlock = animate ? `
-    <style>
-      .ss-chart-anim .ss-line-held {
-        stroke-dasharray: 1; stroke-dashoffset: 1;
-        animation: ss-draw-line 1.5s cubic-bezier(0.22, 1, 0.36, 1) 0s forwards;
-      }
-      .ss-chart-anim .ss-panic-clip-${uid} rect {
-        transform: scaleX(0); transform-origin: ${paddingLeft}px center;
-        animation: ss-sweep-x-${uid} 1.5s cubic-bezier(0.22, 1, 0.36, 1) 0.2s forwards;
-      }
-      .ss-chart-anim .ss-area-fill {
-        opacity: 0;
-        animation: ss-chart-fadein 0.6s ease-out 1.2s forwards;
-      }
-      .ss-chart-anim .ss-axis,
-      .ss-chart-anim .ss-scrubber,
-      .ss-chart-anim .ss-legend,
-      .ss-chart-anim .ss-startline {
-        opacity: 0;
-        animation: ss-chart-fadein 0.5s ease-out 1.55s forwards;
-      }
-      @keyframes ss-draw-line { to { stroke-dashoffset: 0; } }
-      @keyframes ss-sweep-x-${uid} { to { transform: scaleX(1); } }
-      @keyframes ss-chart-fadein { to { opacity: 1; } }
-      @media (prefers-reduced-motion: reduce) {
-        .ss-chart-anim .ss-line-held, .ss-chart-anim .ss-panic-clip-${uid} rect,
-        .ss-chart-anim .ss-area-fill, .ss-chart-anim .ss-axis,
-        .ss-chart-anim .ss-scrubber, .ss-chart-anim .ss-legend,
-        .ss-chart-anim .ss-startline {
-          animation: none; stroke-dashoffset: 0; transform: none; opacity: 1;
-        }
-      }
-    </style>
-  ` : "";
+  const sy = y(held[0]);
+  const px = x(cur);
 
   return `
-    <svg class="chart-svg ${animClass}" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" width="100%" height="100%" aria-hidden="true">
-      ${styleBlock}
-      <defs>
-        <linearGradient id="heldFill_${uid}" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="var(--positive)" stop-opacity="0.25" />
-          <stop offset="100%" stop-color="var(--positive)" stop-opacity="0" />
-        </linearGradient>
-        <linearGradient id="panicFill_${uid}" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="var(--negative)" stop-opacity="0.2" />
-          <stop offset="100%" stop-color="var(--negative)" stop-opacity="0" />
-        </linearGradient>
-        <clipPath id="panicClip_${uid}" class="ss-panic-clip-${uid}">
-          <rect x="${paddingLeft}" y="0" width="${plotW}" height="${height}" />
-        </clipPath>
-      </defs>
-      <g class="chart-grid">${gridLines}</g>
-      <line class="ss-startline" x1="${paddingLeft}" x2="${width - paddingRight}" y1="${startY}" y2="${startY}" stroke="var(--text-faint)" stroke-dasharray="4 4" stroke-width="1" opacity="0.6" />
-      <text class="chart-axis-label ss-startline" x="${width - paddingRight}" y="${startY - 4}" text-anchor="end">Start: ₹${formatAxisNumber(held[0])}</text>
-
-      <path class="ss-area-fill" d="${heldPath} L${toX(held.length - 1)},${paddingTop + plotH} L${toX(0)},${paddingTop + plotH} Z" fill="url(#heldFill_${uid})" />
-      <path class="ss-area-fill" d="${panicPath} L${toX(panic.length - 1)},${paddingTop + plotH} L${toX(0)},${paddingTop + plotH} Z" fill="url(#panicFill_${uid})" />
-      <path class="ss-line-held" d="${heldPath.trim()}" pathLength="1" fill="none" stroke="var(--positive)" stroke-width="2.5" stroke-linecap="round" />
-      <g clip-path="url(#panicClip_${uid})">
-        <path d="${panicPath.trim()}" fill="none" stroke="var(--negative)" stroke-width="2.5" stroke-dasharray="4 3" stroke-linecap="round" />
-      </g>
-
-      <g class="ss-scrubber">${scrubber}</g>
-      <g class="ss-axis">${yLabels}</g>
-
-      <g class="ss-legend">
-        <circle cx="${paddingLeft + 8}" cy="${paddingTop - 4}" r="5" fill="var(--positive)" />
-        <text x="${paddingLeft + 20}" y="${paddingTop}" class="chart-axis-label" fill="var(--text-muted)">If you held</text>
-        <circle cx="${paddingLeft + 110}" cy="${paddingTop - 4}" r="5" fill="var(--negative)" />
-        <text x="${paddingLeft + 122}" y="${paddingTop}" class="chart-axis-label" fill="var(--text-muted)">If you panic-sold</text>
-      </g>
+    <svg class="chart-svg rp-chart" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" aria-hidden="true">
+      <g class="rp-grid">${grid}</g>
+      <line class="rp-start" x1="${pl}" x2="${width - pr}" y1="${sy.toFixed(1)}" y2="${sy.toFixed(1)}" />
+      <text class="rp-axis rp-start-label" x="${pl + 6}" y="${(sy - 6).toFixed(1)}">Where you started</text>
+      <path class="rp-gap-ahead" d="${ahead}" />
+      <path class="rp-gap-behind" d="${behind}" />
+      ${cur < n - 1 ? `<path class="rp-future rp-held" d="${line(held, cur, n - 1)}" />
+      <path class="rp-future rp-panic" d="${line(panic, cur, n - 1)}" />` : ""}
+      <path class="rp-held" d="${line(held, 0, cur)}" />
+      <path class="rp-panic" d="${line(panic, 0, cur)}" />
+      <line class="rp-playhead" x1="${px.toFixed(1)}" x2="${px.toFixed(1)}" y1="${pt}" y2="${pt + plotH}" />
+      <circle class="rp-dot rp-dot-panic" cx="${px.toFixed(1)}" cy="${y(panic[cur]).toFixed(1)}" r="4.5" />
+      <circle class="rp-dot rp-dot-held" cx="${px.toFixed(1)}" cy="${y(held[cur]).toFixed(1)}" r="4.5" />
+      <g>${labels}</g>
     </svg>
   `;
 }

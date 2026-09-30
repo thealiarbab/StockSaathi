@@ -50,7 +50,8 @@ IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
 TODAY = dt.datetime.now(IST).date().isoformat()
 
 OG_IMAGE = SITE + "/images/og-image.png"
-OG_ALT = "StockSaathi: Invest virtually. Learn for real. A free stock market simulator for Indian teens."
+OG_ALT = ("StockSaathi: Invest virtually. Learn for real. A free stock market simulator for Indian teens, beside "
+          "a chart of the COVID-19 crash replay: ₹1,00,000 held finished at ₹1,02,764, sold on day 3 at ₹97,295.")
 ROBOTS_INDEX = "index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1"
 ROBOTS_NOINDEX = "noindex, follow"
 

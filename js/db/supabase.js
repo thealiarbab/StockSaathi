@@ -32,8 +32,39 @@ async function loadConfig() {
  * Returns the Supabase client if configured + SDK loaded, else null.
  * On first call: fetches /api/config, loads SDK, creates client.
  */
-export async function sb() {
-  if (_client) return _client;
+let _clientPromise = null;
+export function sb() {
+  if (_client) return Promise.resolve(_client);
+  // Share one in-flight setup. Concurrent first calls used to each await the
+  // config and then each call createClient, leaving two GoTrueClient
+  // instances on the same storage key ("Multiple GoTrueClient instances");
+  // they fought over its session lock, which Firefox reports as an uncaught
+  // "Navigator LockManager lock ... immediately failed" on every page.
+  if (!_clientPromise) {
+    _clientPromise = createSb().then((c) => {
+      if (!c) _clientPromise = null;          // not configured yet: allow a retry
+      return c;
+    });
+  }
+  return _clientPromise;
+}
+
+// In-tab lock for the auth client, replacing the browser's cross-tab
+// Navigator LockManager. With it, supabase-js 2.45's token-refresh tick asks
+// for the lock with "fail immediately if busy", and Firefox surfaces that
+// failure as an uncaught error on every page load. This keeps calls in one
+// tab strictly one-at-a-time, which is what the auth client needs.
+const _authLocks = new Map();
+async function inTabLock(name, _acquireTimeout, fn) {
+  const prev = _authLocks.get(name) || Promise.resolve();
+  let release;
+  const mine = new Promise((r) => { release = r; });
+  _authLocks.set(name, prev.then(() => mine));
+  await prev.catch(() => {});
+  try { return await fn(); } finally { release(); }
+}
+
+async function createSb() {
   const cfg = await loadConfig();
   if (!cfg?.supabaseUrl || !cfg?.supabaseAnonKey) return null;
   const mod = await loadSdk().catch(() => null);
@@ -44,6 +75,7 @@ export async function sb() {
       autoRefreshToken: true,
       storage: window.localStorage,
       storageKey: "ss.sb.session.v1",
+      lock: inTabLock,
     },
     global: { headers: { "x-application-name": "stocksaathi" } },
   });

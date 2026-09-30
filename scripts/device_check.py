@@ -70,6 +70,7 @@ PROBE = """() => {
 
 
 def main():
+    sys.stdout.reconfigure(encoding="utf-8")       # emoji in button labels vs cp1252
     OUT.mkdir(parents=True, exist_ok=True)
     srv = subprocess.Popen([sys.executable, str(ROOT / "scripts" / "dev_server.py"), str(PORT)],
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

@@ -93,22 +93,18 @@ export function renderCrashReplay(main, params) {
 // browser session (closing the site resets it), skipped right after a live
 // generation, skippable at any point, and much shorter with reduced motion.
 // -----------------------------------------------------------------------------
-const BUILT_KEY = "ss.replayBuilt.v1";
+// Seen-this-visit set, in memory only. sessionStorage was restored by
+// browsers on tab restore / "continue where you left off" and kept by iOS
+// across app switches, so reopening the site skipped the intro. A fresh load
+// of the site (reopen or refresh) now always shows it again.
+const _builtThisVisit = new Set();
 // The router can render the same route twice during boot (auth settling
 // fires another navigation event), so only the newest intro may finish.
 let _buildSeq = 0;
 let _cancelIntro = null;
 
-function builtSet() {
-  try { return new Set(JSON.parse(sessionStorage.getItem(BUILT_KEY) || "[]")); } catch { return new Set(); }
-}
-function wasBuiltThisSession(id) { return builtSet().has(id); }
-function markBuiltThisSession(id) {
-  try {
-    const s = builtSet(); s.add(id);
-    sessionStorage.setItem(BUILT_KEY, JSON.stringify([...s].slice(-50)));
-  } catch {}
-}
+function wasBuiltThisSession(id) { return _builtThisVisit.has(id); }
+function markBuiltThisSession(id) { _builtThisVisit.add(id); }
 
 const REDUCED = () => !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -118,70 +114,127 @@ function fmtDate(iso) {
 }
 
 // Beat 1. Resolves true if the user skipped the whole intro.
+// The time machine and the live console in one: real trading dates flip from
+// the start of the window to the end while the price line draws itself in
+// step, and each step in the list completes at the moment the flip actually
+// passes that day (the day-3 sale, the lowest close, the last day). Then the
+// opening narration types out.
 function playTimeMachine(main, scenario) {
   const frames = scenario.frames || [];
   if (frames.length < 4) return Promise.resolve(true);
-  const dates = Array.isArray(scenario.dates) && scenario.dates.length === frames.length ? scenario.dates : null;
+  const n = frames.length;
+  const dates = Array.isArray(scenario.dates) && scenario.dates.length === n ? scenario.dates : null;
   const series = scenario.isCustom ? "Close" : "Nifty 50";
-  const c0 = frames[0].nifty;
-  const whenLabel = (i) => dates ? fmtDate(dates[i]) : `Day ${frames[i].day}`;
+  const closes = frames.map(f => f.nifty);
+  const c0 = closes[0];
+  const when = (i) => dates ? fmtDate(dates[i]) : `Day ${frames[i].day}`;
   const level = (v) => Number(v).toLocaleString("en-IN", { maximumFractionDigits: v < 1000 ? 2 : 0 });
-  const dur = REDUCED() ? 350 : 1900;
+  const rupee = (v) => "₹" + Math.round(v).toLocaleString("en-IN");
+  const pct = (v) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(1)}%`;
+  const soldIdx = Math.max(0, frames.findIndex(f => f.day >= 3));
+  const lowIdx = closes.reduce((m, c, i) => (c < closes[m] ? i : m), 0);
+  const story = sanitizeNarration(scenario.narrations?.[frames[0].n] || scenario.description || "");
+  const reduced = REDUCED();
+  const flipMs = reduced ? 300 : 2300;
+
+  // Sparkline geometry (viewBox units; the SVG scales to the card width).
+  const W = 600, H = 84, P = 4;
+  const lo = Math.min(...closes), hi = Math.max(...closes), span = hi - lo || 1;
+  const sx = (i) => P + (i / (n - 1)) * (W - 2 * P);
+  const sy = (v) => P + (H - 2 * P) * (1 - (v - lo) / span);
+  const sparkTo = (i) => {
+    let d = "";
+    for (let k = 0; k <= i; k++) d += (k ? "L" : "M") + sx(k).toFixed(1) + "," + sy(closes[k]).toFixed(1);
+    return d;
+  };
+  const baseY = sy(c0).toFixed(1);
+
+  const steps = [
+    { id: "sold",  todo: "Selling everything on day 3",       done: () => `Sold on day 3 for ${rupee(frames[soldIdx].panic)} in cash` },
+    { id: "low",   todo: "Finding the lowest close",          done: () => `Lowest close on ${when(lowIdx)}: ${pct((closes[lowIdx] / c0 - 1) * 100)}` },
+    { id: "end",   todo: `Travelling to ${when(n - 1)}`,      done: () => `Reached ${when(n - 1)}, ${frames[n - 1].day} trading days later` },
+    { id: "story", todo: "Writing the story",                 done: () => "Story ready" },
+  ];
 
   main.innerHTML = `
     <section class="tm-stage">
       <h1 class="tm-title">${escapeHtml(scenario.title)} replay</h1>
-      <p class="tm-status" id="tm-status">Loading ${frames.length} real trading days…</p>
-      <div class="tm-date tabular" id="tm-date">${escapeHtml(dates ? fmtDate(dates[0]) : (scenario.startLabel || "Day 0"))}</div>
-      <div class="tm-level tabular">
-        <span class="tm-series">${series}</span>
-        <strong id="tm-level">${level(c0)}</strong>
-        <span class="tm-move" id="tm-move">0.0%</span>
+      <div class="tm-card">
+        <div class="tm-head">
+          <div class="tm-date tabular" id="tm-date">${escapeHtml(when(0))}</div>
+          <div class="tm-level tabular">
+            <span class="tm-series">${series}</span>
+            <strong id="tm-level">${level(c0)}</strong>
+            <span class="tm-move" id="tm-move">0.0%</span>
+          </div>
+        </div>
+        <svg class="tm-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+          <line class="tm-spark-base" x1="${P}" x2="${W - P}" y1="${baseY}" y2="${baseY}" />
+          <path class="tm-spark-line" id="tm-spark" d="${sparkTo(0)}" vector-effect="non-scaling-stroke" />
+        </svg>
+        <ol class="tm-steps">
+          ${steps.map(st => `<li data-step="${st.id}" data-state="todo">${escapeHtml(st.todo)}</li>`).join("")}
+        </ol>
+        <p class="tm-story" id="tm-story" aria-live="polite"></p>
       </div>
-      <div class="tm-track" aria-hidden="true"><span id="tm-fill"></span></div>
       <button class="tm-skip" id="tm-skip" type="button">Skip intro</button>
     </section>`;
 
   return new Promise((resolve) => {
     let raf = 0, done = false, t0 = 0;
+    const timers = [];
     const finish = (skipped) => {
       if (done) return;
       done = true;
       cancelAnimationFrame(raf);
+      timers.forEach(clearTimeout);
       resolve(skipped);
     };
     _cancelIntro?.();
     _cancelIntro = () => finish(true);
     main.querySelector("#tm-skip")?.addEventListener("click", () => finish(true));
-    const dateEl = main.querySelector("#tm-date");
-    const levelEl = main.querySelector("#tm-level");
-    const moveEl = main.querySelector("#tm-move");
-    const fill = main.querySelector("#tm-fill");
-    const status = main.querySelector("#tm-status");
-    const endLabel = whenLabel(frames.length - 1);
+    const $ = (sel) => main.querySelector(sel);
+    const dateEl = $("#tm-date"), levelEl = $("#tm-level"), moveEl = $("#tm-move"), spark = $("#tm-spark");
+    const setStep = (id, state) => {
+      const li = main.querySelector(`.tm-steps li[data-step="${id}"]`);
+      if (!li || li.dataset.state === state) return;
+      li.dataset.state = state;
+      if (state === "done") li.textContent = steps.find(s2 => s2.id === id).done();
+    };
+    setStep("sold", "active");
     let last = -1;
     const step = (now) => {
       if (done) return;
       if (!t0) t0 = now;
-      const k = Math.min(1, (now - t0) / dur);
+      const k = Math.min(1, (now - t0) / flipMs);
       // Ease out so the last days land slowly enough to read.
-      const i = Math.min(frames.length - 1, Math.round((1 - Math.pow(1 - k, 2.2)) * (frames.length - 1)));
+      const i = Math.min(n - 1, Math.round((1 - Math.pow(1 - k, 2.2)) * (n - 1)));
       if (i !== last) {
         last = i;
-        const move = (frames[i].nifty / c0 - 1) * 100;
-        dateEl.textContent = whenLabel(i);
-        levelEl.textContent = level(frames[i].nifty);
-        moveEl.textContent = `${move >= 0 ? "+" : ""}${move.toFixed(1)}%`;
+        const move = (closes[i] / c0 - 1) * 100;
+        dateEl.textContent = when(i);
+        levelEl.textContent = level(closes[i]);
+        moveEl.textContent = pct(move);
         moveEl.classList.toggle("down", move < 0);
-        fill.style.width = `${(i / (frames.length - 1)) * 100}%`;
-        if (k > 0.15) status.textContent = `Travelling to ${endLabel}…`;
+        spark.setAttribute("d", sparkTo(i));
+        if (i >= soldIdx) { setStep("sold", "done"); setStep("low", "active"); }
+        // The low is only known once the flip has passed it and never gone lower.
+        if (i > lowIdx) { setStep("low", "done"); setStep("end", "active"); }
       }
-      if (k < 1) raf = requestAnimationFrame(step);
-      else {
-        status.textContent = "Back to day 0.";
-        main.querySelector(".tm-stage")?.classList.add("tm-out");
-        setTimeout(() => finish(false), REDUCED() ? 0 : 380);
-      }
+      if (k < 1) { raf = requestAnimationFrame(step); return; }
+      setStep("sold", "done"); setStep("low", "done"); setStep("end", "done"); setStep("story", "active");
+      const words = story.split(" ").filter(Boolean);
+      const storyEl = $("#tm-story");
+      const per = reduced ? 0 : Math.max(14, Math.min(32, 900 / Math.max(1, words.length)));
+      words.forEach((_, w) => timers.push(setTimeout(() => {
+        if (!done && storyEl) storyEl.textContent = words.slice(0, w + 1).join(" ");
+      }, w * per)));
+      const tail = words.length * per + (reduced ? 0 : 500);
+      timers.push(setTimeout(() => {
+        setStep("story", "done");
+        $(".tm-stage")?.classList.add("tm-out");
+        timers.push(setTimeout(() => finish(false), reduced ? 0 : 360));
+      }, tail));
     };
     raf = requestAnimationFrame(step);
   });
@@ -194,7 +247,7 @@ function assembleReplay(main, scenario, token) {
   if (!scrubber) return;
   const n = scenario.frames.length;
   const reduced = REDUCED();
-  const dur = reduced ? 0 : 1700;
+  const dur = reduced ? 0 : 1400;
   const bar = document.createElement("div");
   bar.className = "assemble-bar";
   bar.setAttribute("role", "status");
@@ -353,11 +406,13 @@ function renderSelector(main) {
     // from "ticker prices" to "narrative streaming" at the right moment.
     let phaseBPricesShown = false;
     let phaseCStarted = false;
+    let liveGeneration = false;   // true only when the AI actually ran (cache miss)
 
     const onProgress = (stage, payload) => {
       if (stage === "cache-check") {
         advanceGeneratingStage(main, "cache", "active");
       } else if (stage === "phase-a") {
+        liveGeneration = true;
         advanceGeneratingStage(main, "cache", "done", "miss");
         advanceGeneratingStage(main, "phaseA", "active");
       } else if (stage === "phase-b") {
@@ -433,8 +488,9 @@ function renderSelector(main) {
       // needs the visual cue that we're done.
       const elapsed = performance.now() - triggerStartedAt;
       const FAST_THRESHOLD = 600;
-      // They just watched it being generated; skip the build sequence.
-      if (elapsed >= FAST_THRESHOLD) markBuiltThisSession(scenario.id);
+      // They just watched the AI build it live; don't make them watch an
+      // intro too. A cache hit (featured replays) still gets the intro.
+      if (liveGeneration) markBuiltThisSession(scenario.id);
       const FADE_MS = elapsed < FAST_THRESHOLD ? 0 : 80;
       if (FADE_MS > 0) {
         const stage = main.querySelector("#gen-stage");
@@ -583,42 +639,44 @@ function renderReplay(main, scenario) {
 
   main.innerHTML = `
     <div class="replay-topbar">
-      <a href="/crash-replay" class="btn btn-ghost btn-sm">← Scenarios</a>
+      <a href="/crash-replay" class="replay-back">All replays</a>
       <div class="replay-title-inline">
-        <span class="pill pill-brand">⏱ ${escapeHtml(scenario.subtitle || "Time travel")}</span>
         <h1 class="replay-title-h1">${escapeHtml(scenario.title)} replay</h1>
-        <span class="mood-indicator calm" id="mood-indicator">🧘 Calm</span>
+        <span class="replay-window">${escapeHtml(scenario.subtitle || "")}</span>
+        <span class="mood-indicator calm" id="mood-indicator">Calm</span>
       </div>
       <div class="replay-controls replay-controls-top">
-        <button class="btn btn-primary btn-sm" id="play-btn">▶ Play (15s)</button>
-        <button class="btn btn-ghost btn-sm" id="play-slow-btn">🐢 Slow</button>
-        <button class="btn btn-ghost btn-sm" id="reset-btn">⟲ Reset</button>
-        <button class="btn btn-ghost btn-sm" id="jump-bottom-btn">📉 Bottom</button>
-        <button class="btn btn-ghost btn-sm" id="jump-end-btn">⏭ End</button>
-        <button class="btn btn-ghost btn-sm" id="skip-anim-btn" hidden>⏭ Skip animation</button>
+        <button class="btn btn-primary btn-sm" id="play-btn">Play</button>
+        <button class="btn btn-ghost btn-sm" id="play-slow-btn">Play slowly</button>
+        <button class="btn btn-ghost btn-sm" id="reset-btn">Restart</button>
+        <button class="btn btn-ghost btn-sm" id="jump-bottom-btn">Low point</button>
+        <button class="btn btn-ghost btn-sm" id="jump-end-btn">End</button>
+        <button class="btn btn-ghost btn-sm" id="skip-anim-btn" hidden>Skip animation</button>
       </div>
     </div>
 
     <div class="replay-panel">
       <div class="replay-stats">
         <div class="replay-stat held">
-          <div class="header"><span>● If you held</span><span class="dim" id="held-days-label">Day 0</span></div>
+          <div class="header"><span class="who"><span class="long">If you held</span><span class="short">Held</span></span><span class="when" id="held-days-label">Day 0</span></div>
           <div class="big tabular" id="held-val">₹1,00,000</div>
-          <div class="delta tabular" id="held-delta">+0.00%</div>
+          <div class="delta tabular" id="held-delta">0.0%</div>
         </div>
         <div class="replay-stat panic">
-          <div class="header"><span>● If you panic-sold on day 3</span><span class="dim">Locked at day 3</span></div>
+          <div class="header"><span class="who"><span class="long">If you sold on day 3</span><span class="short">Sold on day 3</span></span><span class="when">then held cash</span></div>
           <div class="big tabular" id="panic-val">₹1,00,000</div>
-          <div class="delta tabular" id="panic-delta">+0.00%</div>
+          <div class="delta tabular" id="panic-delta">0.0%</div>
         </div>
       </div>
+      <p class="replay-gap" id="replay-gap">Both start with ₹1,00,000.</p>
 
-      <div class="replay-slider-wrap">
-        <div class="replay-slider-meta">
-          <span>${scenario.startLabel}</span>
-          <span id="slider-pos">Day 0</span>
-          <span>${scenario.endLabel}</span>
-        </div>
+      <div class="replay-chart-wrap">
+        <div id="replay-chart" class="replay-chart"></div>
+        <div class="replay-chart-hit" id="chart-hit" aria-hidden="true"></div>
+      </div>
+
+      <div class="replay-slider-wrap" id="slider-wrap">
+        <input type="range" min="0" max="${totalFrames - 1}" value="0" class="replay-slider" id="scrubber" step="1" aria-label="Move through the crash one trading day at a time" />
         <div class="replay-markers" id="markers-wrap">
           ${markers.map(mk => `
             <button class="replay-marker" data-idx="${mk.idx}" title="${escapeAttr(mk.label)}" style="left: ${(mk.idx / (totalFrames - 1)) * 100}%;">
@@ -626,24 +684,24 @@ function renderReplay(main, scenario) {
             </button>
           `).join("")}
         </div>
-        <input type="range" min="0" max="${totalFrames - 1}" value="0" class="replay-slider" id="scrubber" step="1" aria-label="Time travel scrubber" />
+        <div class="replay-slider-meta">
+          <span>${escapeHtml(scenario.dates?.length === totalFrames ? fmtDate(scenario.dates[0]) : (scenario.startLabel || ""))}</span>
+          <span id="slider-pos">Day 0</span>
+          <span>${escapeHtml(scenario.dates?.length === totalFrames ? fmtDate(scenario.dates[totalFrames - 1]) : (scenario.endLabel || ""))}</span>
+        </div>
       </div>
 
-      <div style="height: 340px; margin: var(--sp-4) 0 0;" id="replay-chart"></div>
-
       <div class="replay-narration" id="narration">
-        ${escapeHtml(sanitizeNarration(scenario.narrations[frames[0].n]) || "Move the slider or click a date marker to begin.")}
+        ${escapeHtml(sanitizeNarration(scenario.narrations[frames[0].n]) || "Drag across the chart, or press Play.")}
       </div>
 
       <div id="dynamic-callout"></div>
 
       <div id="final-banner" style="display: none;">
         <div class="replay-final-banner">
-          <div>${scenario.finalDelta > 0 ? "Holding outperformed panic-selling by" : "Panic-seller came out ahead by"}</div>
+          <p class="lead">${scenario.finalDelta > 0 ? "Holding finished ahead by" : "Selling on day 3 finished ahead by"}</p>
           <span class="num tabular">${Math.abs(scenario.finalDelta).toFixed(1)}%</span>
-          <div style="font-size: var(--text-sm); font-weight: 500; margin-top: var(--sp-2); opacity: 0.9;">
-            Index dropped ${Math.abs(scenario.indexDrop)}% at its worst · Recovery took ${scenario.recoveryDays} trading days
-          </div>
+          <p class="sub">The index fell ${Math.abs(scenario.indexDrop)}% at its worst.${scenario.recoveryDays ? ` It took ${scenario.recoveryDays} trading days from the low to climb back to where it started.` : ""}</p>
         </div>
       </div>
     </div>
@@ -668,7 +726,7 @@ function renderReplay(main, scenario) {
 
     <div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--sp-4); margin-top: var(--sp-6);">
       <div class="card">
-        <h4 style="font-size: var(--text-sm); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">What this replay holds constant</h4>
+        <h3 class="replay-note-title">How this replay works</h3>
         <ul style="margin-top: var(--sp-3); color: var(--text); line-height: 1.7; font-size: var(--text-sm); padding-left: 18px;">
           <li>A ₹1,00,000 portfolio that moves exactly with the price line shown</li>
           <li>The panic-sold line sells everything at the close of day 3, then stays in cash</li>
@@ -677,10 +735,11 @@ function renderReplay(main, scenario) {
         </ul>
       </div>
       <div class="card">
-        <h4 style="font-size: var(--text-sm); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">What this replay teaches</h4>
+        <h3 class="replay-note-title">What it shows</h3>
         <p style="margin-top: var(--sp-3); color: var(--text); line-height: 1.7; font-size: var(--text-sm);">
-          The held investor doesn't "beat the crash" — they survive it.
-          The panic-seller crystallises a paper loss into a real one and then waits for "the right moment" to re-enter. That moment almost never comes cheaper than where they sold.
+          Holding doesn't dodge a crash; it sits through it. Selling turns a paper loss into a real one, and
+          then leaves you with a harder decision: when to buy back in. Nobody knows that moment in advance, and
+          sometimes, as in the 2008 replay, selling early does come out ahead.
         </p>
       </div>
     </div>
@@ -696,6 +755,13 @@ function renderReplay(main, scenario) {
   const narration = main.querySelector("#narration");
   const finalBanner = main.querySelector("#final-banner");
   const chartRoot = main.querySelector("#replay-chart");
+  const chartHit = main.querySelector("#chart-hit");
+  const sliderWrap = main.querySelector("#slider-wrap");
+  const gapEl = main.querySelector("#replay-gap");
+  const soldIdx = Math.max(0, frames.findIndex(fr => fr.day >= 3));
+  const dates = Array.isArray(scenario.dates) && scenario.dates.length === frames.length ? scenario.dates : null;
+  const whenAt = (i) => dates ? `${fmtDate(dates[i])}, day ${frames[i].day}` : `Day ${frames[i].day}`;
+  const signedPct = (x) => `${x > 0 ? "+" : x < 0 ? "−" : ""}${Math.abs(x * 100).toFixed(1)}%`;
   const playBtn = main.querySelector("#play-btn");
   const playSlowBtn = main.querySelector("#play-slow-btn");
   const resetBtn = main.querySelector("#reset-btn");
@@ -729,11 +795,20 @@ function renderReplay(main, scenario) {
 
     const hd = (f.held - startHeld) / startHeld;
     const pd = (f.panic - startPanic) / startPanic;
-    heldDelta.textContent = (hd > 0 ? "+" : "") + (hd * 100).toFixed(1) + "%";
-    panicDelta.textContent = (pd > 0 ? "+" : "") + (pd * 100).toFixed(1) + "%";
+    heldDelta.textContent = signedPct(hd);
+    panicDelta.textContent = signedPct(pd);
 
-    heldDaysLabel.textContent = `Day ${f.day}`;
-    sliderPos.textContent = `Day ${f.day}`;
+    const when = whenAt(currentIdx);
+    heldDaysLabel.textContent = when;
+    sliderPos.textContent = when;
+    scrubber.style.setProperty("--pct", `${(currentIdx / Math.max(1, frames.length - 1)) * 100}%`);
+    if (gapEl) {
+      const diff = f.held - f.panic;
+      gapEl.className = "replay-gap " + (diff > 0 ? "up" : diff < 0 ? "down" : "");
+      gapEl.textContent = diff === 0
+        ? (currentIdx < soldIdx ? "Both portfolios are the same until the day-3 sale." : "Both portfolios are level.")
+        : `${diff > 0 ? "Holding" : "Selling"} is ahead by ₹${indianNumber(Math.abs(diff))}.`;
+    }
 
     // Apply colors to deltas
     heldDelta.className = "delta tabular " + (hd > 0 ? "up" : hd < 0 ? "down" : "");
@@ -758,20 +833,29 @@ function renderReplay(main, scenario) {
     // Render the chart in its final state immediately.
     const heldSeries = frames.map(f => f.held);
     const panicSeries = frames.map(f => f.panic);
+    const cw = Math.round(chartRoot.clientWidth) || 900;
+    const geo = {};
     chartRoot.innerHTML = dualLineChart({
-      held: heldSeries, panic: panicSeries, height: 340, width: 900,
-      currentIndex: currentIdx,
+      held: heldSeries, panic: panicSeries, width: cw, height: cw < 520 ? 230 : 320,
+      currentIndex: currentIdx, geometry: geo,
     });
+    // Line the timeline up with the chart's plot area so the handle sits
+    // under the playhead.
+    if (sliderWrap && geo.left != null) {
+      sliderWrap.style.paddingLeft = geo.left + "px";
+      sliderWrap.style.paddingRight = geo.right + "px";
+      if (chartHit) { chartHit.style.left = geo.left + "px"; chartHit.style.right = geo.right + "px"; }
+    }
 
     // Show final banner at end
     finalBanner.style.display = currentIdx >= frames.length - 1 ? "" : "none";
 
     // Mood meter — based on current drawdown from start
     const drawdownPct = (f.held - startHeld) / startHeld;
-    const mood = drawdownPct >= 0.05 ? { cls: "euphoric", label: "🎉 Euphoric" }
-               : drawdownPct >= -0.03 ? { cls: "calm", label: "🧘 Calm" }
-               : drawdownPct >= -0.12 ? { cls: "nervous", label: "😰 Nervous" }
-               : { cls: "panic", label: "😱 Peak panic" };
+    const mood = drawdownPct >= 0.05 ? { cls: "euphoric", label: "Euphoric" }
+               : drawdownPct >= -0.03 ? { cls: "calm", label: "Calm" }
+               : drawdownPct >= -0.12 ? { cls: "nervous", label: "Nervous" }
+               : { cls: "panic", label: "Peak panic" };
     if (moodEl) {
       moodEl.className = "mood-indicator " + mood.cls;
       moodEl.textContent = mood.label;
@@ -839,6 +923,37 @@ function renderReplay(main, scenario) {
     stopPlayback();
   });
 
+  // Drag straight across the chart to move through time. touch-action:
+  // pan-y (CSS) keeps vertical page scrolling working on phones.
+  if (chartHit) {
+    let dragging = false;
+    const seek = (clientX) => {
+      const r = chartHit.getBoundingClientRect();
+      const k = Math.min(1, Math.max(0, (clientX - r.left) / Math.max(1, r.width)));
+      const idx = Math.round(k * (frames.length - 1));
+      if (String(idx) !== scrubber.value) {
+        scrubber.value = String(idx);
+        scrubber.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    };
+    chartHit.addEventListener("pointerdown", (e) => {
+      if (main.querySelector(".replay-assembling")) return;
+      dragging = true;
+      chartHit.setPointerCapture?.(e.pointerId);
+      seek(e.clientX);
+    });
+    chartHit.addEventListener("pointermove", (e) => { if (dragging) seek(e.clientX); });
+    const stop = () => { dragging = false; };
+    chartHit.addEventListener("pointerup", stop);
+    chartHit.addEventListener("pointercancel", stop);
+  }
+
+  // Redraw at the new width when the window resizes (phone rotation too).
+  let resizeT = 0;
+  const onResize = () => { clearTimeout(resizeT); resizeT = setTimeout(() => renderAt(currentIdx), 120); };
+  window.addEventListener("resize", onResize);
+  window.addEventListener("ss:navigate", () => window.removeEventListener("resize", onResize), { once: true });
+
   resetBtn.addEventListener("click", () => {
     stopPlayback();
     scrubber.value = "0";
@@ -853,7 +968,7 @@ function renderReplay(main, scenario) {
   function startPlayback(durationMs, btnEl) {
     if (playHandle) { stopPlayback(); return; }
     const startTime = performance.now();
-    if (btnEl) btnEl.textContent = "⏸ Pause";
+    if (btnEl) btnEl.textContent = "Pause";
     function step(now) {
       const elapsed = now - startTime;
       const pct = Math.min(1, elapsed / durationMs);
@@ -893,8 +1008,8 @@ function renderReplay(main, scenario) {
     if (playHandle) {
       cancelAnimationFrame(playHandle);
       playHandle = null;
-      playBtn.textContent = "▶ Auto-play (15s)";
-      if (playSlowBtn) playSlowBtn.textContent = "🐢 Slow (30s)";
+      playBtn.textContent = "Play";
+      if (playSlowBtn) playSlowBtn.textContent = "Play slowly";
     }
   }
 
@@ -1106,12 +1221,13 @@ function buildMarkers(scenario) {
     if (frames[i].held < minVal) { minVal = frames[i].held; minIdx = i; }
   }
   if (minIdx > 0 && minIdx < frames.length - 1) {
-    markers.push({ idx: minIdx, short: "Bottom", label: `Lowest point — day ${frames[minIdx].day}` });
+    markers.push({ idx: minIdx, short: "Low", label: `Lowest point, day ${frames[minIdx].day}` });
   }
-  // A mid-point between start and bottom (the "peak panic" moment)
-  if (minIdx > 4) {
-    const midPanicIdx = Math.floor(minIdx * 0.75);
-    markers.push({ idx: midPanicIdx, short: "−20%", label: "Peak retail panic zone" });
+  // The first day the held portfolio is really 20% down (this used to sit at
+  // an arbitrary 75% of the way to the low while claiming to be "−20%").
+  const firstDown20 = frames.findIndex(f => f.held <= frames[0].held * 0.8);
+  if (firstDown20 > 0 && firstDown20 < minIdx) {
+    markers.push({ idx: firstDown20, short: "−20%", label: `First day 20% down, day ${frames[firstDown20].day}` });
   }
   // Recovery marker — first frame after bottom that's materially higher
   for (let i = minIdx + 1; i < frames.length; i++) {
@@ -1133,8 +1249,9 @@ function buildMarkers(scenario) {
   // frames they'll visually overlap their labels (e.g. Bottom + Recovery
   // when recovery happens just after the trough). Priority order keeps
   // Start, End, and Bottom; drops Recovery and -20% when they collide.
-  const minGap = Math.max(2, Math.floor(frames.length * 0.06));
-  const PRIORITY = { Start: 5, End: 5, Bottom: 4, "−20%": 2, Recovery: 3 };
+  // 13% of the width keeps labels apart even on a 320px phone.
+  const minGap = Math.max(2, Math.floor(frames.length * 0.13));
+  const PRIORITY = { Start: 5, End: 5, Low: 4, "−20%": 2, Recovery: 3 };
   const out = [];
   for (const m of sorted) {
     const prev = out[out.length - 1];
