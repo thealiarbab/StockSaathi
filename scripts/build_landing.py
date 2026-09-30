@@ -105,8 +105,12 @@ def main():
             sys.exit(1)
         print("landing outputs up to date")
         return
-    INDEX.write_text(index_new, encoding="utf-8", newline="\n")
-    MODULE.write_text(module_new, encoding="utf-8", newline="\n")
+    # Only touch files whose content changed, so a no-op run leaves git's
+    # checked-out line endings (and the working tree status) alone.
+    if not same(index_old, index_new):
+        INDEX.write_text(index_new, encoding="utf-8", newline="\n")
+    if not same(module_old, module_new):
+        MODULE.write_text(module_new, encoding="utf-8", newline="\n")
     print("wrote:", ", ".join(stale) or "nothing (already current)")
 
 

@@ -751,6 +751,8 @@ def main():
         print("prerender outputs up to date (%d pages)" % len(pages))
         return
     for f, text in outputs.items():
+        if same(f, text):                    # untouched: keeps git's line endings / mtime
+            continue
         f.parent.mkdir(parents=True, exist_ok=True)
         f.write_text(text, encoding="utf-8", newline="\n")
     for f in stale_files:
