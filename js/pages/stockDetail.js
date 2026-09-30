@@ -3,7 +3,7 @@
 // for buy/sell. Panic-sell intervention before SELL executes.
 // =============================================================================
 
-import { getInstrument, ensureMfUniverseLoaded } from "../data/universe.js";
+import { getInstrument, ensureMfUniverseLoaded, ensureUniverseLoaded } from "../data/universe.js";
 import { track } from "../features/track.js";
 import { getQuote, getHistory, getMfHistory, subscribeToQuotes, quoteAge, getFundamentals, getFreshCachedQuote } from "../data/marketData.js";
 import { placeLimitOrder } from "../features/limitOrders.js";
@@ -225,6 +225,20 @@ export function renderStockDetail(main, params) {
         // fresh inst on subsequent ticks. Without this the title
         // flipped back to 'MF_100037' every 12 seconds when the poll
         // re-rendered with the stale bare-stub.
+        activeInst = fresh;
+        render(activeInst, symbol);
+      }
+    }).catch(() => {});
+  }
+  // Same upgrade for equities/ETFs: a cold load of /stocks/<SYM> can run
+  // before universeFull.json lands, leaving a bare stub (name = symbol,
+  // sector "Unknown", exchange unknown) on screen until something else
+  // happens to re-render. Swap in the Tier-2 row as soon as it arrives.
+  if (!symbol.startsWith("MF_") && inst._stub) {
+    ensureUniverseLoaded().then(() => {
+      if (myToken.cancelled) return;
+      const fresh = getInstrument(symbol);
+      if (fresh && !fresh._stub) {
         activeInst = fresh;
         render(activeInst, symbol);
       }
@@ -780,7 +794,7 @@ function render(inst, symbol) {
             <div>
               <h1 style="font-size: var(--text-2xl); margin-bottom: 2px;">${escapeHtml(inst.name || symbol)}</h1>
               <div class="dim text-xs">
-                ${symbol} · ${inst.kind === "MF" ? "Mutual Fund" : "NSE"} · ${escapeHtml(inst.sector || "—")}
+                ${symbol} · ${inst.kind === "MF" ? "Mutual Fund" : inst.exchange === "BSE" ? "BSE" : inst.exchange === "NSE_SME" ? "NSE SME" : "NSE"} · ${escapeHtml(inst.sector || "—")}
                 <span class="data-badge market-status" tabindex="0" style="margin-left: 8px; position: relative;" data-ms-state="${ms.state}">
                   <span class="dot ${ms.open ? "" : ms.state === "pre-open" ? "preopen" : "closed"}"></span>
                   NSE · ${ms.state === "open" ? "Live" : ms.state === "pre-open" ? "Pre-open" : "Closed"}${ms.state !== "open" ? " · " + escapeHtml(ms.istTime) : ""}
