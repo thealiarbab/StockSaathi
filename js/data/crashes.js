@@ -1,204 +1,332 @@
 // =============================================================================
-// CRASH SCENARIOS — Pre-computed timeline data for the "Time Travel" wow moment.
-// Each scenario has ~60-90 daily frames with real historical index values
-// and derived portfolio trajectories (if-held vs if-panic-sold-day-3).
+// CRASH SCENARIOS — the three curated "Time Travel" replays.
 //
-// Narrations are written to work even if the LLM coach is unavailable.
-// Numbers are anchored to real Sensex/Nifty levels where possible.
+// Every frame is a real daily Nifty 50 close (Yahoo Finance ^NSEI).
+// Regenerate with `python scripts/build_crash_frames.py`, which also prints
+// the summary numbers below; the narrations are hand-written around them and
+// must only state figures the frames support.
+//
+// Model, identical for all three:
+// - ₹1,00,000 that moves exactly with the Nifty 50 (no dividends, no costs).
+// - The panic-seller sells everything at the close of trading day 3 and sits
+//   in cash (no interest) until the end of the window.
+// - finalDelta: how far the winner finished ahead, as % of the loser's value.
+//   Positive = holding won, negative = panic-selling won.
+// - recoveryDays: trading days from the lowest close to the first close back
+//   at or above the day-0 close (can fall after the window ends).
+// scripts/prerender.py checks these invariants on every build.
 // =============================================================================
 
 function frame(day, nifty, held, panic, narrationId = null) {
   return { day, nifty, held, panic, n: narrationId };
 }
 
-// ---------- COVID 2020 ---------------------------------------------------
-// Nifty Feb 19 2020 peak ~12125. Mar 23 2020 trough ~7610. Broke back above
-// the Feb 2020 peak on Nov 9, 2020. Recovery trading-day count from trough
-// → new all-time high: ~163 sessions (Mar 23 → Nov 9, excluding weekends &
-// holidays). The previous "148" figure undercounted NSE holidays.
-// 62 trading days window (Feb 19 – May 18, 2020).
-// Assumed ₹1,00,000 portfolio allocation: RELIANCE, HDFCBANK, INFY, ITC, TCS.
-// Panic-sell policy: sell everything on day 3 at market close.
 const COVID_2020 = {
   id: "COVID_2020",
   title: "COVID-19 Crash",
-  subtitle: "Feb 19 – May 18, 2020",
-  description: "India's fastest bear market. Sensex lost 35% in 33 days — and took about 8 months to fully recover.",
+  subtitle: "Feb – Nov 2020",
+  description: "The pandemic crash. The Nifty 50 fell 37% in 33 days, then took until November 2020 to climb back.",
   startLabel: "Feb 19, 2020",
-  endLabel: "May 18, 2020",
-  finalDelta: 38.4,   // held outperformed panic by this %
-  heldEnd: 92400,
-  panicEnd: 66800,
-  indexDrop: -35.3,
-  recoveryDays: 163,
+  endLabel: "Nov 9, 2020",
+  finalDelta: 5.6,
+  heldEnd: 102764,
+  panicEnd: 97295,
+  indexDrop: -37.2,
+  recoveryDays: 157,
   frames: [
-    frame(0,  12125, 100000, 100000, "n_start"),
-    frame(1,  12089, 99700,  99700),
-    frame(2,  11829, 97500,  97500,  "n_day3"),
-    frame(3,  11634, 95900,  66800,  "n_sold"),  // panic sells here at 95.9k
-    frame(4,  11201, 92400,  66800),
-    frame(5,  10947, 90200,  66800),
-    frame(6,  10452, 86100,  66800,  "n_ominous"),
-    frame(7,  10451, 86100,  66800),
-    frame(8,  10329, 85100,  66800),
-    frame(9,  9955,  82050,  66800),
-    frame(10, 9590,  79050,  66800,  "n_circuitbreaker"),
-    frame(11, 9197,  75800,  66800),
-    frame(12, 8541,  70400,  66800,  "n_panic_peak"),
-    frame(13, 8263,  68100,  66800),
-    frame(14, 7610,  62700,  66800,  "n_bottom"),  // trough
-    frame(15, 8253,  68000,  66800,  "n_bounce"),
-    frame(16, 8660,  71400,  66800),
-    frame(17, 8636,  71200,  66800),
-    frame(18, 8748,  72100,  66800),
-    frame(19, 9111,  75100,  66800),
-    frame(20, 9108,  75050,  66800),
-    frame(21, 9266,  76400,  66800),
-    frame(22, 9383,  77350,  66800),
-    frame(23, 9266,  76400,  66800),
-    frame(24, 9106,  75050,  66800),
-    frame(25, 8993,  74100,  66800),
-    frame(26, 9144,  75400,  66800),
-    frame(27, 9293,  76600,  66800),
-    frame(28, 9269,  76400,  66800),
-    frame(29, 9205,  75900,  66800),
-    frame(30, 9205,  75900,  66800,  "n_onemonth"),
-    frame(31, 9383,  77350,  66800),
-    frame(32, 9512,  78400,  66800),
-    frame(33, 9553,  78750,  66800),
-    frame(34, 9554,  78750,  66800),
-    frame(35, 9251,  76250,  66800),
-    frame(36, 9136,  75300,  66800),
-    frame(37, 9239,  76150,  66800),
-    frame(38, 9106,  75050,  66800),
-    frame(39, 9039,  74500,  66800),
-    frame(40, 9270,  76400,  66800),
-    frame(41, 9314,  76800,  66800),
-    frame(42, 9205,  75900,  66800),
-    frame(43, 9116,  75150,  66800),
-    frame(44, 9039,  74500,  66800),
-    frame(45, 8993,  74100,  66800),
-    frame(46, 8823,  72700,  66800),
-    frame(47, 9205,  75900,  66800),
-    frame(48, 9383,  77350,  66800),
-    frame(49, 9553,  78750,  66800),
-    frame(50, 9512,  78400,  66800),
-    frame(51, 9383,  77350,  66800),
-    frame(52, 9266,  76400,  66800),
-    frame(53, 9205,  75900,  66800),
-    frame(54, 9500,  78300,  66800),
-    frame(55, 9826,  80990,  66800,  "n_recoverying"),
-    frame(56, 10021, 82600,  66800),
-    frame(57, 10118, 83400,  66800),
-    frame(58, 10551, 86980,  66800),
-    frame(59, 11040, 91000,  66800),
-    frame(60, 11101, 91500,  66800),
-    frame(61, 11195, 92270,  66800,  "n_final"),
+    frame(0, 12125.9, 100000, 100000, "n_start"),  // 2020-02-19
+    frame(1, 12080.85, 99628, 99628),  // 2020-02-20
+    frame(2, 11829.4, 97555, 97555, "n_day2"),  // 2020-02-24
+    frame(3, 11797.9, 97295, 97295, "n_sold"),  // 2020-02-25
+    frame(4, 11678.5, 96310, 97295),  // 2020-02-26
+    frame(5, 11633.3, 95938, 97295),  // 2020-02-27
+    frame(6, 11201.75, 92379, 97295),  // 2020-02-28
+    frame(7, 11132.75, 91810, 97295),  // 2020-03-02
+    frame(8, 11303.3, 93216, 97295),  // 2020-03-03
+    frame(9, 11251, 92785, 97295),  // 2020-03-04
+    frame(10, 11269, 92933, 97295),  // 2020-03-05
+    frame(11, 10989.45, 90628, 97295),  // 2020-03-06
+    frame(12, 10451.45, 86191, 97295),  // 2020-03-09
+    frame(13, 10458.4, 86248, 97295),  // 2020-03-11
+    frame(14, 9590.15, 79088, 97295, "n_pandemic"),  // 2020-03-12
+    frame(15, 9955.2, 82099, 97295, "n_circuitbreaker"),  // 2020-03-13
+    frame(16, 9197.4, 75849, 97295),  // 2020-03-16
+    frame(17, 8967.05, 73950, 97295),  // 2020-03-17
+    frame(18, 8468.8, 69841, 97295),  // 2020-03-18
+    frame(19, 8263.45, 68147, 97295),  // 2020-03-19
+    frame(20, 8745.45, 72122, 97295),  // 2020-03-20
+    frame(21, 7610.25, 62760, 97295, "n_bottom"),  // 2020-03-23
+    frame(22, 7801.05, 64334, 97295),  // 2020-03-24
+    frame(23, 8317.85, 68596, 97295, "n_bounce"),  // 2020-03-25
+    frame(24, 8641.45, 71264, 97295),  // 2020-03-26
+    frame(25, 8660.25, 71419, 97295),  // 2020-03-27
+    frame(26, 8281.1, 68293, 97295),  // 2020-03-30
+    frame(27, 8597.75, 70904, 97295),  // 2020-03-31
+    frame(28, 8253.8, 68068, 97295),  // 2020-04-01
+    frame(29, 8083.8, 66666, 97295),  // 2020-04-03
+    frame(30, 8792.2, 72508, 97295),  // 2020-04-07
+    frame(31, 8748.75, 72149, 97295),  // 2020-04-08
+    frame(32, 9111.9, 75144, 97295),  // 2020-04-09
+    frame(33, 8993.85, 74171, 97295),  // 2020-04-13
+    frame(34, 8925.3, 73605, 97295),  // 2020-04-15
+    frame(35, 8992.8, 74162, 97295),  // 2020-04-16
+    frame(36, 9266.75, 76421, 97295),  // 2020-04-17
+    frame(37, 9261.85, 76381, 97295),  // 2020-04-20
+    frame(38, 8981.45, 74068, 97295),  // 2020-04-21
+    frame(39, 9187.3, 75766, 97295),  // 2020-04-22
+    frame(40, 9313.9, 76810, 97295),  // 2020-04-23
+    frame(43, 9380.9, 77363, 97295),  // 2020-04-28
+    frame(46, 9293.5, 76642, 97295),  // 2020-05-04
+    frame(49, 9199.05, 75863, 97295),  // 2020-05-07
+    frame(52, 9196.55, 75842, 97295),  // 2020-05-12
+    frame(55, 9136.85, 75350, 97295),  // 2020-05-15
+    frame(56, 8823.25, 72764, 97295, "n_twomonths"),  // 2020-05-18
+    frame(58, 9066.55, 74770, 97295),  // 2020-05-20
+    frame(61, 9029.05, 74461, 97295),  // 2020-05-26
+    frame(64, 9580.3, 79007, 97295),  // 2020-05-29
+    frame(67, 10061.55, 82976, 97295),  // 2020-06-03
+    frame(70, 10167.45, 83849, 97295),  // 2020-06-08
+    frame(73, 9902, 81660, 97295),  // 2020-06-11
+    frame(76, 9914, 81759, 97295),  // 2020-06-16
+    frame(79, 10244.4, 84484, 97295),  // 2020-06-19
+    frame(82, 10305.3, 84986, 97295),  // 2020-06-24
+    frame(85, 10312.4, 85044, 97295),  // 2020-06-29
+    frame(88, 10551.7, 87018, 97295),  // 2020-07-02
+    frame(91, 10799.65, 89063, 97295),  // 2020-07-07
+    frame(94, 10768.05, 88802, 97295),  // 2020-07-10
+    frame(97, 10618.2, 87566, 97295),  // 2020-07-15
+    frame(100, 11022.2, 90898, 97295),  // 2020-07-20
+    frame(103, 11215.45, 92492, 97295),  // 2020-07-23
+    frame(106, 11300.55, 93193, 97295),  // 2020-07-28
+    frame(109, 11073.45, 91321, 97295),  // 2020-07-31
+    frame(112, 11101.65, 91553, 97295),  // 2020-08-05
+    frame(115, 11270.15, 92943, 97295),  // 2020-08-10
+    frame(118, 11300.45, 93193, 97295),  // 2020-08-13
+    frame(121, 11385.35, 93893, 97295),  // 2020-08-18
+    frame(124, 11371.6, 93779, 97295),  // 2020-08-21
+    frame(127, 11549.6, 95247, 97295),  // 2020-08-26
+    frame(130, 11387.5, 93911, 97295, "n_august"),  // 2020-08-31
+    frame(133, 11527.45, 95065, 97295),  // 2020-09-03
+    frame(136, 11317.35, 93332, 97295),  // 2020-09-08
+    frame(139, 11464.45, 94545, 97295),  // 2020-09-11
+    frame(142, 11604.55, 95701, 97295),  // 2020-09-16
+    frame(145, 11250.55, 92781, 97295),  // 2020-09-21
+    frame(148, 10805.55, 89111, 97295),  // 2020-09-24
+    frame(151, 11222.4, 92549, 97295),  // 2020-09-29
+    frame(154, 11503.35, 94866, 97295),  // 2020-10-05
+    frame(157, 11834.6, 97598, 97295),  // 2020-10-08
+    frame(160, 11934.5, 98422, 97295),  // 2020-10-13
+    frame(163, 11762.45, 97003, 97295),  // 2020-10-16
+    frame(166, 11937.65, 98448, 97295),  // 2020-10-21
+    frame(169, 11767.75, 97046, 97295),  // 2020-10-26
+    frame(172, 11670.8, 96247, 97295),  // 2020-10-29
+    frame(175, 11813.5, 97424, 97295),  // 2020-11-03
+    frame(178, 12263.55, 101135, 97295, "n_recovered"),  // 2020-11-06
+    frame(179, 12461.05, 102764, 97295, "n_final"),  // 2020-11-09
   ],
   narrations: {
-    n_start: "Feb 19, 2020. Nifty at an all-time high of 12,125. The headlines mention a new virus in China — but nobody is selling. You own a diversified ₹1,00,000 portfolio across 5 large caps.",
-    n_day3: "Day 3. Nifty down 2.4%. Twitter is loud. Your WhatsApp family group is louder. Fear of being stuck in a crash kicks in.",
-    n_sold: "Day 3 — you panic-sold everything at ₹66,800. In that moment it feels safe. Anchored here, you will wait on the sidelines hoping to 're-enter lower'.",
-    n_ominous: "One week in. Nifty down 14%. The news is scary, but markets have seen scarier — and survived.",
-    n_circuitbreaker: "March 13, 2020. Lower circuit hit. Trading halts. If you're holding and watching a red screen, this is where most people capitulate.",
-    n_panic_peak: "Nifty down 29.6%. Most first-time investors sell here — at the most expensive emotional cost.",
-    n_bottom: "March 23, 2020 — the trough. ₹62,700 against your ₹1L original. From here, the market only goes one way: up. The held line is about to do something remarkable.",
-    n_bounce: "First sign of life. A single green day is rarely 'the bottom' — but it often is. You don't know that yet.",
-    n_onemonth: "One month from the bottom. Held portfolio: ₹75,900. Already recovered 21% from the low. Panic-sold portfolio: still ₹66,800, compounding at 0%.",
-    n_recoverying: "Phase shift. Stimulus announcements globally, vaccine research begins. The held line starts climbing faster.",
-    n_final: "3 months after the crash. Held portfolio: ₹91,500 — 8.5% below start. Panic-sold: ₹66,800 — 33% below start. The held investor saw their portfolio back at the original ₹1L by September 2020. The panic-seller was still waiting 'for the right moment'.",
+    n_start: "19 Feb 2020. The Nifty 50 closes at 12,125.9, about 2% below the record it set in January. The news mentions a new virus in China, but nobody is selling. Your ₹1,00,000 is invested across the Nifty 50.",
+    n_day2: "Day 2. The Nifty falls 2.1% in one session. Cases are rising outside China, and your family WhatsApp group is getting loud.",
+    n_sold: "Day 3. The Nifty is 2.7% below where you started. You sell everything at the close and keep ₹97,295 in cash. From here, the panic-sold line stays flat.",
+    n_pandemic: "12 Mar. The day after the WHO calls COVID-19 a pandemic, the Nifty falls 8.3% in a single session. It is now 20.9% below your start.",
+    n_circuitbreaker: "13 Mar. The market falls 10% within minutes of opening, hits the lower circuit, and trading halts for 45 minutes. Then it turns and closes 3.8% up. Days like this are when most people give up.",
+    n_bottom: "23 Mar. The Nifty drops 13% in a day and closes at 7,610.25, 37.2% below your start, 33 days after it began. Held portfolio: ₹62,760. Nobody knows yet that this is the bottom.",
+    n_bounce: "25 Mar. The Nifty jumps 6.6% in one session. One green day proves nothing, but this is where the recovery starts.",
+    n_twomonths: "18 May. Two months on, the held portfolio is ₹72,764, still 27% down. The panic-seller's ₹97,295 in cash looks like the smart call.",
+    n_august: "31 Aug. Held: ₹93,911. The gap to the panic-seller's ₹97,295 has almost closed, and the market has not stopped climbing.",
+    n_recovered: "6 Nov. The Nifty closes above its 19 Feb level for the first time, 157 trading days after the bottom. The held portfolio is back above ₹1,00,000.",
+    n_final: "9 Nov 2020. The Nifty closes at a record 12,461. Held: ₹1,02,764. Panic-sold: ₹97,295 in cash. Selling on day 3 dodged the crash but missed the whole recovery, and holding finished 5.6% ahead. The gap kept growing: the Nifty ended 2020 at 13,981.75.",
   },
 };
 
-// ---------- GFC 2008 -----------------------------------------------------
-// Sensex Jan 8 2008 peak ~21206. Oct 27 2008 trough ~7697.
-// Assumed portfolio: typical equity-heavy mix.
 const GFC_2008 = {
   id: "GFC_2008",
   title: "Global Financial Crisis",
   subtitle: "Jan – Oct 2008",
-  description: "The Lehman collapse. Sensex lost 64% from peak to trough over 10 months — but 3 years later it set a new high.",
+  description: "The Lehman-era crash. The Nifty 50 lost 60% between January and October 2008: the replay where selling early really did win.",
   startLabel: "Jan 8, 2008",
   endLabel: "Oct 27, 2008",
-  // Negative = the panic-seller finished ahead inside this 10-month window
-  // (held ₹41,800 vs panic-sold ₹71,500: 41,800 / 71,500 − 1 = −41.5%).
-  // Was 0.4, which made the replay claim holding won — the opposite of its
-  // own numbers and narration. Over ~3 years, holding wins; not shown here.
-  finalDelta: -41.5,
-  heldEnd: 41800,     // 10 months later
-  panicEnd: 71500,    // panic-sold at day 3, stayed in cash
-  indexDrop: -63.7,
-  recoveryDays: 780,
+  finalDelta: -145.6,
+  heldEnd: 40144,
+  panicEnd: 98604,
+  indexDrop: -59.9,
+  recoveryDays: 496,
   frames: [
-    frame(0,  21206, 100000, 100000, "n_gfc_start"),
-    frame(2,  19323, 91100,  91100),
-    frame(3,  18386, 86700,  71500,  "n_gfc_sold"),
-    frame(5,  17745, 83700,  71500),
-    frame(10, 18921, 89200,  71500),
-    frame(15, 17222, 81200,  71500),
-    frame(20, 17305, 81600,  71500),
-    frame(25, 16771, 79100,  71500),
-    frame(35, 17227, 81200,  71500),
-    frame(50, 16591, 78200,  71500),
-    frame(70, 13017, 61400,  71500,  "n_gfc_brutal"),   // panic-seller looking smart here
-    frame(90, 14485, 68300,  71500),
-    frame(110,13006, 61300,  71500),
-    frame(130,12595, 59400,  71500),
-    frame(150,10580, 49900,  71500,  "n_gfc_lehman"),
-    frame(170,9724,  45800,  71500),
-    frame(190,7697,  36300,  71500,  "n_gfc_bottom"),
-    frame(200,9093,  42900,  71500,  "n_gfc_final"),
-    frame(215,8867,  41800,  71500),
+    frame(0, 6287.85, 100000, 100000, "n_gfc_start"),  // 2008-01-08
+    frame(1, 6272, 99748, 99748),  // 2008-01-09
+    frame(2, 6156.95, 97918, 97918),  // 2008-01-10
+    frame(3, 6200.1, 98604, 98604, "n_gfc_sold"),  // 2008-01-11
+    frame(4, 6206.8, 98711, 98604),  // 2008-01-14
+    frame(5, 6074.25, 96603, 98604),  // 2008-01-15
+    frame(6, 5935.75, 94400, 98604),  // 2008-01-16
+    frame(7, 5913.2, 94042, 98604),  // 2008-01-17
+    frame(8, 5705.3, 90735, 98604),  // 2008-01-18
+    frame(9, 5208.8, 82839, 98604),  // 2008-01-21
+    frame(10, 4899.3, 77917, 98604, "n_gfc_halt"),  // 2008-01-22
+    frame(11, 5203.4, 82753, 98604),  // 2008-01-23
+    frame(12, 5033.45, 80050, 98604),  // 2008-01-24
+    frame(13, 5383.35, 85615, 98604),  // 2008-01-25
+    frame(14, 5274.1, 83878, 98604),  // 2008-01-28
+    frame(15, 5280.8, 83984, 98604),  // 2008-01-29
+    frame(16, 5167.6, 82184, 98604),  // 2008-01-30
+    frame(20, 5483.9, 87214, 98604),  // 2008-02-05
+    frame(24, 4857, 77244, 98604),  // 2008-02-11
+    frame(28, 5302.9, 84336, 98604),  // 2008-02-15
+    frame(32, 5191.8, 82569, 98604),  // 2008-02-21
+    frame(36, 5268.4, 83787, 98604),  // 2008-02-27
+    frame(40, 4864.25, 77360, 98604),  // 2008-03-04
+    frame(44, 4865.9, 77386, 98604),  // 2008-03-11
+    frame(48, 4503.1, 71616, 98604, "n_gfc_bear"),  // 2008-03-17
+    frame(52, 4877.5, 77570, 98604),  // 2008-03-25
+    frame(56, 4734.5, 75296, 98604),  // 2008-03-31
+    frame(60, 4647, 73904, 98604),  // 2008-04-04
+    frame(64, 4733, 75272, 98604),  // 2008-04-10
+    frame(68, 4958.4, 78857, 98604),  // 2008-04-17
+    frame(72, 4999.85, 79516, 98604),  // 2008-04-24
+    frame(76, 5165.9, 82157, 98604),  // 2008-04-30
+    frame(80, 5135.5, 81673, 98604),  // 2008-05-07
+    frame(84, 4957.8, 78847, 98604),  // 2008-05-13
+    frame(88, 5104.95, 81188, 98604),  // 2008-05-20
+    frame(92, 4875.05, 77531, 98604),  // 2008-05-26
+    frame(96, 4870.1, 77453, 98604),  // 2008-05-30
+    frame(100, 4676.95, 74381, 98604),  // 2008-06-05
+    frame(104, 4523.6, 71942, 98604),  // 2008-06-11
+    frame(108, 4653, 74000, 98604),  // 2008-06-17
+    frame(112, 4266.4, 67851, 98604),  // 2008-06-23
+    frame(116, 4136.65, 65788, 98604),  // 2008-06-27
+    frame(120, 3925.75, 62434, 98604),  // 2008-07-03
+    frame(124, 4157.1, 66113, 98604),  // 2008-07-09
+    frame(128, 3861.1, 61406, 98604),  // 2008-07-15
+    frame(132, 4159.5, 66151, 98604),  // 2008-07-21
+    frame(136, 4311.85, 68574, 98604),  // 2008-07-25
+    frame(140, 4332.95, 68910, 98604),  // 2008-07-31
+    frame(144, 4517.55, 71846, 98604),  // 2008-08-06
+    frame(148, 4552.25, 72398, 98604),  // 2008-08-12
+    frame(152, 4368.25, 69471, 98604),  // 2008-08-19
+    frame(156, 4335.35, 68948, 98604),  // 2008-08-25
+    frame(160, 4360, 69340, 98604),  // 2008-08-29
+    frame(164, 4352.3, 69218, 98604),  // 2008-09-05
+    frame(168, 4290.3, 68232, 98604),  // 2008-09-11
+    frame(170, 4072.9, 64774, 98604, "n_gfc_lehman"),  // 2008-09-15
+    frame(172, 4008.25, 63746, 98604),  // 2008-09-17
+    frame(176, 4126.9, 65633, 98604),  // 2008-09-23
+    frame(180, 3850.05, 61230, 98604),  // 2008-09-29
+    frame(184, 3602.35, 57291, 98604),  // 2008-10-06
+    frame(188, 3490.7, 55515, 98604),  // 2008-10-13
+    frame(192, 3074.35, 48894, 98604),  // 2008-10-17
+    frame(196, 2943.15, 46807, 98604),  // 2008-10-23
+    frame(198, 2524.2, 40144, 98604, "n_gfc_bottom"),  // 2008-10-27
   ],
   narrations: {
-    n_gfc_start: "Jan 8, 2008. Sensex at 21,206 — the bull market of the century. You're fully invested in equities. Every Diwali headline says 'buy the dip'.",
-    n_gfc_sold: "Day 3 — down 13%. The brokers call it 'a correction'. You sell at ₹71,500. The cash feels safe.",
-    n_gfc_brutal: "Month 3. Sensex down 40%. If you're watching this in real time, it looks endless. At THIS moment, the panic seller looks like a genius — they sold before this. This is the emotional peak where most holders cave.",
-    n_gfc_lehman: "Sep 15, 2008. Lehman Brothers files Chapter 11. Global markets in freefall. The worst is still 40 trading days away.",
-    n_gfc_bottom: "Oct 27, 2008 — ₹36,300. Down 64% from peak. Held portfolio looks catastrophic. But here's the crucial context: from this exact day, Sensex would take 779 days to set a NEW all-time high. Holders outperformed panic-sellers by year 3.",
-    n_gfc_final: "Inside our 10-month snapshot, the panic seller IS winning — ₹71,500 vs your ₹41,800. This scenario shows the inverse: sometimes the panic call works in the short run. But this ends badly — the cash waited until 2014 to re-enter. Time in the market beats timing the market.",
+    n_gfc_start: "8 Jan 2008. The Nifty 50 closes at a record 6,287.85 after a five-year bull run. Your ₹1,00,000 is invested across the Nifty 50.",
+    n_gfc_sold: "Day 3. The Nifty is only 1.4% off its record, but American banks keep reporting losses on subprime loans. You sell everything at the close and keep ₹98,604 in cash.",
+    n_gfc_halt: "22 Jan. The market falls so fast at the open that trading is halted for an hour. In two sessions the Nifty has lost 14%. It is now 22% below your start.",
+    n_gfc_bear: "17 Mar. The US bank Bear Stearns has been rescued over the weekend. The Nifty closes 28% below your start, and the panic-seller looks like a genius.",
+    n_gfc_lehman: "15 Sep. Lehman Brothers files for bankruptcy in New York. The Nifty falls 3.7% and is 35% below your start. The worst is still six weeks away.",
+    n_gfc_bottom: "27 Oct 2008. The Nifty closes at 2,524.2, 59.9% below your start. Held: ₹40,144. Panic-sold: ₹98,604, almost two and a half times as much. Here, selling early won. The catch: the Nifty was back above its January 2008 level by 9 Nov 2010, and anyone still waiting in cash for the right moment missed that recovery.",
   },
 };
 
-// ---------- DEMONETISATION 2016 ------------------------------------------
-// Nov 8, 2016 demonetisation announcement. Nifty dropped 9% in 3 weeks, recovered in 4 months.
 const DEMO_2016 = {
   id: "DEMO_2016",
   title: "Demonetisation Shock",
   subtitle: "Nov 2016 – Feb 2017",
-  description: "Overnight cash ban. Markets panicked briefly, recovered entirely within 4 months, then rallied 30% over the next year.",
+  description: "The overnight note ban. The Nifty 50 slipped 7% over seven weeks and was back above its 8 November level by late January 2017.",
   startLabel: "Nov 8, 2016",
   endLabel: "Feb 28, 2017",
-  finalDelta: 13.1,
-  heldEnd: 102600,
-  panicEnd: 90700,
-  indexDrop: -8.7,
-  recoveryDays: 92,
+  finalDelta: 7.0,
+  heldEnd: 103933,
+  panicEnd: 97106,
+  indexDrop: -7.4,
+  recoveryDays: 22,
   frames: [
-    frame(0,  8544,  100000, 100000, "n_demo_start"),
-    frame(1,  8432,  98700,  98700),
-    frame(2,  8296,  97100,  97100),
-    frame(3,  8108,  94900,  90700,  "n_demo_sold"),
-    frame(5,  7930,  92800,  90700),
-    frame(8,  7917,  92650,  90700),
-    frame(12, 8079,  94600,  90700),
-    frame(16, 7908,  92550,  90700,  "n_demo_low"),
-    frame(20, 8036,  94100,  90700),
-    frame(25, 8209,  96100,  90700),
-    frame(30, 8247,  96550,  90700),
-    frame(35, 8200,  95950,  90700),
-    frame(40, 8268,  96750,  90700),
-    frame(50, 8429,  98650,  90700,  "n_demo_recovery"),
-    frame(60, 8665,  101400, 90700),
-    frame(70, 8770,  102650, 90700,  "n_demo_final"),
-    frame(78, 8770,  102650, 90700),
+    frame(0, 8543.55, 100000, 100000, "n_demo_start"),  // 2016-11-08
+    frame(1, 8432, 98694, 98694, "n_demo_us"),  // 2016-11-09
+    frame(2, 8525.75, 99792, 99792),  // 2016-11-10
+    frame(3, 8296.3, 97106, 97106, "n_demo_sold"),  // 2016-11-11
+    frame(4, 8108.45, 94907, 97106),  // 2016-11-15
+    frame(5, 8111.6, 94944, 97106),  // 2016-11-16
+    frame(6, 8079.95, 94574, 97106),  // 2016-11-17
+    frame(7, 8074.1, 94505, 97106),  // 2016-11-18
+    frame(8, 7929.1, 92808, 97106, "n_demo_queues"),  // 2016-11-21
+    frame(9, 8002.3, 93665, 97106),  // 2016-11-22
+    frame(10, 8033.3, 94028, 97106),  // 2016-11-23
+    frame(11, 7965.5, 93234, 97106),  // 2016-11-24
+    frame(12, 8114.3, 94976, 97106),  // 2016-11-25
+    frame(13, 8126.9, 95123, 97106),  // 2016-11-28
+    frame(14, 8142.15, 95302, 97106),  // 2016-11-29
+    frame(15, 8224.5, 96266, 97106),  // 2016-11-30
+    frame(16, 8192.9, 95896, 97106),  // 2016-12-01
+    frame(17, 8086.8, 94654, 97106),  // 2016-12-02
+    frame(18, 8128.75, 95145, 97106),  // 2016-12-05
+    frame(19, 8143.15, 95313, 97106),  // 2016-12-06
+    frame(20, 8102.05, 94832, 97106),  // 2016-12-07
+    frame(21, 8246.85, 96527, 97106),  // 2016-12-08
+    frame(22, 8261.75, 96702, 97106),  // 2016-12-09
+    frame(23, 8170.8, 95637, 97106),  // 2016-12-12
+    frame(24, 8221.8, 96234, 97106),  // 2016-12-13
+    frame(25, 8182.45, 95773, 97106),  // 2016-12-14
+    frame(26, 8153.6, 95436, 97106),  // 2016-12-15
+    frame(27, 8139.45, 95270, 97106),  // 2016-12-16
+    frame(28, 8104.35, 94859, 97106),  // 2016-12-19
+    frame(29, 8082.4, 94602, 97106),  // 2016-12-20
+    frame(30, 8061.3, 94355, 97106),  // 2016-12-21
+    frame(31, 7979.1, 93393, 97106),  // 2016-12-22
+    frame(32, 7985.75, 93471, 97106),  // 2016-12-23
+    frame(33, 7908.25, 92564, 97106, "n_demo_low"),  // 2016-12-26
+    frame(34, 8032.85, 94022, 97106),  // 2016-12-27
+    frame(35, 8034.85, 94046, 97106),  // 2016-12-28
+    frame(36, 8103.6, 94851, 97106),  // 2016-12-29
+    frame(37, 8185.8, 95813, 97106),  // 2016-12-30
+    frame(38, 8179.5, 95739, 97106),  // 2017-01-02
+    frame(39, 8192.25, 95888, 97106),  // 2017-01-03
+    frame(40, 8190.5, 95868, 97106),  // 2017-01-04
+    frame(41, 8273.8, 96843, 97106),  // 2017-01-05
+    frame(42, 8243.8, 96492, 97106),  // 2017-01-06
+    frame(43, 8236.05, 96401, 97106),  // 2017-01-09
+    frame(44, 8288.6, 97016, 97106),  // 2017-01-10
+    frame(45, 8380.65, 98093, 97106),  // 2017-01-11
+    frame(46, 8407.2, 98404, 97106),  // 2017-01-12
+    frame(47, 8400.35, 98324, 97106),  // 2017-01-13
+    frame(48, 8412.8, 98470, 97106),  // 2017-01-16
+    frame(49, 8398, 98296, 97106),  // 2017-01-17
+    frame(50, 8417, 98519, 97106),  // 2017-01-18
+    frame(51, 8435.1, 98731, 97106),  // 2017-01-19
+    frame(52, 8349.35, 97727, 97106),  // 2017-01-20
+    frame(53, 8391.5, 98220, 97106),  // 2017-01-23
+    frame(54, 8475.8, 99207, 97106),  // 2017-01-24
+    frame(55, 8602.75, 100693, 97106, "n_demo_recovery"),  // 2017-01-25
+    frame(56, 8641.25, 101144, 97106),  // 2017-01-27
+    frame(57, 8632.75, 101044, 97106),  // 2017-01-30
+    frame(58, 8561.3, 100208, 97106),  // 2017-01-31
+    frame(59, 8716.4, 102023, 97106),  // 2017-02-01
+    frame(60, 8734.25, 102232, 97106),  // 2017-02-02
+    frame(61, 8740.95, 102311, 97106),  // 2017-02-03
+    frame(62, 8801.05, 103014, 97106),  // 2017-02-06
+    frame(63, 8768.3, 102631, 97106),  // 2017-02-07
+    frame(64, 8769.05, 102639, 97106),  // 2017-02-08
+    frame(65, 8778.4, 102749, 97106),  // 2017-02-09
+    frame(66, 8793.55, 102926, 97106),  // 2017-02-10
+    frame(67, 8805.05, 103061, 97106),  // 2017-02-13
+    frame(68, 8792.3, 102912, 97106),  // 2017-02-14
+    frame(69, 8724.7, 102120, 97106),  // 2017-02-15
+    frame(70, 8778, 102744, 97106),  // 2017-02-16
+    frame(71, 8821.7, 103256, 97106),  // 2017-02-17
+    frame(72, 8879.2, 103929, 97106),  // 2017-02-20
+    frame(73, 8907.85, 104264, 97106),  // 2017-02-21
+    frame(74, 8926.9, 104487, 97106),  // 2017-02-22
+    frame(75, 8939.5, 104634, 97106),  // 2017-02-23
+    frame(76, 8896.7, 104134, 97106),  // 2017-02-27
+    frame(77, 8879.6, 103933, 97106, "n_demo_final"),  // 2017-02-28
   ],
   narrations: {
-    n_demo_start: "Nov 8, 2016, 8 PM. PM Modi announces ₹500 and ₹1000 notes invalid from midnight. Nifty opens down 1.3% next day. Headlines predict chaos.",
-    n_demo_sold: "Day 3. Nifty down 5.1%. Cash-heavy businesses are in crisis. You sell at ₹90,700, convinced this is the start of something worse.",
-    n_demo_low: "Nov 24 — Nifty at 7908. Peak panic. News is saturated with queues outside ATMs. In hindsight, this is almost exactly the bottom.",
-    n_demo_recovery: "By mid-January, the market has fully priced in the news. Digital payments start booming. Holders are back to break-even.",
-    n_demo_final: "4 months later. Held portfolio: ₹1,02,650 — you're up 2.6%. Panic-sold: still ₹90,700. Over the next 12 months, the Nifty rallied another 27%. Demonetisation felt world-ending, and was forgotten in a quarter.",
+    n_demo_start: "8 Nov 2016. The market has closed with the Nifty 50 at 8,543.55. At 8 PM, the Prime Minister announces that ₹500 and ₹1,000 notes stop being legal tender at midnight. Your ₹1,00,000 is invested across the Nifty 50.",
+    n_demo_us: "9 Nov. The Nifty closes 1.3% lower on a day that also brings the surprise US election result.",
+    n_demo_sold: "Day 3. The Nifty is 2.9% below where you started, and bank queues fill every news channel. You sell everything at the close and keep ₹97,106 in cash.",
+    n_demo_queues: "21 Nov. The Nifty is 7.2% below 8 November. Cash-heavy businesses are struggling, and the headlines predict a slowdown.",
+    n_demo_low: "26 Dec. The lowest close of the replay: 7,908.25, 7.4% below your start. Held: ₹92,564. The panic-seller is still ahead.",
+    n_demo_recovery: "25 Jan 2017. The Nifty closes above its 8 November level again, 22 trading days after the low.",
+    n_demo_final: "28 Feb 2017. Held: ₹1,03,933, up 3.9%. Panic-sold: ₹97,106 in cash. Holding finished 7.0% ahead. By the end of 2017, the Nifty was 33% above its December 2016 low.",
   },
 };
 

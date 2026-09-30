@@ -19,16 +19,16 @@ import { generateCustomCrash, existingScenarioForQuery } from "../features/custo
 // If pregen hasn't run yet, the click still works but pays full
 // generation cost on first user.
 const FEATURED_PHRASINGS = [
-  { phrase: "Harshad Mehta 1992",            blurb: "Bombay's first big stock-broker scam — Sensex doubled then halved.", range: "Apr 1992 → Aug 1992" },
+  { phrase: "Harshad Mehta 1992",            blurb: "The securities scam. The Sensex more than doubled in early 1992, then crashed once the fraud came out.", range: "Apr 1992 → Aug 1992" },
   { phrase: "Dot Com 2000",                  blurb: "Indian IT pulled into the global tech bust.",                          range: "Mar 2000 → Jun 2000" },
-  { phrase: "Global Financial Crisis 2008",  blurb: "Lehman → Nifty fell 60% over six months.",                             range: "Sep 2008 → Mar 2009" },
-  { phrase: "Satyam scandal 2009",           blurb: "Ramalinga Raju's confession letter, IT sector circuit-breakers.",     range: "Jan 2009 → Apr 2009" },
+  { phrase: "Global Financial Crisis 2008",  blurb: "After Lehman collapsed, the Nifty fell another 40% in six weeks.",                             range: "Sep 2008 → Mar 2009" },
+  { phrase: "Satyam scandal 2009",           blurb: "Ramalinga Raju's confession letter. Satyam's shares lost nearly 78% in a day.",     range: "Jan 2009 → Apr 2009" },
   { phrase: "IL&FS collapse 2018",           blurb: "AAA-rated NBFC defaults trigger a credit-market freeze.",              range: "Sep 2018 → Jan 2019" },
   { phrase: "DHFL crisis 2019",              blurb: "Housing finance giant unravels live.",                                  range: "Jun 2019 → Dec 2019" },
-  { phrase: "YES Bank moratorium 2020",      blurb: "RBI freezes withdrawals, retail equity-holder gets wiped to ₹0.",     range: "Mar 2020 → Jul 2020" },
-  { phrase: "COVID March 2020",              blurb: "Fastest 35% drop in Nifty history. Recovered in 5 months.",            range: "Feb 2020 → Aug 2020" },
-  { phrase: "Paytm IPO Nov 2021",            blurb: "Listed at ₹2150, fell 27% on debut day. Six months in: -75%.",        range: "Nov 2021 → Apr 2022" },
-  { phrase: "Adani Hindenburg Jan 2023",     blurb: "Short-seller report wipes ₹10 lakh crore from group market cap.",     range: "Jan 2023 → Jun 2023" },
+  { phrase: "YES Bank moratorium 2020",      blurb: "RBI caps withdrawals at ₹50,000. The share falls as low as ₹5.65 and ₹8,415 crore of AT1 bonds are written off.",     range: "Mar 2020 → Jul 2020" },
+  { phrase: "COVID March 2020",              blurb: "The Nifty fell 37% in 33 days, then took until November to climb back.",            range: "Feb 2020 → Aug 2020" },
+  { phrase: "Paytm IPO Nov 2021",            blurb: "IPO price ₹2,150. Closed 27% lower on its first day, and was about 75% down six months later.",        range: "Nov 2021 → Apr 2022" },
+  { phrase: "Adani Hindenburg Jan 2023",     blurb: "A short-seller report wipes more than ₹10 lakh crore off the group's market value.",     range: "Jan 2023 → Jun 2023" },
 ];
 
 // Hotfix45b: post-process narration text to fix common LLM mis-phrasings.
@@ -95,7 +95,7 @@ function renderSelector(main) {
 
     <div style="margin-bottom: var(--sp-3);">
       <h3 style="margin: 0;">Curated replays</h3>
-      <p class="muted text-sm">Hand-tuned with real historical Nifty values.</p>
+      <p class="muted text-sm">Built from real daily Nifty 50 closes.</p>
     </div>
     <div class="crash-scenarios">
       ${CRASHES.map(c => `
@@ -420,7 +420,7 @@ function renderReplay(main, scenario) {
       <a href="/crash-replay" class="btn btn-ghost btn-sm">← Scenarios</a>
       <div class="replay-title-inline">
         <span class="pill pill-brand">⏱ ${escapeHtml(scenario.subtitle || "Time travel")}</span>
-        <strong>${escapeHtml(scenario.title)}</strong>
+        <h1 class="replay-title-h1">${escapeHtml(scenario.title)} replay</h1>
         <span class="mood-indicator calm" id="mood-indicator">🧘 Calm</span>
       </div>
       <div class="replay-controls replay-controls-top">
@@ -504,10 +504,10 @@ function renderReplay(main, scenario) {
       <div class="card">
         <h4 style="font-size: var(--text-sm); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">What this replay holds constant</h4>
         <ul style="margin-top: var(--sp-3); color: var(--text); line-height: 1.7; font-size: var(--text-sm); padding-left: 18px;">
-          <li>A ₹1,00,000 portfolio across 5 diversified Indian large-caps</li>
-          <li>The panic-sold line assumes sell-everything on day 3, then stay in cash</li>
+          <li>A ₹1,00,000 portfolio that moves exactly with the price line shown</li>
+          <li>The panic-sold line sells everything at the close of day 3, then stays in cash</li>
           <li>Prices are real historical close values from the actual crash window</li>
-          <li>No brokerage or tax drag applied (would widen the held advantage further)</li>
+          <li>No brokerage, taxes, dividends or interest on cash are included</li>
         </ul>
       </div>
       <div class="card">
@@ -615,11 +615,11 @@ function renderReplay(main, scenario) {
     if (calloutEl) {
       const callouts = [];
       if (drawdownPct <= -0.10 && drawdownPct > -0.20) {
-        callouts.push(`<div class="replay-callout"><strong>−10% mark.</strong> Most people start googling "is the market crashing?" here. Heart-rate up. But historically, this is still the normal-correction zone — happens ~1-2 times a year.</div>`);
+        callouts.push(`<div class="replay-callout"><strong>−10% mark.</strong> Most people start googling "is the market crashing?" here. Falls of 10% happen far more often than real crashes, and most of them end without becoming one.</div>`);
       } else if (drawdownPct <= -0.20 && drawdownPct > -0.30) {
-        callouts.push(`<div class="replay-callout"><strong>−20% — bear market territory.</strong> This is where most retail panic-selling happens. The discomfort is real. But recovery data says: the bigger the drop, the faster (and larger) the eventual bounce tends to be.</div>`);
+        callouts.push(`<div class="replay-callout"><strong>−20% — bear market territory.</strong> This is where most retail panic-selling happens. The discomfort is real, and selling here locks in the loss if the market later recovers.</div>`);
       } else if (drawdownPct <= -0.30) {
-        callouts.push(`<div class="replay-callout"><strong>−30%+ drawdown.</strong> You're looking at a generational buying opportunity — but it won't feel like one. It'll feel like the world is ending. Every single time in history, it wasn't.</div>`);
+        callouts.push(`<div class="replay-callout"><strong>−30%+ drawdown.</strong> It will feel like the world is ending. After India's biggest crashes so far, including 2008 and 2020, the market did recover, but it took months or years and nobody knew the bottom in advance.</div>`);
       } else if (drawdownPct >= 0.05 && currentIdx > frames.length / 2) {
         callouts.push(`<div class="replay-callout"><strong>Back above start.</strong> Notice the gap between the green and red lines — that's the cost of the day-3 panic. You can't re-live it, but you can learn from it.</div>`);
       }
