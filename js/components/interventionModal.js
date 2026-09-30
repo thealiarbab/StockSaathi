@@ -46,9 +46,9 @@ export function showInterventionModal({ analog, biasResult, instrument, trade },
               <div class="dim intervention-caption">Historical analog</div>
               <div class="big-num tabular">${recoveryDays}</div>
               <div class="sublabel">
-                Median trading days to recovery in the <strong>last ${escapeHtml(String(analog.sampleSize))} dips of ≥${escapeHtml(String(analog.bucket))}%</strong>
-                on ${analog.source === "nifty" ? "the Nifty 50 index" : instName}.
-                Worst observed: ${escapeHtml(String(analog.maxRecoveryDays))} days.
+                Median trading days to get back to the previous high, across <strong>${escapeHtml(String(analog.sampleSize))} dips of ${escapeHtml(String(analog.bucket))}% or more</strong>
+                on ${analog.source === "nifty" ? "the Nifty 50 index" : instName}${analog.sinceYear ? ` since ${escapeHtml(String(analog.sinceYear))}` : ""}.
+                Slowest: ${escapeHtml(String(analog.maxRecoveryDays))} days. Past recoveries don't guarantee this one.
               </div>
             </div>
           ` : ""}

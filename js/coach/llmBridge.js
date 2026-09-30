@@ -35,7 +35,7 @@ export async function callExternalLlm(apiKey, { event, tick, biases, analog, pay
       ? `Detected biases (with severity):\n${biases.map(b => `- ${b.bias}: ${(b.severity * 100).toFixed(0)}%, evidence=${JSON.stringify(b.evidence)}`).join("\n")}`
       : `No biases detected.`,
     analog
-      ? `Historical analog available: ${analog.sampleSize} past dips ≥${analog.bucket}% on ${analog.instrument.name}, median recovery ${analog.recoveryDays} trading days.`
+      ? `Historical analog available: ${analog.sampleSize} past dips ≥${analog.bucket}% on ${analog.source === "nifty" ? "the Nifty 50 index" : analog.instrument.name}, median recovery ${analog.recoveryDays} trading days.`
       : null,
     `Your template-layer draft (for reference — you may rephrase but keep the substance):\n"${payload.reflection}"`,
     `Suggested question: "${payload.suggested_q || ""}"`,

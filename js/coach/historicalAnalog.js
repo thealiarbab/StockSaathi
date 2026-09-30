@@ -29,6 +29,7 @@ export function buildAnalogContext(symbol) {
     minRecoveryDays: stat.minRecoveryDays,
     maxRecoveryDays: stat.maxRecoveryDays,
     source: stat.source,
+    sinceYear: stat.sinceYear,
   };
 }
 
@@ -37,7 +38,8 @@ export function buildAnalogContext(symbol) {
  */
 export function formatAnalog(analog) {
   if (!analog) return null;
-  const { instrument, drawdownPct, bucket, recoveryDays, sampleSize, source, maxRecoveryDays } = analog;
+  const { instrument, bucket, recoveryDays, sampleSize, source, maxRecoveryDays, sinceYear } = analog;
   const label = source === "nifty" ? "the Nifty 50 index" : instrument.name;
-  return `In the last ${sampleSize} dips of ≥${bucket}% on ${label}, prices recovered to their prior high in a median of ${recoveryDays} trading days (worst case observed: ${maxRecoveryDays} days).`;
+  const since = sinceYear ? ` since ${sinceYear}` : "";
+  return `In ${sampleSize} dips of ${bucket}% or more on ${label}${since} that have recovered, prices got back to their prior high in a median of ${recoveryDays} trading days (slowest: ${maxRecoveryDays} days).`;
 }

@@ -7,6 +7,8 @@
 // numbers — always call a tool when the user names a specific instrument.
 // =============================================================================
 
+import { getState } from "../state.js";
+
 // -----------------------------------------------------------------------------
 // The system prompt (used with Groq Llama 3.3 70B tool-use)
 // -----------------------------------------------------------------------------
@@ -364,6 +366,14 @@ export function runtimeFacts(status) {
     }
   }
   lines.push("You have NO index tool. Never state a Nifty, Sensex, or Bank Nifty level — say you can't pull index levels, and offer an individual stock instead.");
+  // Settings → Hinglish mode. Until 2026-09-30 this switch was saved but never
+  // reached the model, while the site advertised it; every system prompt
+  // includes runtimeFacts(), so this is the one place it has to be wired.
+  let hinglish = false;
+  try { hinglish = !!getState()?.settings?.hinglish; } catch {}
+  if (hinglish) {
+    lines.push("LANGUAGE: the user has switched on Hinglish mode in Settings. Reply in natural, light Hinglish (Hindi in Roman script mixed with English, the way Indian teens text), keeping finance terms like P/E, SIP and NAV in English. Do not use Devanagari unless the user writes in it. If the user writes in pure English, still reply in light Hinglish.");
+  }
   return `# RUNTIME FACTS (authoritative — trust these over anything you remember)\n${lines.join(" ")}`;
 }
 
