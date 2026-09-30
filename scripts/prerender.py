@@ -200,7 +200,7 @@ def load_dips():
     src = (ROOT / "js" / "data" / "dipStats.js").read_text(encoding="utf-8")
 
     def obj(name):
-        m = re.search(r"export const %s = (\{.*?\n\});" % name, src, re.S)
+        m = re.search(r"export const %s = (\{.*?\});" % name, src, re.S)
         return json.loads(m.group(1))
     return obj("DIPS"), obj("DIP_SINCE")
 
@@ -210,9 +210,10 @@ DIPS, DIP_SINCE = load_dips()
 
 def dip_html(sym, name):
     """One real, stock-specific paragraph where the history exists."""
-    st = DIPS.get(sym, {}).get("10")
-    if not st or st["sampleSize"] < 3:
+    row = DIPS.get(sym, {}).get("10")
+    if not row or row[1] < 3:
         return ""
+    st = dict(zip(("recoveryDays", "sampleSize", "minRecoveryDays", "maxRecoveryDays", "open"), row))
     since = DIP_SINCE.get(sym, "")[:4]
     still = " One fall of 10% or more has not recovered yet." if st.get("open") else ""
     return f"""
@@ -383,7 +384,7 @@ def stock_main(r, siblings):
     name, sym = r["name"], r["symbol"]
     listed = "the NSE and BSE" if r.get("bseScripCd") else "the " + exch_label(r)
     bse = (" (BSE scrip code %s)" % e(r["bseScripCd"])) if r.get("bseScripCd") else ""
-    rows = [("Company", e(name)), ("NSE symbol", e(sym))]
+    rows = [("Company", e(name)), ("%s symbol" % ("BSE" if r.get("exchange") == "BSE" else "NSE"), e(sym))]
     if r.get("bseScripCd"):
         rows.append(("BSE scrip code", e(r["bseScripCd"])))
     if r.get("isin"):
@@ -395,8 +396,8 @@ def stock_main(r, siblings):
     if idx:
         rows.append(("Index membership", e(", ".join(idx))))
     facts = "".join("<tr><th scope=\"row\">%s</th><td>%s</td></tr>" % kv for kv in rows)
-    sib_title = ("Other %s stocks in the Nifty 500" % sector) if sector and sector not in ("Other", "Unknown") \
-        else "More Nifty 500 stocks to practise with"
+    sib_title = ("Other %s stocks to practise with" % sector) if sector and sector not in ("Other", "Unknown") \
+        else "More stocks to practise with"
     sib = "".join('<li><a href="%s">%s (%s)</a></li>' % (stock_path(s["symbol"]), e(s["name"]), e(s["symbol"]))
                   for s in siblings)
     return f"""<article class="container static-page">
@@ -427,10 +428,10 @@ def stock_main(r, siblings):
 </article>"""
 
 
-def stocks_hub_main(equities, etfs, nifty500):
-    n50 = [r for r in nifty500 if r["idx"] & 1]
+def stocks_hub_main(equities, etfs, paged):
+    n50 = [r for r in paged if (r.get("idx") or 0) & 1]
     by_sector = {}
-    for r in nifty500:
+    for r in paged:
         key = r.get("sector") if r.get("sector") not in (None, "", "Unknown") else "Other"
         by_sector.setdefault(key, []).append(r)
     order = sorted(by_sector, key=lambda k: (k == "Other", k.lower()))
@@ -454,7 +455,7 @@ def stocks_hub_main(equities, etfs, nifty500):
   </ul>
   <h2>Nifty 50 stocks</h2>
   <ul class="link-list cols">{"".join(link(r) for r in n50)}</ul>
-  <h2>Nifty 500 stocks by sector</h2>
+  <h2>Stocks by sector</h2>
   {sectors}
   <p class="fineprint">StockSaathi is an educational simulator using virtual money. It is not a SEBI-registered
   broker or adviser and is not affiliated with NSE or BSE.</p>
@@ -603,6 +604,9 @@ def partial(name, path):
 def build_pages():
     equities, etfs, nifty500 = load_universe()
     crashes = load_crashes()
+    in500 = {r["symbol"] for r in nifty500}
+    paged = sorted(nifty500 + [r for r in equities if r["symbol"] in DIPS and r["symbol"] not in in500],
+                   key=lambda r: r["name"].lower())
     pages = []
 
     def add(**p):
@@ -636,27 +640,29 @@ def build_pages():
         description=("Browse 4,000+ NSE and BSE stocks, ETFs and mutual funds, and practise trading them with virtual "
                      "money at real market prices. Free for Indian teens."),
         crumbs=[("Home", "/"), ("Markets", "/stocks")],
-        main=stocks_hub_main(equities, etfs, nifty500))
+        main=stocks_hub_main(equities, etfs, paged))
 
     by_sector = {}
-    for r in nifty500:
+    for r in paged:
         by_sector.setdefault(r.get("sector") or "Other", []).append(r)
-    for r in nifty500:
+    for r in paged:
         group = by_sector[r.get("sector") or "Other"]
         i = group.index(r)
         sib = [s for s in (group[i + 1:] + group[:i]) if s is not r][:8]
         if len(sib) < 4:                       # tiny sector: pad with alphabetical neighbours
-            j = nifty500.index(r)
-            sib += [s for s in nifty500[j + 1:j + 9] if s not in sib][:8 - len(sib)]
+            j = paged.index(r)
+            sib += [s for s in paged[j + 1:j + 9] if s not in sib][:8 - len(sib)]
         sym, name = r["symbol"], r["name"]
-        corp = {"@type": "Corporation", "name": name, "tickerSymbol": "NSE " + sym}
+        exch = "BSE" if r.get("exchange") == "BSE" else "NSE"
+        corp = {"@type": "Corporation", "name": name, "tickerSymbol": "%s %s" % (exch, sym)}
         if r.get("isin"):
             corp["identifier"] = {"@type": "PropertyValue", "propertyID": "ISIN", "value": r["isin"]}
-        # Only Nifty 100 pages are indexable. The rest share almost all of their
-        # text, so they stay reachable for people (noindex, follow) but out of
-        # the index and the sitemap until they carry something page-specific.
+        # A stock page is indexable only when it carries real, stock-specific
+        # figures: the dip-recovery history of a stock that passed the data-
+        # quality gate in scripts/build_dip_stats.py. Nifty 500 stocks without
+        # it keep a page for people (noindex, follow) but stay out of search.
         add(path=stock_path(sym), file="stocks/%s.html" % sym, priority="0.5", changefreq="monthly",
-            index=bool((r.get("idx") or 0) & 2),
+            index=sym in DIPS,
             title=stock_title(name, sym),
             ogTitle="Practice trading %s (%s) | StockSaathi" % (name, sym),
             description=stock_description(name, sym),

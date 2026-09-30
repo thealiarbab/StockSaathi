@@ -40,7 +40,7 @@ ROUTES = [
     ("/", 200, "#main .hero"),
     ("/stocks", 200, "#main h1"),
     ("/stocks/RELIANCE", 200, "#main"),
-    ("/stocks/SPICEJET", 200, "#main"),
+    ("/stocks/AANCHALISP", 200, "#main"),
     ("/crash-replay", 200, "#main .crash-scenarios"),
     ("/crash-replay/COVID_2020", 200, "#main"),
     ("/crash-replay/GFC_2008", 200, "#main"),
@@ -92,7 +92,9 @@ CRAWLER_PAGES = {
     "/news": ("news", False),
     "/login": (None, False),          # app shell
     "/portfolio": (None, False),
-    "/stocks/SPICEJET": (None, False),  # outside the Nifty 500: shell, noindex
+    "/stocks/AANCHALISP": (None, False),  # failed the data-quality gate, no page: shell, noindex
+    "/stocks/SPICEJET": ("SpiceJet", True),  # outside the Nifty 500 but passed the gate: own page
+    "/stocks/AAIL": ("Akar Auto", True),     # BSE-only stock that passed the gate
 }
 
 # Console noise judged elsewhere. "Failed to load resource" carries no URL, so

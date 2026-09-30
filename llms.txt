@@ -25,7 +25,7 @@ StockSaathi teaches by doing rather than through lessons: there are no course mo
 ## Pages
 
 - [Home](https://stocksaathi.co.in/): what StockSaathi is, with an FAQ.
-- [Markets](https://stocksaathi.co.in/stocks): 4,000+ NSE and BSE stocks, ETFs and mutual funds; Nifty 500 stocks by sector.
+- [Markets](https://stocksaathi.co.in/stocks): 4,000+ NSE and BSE stocks, ETFs and mutual funds; stock pages by sector.
 - [Crash replays](https://stocksaathi.co.in/crash-replay): replay real Indian market crashes.
 - [COVID-19 crash replay (2020)](https://stocksaathi.co.in/crash-replay/COVID_2020)
 - [Global financial crisis replay (2008)](https://stocksaathi.co.in/crash-replay/GFC_2008)
@@ -35,4 +35,4 @@ StockSaathi teaches by doing rather than through lessons: there are no course mo
 - [For students, parents and teachers](https://stocksaathi.co.in/for-students)
 - [Privacy policy](https://stocksaathi.co.in/privacy), [Terms of use](https://stocksaathi.co.in/terms), [Grievance officer](https://stocksaathi.co.in/grievance)
 
-Individual stock pages follow the pattern https://stocksaathi.co.in/stocks/SYMBOL (for example https://stocksaathi.co.in/stocks/RELIANCE).
+Individual stock pages (with each stock's real dip-recovery history since 2011) follow the pattern https://stocksaathi.co.in/stocks/SYMBOL (for example https://stocksaathi.co.in/stocks/RELIANCE).

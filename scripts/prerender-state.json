@@ -52,1995 +52,7363 @@
   "lastmod": "2026-09-30"
  },
  "/stocks": {
-  "hash": "efb4c753f892d4d6",
+  "hash": "4143cc19bda9845e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/20MICRONS": {
+  "hash": "10c7f6993acb4a86",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/21STCENMGM": {
+  "hash": "53328890db5145c9",
   "lastmod": "2026-10-01"
  },
  "/stocks/360ONE": {
-  "hash": "cdc0d414b3db8536",
+  "hash": "3d966f29c3d8c77e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/3MINDIA": {
+  "hash": "e2295b7b9d7603d9",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/3PLAND": {
+  "hash": "f18c3e7c58589341",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/5PAISA": {
+  "hash": "4a2afe8f2047e15d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AAATECH": {
+  "hash": "2f0c931f5f58c49b",
   "lastmod": "2026-10-01"
  },
  "/stocks/AADHARHFC": {
-  "hash": "9430c809cb5d2863",
+  "hash": "376478e08735c0df",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AAIL": {
+  "hash": "fd6945a34768f967",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AAKASH": {
+  "hash": "cacaf4521546d15c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AAREYDRUGS": {
+  "hash": "ad8053a5079f0661",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AARON": {
+  "hash": "c7efb46a2a4f4be8",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AARTECH": {
+  "hash": "6de4336f45e86d1f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AARTIDRUGS": {
+  "hash": "e95d985ba5733524",
   "lastmod": "2026-10-01"
  },
  "/stocks/AARTIIND": {
-  "hash": "969ab59a5683f434",
+  "hash": "bf15ca11025ec723",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AARTIPHARM": {
+  "hash": "9f783c372da7447d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AARTISURF": {
+  "hash": "a2a5f991b94f6d95",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AARVI": {
+  "hash": "d6c76c52bd8625df",
   "lastmod": "2026-10-01"
  },
  "/stocks/AAVAS": {
-  "hash": "c84d89a5277a5bbc",
+  "hash": "5e0cf8abc08bed6b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AAYUSHBULL": {
+  "hash": "31b53b7d8e4a461a",
   "lastmod": "2026-10-01"
  },
  "/stocks/ABB": {
-  "hash": "451021c46d507dca",
+  "hash": "a7074fd37f857025",
   "lastmod": "2026-10-01"
  },
  "/stocks/ABBOTINDIA": {
-  "hash": "4a0eb4201079e554",
+  "hash": "890cb9df1f02f9aa",
   "lastmod": "2026-10-01"
  },
  "/stocks/ABCAPITAL": {
-  "hash": "4075497ec509fe65",
+  "hash": "98a0ab0cec9bbc41",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ABCOTS": {
+  "hash": "eb6ba5c768a149a1",
   "lastmod": "2026-10-01"
  },
  "/stocks/ABDL": {
-  "hash": "50db11abded08e12",
+  "hash": "7f990f0d9ca91042",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ABINFRA": {
+  "hash": "bb0df7c11b315353",
   "lastmod": "2026-10-01"
  },
  "/stocks/ABREL": {
-  "hash": "cbf3fffa117ed455",
+  "hash": "7f2bc4c06bedc13c",
   "lastmod": "2026-10-01"
  },
  "/stocks/ABSLAMC": {
-  "hash": "a86a142ebae428af",
+  "hash": "09c71ad70fe6edf4",
   "lastmod": "2026-10-01"
  },
  "/stocks/ACC": {
-  "hash": "90e8f09eb4a5acd2",
+  "hash": "a5f14d17ee35850c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ACCELYA": {
+  "hash": "1195b0bf72fbe16f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ACCURACY": {
+  "hash": "ce676efe828ed105",
   "lastmod": "2026-10-01"
  },
  "/stocks/ACE": {
-  "hash": "a1165aa0e66ef700",
+  "hash": "86deac29c798d7fa",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ACEINTEG": {
+  "hash": "b938969cc9b4c1fa",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ACESOFT": {
+  "hash": "89be8589cd6d63f2",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ACIIN": {
+  "hash": "ef32edee27e81040",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ACL": {
+  "hash": "8f726fa2ca77d310",
   "lastmod": "2026-10-01"
  },
  "/stocks/ACMESOLAR": {
-  "hash": "09e1e3c54a8ddb8f",
+  "hash": "2c32b6efcc81e79d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ACTIVE": {
+  "hash": "ea310e4f72e50c2b",
   "lastmod": "2026-10-01"
  },
  "/stocks/ACUTAAS": {
-  "hash": "2151034fd1430404",
+  "hash": "9aa7ae3e49a05e05",
   "lastmod": "2026-10-01"
  },
  "/stocks/ADANIENSOL": {
-  "hash": "84b9a68d1ba8c80a",
+  "hash": "c4004f6dc3858c55",
   "lastmod": "2026-10-01"
  },
  "/stocks/ADANIENT": {
-  "hash": "d1f3d19209de62bf",
+  "hash": "aabbd65a94a7ebb7",
   "lastmod": "2026-10-01"
  },
  "/stocks/ADANIGREEN": {
-  "hash": "2b5f9b626708beb6",
+  "hash": "da97a95f3cdca730",
   "lastmod": "2026-10-01"
  },
  "/stocks/ADANIPORTS": {
-  "hash": "0b779f668a0e5803",
+  "hash": "1d3d6bf4e0629643",
   "lastmod": "2026-10-01"
  },
  "/stocks/ADANIPOWER": {
-  "hash": "5ca33ce89f13c451",
+  "hash": "ab49cc92ae3adedb",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ADCINDIA": {
+  "hash": "02704fd79880419a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ADFFOODS": {
+  "hash": "2e1d0656e55d8d7b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ADL": {
+  "hash": "6c53834f86a06a31",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ADOR": {
+  "hash": "1f31d972529c4374",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ADVANIHOTR": {
+  "hash": "2c2017892a6e278a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ADVENZYMES": {
+  "hash": "73efa0d40a7a47c4",
   "lastmod": "2026-10-01"
  },
  "/stocks/AEGISLOG": {
-  "hash": "88454c6f73d2a085",
+  "hash": "5f81b2908791eefa",
   "lastmod": "2026-10-01"
  },
  "/stocks/AEGISVOPAK": {
-  "hash": "1ce11b58b8db9be3",
+  "hash": "d2e112327899e371",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AEROENTER": {
+  "hash": "143efe2a4295746b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AEROFLEX": {
+  "hash": "4495b4834445b781",
   "lastmod": "2026-10-01"
  },
  "/stocks/AETHER": {
-  "hash": "1e7b8c96f9bae3ad",
+  "hash": "d089a9a3b8c9f61d",
   "lastmod": "2026-10-01"
  },
  "/stocks/AFCONS": {
-  "hash": "a1e561de8ca25563",
+  "hash": "7c10ef7511ab9fc2",
   "lastmod": "2026-10-01"
  },
  "/stocks/AFFLE": {
-  "hash": "7d264380aa15db98",
+  "hash": "75c019916e3c07c4",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AFSL": {
+  "hash": "417a987dc9c6b274",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AGARIND": {
+  "hash": "db0b4146973ea629",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AGASTYAEN": {
+  "hash": "ca312d8d6406c743",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AGI": {
+  "hash": "b1a827b8938fe79a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AGNI": {
+  "hash": "eb306c3ff14ed7b8",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AGOL": {
+  "hash": "919036a051c61490",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AGRITECH": {
+  "hash": "8d76835c31fefe97",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AGROPHOS": {
+  "hash": "0c5a9fb3b76de648",
   "lastmod": "2026-10-01"
  },
  "/stocks/AIAENG": {
-  "hash": "09275133796607bf",
+  "hash": "ef75a740d7876697",
   "lastmod": "2026-10-01"
  },
  "/stocks/AIIL": {
-  "hash": "c26683b00deb012b",
+  "hash": "e90a190054a33907",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AIML": {
+  "hash": "336f6617d6ea990c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AIRAN": {
+  "hash": "a92213280a8cb662",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AIROLAM": {
+  "hash": "43ab41f81b084318",
   "lastmod": "2026-10-01"
  },
  "/stocks/AJANTPHARM": {
-  "hash": "131c0c4b97045b60",
+  "hash": "2260dc5237ba69b8",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AJMERA": {
+  "hash": "e84a8210cfd6a8be",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AJOONI": {
+  "hash": "92994f524097e182",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AKASH": {
+  "hash": "16c0ab16cb164a52",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AKG": {
+  "hash": "7c280b1d77e78bb7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AKSHOPTFBR": {
+  "hash": "b96cdd3a5e237501",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ALANKIT": {
+  "hash": "3568ff76bd9e2e84",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ALBERTDAVD": {
+  "hash": "783b70bea13156fc",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ALFAVIO": {
+  "hash": "1c487668065d8a40",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ALICON": {
+  "hash": "032f8ec3c65f4de1",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ALIVUS": {
+  "hash": "90e333d01bb018b1",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ALKALI": {
+  "hash": "f47bac3d93172b57",
   "lastmod": "2026-10-01"
  },
  "/stocks/ALKEM": {
-  "hash": "fc96713437139796",
+  "hash": "1a6c7138ba9f1323",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ALKYLAMINE": {
+  "hash": "d498311f68977ee6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ALLDIGI": {
+  "hash": "5a8cce84a83237e8",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ALLETEC": {
+  "hash": "a3c8ab9449ec590e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ALMONDZ": {
+  "hash": "b925657d3a0c8602",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ALPA": {
+  "hash": "608155b7587ba7c0",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ALPHAGEO": {
+  "hash": "745fe804c98bdfda",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ALPHALOGIC": {
+  "hash": "39100f5d488736cf",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ALPINEHOU": {
+  "hash": "ee000f97f257ed33",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ALSL": {
+  "hash": "33b5714ac68884cd",
   "lastmod": "2026-10-01"
  },
  "/stocks/AMBER": {
-  "hash": "8c72da01da94034c",
+  "hash": "f3e992dc5ea522d1",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AMBICAAGAR": {
+  "hash": "9e16782bcb50be94",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AMBIKCO": {
+  "hash": "3d6d08b013f5dfe9",
   "lastmod": "2026-10-01"
  },
  "/stocks/AMBUJACEM": {
-  "hash": "8297916c91cea73a",
+  "hash": "0c97fbace6c0ecf5",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AMDIND": {
+  "hash": "b19a7117f9d86bc4",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AMINTAN": {
+  "hash": "0ecff62f5eac9b28",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AMJLAND": {
+  "hash": "31fd63eabf50475e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AMRAPLIN": {
+  "hash": "fe8cd17703415487",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AMRUTANJAN": {
+  "hash": "73173b29d4bdd8f1",
   "lastmod": "2026-10-01"
  },
  "/stocks/ANANDRATHI": {
-  "hash": "024b5fd0904c3425",
+  "hash": "7a7207ce5a983748",
   "lastmod": "2026-10-01"
  },
  "/stocks/ANANTRAJ": {
-  "hash": "977120c4d9633b5a",
+  "hash": "770d181ddd3f7100",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ANDHRAPAP": {
+  "hash": "0d1db79d2969895b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ANDHRSUGAR": {
+  "hash": "1d2f4329959c29b8",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ANG": {
+  "hash": "3ab0a40d1cbd81ea",
   "lastmod": "2026-10-01"
  },
  "/stocks/ANGELONE": {
-  "hash": "1d462dcc87e30794",
+  "hash": "8055e200f83911c5",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ANIKINDS": {
+  "hash": "d367e8a446a0c5f0",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ANJANIFOODS": {
+  "hash": "2cbe3e15dd97bbce",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ANLON": {
+  "hash": "0338de9f534a18a6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ANMOL": {
+  "hash": "c87caf8ee8905ea3",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ANNAPURNA": {
+  "hash": "9bd8e193aa7bb3c5",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ANTELOPUS": {
+  "hash": "9ce63f81ae7731fd",
   "lastmod": "2026-10-01"
  },
  "/stocks/ANTHEM": {
-  "hash": "56faf499dee08c77",
+  "hash": "c9c40d3e0b5325b8",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ANUP": {
+  "hash": "9e8ea849b5e34f8a",
   "lastmod": "2026-10-01"
  },
  "/stocks/ANURAS": {
-  "hash": "b5512368e2790818",
+  "hash": "f61c3785d020129b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ANUROOP": {
+  "hash": "ce59c5d3a19ab527",
   "lastmod": "2026-10-01"
  },
  "/stocks/APARINDS": {
-  "hash": "5cc8f2344b1f7159",
+  "hash": "207031266ecf3cc3",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/APCOTEXIND": {
+  "hash": "4cf23dc2178ca5e5",
   "lastmod": "2026-10-01"
  },
  "/stocks/APLAPOLLO": {
-  "hash": "10a15b95010f0799",
+  "hash": "df95b74ec0dbd65a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/APLLTD": {
+  "hash": "c141879bdbc2fe35",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/APOLLO": {
+  "hash": "f8223a53605892f7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/APOLLOFI": {
+  "hash": "3a16df73b62f19ce",
   "lastmod": "2026-10-01"
  },
  "/stocks/APOLLOHOSP": {
-  "hash": "f6cba7927d32fa0d",
+  "hash": "acb3769407c1fdda",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/APOLLOPIPE": {
+  "hash": "91217f140929311b",
   "lastmod": "2026-10-01"
  },
  "/stocks/APOLLOTYRE": {
-  "hash": "a9a0c5d47ead868a",
+  "hash": "e5f166093dc806e5",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/APOLSINHOT": {
+  "hash": "85d3f22a95f85483",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/APTECHT": {
+  "hash": "9d3444936a7939e6",
   "lastmod": "2026-10-01"
  },
  "/stocks/APTUS": {
-  "hash": "831473803818a4ea",
+  "hash": "450ec3746afdc47a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ARCHIDPLY": {
+  "hash": "e6f0b627ff5d0dad",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ARCHITORG": {
+  "hash": "7112d5bf8aeadce6",
   "lastmod": "2026-10-01"
  },
  "/stocks/ARE&M": {
-  "hash": "77cd7ac3da9eef35",
+  "hash": "53819768c4341466",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ARENTERP": {
+  "hash": "3be4799af583ed79",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ARIES": {
+  "hash": "173cf2b2f4d17ee2",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ARIHANTCAP": {
+  "hash": "f6edc31614e62cfc",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ARIHANTSUP": {
+  "hash": "eb370481afb045d0",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ARL": {
+  "hash": "a30978566ad40bd1",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ARMANFIN": {
+  "hash": "1905b439b7a286a5",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AROGRANITE": {
+  "hash": "4f4b8f189091c090",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ARROWGREEN": {
+  "hash": "ad609d1b597db587",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ARTEMISMED": {
+  "hash": "873c9a09f28b81fa",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ARVEE": {
+  "hash": "0c3d2023bd212dec",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ARVIND": {
+  "hash": "fbc001f736aa2762",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ARVSMART": {
+  "hash": "7514fa214f6aacae",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ARYACAPM": {
+  "hash": "6b16ac1ba08c90dc",
   "lastmod": "2026-10-01"
  },
  "/stocks/ASAHIINDIA": {
-  "hash": "546d458ad4c07e40",
+  "hash": "c349af093b13061c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ASAHISONG": {
+  "hash": "19cc84a61db2770b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ASAL": {
+  "hash": "827a4681a096968f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ASALCBR": {
+  "hash": "0dcd8b0a2004abbb",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ASARFI": {
+  "hash": "ee565b109dc09d28",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ASHAPURMIN": {
+  "hash": "f7c9bce682c73d5d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ASHIANA": {
+  "hash": "336bf8910d0b5eb5",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ASHIMASYN": {
+  "hash": "8abdd4cac276eddb",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ASHNI": {
+  "hash": "d028025f440e6601",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ASHOKA": {
+  "hash": "108c19298732a365",
   "lastmod": "2026-10-01"
  },
  "/stocks/ASHOKLEY": {
-  "hash": "da44889a0eb2f638",
+  "hash": "2f3cd2b1da24849a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ASIANENE": {
+  "hash": "b66891dc6f5689dc",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ASIANHOTNR": {
+  "hash": "6abcc211a221cb67",
   "lastmod": "2026-10-01"
  },
  "/stocks/ASIANPAINT": {
-  "hash": "14b803412ff23ba0",
+  "hash": "98048d9e2f0d1d07",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ASIANTILES": {
+  "hash": "6a4b05a84d1d0aa7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ASMTEC": {
+  "hash": "5bac589ca9c0df92",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ASTEC": {
+  "hash": "953026ed6dbf118c",
   "lastmod": "2026-10-01"
  },
  "/stocks/ASTERDM": {
-  "hash": "5155c33593df950d",
+  "hash": "918ee14d070c5688",
   "lastmod": "2026-10-01"
  },
  "/stocks/ASTRAL": {
-  "hash": "d331acb3011badbd",
+  "hash": "14e9d6b0368fab24",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ASTRAMICRO": {
+  "hash": "659d34ef08eef6ac",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ASTRAZEN": {
+  "hash": "4d0e61d54ee9bd31",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ATALREAL": {
+  "hash": "9e0a9ed09dbc5a67",
   "lastmod": "2026-10-01"
  },
  "/stocks/ATGL": {
-  "hash": "02e9c6efa2a4b7e9",
+  "hash": "4c80ec8f2c4c2bc6",
   "lastmod": "2026-10-01"
  },
  "/stocks/ATHERENERG": {
-  "hash": "db76b3dd57c55bf0",
+  "hash": "93242bcd23c01ae2",
   "lastmod": "2026-10-01"
  },
  "/stocks/ATUL": {
-  "hash": "7b01bd6e319fe57e",
+  "hash": "a883bc41b61c3293",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ATULAUTO": {
+  "hash": "fd0403593768c678",
   "lastmod": "2026-10-01"
  },
  "/stocks/AUBANK": {
-  "hash": "fee7c2bed895158f",
+  "hash": "0c06e9ed6d87cce0",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AURIONPRO": {
+  "hash": "6b4fa7aac061231e",
   "lastmod": "2026-10-01"
  },
  "/stocks/AUROPHARMA": {
-  "hash": "addf577cf35f1852",
+  "hash": "5092883de306a374",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AURUS": {
+  "hash": "e2312a753d816245",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AUSOMENT": {
+  "hash": "9e6709a73a8f56c2",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AUTOAXLES": {
+  "hash": "270dad56dd2b1110",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AVADHSUGAR": {
+  "hash": "3822e9396308b4bb",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AVALON": {
+  "hash": "4595df2a188482ec",
   "lastmod": "2026-10-01"
  },
  "/stocks/AVANTIFEED": {
-  "hash": "99d0caf62aea5392",
+  "hash": "07a6efb5b4dd85c7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AVG": {
+  "hash": "e67eca2ea7f30183",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AVONMORE": {
+  "hash": "1686c9c39af3d325",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AVROIND": {
+  "hash": "2cc4bee016d82d5f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AVTNPL": {
+  "hash": "fd8c01c0978a48a6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AWHCL": {
+  "hash": "54e682bd31f91ccc",
   "lastmod": "2026-10-01"
  },
  "/stocks/AWL": {
-  "hash": "5e35cf9b623d3b6c",
+  "hash": "6299b90b4775efb7",
   "lastmod": "2026-10-01"
  },
  "/stocks/AXISBANK": {
-  "hash": "3cf441f0927fe227",
+  "hash": "092aed44d9154f5e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AXISCADES": {
+  "hash": "53328150991e7497",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AXITA": {
+  "hash": "ec8cfe86aad3ec0a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/AYMSYNTEX": {
+  "hash": "72398dc1f8e4a741",
   "lastmod": "2026-10-01"
  },
  "/stocks/AZAD": {
-  "hash": "2ed0559ec9ce8799",
+  "hash": "d7a14ce3d165e8d4",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BACPHAR": {
+  "hash": "6ff9bfcd6d71ec48",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BAFNAPH": {
+  "hash": "8a72a2424668b8fa",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BAHETI": {
+  "hash": "28fa50375c7a5247",
   "lastmod": "2026-10-01"
  },
  "/stocks/BAJAJ-AUTO": {
-  "hash": "9a06a145d8253c18",
+  "hash": "585d34c4f819518d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BAJAJCON": {
+  "hash": "a1bfa5905c0046fc",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BAJAJELEC": {
+  "hash": "81f6e10660518704",
   "lastmod": "2026-10-01"
  },
  "/stocks/BAJAJFINSV": {
-  "hash": "59e96168dd960c90",
+  "hash": "28088d229f04c674",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BAJAJHCARE": {
+  "hash": "f367b2583b4dce30",
   "lastmod": "2026-10-01"
  },
  "/stocks/BAJAJHFL": {
-  "hash": "8ef72139a28a64a4",
+  "hash": "b812503457bafef8",
   "lastmod": "2026-10-01"
  },
  "/stocks/BAJAJHLDNG": {
-  "hash": "fa40d0267de84cae",
+  "hash": "5cfda7f96275e01b",
   "lastmod": "2026-10-01"
  },
  "/stocks/BAJFINANCE": {
-  "hash": "5fd6a3a528e66736",
+  "hash": "7cfb0ca448c4fff9",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BALAJITELE": {
+  "hash": "dea4eba8e60fa71c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BALAMINES": {
+  "hash": "638f98ff276fe257",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BALAXI": {
+  "hash": "cd3a0f98b4c61d06",
   "lastmod": "2026-10-01"
  },
  "/stocks/BALKRISIND": {
-  "hash": "8a9e42acfbe801d6",
+  "hash": "13f55c3e42d86162",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BALMLAWRIE": {
+  "hash": "ad78b4c14d2e57dc",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BALPHARMA": {
+  "hash": "19c49449b73be3b6",
   "lastmod": "2026-10-01"
  },
  "/stocks/BALRAMCHIN": {
-  "hash": "8d92cef2fb7acb57",
+  "hash": "69f1defe9c9fdfcb",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BANARBEADS": {
+  "hash": "ed1434152c04e756",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BANARISUG": {
+  "hash": "b9e5651c8c7d2963",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BANCOINDIA": {
+  "hash": "8a93e7702cd9ca71",
   "lastmod": "2026-10-01"
  },
  "/stocks/BANDHANBNK": {
-  "hash": "fb901808ef28d01e",
+  "hash": "e2666eb79cb8c34e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BANG": {
+  "hash": "34d6e5a3d551f20a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BANKA": {
+  "hash": "69f2fd7dbda65c8a",
   "lastmod": "2026-10-01"
  },
  "/stocks/BANKBARODA": {
-  "hash": "1ecdcac6f780245a",
+  "hash": "55f638722091e637",
   "lastmod": "2026-10-01"
  },
  "/stocks/BANKINDIA": {
-  "hash": "5cf45dbe434a784c",
+  "hash": "85492860e9ed5ccd",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BANSWRAS": {
+  "hash": "50c70f80e7f86586",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BASF": {
+  "hash": "dc642705ab9a643a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BASILIC": {
+  "hash": "1c8f95c34d352ae6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BASML": {
+  "hash": "221bf45b48e97cab",
   "lastmod": "2026-10-01"
  },
  "/stocks/BATAINDIA": {
-  "hash": "b28c49a1a8f4c21c",
+  "hash": "38f7f9d291b1d199",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BAYERCROP": {
+  "hash": "f77ea66c001beb63",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BBL": {
+  "hash": "07a9324f4bdd0e15",
   "lastmod": "2026-10-01"
  },
  "/stocks/BBOX": {
-  "hash": "188c0aa0a2109be8",
+  "hash": "8221d908c1265b27",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BBTC": {
+  "hash": "b7e9867593a49368",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BBTCL": {
+  "hash": "231c5f4d3e03e8af",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BCCFUBA": {
+  "hash": "47b1cfc483c6586c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BCCL": {
+  "hash": "1407bee7ead157ed",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BCLIND": {
+  "hash": "969c19dda7eee711",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BCONCEPTS": {
+  "hash": "c956437ada75e237",
   "lastmod": "2026-10-01"
  },
  "/stocks/BDL": {
-  "hash": "eb64a76be6e7b96f",
+  "hash": "f98ce650ac68d251",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BEARDSELL": {
+  "hash": "4a1f97e042193fd5",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BECTORFOOD": {
+  "hash": "ffd36d6c0912d622",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BEDMUTHA": {
+  "hash": "922950ec7e3ae077",
   "lastmod": "2026-10-01"
  },
  "/stocks/BEL": {
-  "hash": "32fb462b2019ed6d",
+  "hash": "0c88905ef8488573",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BELDING": {
+  "hash": "97614f9a4c3af879",
   "lastmod": "2026-10-01"
  },
  "/stocks/BELRISE": {
-  "hash": "d622a4ff013429ef",
+  "hash": "a4fe84fa8f9158e7",
   "lastmod": "2026-10-01"
  },
  "/stocks/BEML": {
-  "hash": "904bcdf1dfec5a47",
+  "hash": "77f2a4be681dd5c5",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BEPL": {
+  "hash": "1bd8ce052257ac8f",
   "lastmod": "2026-10-01"
  },
  "/stocks/BERGEPAINT": {
-  "hash": "0e6583b59c1cb3d8",
+  "hash": "e0386bc5ddd6282e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BESTAGRO": {
+  "hash": "13b5e3beb32f95f7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BESTEAST": {
+  "hash": "c8b5855179398050",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BETA": {
+  "hash": "c594694cde895fb0",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BFINVEST": {
+  "hash": "a45569cdcfc1e795",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BFUTILITIE": {
+  "hash": "10f8e354d0e022a7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BGWTATO": {
+  "hash": "04faedbb0a35baa0",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BHAGCHEM": {
+  "hash": "69223b8768dd3cdc",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BHAGERIA": {
+  "hash": "08f13f4eb3a9e1aa",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BHAGYANGR": {
+  "hash": "91c9d672e5c4ac47",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BHANDARI": {
+  "hash": "17c7683ca743de07",
   "lastmod": "2026-10-01"
  },
  "/stocks/BHARATCOAL": {
-  "hash": "1851d4b0c621bfe0",
+  "hash": "ba568d436546b4e2",
   "lastmod": "2026-10-01"
  },
  "/stocks/BHARATFORG": {
-  "hash": "ac8debac77a651a3",
+  "hash": "2151c6b1bc5e08f5",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BHARATGEAR": {
+  "hash": "fc7d2caca352e492",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BHARATRAS": {
+  "hash": "a0787d6568ddee7d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BHARATWIRE": {
+  "hash": "070d24a1dc26bc1b",
   "lastmod": "2026-10-01"
  },
  "/stocks/BHARTIARTL": {
-  "hash": "12ebcbd80e045303",
+  "hash": "c34e92d6c90ad9ba",
   "lastmod": "2026-10-01"
  },
  "/stocks/BHARTIHEXA": {
-  "hash": "b360dae08dcaa803",
+  "hash": "66dde7f86cff41d8",
   "lastmod": "2026-10-01"
  },
  "/stocks/BHEL": {
-  "hash": "fb1ee47dd00af65a",
+  "hash": "0585a13676b79188",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BIBCL": {
+  "hash": "525dbce7e98caee4",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BIGBLOC": {
+  "hash": "a78af530aebb23ab",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BIKAJI": {
+  "hash": "d068cb69b586f971",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BIL": {
+  "hash": "c53b18539bb12cc6",
   "lastmod": "2026-10-01"
  },
  "/stocks/BIOCON": {
-  "hash": "d6dfa1abdeb7d292",
+  "hash": "156a5fb6f2541720",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BIOFILCHEM": {
+  "hash": "442d3033b341975d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BIRLACABLE": {
+  "hash": "8823a2e628f9ecaf",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BIRLACORPN": {
+  "hash": "319d75bc850c59cd",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BIRLAMONEY": {
+  "hash": "149658fa57d89112",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BIRLANU": {
+  "hash": "81e30cde4de7b5fa",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BLBLIMITED": {
+  "hash": "e457b4896ccaf6fe",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BLISSGVS": {
+  "hash": "b871483a5fc23a52",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BLKASHYAP": {
+  "hash": "ec5067b8ee7f0afd",
   "lastmod": "2026-10-01"
  },
  "/stocks/BLS": {
-  "hash": "ae023cae346074dd",
+  "hash": "ba01b731d8567467",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BLUEDART": {
+  "hash": "51d17cce1f062554",
   "lastmod": "2026-10-01"
  },
  "/stocks/BLUESTARCO": {
-  "hash": "d04a456dd9bb8c26",
+  "hash": "bb88013cd690feed",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BODALCHEM": {
+  "hash": "65ac4296bb1dc11d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BOMDYEING": {
+  "hash": "ad6b3fdcf50d2151",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BOROLTD": {
+  "hash": "ef6c9591b2bd2460",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BORORENEW": {
+  "hash": "17f1b69d2a7f38e6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BOSCH-HCIL": {
+  "hash": "5d7d6286e66f2c6e",
   "lastmod": "2026-10-01"
  },
  "/stocks/BOSCHLTD": {
-  "hash": "89cf19de91959dcd",
+  "hash": "65a18ef329ce67c3",
   "lastmod": "2026-10-01"
  },
  "/stocks/BPCL": {
-  "hash": "59ea1e96386cb0cb",
+  "hash": "19dcbc43595c110d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BPL": {
+  "hash": "e781a7a78967da23",
   "lastmod": "2026-10-01"
  },
  "/stocks/BRIGADE": {
-  "hash": "0c4030d25f925569",
+  "hash": "f39bd39b717c5d37",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BRIGHT": {
+  "hash": "20e4792e55bfd7dc",
   "lastmod": "2026-10-01"
  },
  "/stocks/BRITANNIA": {
-  "hash": "80f52ea7d84f9e1d",
+  "hash": "971b39f5d0b35d50",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BROOKS": {
+  "hash": "a8ba6be902e35574",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BRPL": {
+  "hash": "0953a2e75fb2adac",
   "lastmod": "2026-10-01"
  },
  "/stocks/BSE": {
-  "hash": "5295966a555cc6f5",
+  "hash": "997538fec1a67dd4",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BSHSL": {
+  "hash": "9acc68d2d8e24a2a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BSL": {
+  "hash": "36c55e54fe11a681",
   "lastmod": "2026-10-01"
  },
  "/stocks/BSOFT": {
-  "hash": "9d90649acfdcbc59",
+  "hash": "e1d82e72be115f50",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BTML": {
+  "hash": "bfdbd2c67c52757a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BUTTERFLY": {
+  "hash": "6049b7b9f73fc9c4",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BVCL": {
+  "hash": "78004aa970448bbe",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/BYKE": {
+  "hash": "e37cc0865f77563f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CAMLINFINE": {
+  "hash": "1183d8e346d66886",
   "lastmod": "2026-10-01"
  },
  "/stocks/CAMS": {
-  "hash": "4f231f40a1e44e45",
+  "hash": "80e253078fd13254",
   "lastmod": "2026-10-01"
  },
  "/stocks/CANBK": {
-  "hash": "92ff4d27bf3d351e",
+  "hash": "bb11dabe01348279",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CANDOUR": {
+  "hash": "1d7e3aada0783464",
   "lastmod": "2026-10-01"
  },
  "/stocks/CANFINHOME": {
-  "hash": "2b3a32564fea80f8",
+  "hash": "247832e8b48418dd",
   "lastmod": "2026-10-01"
  },
  "/stocks/CANHLIFE": {
-  "hash": "fd57d919ed7ab52d",
+  "hash": "7ee5b53e0e174560",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CANTABIL": {
+  "hash": "5583587293717569",
   "lastmod": "2026-10-01"
  },
  "/stocks/CAPLIPOINT": {
-  "hash": "10a4b0168de54a22",
+  "hash": "cea7c67e5aafca33",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CAPPIPES": {
+  "hash": "8a9903ecb0101e1a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CAPRIHANS": {
+  "hash": "5f43005821d23102",
   "lastmod": "2026-10-01"
  },
  "/stocks/CARBORUNIV": {
-  "hash": "3cd164ee707e6a3e",
+  "hash": "7203ca42e4d35730",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CARERATING": {
+  "hash": "ddceb9dfb0c5983e",
   "lastmod": "2026-10-01"
  },
  "/stocks/CARTRADE": {
-  "hash": "eedd4db0150cce4b",
+  "hash": "89b41d018336d4c4",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CARYSIL": {
+  "hash": "cac6564a867406b9",
   "lastmod": "2026-10-01"
  },
  "/stocks/CASTROLIND": {
-  "hash": "dbcce9c41bdbc2af",
+  "hash": "ff09d67b297c8014",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CCHHL": {
+  "hash": "cc920383e60bea7c",
   "lastmod": "2026-10-01"
  },
  "/stocks/CCL": {
-  "hash": "96327982fd5914c1",
+  "hash": "2f2fced789d0266a",
   "lastmod": "2026-10-01"
  },
  "/stocks/CDSL": {
-  "hash": "4d8c550aa1644611",
+  "hash": "e7b8b1a11908d35c",
   "lastmod": "2026-10-01"
  },
  "/stocks/CEATLTD": {
-  "hash": "89036b67cefa8da4",
+  "hash": "e9ce77a27d095563",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CEENIK": {
+  "hash": "a278686b95a924a9",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CELEBRITY": {
+  "hash": "83be34d908476bda",
   "lastmod": "2026-10-01"
  },
  "/stocks/CEMPRO": {
-  "hash": "90e51646f56a8262",
+  "hash": "46e49f9330243084",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CENTENKA": {
+  "hash": "4566e034a78c43c4",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CENTEXT": {
+  "hash": "b90b2b0be613a239",
   "lastmod": "2026-10-01"
  },
  "/stocks/CENTRALBK": {
-  "hash": "1f0bb6a5c87c0678",
+  "hash": "f23bf7c277a9ec2a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CENTUM": {
+  "hash": "64bfc8b2bb666ad7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CENTUPLE": {
+  "hash": "2235a7852d09a002",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CENTURYPLY": {
+  "hash": "26b5896a1030609c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CERA": {
+  "hash": "b82d7dcb01565b77",
   "lastmod": "2026-10-01"
  },
  "/stocks/CESC": {
-  "hash": "feafa9f73dafaa74",
+  "hash": "003857f972bd5efa",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CFF": {
+  "hash": "1d1fd37eb16c5a4a",
   "lastmod": "2026-10-01"
  },
  "/stocks/CGCL": {
-  "hash": "7a7d84b8a49c16ac",
+  "hash": "1708cd653d993a9a",
   "lastmod": "2026-10-01"
  },
  "/stocks/CGPOWER": {
-  "hash": "ad898bdf60a9b485",
+  "hash": "482b92192f3258d2",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CHALET": {
+  "hash": "75be39d2c8188b7c",
   "lastmod": "2026-10-01"
  },
  "/stocks/CHAMBLFERT": {
-  "hash": "6d73710d54ea79da",
+  "hash": "7b9d65d248db3b66",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CHANDNIMACH": {
+  "hash": "012a925f36e04a9d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CHANDRIMA": {
+  "hash": "00ed0cd78886ef0f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CHEMBOND": {
+  "hash": "a757402c146c5ead",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CHEMFAB": {
+  "hash": "1eefa030d2d2a483",
   "lastmod": "2026-10-01"
  },
  "/stocks/CHENNPETRO": {
-  "hash": "bfe6fb92a2a33639",
+  "hash": "701d9af6808dce47",
   "lastmod": "2026-10-01"
  },
  "/stocks/CHOICEIN": {
-  "hash": "4443a5cdf13e7bdc",
+  "hash": "56fbd150187c6bcd",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CHOKSILA": {
+  "hash": "589924fff30bbedb",
   "lastmod": "2026-10-01"
  },
  "/stocks/CHOLAFIN": {
-  "hash": "580181cf01d96578",
+  "hash": "88fbbd7372f1b7ad",
   "lastmod": "2026-10-01"
  },
  "/stocks/CHOLAHLDNG": {
-  "hash": "e4b1df0b8cac2f3b",
+  "hash": "a6618ea990dd651e",
   "lastmod": "2026-10-01"
  },
  "/stocks/CIEINDIA": {
-  "hash": "99c8ba016e2f46f1",
+  "hash": "0db1781df9407730",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CINEVISTA": {
+  "hash": "f1a3e170e675e15a",
   "lastmod": "2026-10-01"
  },
  "/stocks/CIPLA": {
-  "hash": "c3f025f242e34b6f",
+  "hash": "371c69acf7234bce",
   "lastmod": "2026-10-01"
  },
  "/stocks/CLEAN": {
-  "hash": "1d657a02532f8a37",
+  "hash": "eefcb1d414821848",
   "lastmod": "2026-10-01"
  },
  "/stocks/CLEANMAX": {
-  "hash": "6c5a05357df9b1b0",
+  "hash": "ab3fd17c85bc3266",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CLEDUCATE": {
+  "hash": "b6f7504fa6905a42",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CLIOINFO": {
+  "hash": "40da2bf89c5e5eb7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CLSEL": {
+  "hash": "43015638da7eb55e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CMNL": {
+  "hash": "ec7a1b18e796fd14",
   "lastmod": "2026-10-01"
  },
  "/stocks/CMPDI": {
-  "hash": "4776f9b37a019ff4",
+  "hash": "3272470cb756ab4d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CMSINFO": {
+  "hash": "451f3e2965c46c08",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CNCRD": {
+  "hash": "6587d0375ee30b4a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CNL": {
+  "hash": "9f545eb45a77d8f0",
   "lastmod": "2026-10-01"
  },
  "/stocks/COALINDIA": {
-  "hash": "084afd8db19c57b2",
+  "hash": "c842eddbb43458c1",
   "lastmod": "2026-10-01"
  },
  "/stocks/COCHINSHIP": {
-  "hash": "c5c29c0148e5df11",
+  "hash": "1e21a93bfbbd53f5",
   "lastmod": "2026-10-01"
  },
  "/stocks/COFORGE": {
-  "hash": "42a5298bfff2fad9",
+  "hash": "08730b9cce54566f",
   "lastmod": "2026-10-01"
  },
  "/stocks/COHANCE": {
-  "hash": "cf34fe17ebc97fb8",
+  "hash": "094abb9fc13fff12",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/COLINZ": {
+  "hash": "4fd127e085c35dfc",
   "lastmod": "2026-10-01"
  },
  "/stocks/COLPAL": {
-  "hash": "4a31f3a0567a4cbf",
+  "hash": "40faa7a92b66c6fb",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/COMPINFO": {
+  "hash": "b9297c41854b2d4c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/COMPUSOFT": {
+  "hash": "a38b9e6d425a02f5",
   "lastmod": "2026-10-01"
  },
  "/stocks/CONCOR": {
-  "hash": "eedbace6343c682a",
+  "hash": "8d9db52018df1e76",
   "lastmod": "2026-10-01"
  },
  "/stocks/CONCORDBIO": {
-  "hash": "7b1f35cfc2e360b5",
+  "hash": "1cbf02cfbded2dd5",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CONFIPET": {
+  "hash": "4d0a32ee2afb4bcb",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CONSOFINVT": {
+  "hash": "882f35183d91b378",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CONTAINE": {
+  "hash": "5bb1bf2159336274",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CONTICON": {
+  "hash": "4199a79e0f1b0f1d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CONTROLPR": {
+  "hash": "5d86d803cc6b38ea",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CORALAB": {
+  "hash": "b5169fe98583f744",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CORALFINAC": {
+  "hash": "a164a9a3eabc1faf",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CORDSCABLE": {
+  "hash": "3d36206e1cd3b75d",
   "lastmod": "2026-10-01"
  },
  "/stocks/COROMANDEL": {
-  "hash": "cd2608befb2b2738",
+  "hash": "8937c44d2ecfa2fc",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/COSMICCRF": {
+  "hash": "1bde626e784a33e7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/COSMOFIRST": {
+  "hash": "cd79bf63dac0ff63",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/COUNCODOS": {
+  "hash": "acab8afd7bcf50b4",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CPML": {
+  "hash": "5a51931120b8c8f8",
   "lastmod": "2026-10-01"
  },
  "/stocks/CPPLUS": {
-  "hash": "7648e3f4933bed8c",
+  "hash": "5fc52b3126bed70c",
   "lastmod": "2026-10-01"
  },
  "/stocks/CRAFTSMAN": {
-  "hash": "6c1482c8c6834f10",
+  "hash": "f332c3da642afd42",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CRANEX": {
+  "hash": "f8a2167bace7bda7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CREATIVEYE": {
+  "hash": "f3ef24a6e3911841",
   "lastmod": "2026-10-01"
  },
  "/stocks/CREDITACC": {
-  "hash": "c6b82c35d354a49d",
+  "hash": "31ac212d091d9352",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CREST": {
+  "hash": "1837efc1bb19a0ef",
   "lastmod": "2026-10-01"
  },
  "/stocks/CRISIL": {
-  "hash": "330f544d28780479",
+  "hash": "0cb678550f11dcb4",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CROISSANCE": {
+  "hash": "a38744ae428dbe37",
   "lastmod": "2026-10-01"
  },
  "/stocks/CROMPTON": {
-  "hash": "02640bdb13e12aec",
+  "hash": "3c12ff0c3b09a761",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CROWN": {
+  "hash": "0bd10a5a4b6ba600",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CSBBANK": {
+  "hash": "2cb48ab5b23f3c59",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CSL": {
+  "hash": "59ec5e3a19f40b70",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CSLFINANCE": {
+  "hash": "780e937490e0ff5a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CTE": {
+  "hash": "7ce44f90185e827f",
   "lastmod": "2026-10-01"
  },
  "/stocks/CUB": {
-  "hash": "bcd25c937c49258c",
+  "hash": "c0dbae202a00f466",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CUBEXTUB": {
+  "hash": "12080ddfb039caa6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CUBIFIN": {
+  "hash": "10a05668c5801154",
   "lastmod": "2026-10-01"
  },
  "/stocks/CUMMINSIND": {
-  "hash": "83c470217babcc84",
+  "hash": "6bf0c86e9f532cc9",
   "lastmod": "2026-10-01"
  },
  "/stocks/CUPID": {
-  "hash": "ce3f36c2e203ae74",
+  "hash": "2b241c0c6f81c56a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/CWD": {
+  "hash": "0889c74318c6c3e5",
   "lastmod": "2026-10-01"
  },
  "/stocks/CYIENT": {
-  "hash": "2086d874064ce8ea",
+  "hash": "6aca4f482f45c630",
   "lastmod": "2026-10-01"
  },
  "/stocks/DABUR": {
-  "hash": "8f8817451554e518",
+  "hash": "be00970906a298b3",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DAIKAFFI": {
+  "hash": "c56c09d81eff2d97",
   "lastmod": "2026-10-01"
  },
  "/stocks/DALBHARAT": {
-  "hash": "c764eb68b9685413",
+  "hash": "625cf2c0fca965b5",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DALMIASUG": {
+  "hash": "07893e41c1a754ce",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DAMODARIND": {
+  "hash": "946fed573e3e8cbd",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DANGEE": {
+  "hash": "10fc2bf497a9f83e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DANLAW": {
+  "hash": "8d6ab8e32bfafd72",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DATAMATICS": {
+  "hash": "01641998da2be681",
   "lastmod": "2026-10-01"
  },
  "/stocks/DATAPATTNS": {
-  "hash": "be9e7d460e6bd8a9",
+  "hash": "7d374e880b179d60",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DBCORP": {
+  "hash": "d66c6c2c4fc2d0f1",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DBL": {
+  "hash": "ea957f6226894ed1",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DCAL": {
+  "hash": "b0b022e25e7ae949",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DCBBANK": {
+  "hash": "6b2e3d363f1feb54",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DCI": {
+  "hash": "24b6e701b91e5ed7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DCMFINSERV": {
+  "hash": "318bdf7ec3cd72b8",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DCMNVL": {
+  "hash": "4217015576bb5f13",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DCMSHRIRAM": {
+  "hash": "93268925869ae943",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DCW": {
+  "hash": "c80ef93c80a44221",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DCXINDIA": {
+  "hash": "184c9f16b648d357",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DECCANCE": {
+  "hash": "26ca11056ad7ba95",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DEEPAI": {
+  "hash": "a292663e587e2163",
   "lastmod": "2026-10-01"
  },
  "/stocks/DEEPAKFERT": {
-  "hash": "a1eb5e7ec90c01cd",
+  "hash": "2ad05a35db46f075",
   "lastmod": "2026-10-01"
  },
  "/stocks/DEEPAKNTR": {
-  "hash": "6648f13f5bd4da65",
+  "hash": "abe8375e4d6f0708",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DEEPINDS": {
+  "hash": "3a921aa0bff3b0a7",
   "lastmod": "2026-10-01"
  },
  "/stocks/DELHIVERY": {
-  "hash": "3c86b09579969a06",
+  "hash": "5d9e049e8643a06d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DELPHIFX": {
+  "hash": "eb7f9e187deb0851",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DELTACORP": {
+  "hash": "c8a4f7538197642a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DELTAMAGNT": {
+  "hash": "2f647b161ad86303",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DENEERS": {
+  "hash": "c68d6f370b72e39c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DENORA": {
+  "hash": "0987fe5b79476eda",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DENTALKART": {
+  "hash": "21479ccc986aed23",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DEVIT": {
+  "hash": "04678c5037bb962a",
   "lastmod": "2026-10-01"
  },
  "/stocks/DEVYANI": {
-  "hash": "44fda5ccf8d37f7b",
+  "hash": "9a4fd3258d183244",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DGCONTENT": {
+  "hash": "3cc6c6bcff5cd5d9",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DHAMPURSUG": {
+  "hash": "df218abc046f1aaf",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DHANUKA": {
+  "hash": "953bf19bd757e781",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DHARFIN": {
+  "hash": "00ee240f3e89340e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DHARMAJ": {
+  "hash": "b96ef25b1bc5cf53",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DHOOTIN": {
+  "hash": "81ac6f9c5e6611f7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DHRUV": {
+  "hash": "c6f06ce0a5381896",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DHUNINV": {
+  "hash": "4b2405c4734de596",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DHYAANITR": {
+  "hash": "48e046cf8cdcff9a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DICIND": {
+  "hash": "59ed2ca881ea37c4",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DISHTV": {
+  "hash": "dc9d415bfdde5147",
   "lastmod": "2026-10-01"
  },
  "/stocks/DIVISLAB": {
-  "hash": "80bf315ac96c6d18",
+  "hash": "8025efc70485944f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DIVSHKT": {
+  "hash": "100f949a9a8298a9",
   "lastmod": "2026-10-01"
  },
  "/stocks/DIXON": {
-  "hash": "8395f1cb2cb32d19",
+  "hash": "644f3c55cdd9a06f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DJML": {
+  "hash": "719aeb52db480f9a",
   "lastmod": "2026-10-01"
  },
  "/stocks/DLF": {
-  "hash": "33627312226eecd0",
+  "hash": "67eb78308afb96bb",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DLINKINDIA": {
+  "hash": "781875ae6b25f7cf",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DLTNCBL": {
+  "hash": "3fcce945652a0c8b",
   "lastmod": "2026-10-01"
  },
  "/stocks/DMART": {
-  "hash": "0b8d18bc98eb429b",
+  "hash": "c1029b1027f2483d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DMCC": {
+  "hash": "c16aaee4b5399a99",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DODLA": {
+  "hash": "3b2c59de02e860f8",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DOLATALGO": {
+  "hash": "3528a1cd85938a63",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DOLFIN": {
+  "hash": "e3e08b847daefc3b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DOLLAR": {
+  "hash": "5dac29a39deedc20",
   "lastmod": "2026-10-01"
  },
  "/stocks/DOMS": {
-  "hash": "680c0571c1be6036",
+  "hash": "13a77d8d27d1c0a7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DONEAR": {
+  "hash": "da566c9d68ea5923",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DPABHUSHAN": {
+  "hash": "5828dde8642e2bf0",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DPSCLTD": {
+  "hash": "5a7e33eb4f3f5d47",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DPWIRES": {
+  "hash": "8fe02671b939e789",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DRCSYSTEMS": {
+  "hash": "c370dd3ec3bed0c8",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DREDGECORP": {
+  "hash": "18173052150debc8",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DRONE": {
+  "hash": "5da91fb4d2af289b",
   "lastmod": "2026-10-01"
  },
  "/stocks/DRREDDY": {
-  "hash": "51a38a1e232c18dc",
+  "hash": "36b0a7f33b915ce4",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DTIL": {
+  "hash": "6210962316e07242",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DUCON": {
+  "hash": "717f653dd17c20a3",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DUGLOBAL": {
+  "hash": "5ba3d6f40487f5b5",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DUKEOFS": {
+  "hash": "7098c8f5d459d43a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DVL": {
+  "hash": "42859c4975211991",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DWARKESH": {
+  "hash": "3feacedd4c160689",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DYCL": {
+  "hash": "a9e5d53e428b4750",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DYNAMATECH": {
+  "hash": "349047176e627522",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DYNAMIC": {
+  "hash": "8499b983888367df",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/DYNPRO": {
+  "hash": "4b514827331edff9",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/E2E": {
+  "hash": "c516c76684570cb6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/EASEMYTRIP": {
+  "hash": "cd4dd9319a51e0aa",
   "lastmod": "2026-10-01"
  },
  "/stocks/ECLERX": {
-  "hash": "5ff3d6c9faa6ef42",
+  "hash": "25d31f2c38bd2d36",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/EDELWEISS": {
+  "hash": "aa24a82c6207c444",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/EFORU": {
+  "hash": "db6477340ea76e8e",
   "lastmod": "2026-10-01"
  },
  "/stocks/EICHERMOT": {
-  "hash": "ce7d7db363dd3934",
+  "hash": "4b514d9b28167b4f",
   "lastmod": "2026-10-01"
  },
  "/stocks/EIDPARRY": {
-  "hash": "da6f8d6b59d57cbe",
+  "hash": "af6a9fe62200aa94",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/EIFFL": {
+  "hash": "6aea66ffd37ff53d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/EIHAHOTELS": {
+  "hash": "6c9a638e552ae643",
   "lastmod": "2026-10-01"
  },
  "/stocks/EIHOTEL": {
-  "hash": "71a3c85b158bafd1",
+  "hash": "d69ce450be672655",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/EIMCOELECO": {
+  "hash": "77b5b67ee6d99e96",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ELDEHSG": {
+  "hash": "f69aa358e8900240",
   "lastmod": "2026-10-01"
  },
  "/stocks/ELECON": {
-  "hash": "870fc4c4b5c2ff1d",
+  "hash": "f34f14d43d5bd17f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ELECTCAST": {
+  "hash": "60bbc41ee2dfe5b1",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ELECTHERM": {
+  "hash": "f639563912d04a87",
   "lastmod": "2026-10-01"
  },
  "/stocks/ELGIEQUIP": {
-  "hash": "9afd84d1b399eef3",
+  "hash": "d88a22e3bcc95999",
   "lastmod": "2026-10-01"
  },
  "/stocks/EMAMILTD": {
-  "hash": "3d21c4c0f75d79b8",
+  "hash": "37d10a36a7c3e274",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/EMAMIREAL": {
+  "hash": "3f443be5dd61c6b3",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/EMBDL": {
+  "hash": "e98b94f8b2e11b2b",
   "lastmod": "2026-10-01"
  },
  "/stocks/EMCURE": {
-  "hash": "0a0ea561b9fe6791",
+  "hash": "637b0f0609807f21",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/EMERGENT": {
+  "hash": "c5a5f1eef31c8ea0",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/EMIL": {
+  "hash": "0d0fb40cf5ddd52b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/EMKAY": {
+  "hash": "1e786906237aa89d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/EMMBI": {
+  "hash": "6ebfc436c3389f7f",
   "lastmod": "2026-10-01"
  },
  "/stocks/EMMVEE": {
-  "hash": "7104b840ea9e4cee",
+  "hash": "5e6bcd5dc3db32ea",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/EMSLIMITED": {
+  "hash": "53ff3d8d66babeb3",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/EMUDHRA": {
+  "hash": "916c501306090305",
   "lastmod": "2026-10-01"
  },
  "/stocks/ENDURANCE": {
-  "hash": "bf8fca55723cb637",
+  "hash": "dddb822d16b07b62",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ENERGYDEV": {
+  "hash": "d44d710289aac728",
   "lastmod": "2026-10-01"
  },
  "/stocks/ENGINERSIN": {
-  "hash": "dc180b5e87a73940",
+  "hash": "9a6521b799acbf98",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ENIL": {
+  "hash": "07300fdcbc2ecd58",
   "lastmod": "2026-10-01"
  },
  "/stocks/ENRIN": {
-  "hash": "1d9d9757ee441d2b",
+  "hash": "6624f3ec382de6bf",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ENVAIREL": {
+  "hash": "f05e713b06b2092f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/EPIGRAL": {
+  "hash": "190e6ea565535c42",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/EPL": {
+  "hash": "1577e95c3add729c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/EQUITASBNK": {
+  "hash": "665ec0cd5c1d801c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ERIS": {
+  "hash": "51d19c024f356a8b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ESABINDIA": {
+  "hash": "e15f524ff0918420",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ESCORP": {
+  "hash": "828e0f78ed64f891",
   "lastmod": "2026-10-01"
  },
  "/stocks/ESCORTS": {
-  "hash": "aa1ea9c649436aa4",
+  "hash": "2e426826a6cb16a4",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ESFL": {
+  "hash": "943c200eb5b1a31e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ESHAMEDIA": {
+  "hash": "1cfa85af94c95ba5",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ESSARSHPNG": {
+  "hash": "6964e0cbfa877256",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ESSENTIA": {
+  "hash": "33002470b2d5a30f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ESTER": {
+  "hash": "d61c21ff82434227",
   "lastmod": "2026-10-01"
  },
  "/stocks/ETERNAL": {
-  "hash": "a65bc84925862f03",
+  "hash": "75174ad09a05a082",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ETHOSLTD": {
+  "hash": "af7c6191ced7d2eb",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/EUROBOND": {
+  "hash": "4c53bffb3da02457",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/EUROLED": {
+  "hash": "14c34ef8558bf6e7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/EUROTEXIND": {
+  "hash": "1f7eb5d0c49adc89",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/EVEREADY": {
+  "hash": "1663197cf3e09b55",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/EVERESTIND": {
+  "hash": "fcecc7b4a88b7c84",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/EXCELINDUS": {
+  "hash": "42ff1da1b7aad00b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/EXHICON": {
+  "hash": "1a70276c69f3a6e7",
   "lastmod": "2026-10-01"
  },
  "/stocks/EXIDEIND": {
-  "hash": "3b798bf0b1d7b7ab",
+  "hash": "b96beccb6e1a32d0",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/EXPLEOSOL": {
+  "hash": "18f77697f6faf3c4",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/EXPOEAPL": {
+  "hash": "93ab7aa16bf2e966",
   "lastmod": "2026-10-01"
  },
  "/stocks/FACT": {
-  "hash": "8985242b2e1d77d2",
+  "hash": "31a83d50539bfd08",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/FAIRCHEMOR": {
+  "hash": "85937fe83c1b813f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/FAZE3Q": {
+  "hash": "e2579caf9f8a683f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/FDC": {
+  "hash": "7b0c1e9356055ccb",
   "lastmod": "2026-10-01"
  },
  "/stocks/FEDERALBNK": {
-  "hash": "e86f8e5e10ce97e3",
+  "hash": "ffddad79ceae213b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/FELIX": {
+  "hash": "e8443b7592188c3a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/FGP": {
+  "hash": "cd273a9d804b3071",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/FIBERWEB": {
+  "hash": "b40aad85710a8997",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/FIDEL": {
+  "hash": "d34b0d0d4479fddc",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/FIEMIND": {
+  "hash": "8158358a11cb4c37",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/FILATEX": {
+  "hash": "2123ffd40ce8b1ac",
   "lastmod": "2026-10-01"
  },
  "/stocks/FINCABLES": {
-  "hash": "a886dceb87b1caec",
+  "hash": "2fc07d0fad561bea",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/FINEORG": {
+  "hash": "bfb3855376a53213",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/FINPIPE": {
+  "hash": "956de15ba1664873",
   "lastmod": "2026-10-01"
  },
  "/stocks/FIRSTCRY": {
-  "hash": "5c9fd35cd38106f2",
+  "hash": "4e1ad17a4886edf5",
   "lastmod": "2026-10-01"
  },
  "/stocks/FIVESTAR": {
-  "hash": "6b32eb73b07338f6",
+  "hash": "6d8ba83bfcbd490d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/FLEXITUFF": {
+  "hash": "c3a4f4ef86915c3b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/FLFL": {
+  "hash": "81c0bd58c438705e",
   "lastmod": "2026-10-01"
  },
  "/stocks/FLUOROCHEM": {
-  "hash": "e2acbd65a8ee29ab",
+  "hash": "4dc94b1ea2870f88",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/FMGOETZE": {
+  "hash": "32797f2f6510caf2",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/FOCUS": {
+  "hash": "2bfb6dfff5ae4890",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/FOODSIN": {
+  "hash": "0f449dd8a5e93d9a",
   "lastmod": "2026-10-01"
  },
  "/stocks/FORCEMOT": {
-  "hash": "5e38521188c9be3d",
+  "hash": "bbe6232fe82ad4f7",
   "lastmod": "2026-10-01"
  },
  "/stocks/FORTIS": {
-  "hash": "e8cf906c3ffcc68f",
+  "hash": "84fd68b25fceec91",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/FOSECOIND": {
+  "hash": "c69f7057faba28c0",
   "lastmod": "2026-10-01"
  },
  "/stocks/FRACTAL": {
-  "hash": "024c8d9c15c96a29",
+  "hash": "bc3d004839d12fda",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/FROG": {
+  "hash": "94443eaaee3c40fa",
   "lastmod": "2026-10-01"
  },
  "/stocks/FSL": {
-  "hash": "33c3bd40e95380e7",
+  "hash": "c91a923ef2c0f2e7",
   "lastmod": "2026-10-01"
  },
  "/stocks/GABRIEL": {
-  "hash": "2ad1463c03a99100",
+  "hash": "c4521b850077bc3d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GAEL": {
+  "hash": "8392ba9df267e8e7",
   "lastmod": "2026-10-01"
  },
  "/stocks/GAIL": {
-  "hash": "b1f7f6fc72bf2adf",
+  "hash": "07b6ba86a42d3502",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GALACTICO": {
+  "hash": "23956d4b008168ae",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GALAGEX": {
+  "hash": "b6648e5b32742bdd",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GALAXYSURF": {
+  "hash": "d4d9d163f8eba19f",
   "lastmod": "2026-10-01"
  },
  "/stocks/GALLANTT": {
-  "hash": "ea1349c2c17f57ad",
+  "hash": "ebc1a1ca2b1c9976",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GALXBRG": {
+  "hash": "fbb38ae28fba1898",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GANDHITUBE": {
+  "hash": "12022945be13215e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GANECOS": {
+  "hash": "41866fd8cf5c347b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GANESHBE": {
+  "hash": "2b84c752e91a124f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GANESHHOU": {
+  "hash": "f147ce8d926082db",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GANGAFORGE": {
+  "hash": "9fddbcff0b90393f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GANGESSECU": {
+  "hash": "1537cf557250e34d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GANVERSE": {
+  "hash": "c8f633fa9096df39",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GARFIBRES": {
+  "hash": "79bc42ab4740fb72",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GARGFUR": {
+  "hash": "05e379ec2a7f6b7c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GARGI": {
+  "hash": "d33cf9c6fdacf957",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GAYATRIBI": {
+  "hash": "8fbc20c068fc51bf",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GEE": {
+  "hash": "7cea4bb75ec4fce3",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GEECEE": {
+  "hash": "3adf2cab6fa96f81",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GEEKAYWIRE": {
+  "hash": "14a6e1883e169861",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GENESYS": {
+  "hash": "490fd51ecb29d42a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GENUSPAPER": {
+  "hash": "016c2c97e15604b5",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GENUSPOWER": {
+  "hash": "2ae863e38159f836",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GENUSPRIME": {
+  "hash": "0047de68e6aedf74",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GEOJITFSL": {
+  "hash": "3fd3f43397ba5bb4",
   "lastmod": "2026-10-01"
  },
  "/stocks/GESHIP": {
-  "hash": "25fe55ea9bad7490",
+  "hash": "91567a2a27039a44",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GFLLIMITED": {
+  "hash": "9d651672d3beb092",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GHCL": {
+  "hash": "9e44d3a8097ac43b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GHCLTEXTIL": {
+  "hash": "0e6179e044687c38",
   "lastmod": "2026-10-01"
  },
  "/stocks/GICRE": {
-  "hash": "0f8ca3e27d404531",
+  "hash": "7b2d16d34e48acc6",
   "lastmod": "2026-10-01"
  },
  "/stocks/GILLETTE": {
-  "hash": "8a2b0c9288312a6e",
+  "hash": "86d1b1d07ad3a299",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GINNIFILA": {
+  "hash": "f3801947087634f3",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GIPCL": {
+  "hash": "49d60cd01e220052",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GKL": {
+  "hash": "09f7837fda0871c7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GKP": {
+  "hash": "eea8c890c2fa9d23",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GKWLIMITED": {
+  "hash": "a9391a8263bae992",
   "lastmod": "2026-10-01"
  },
  "/stocks/GLAND": {
-  "hash": "d770c35b83e2c86e",
+  "hash": "de8351f08ec5a9cf",
   "lastmod": "2026-10-01"
  },
  "/stocks/GLAXO": {
-  "hash": "5a3255d092713b49",
+  "hash": "8f38628bd7aed066",
   "lastmod": "2026-10-01"
  },
  "/stocks/GLENMARK": {
-  "hash": "77974cf19d0d57c3",
+  "hash": "67401f78af8450b7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GLFL": {
+  "hash": "a43db4d752294d8c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GLITTEKG": {
+  "hash": "6523ced4ef5552cd",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GLOBAL": {
+  "hash": "33ac3c9697d336a5",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GLOBALVECT": {
+  "hash": "e2e50b6b6cbed39d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GLOBUSSPR": {
+  "hash": "e8c1cceadfb99a32",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GMBREW": {
+  "hash": "ffda6e5aa5b74715",
   "lastmod": "2026-10-01"
  },
  "/stocks/GMDCLTD": {
-  "hash": "6534939385edcae2",
+  "hash": "5c2d81665d3c61f7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GMMPFAUDLR": {
+  "hash": "0e66bcf9f422fd3c",
   "lastmod": "2026-10-01"
  },
  "/stocks/GMRAIRPORT": {
-  "hash": "645a212c4fe3e90e",
+  "hash": "0ed6e0642758ab30",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GMRP&UI": {
+  "hash": "af1585f0362fa62d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GNA": {
+  "hash": "ace2c91539cdab49",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GNFC": {
+  "hash": "23c310f07a6b06d8",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GOACARBON": {
+  "hash": "a048068b779e42d1",
   "lastmod": "2026-10-01"
  },
  "/stocks/GODFRYPHLP": {
-  "hash": "cc9636c64389a7be",
+  "hash": "d296191fad115b57",
   "lastmod": "2026-10-01"
  },
  "/stocks/GODREJCP": {
-  "hash": "28418f15a755b5e9",
+  "hash": "c8d85d274df632bf",
   "lastmod": "2026-10-01"
  },
  "/stocks/GODREJIND": {
-  "hash": "5e745248d2c3e3e6",
+  "hash": "f12c60b6a4bcd48b",
   "lastmod": "2026-10-01"
  },
  "/stocks/GODREJPROP": {
-  "hash": "04b67cdaf067e860",
+  "hash": "84df02598d8c013f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GOKEX": {
+  "hash": "bd702fc5a755a898",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GOKULAGRO": {
+  "hash": "692afa4c0a8f3fc3",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GOLDIAM": {
+  "hash": "78c0889da97d1893",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GOLDTECH": {
+  "hash": "e202ebd338ee41ec",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GOODLUCK": {
+  "hash": "45ada50db90efcc4",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GOURMET": {
+  "hash": "9ce02393f63b5fc6",
   "lastmod": "2026-10-01"
  },
  "/stocks/GPIL": {
-  "hash": "2688d349889a6f41",
+  "hash": "2e1f48dbac867af2",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GPPL": {
+  "hash": "2c9a776f33b07a7d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GPTINFRA": {
+  "hash": "91cd1b9641ee2f1d",
   "lastmod": "2026-10-01"
  },
  "/stocks/GRANULES": {
-  "hash": "a962d33f0084afce",
+  "hash": "17ee59655a017547",
   "lastmod": "2026-10-01"
  },
  "/stocks/GRAPHITE": {
-  "hash": "55bd4b3f7097b9db",
+  "hash": "a5eac6309fda331e",
   "lastmod": "2026-10-01"
  },
  "/stocks/GRASIM": {
-  "hash": "dcd8f2ec60953384",
+  "hash": "ffa80475a51f5708",
   "lastmod": "2026-10-01"
  },
  "/stocks/GRAVITA": {
-  "hash": "5941e43f8b52a004",
+  "hash": "45d3a2a43aa42f7a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GREAVESCOT": {
+  "hash": "23a7006610b7ebfc",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GREENLAM": {
+  "hash": "a264957734c57f62",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GREENPANEL": {
+  "hash": "f0700dfa9a7de439",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GRINDWELL": {
+  "hash": "3c455f66d4eb8fb5",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GROWINGTON": {
+  "hash": "aa5823720da95297",
   "lastmod": "2026-10-01"
  },
  "/stocks/GROWW": {
-  "hash": "5bb005bc7b83b628",
+  "hash": "5c63c97078207a48",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GRPLTD": {
+  "hash": "4767847c80b36d2e",
   "lastmod": "2026-10-01"
  },
  "/stocks/GRSE": {
-  "hash": "bdea86ef1f8f0993",
+  "hash": "1f9da105747e7d1a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GRWRHITECH": {
+  "hash": "89e184a07e4fa190",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GSBFIN": {
+  "hash": "378777cbd0bc33d8",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GSFC": {
+  "hash": "0903cad9ebe87161",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GSLSU": {
+  "hash": "6694253b1a42feca",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GSS": {
+  "hash": "c110001f493bf584",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GTECJAINX": {
+  "hash": "4ff0958b992fc4b9",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GTPL": {
+  "hash": "ae618d15ecabdf26",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GUFICBIO": {
+  "hash": "95d89a843c1eeb8b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GUJALKALI": {
+  "hash": "af8569be3f04786d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GUJAPOLLO": {
+  "hash": "5dc16c29d815cfc6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GUJENERGY": {
+  "hash": "39119aee35ef94ca",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GUJRAFFIA": {
+  "hash": "cb0ad92be3fed02d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GUJSTATFIN": {
+  "hash": "7379283814d22216",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GULFOILLUB": {
+  "hash": "6fd0505ccc3bf93d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GULPOLY": {
+  "hash": "d76cbd2537c8c2e7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/GVPIL": {
+  "hash": "a680ec5be6759449",
   "lastmod": "2026-10-01"
  },
  "/stocks/GVT&D": {
-  "hash": "800d3f07e1527759",
+  "hash": "d021d8a282dc103e",
   "lastmod": "2026-10-01"
  },
  "/stocks/HAL": {
-  "hash": "4d7cb63aac0a3d48",
+  "hash": "fbdf9a5b3d552460",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HALEOSLABS": {
+  "hash": "78f9f6559328425e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HARDWYN": {
+  "hash": "2a1f70a0d72c7436",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HARIOMPIPE": {
+  "hash": "c099276f5c0b22b6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HARRMALAYA": {
+  "hash": "ec1bb73f5b0900c9",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HATHWAY": {
+  "hash": "5477e65fba7bff85",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HATSUN": {
+  "hash": "7052f61219385c0f",
   "lastmod": "2026-10-01"
  },
  "/stocks/HAVELLS": {
-  "hash": "355f8aee8ec36741",
+  "hash": "ec774c3321836d04",
   "lastmod": "2026-10-01"
  },
  "/stocks/HBLENGINE": {
-  "hash": "5a03da25bc64bda5",
+  "hash": "37727bec6bc4e6f5",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HCC": {
+  "hash": "d4514abd066d6616",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HCG": {
+  "hash": "a0262996b7b5d137",
   "lastmod": "2026-10-01"
  },
  "/stocks/HCLTECH": {
-  "hash": "35dc07cb05bb4395",
+  "hash": "7efd3eceb9d3be6d",
   "lastmod": "2026-10-01"
  },
  "/stocks/HDBFS": {
-  "hash": "355a45b004dacdc7",
+  "hash": "b09b680061d26478",
   "lastmod": "2026-10-01"
  },
  "/stocks/HDFCAMC": {
-  "hash": "79aed5fc0031b06f",
+  "hash": "1ce178cfaf26de80",
   "lastmod": "2026-10-01"
  },
  "/stocks/HDFCBANK": {
-  "hash": "0fa5bbd49b39d368",
+  "hash": "2403baf36395f424",
   "lastmod": "2026-10-01"
  },
  "/stocks/HDFCLIFE": {
-  "hash": "c0edfea8a721e62a",
+  "hash": "0cd924025f5cf84b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HEALTHX": {
+  "hash": "581fffc0677d94d4",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HEALTHYLIFE": {
+  "hash": "b9e820ce81bd2e56",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HECPROJECT": {
+  "hash": "79dca5a12e3c5832",
   "lastmod": "2026-10-01"
  },
  "/stocks/HEGAM": {
-  "hash": "444abd01e59f4445",
+  "hash": "334397208c6eb6eb",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HEIDELBERG": {
+  "hash": "997906244ad51f3d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HERITGFOOD": {
+  "hash": "347640cc932c63ff",
   "lastmod": "2026-10-01"
  },
  "/stocks/HEROMOTOCO": {
-  "hash": "7fc08e665e42492e",
+  "hash": "9da70cca49d2a44d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HESTERBIO": {
+  "hash": "40bb095ec7d4672f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HEXATRADEX": {
+  "hash": "77982cef52854850",
   "lastmod": "2026-10-01"
  },
  "/stocks/HEXT": {
-  "hash": "d7caf252b8026c82",
+  "hash": "f81fb5e42d7d8378",
   "lastmod": "2026-10-01"
  },
  "/stocks/HFCL": {
-  "hash": "ca98d34bc0f8947b",
+  "hash": "05d53cc883f4a3bc",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HGINFRA": {
+  "hash": "e4693e15c6e9fe6e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HGM": {
+  "hash": "22e48d95bc18d55a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HGS": {
+  "hash": "a58e710afe229a3d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HIKAL": {
+  "hash": "68c1e4676e671a11",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HILIKS": {
+  "hash": "bca6514c27092b7f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HILTON": {
+  "hash": "392fd1d37d527fc1",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HIMATSEIDE": {
+  "hash": "17e7700a8e20c071",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HIMTEK": {
+  "hash": "685a765c637652a0",
   "lastmod": "2026-10-01"
  },
  "/stocks/HINDALCO": {
-  "hash": "980b4cfe2a78edc7",
+  "hash": "3779db0e4fbeaba2",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HINDCOMPOS": {
+  "hash": "7b7dc627cae5b430",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HINDCON": {
+  "hash": "c6478638bbbd3f72",
   "lastmod": "2026-10-01"
  },
  "/stocks/HINDCOPPER": {
-  "hash": "b8ff7b4980f3914e",
+  "hash": "9d549119359c82e6",
   "lastmod": "2026-10-01"
  },
  "/stocks/HINDPETRO": {
-  "hash": "2ca48caf8db3290a",
+  "hash": "5743ddda9350594b",
   "lastmod": "2026-10-01"
  },
  "/stocks/HINDUNILVR": {
-  "hash": "4cd4d5e1047f5138",
+  "hash": "d1643318577e717d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HINDWAREAP": {
+  "hash": "32ceabcdab57f257",
   "lastmod": "2026-10-01"
  },
  "/stocks/HINDZINC": {
-  "hash": "c31cba68849bc001",
+  "hash": "593c2f06ee1a7b68",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HIPOLIN": {
+  "hash": "90a94443d2f20704",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HIRECT": {
+  "hash": "bfd98924bdae624d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HISARMETAL": {
+  "hash": "83cf50c938b99219",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HITECH": {
+  "hash": "15213caecb10b237",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HITECHCORP": {
+  "hash": "cb0cb3577d6af176",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HITECHGEAR": {
+  "hash": "5f0756400fa86232",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HMT": {
+  "hash": "3c110458e9a12a72",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HMVL": {
+  "hash": "deeaf20f170676cd",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HNDFDS": {
+  "hash": "ad43e2dac6889817",
   "lastmod": "2026-10-01"
  },
  "/stocks/HOMEFIRST": {
-  "hash": "e279cd19dee7dc91",
+  "hash": "32762c7fd04c454a",
   "lastmod": "2026-10-01"
  },
  "/stocks/HONASA": {
-  "hash": "724de93ca220cafa",
+  "hash": "5f5c0519b87ce836",
   "lastmod": "2026-10-01"
  },
  "/stocks/HONAUT": {
-  "hash": "3cadd17c57aa92a6",
+  "hash": "81fc6435c5a84a02",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HONDAPOWER": {
+  "hash": "e9a4951c3e8ee8a9",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HPIL": {
+  "hash": "a67c3fc892fdeee1",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HPL": {
+  "hash": "a94ad83b6a4b5b51",
   "lastmod": "2026-10-01"
  },
  "/stocks/HSCL": {
-  "hash": "2516cefefbadc3c7",
+  "hash": "5a176bc77f9377bb",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HSIL": {
+  "hash": "80f1c9deeb9de8df",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HUBTOWN": {
+  "hash": "8d9650f88bf7b551",
   "lastmod": "2026-10-01"
  },
  "/stocks/HUDCO": {
-  "hash": "f6aa31ff6dbf44d4",
+  "hash": "8a37091544d83329",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HUHTAMAKI": {
+  "hash": "b8c7de9f3b1c990b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/HYPERSOFT": {
+  "hash": "3072ee4af53d4509",
   "lastmod": "2026-10-01"
  },
  "/stocks/HYUNDAI": {
-  "hash": "97146530158366c4",
+  "hash": "bd3e4c535bd5ff9b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/IBULLSLTD": {
+  "hash": "3952910935c01a4e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ICEMAKE": {
+  "hash": "c06997a7b24fae93",
   "lastmod": "2026-10-01"
  },
  "/stocks/ICICIAMC": {
-  "hash": "85bd7503c7cd79d3",
+  "hash": "c533e1f4fef915bc",
   "lastmod": "2026-10-01"
  },
  "/stocks/ICICIBANK": {
-  "hash": "27b17fcce4b8e102",
+  "hash": "564d4a48701bcdae",
   "lastmod": "2026-10-01"
  },
  "/stocks/ICICIGI": {
-  "hash": "1ee63f1936818881",
+  "hash": "7656b282fe8e6607",
   "lastmod": "2026-10-01"
  },
  "/stocks/ICICIPRULI": {
-  "hash": "a1204e9cd81e525c",
+  "hash": "3d288cee8b69bdc7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ICIL": {
+  "hash": "83adab74cf9a1e47",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ICRA": {
+  "hash": "da65f3af8291403f",
   "lastmod": "2026-10-01"
  },
  "/stocks/IDBI": {
-  "hash": "088b2eb42dcdf3e4",
+  "hash": "c95ec3909fa75e88",
   "lastmod": "2026-10-01"
  },
  "/stocks/IDEA": {
-  "hash": "cbc9b2c5880a3b06",
+  "hash": "6a08f611abb75dec",
   "lastmod": "2026-10-01"
  },
  "/stocks/IDFCFIRSTB": {
-  "hash": "d70e1ff8988cd9d4",
+  "hash": "b01cdf5f0cf1c651",
   "lastmod": "2026-10-01"
  },
  "/stocks/IEX": {
-  "hash": "b1e1a47595b07147",
+  "hash": "34f16badad51191e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/IFBAGRO": {
+  "hash": "e17762fb7b338664",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/IFBIND": {
+  "hash": "69d7fb618456f4c1",
   "lastmod": "2026-10-01"
  },
  "/stocks/IFCI": {
-  "hash": "2274e5bd4a59b8d4",
+  "hash": "921b1fea0021b651",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/IGARASHI": {
+  "hash": "58b64f3a4e557d1e",
   "lastmod": "2026-10-01"
  },
  "/stocks/IGIL": {
-  "hash": "9163b62de31a3b1c",
+  "hash": "43df09be159cdcc0",
   "lastmod": "2026-10-01"
  },
  "/stocks/IGL": {
-  "hash": "536e4379abcfd656",
+  "hash": "830cf64524dfb4f6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/IGPL": {
+  "hash": "9aab706f3bb3800a",
   "lastmod": "2026-10-01"
  },
  "/stocks/IIFL": {
-  "hash": "46c634ec7c38a0c0",
+  "hash": "453ce41866c6c723",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/IIFLCAPS": {
+  "hash": "a1cfd1099009f527",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/IITL": {
+  "hash": "8342c4a6e7f5e67e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/IITLPROJ": {
+  "hash": "4756e853450c3191",
   "lastmod": "2026-10-01"
  },
  "/stocks/IKS": {
-  "hash": "b771556d34430f08",
+  "hash": "ca57373aba5d0d3f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/IMFA": {
+  "hash": "3503dd5f0073a941",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/IMPAL": {
+  "hash": "8429bebcf44b2f03",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/INCON": {
+  "hash": "3b283baa11749bcf",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/INDAG": {
+  "hash": "337b8b622672c7b6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/INDBANK": {
+  "hash": "ff6ec9971476da04",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/INDBNK": {
+  "hash": "b5515c096b991edd",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/INDCEMCAP": {
+  "hash": "4f70941ae8aa231a",
   "lastmod": "2026-10-01"
  },
  "/stocks/INDHOTEL": {
-  "hash": "1b0937dda1265f99",
+  "hash": "b75d4dcccad22020",
   "lastmod": "2026-10-01"
  },
  "/stocks/INDIACEM": {
-  "hash": "4a4d1e5cfc5de751",
+  "hash": "a3d804d6db32da7b",
   "lastmod": "2026-10-01"
  },
  "/stocks/INDIAMART": {
-  "hash": "0be84f6c467afb2f",
+  "hash": "f3ecbc93da3052f6",
   "lastmod": "2026-10-01"
  },
  "/stocks/INDIANB": {
-  "hash": "a5e672c4a7dc3087",
+  "hash": "8f0cd3a22ba99acd",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/INDIANCARD": {
+  "hash": "9dd5ce64fa3cae5c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/INDIANHUME": {
+  "hash": "60834dbed5daf8f5",
   "lastmod": "2026-10-01"
  },
  "/stocks/INDIGO": {
-  "hash": "ad28b9aee0ec59b9",
+  "hash": "162d9fc5bab229c1",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/INDNIPPON": {
+  "hash": "d7d22f933bdae80a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/INDOAMIN": {
+  "hash": "2797bbf969d27a09",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/INDOBORAX": {
+  "hash": "f9840af985ced028",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/INDOCO": {
+  "hash": "cff2328b51ab49d2",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/INDORAMA": {
+  "hash": "df4d5aab1a78bdb0",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/INDOTECH": {
+  "hash": "a0e19c80b4ea1a86",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/INDOTHAI": {
+  "hash": "1aabeef17fef92a4",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/INDRAMEDCO": {
+  "hash": "ef265d9abb290406",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/INDRANIB": {
+  "hash": "3cd3ad3c07e2d2d9",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/INDSWFTLAB": {
+  "hash": "ed77a5cd93626ba7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/INDTERRAIN": {
+  "hash": "7b3298bd43aa8d29",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/INDUSFINL": {
+  "hash": "c4cf372cb38cdb21",
   "lastmod": "2026-10-01"
  },
  "/stocks/INDUSINDBK": {
-  "hash": "f6d90e5f0be8d906",
+  "hash": "b071d197720583a4",
   "lastmod": "2026-10-01"
  },
  "/stocks/INDUSTOWER": {
-  "hash": "724668354aa34c26",
+  "hash": "9e4de52ac17bdf43",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/INFINIUM": {
+  "hash": "bff03c086b763b6d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/INFLAME": {
+  "hash": "273631be3f9abfea",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/INFOBEAN": {
+  "hash": "54e04a1fba452b4b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/INFOLLION": {
+  "hash": "e16f210b16de0c2b",
   "lastmod": "2026-10-01"
  },
  "/stocks/INFY": {
-  "hash": "6c5ebe7905721646",
+  "hash": "ad7453dde9097d0f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/INGERRAND": {
+  "hash": "9db0118d9068e5d0",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/INNOVANA": {
+  "hash": "61fccb5eaccd227e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/INNOVATORS": {
+  "hash": "95568c215b679621",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/INOXGREEN": {
+  "hash": "8dd98cb3079f7893",
   "lastmod": "2026-10-01"
  },
  "/stocks/INOXINDIA": {
-  "hash": "2c04f5a87bb617e2",
+  "hash": "535e12eca930cbb9",
   "lastmod": "2026-10-01"
  },
  "/stocks/INOXWIND": {
-  "hash": "3b534d83416d7968",
+  "hash": "31c72747fe663997",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/INSECTICID": {
+  "hash": "6d787bd295fb8f39",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/INSPIRISYS": {
+  "hash": "143e9a463151e195",
   "lastmod": "2026-10-01"
  },
  "/stocks/INTELLECT": {
-  "hash": "deb60152b1cb4666",
+  "hash": "f2c9f558d02e09ab",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/INTLCONV": {
+  "hash": "ba6708784ee9e20b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/INTSTOIL": {
+  "hash": "7fab01f0e27521c8",
   "lastmod": "2026-10-01"
  },
  "/stocks/IOB": {
-  "hash": "7d3e4c25d304e0c0",
+  "hash": "a35b4fe3ec1ad000",
   "lastmod": "2026-10-01"
  },
  "/stocks/IOC": {
-  "hash": "096523d8147a9be0",
+  "hash": "a403d9fe6b374621",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/IOLCP": {
+  "hash": "55360ec3b4408a41",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/IONEXCHANG": {
+  "hash": "1b703cfe295c9ffd",
   "lastmod": "2026-10-01"
  },
  "/stocks/IPCALAB": {
-  "hash": "c09673ad09284014",
+  "hash": "01f96708dce9b283",
   "lastmod": "2026-10-01"
  },
  "/stocks/IRB": {
-  "hash": "421bcc040038c98a",
+  "hash": "7c768ef1587e01ef",
   "lastmod": "2026-10-01"
  },
  "/stocks/IRCON": {
-  "hash": "c50f42e37e24f09f",
+  "hash": "912444da65baf14e",
   "lastmod": "2026-10-01"
  },
  "/stocks/IRCTC": {
-  "hash": "6580609c81c1bcc2",
+  "hash": "d00747a84da75b21",
   "lastmod": "2026-10-01"
  },
  "/stocks/IREDA": {
-  "hash": "c9b658b29da915e9",
+  "hash": "d5c013e460c4287d",
   "lastmod": "2026-10-01"
  },
  "/stocks/IRFC": {
-  "hash": "4422c4cf9dcf65cd",
+  "hash": "880d58b738e7eb7e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/IRIS": {
+  "hash": "8d43d071543741da",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ISFT": {
+  "hash": "87ed8c271c6964ea",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ISGEC": {
+  "hash": "08a909e8f1aadbfb",
   "lastmod": "2026-10-01"
  },
  "/stocks/ITC": {
-  "hash": "0dc4fc157826a7f8",
+  "hash": "cc03e37f344130a2",
   "lastmod": "2026-10-01"
  },
  "/stocks/ITCHOTELS": {
-  "hash": "9381d3d84303a763",
+  "hash": "9180d00cefa0ddc6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ITCONS": {
+  "hash": "7d2053991e42e461",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ITDC": {
+  "hash": "01634e327569c747",
   "lastmod": "2026-10-01"
  },
  "/stocks/ITI": {
-  "hash": "d14b4bfb114a028f",
+  "hash": "64fa089d65bf08b8",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/IVP": {
+  "hash": "465656f6c07280e4",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/IZMO": {
+  "hash": "007b1d63ba0262d3",
   "lastmod": "2026-10-01"
  },
  "/stocks/J&KBANK": {
-  "hash": "0650b627e0aced7a",
+  "hash": "cb7a01e1830b16c4",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/JAGRAN": {
+  "hash": "3ed77afc5bd5b411",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/JAGSNPHARM": {
+  "hash": "d251bab2a10213e1",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/JAIBALAJI": {
+  "hash": "0008c10eec712fc4",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/JAICORPLTD": {
+  "hash": "46d8588efdfb60ff",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/JAINEX": {
+  "hash": "117462da328dc5b0",
   "lastmod": "2026-10-01"
  },
  "/stocks/JAINREC": {
-  "hash": "bcad1144659d8c73",
+  "hash": "2d5231d4036eca6b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/JAIPAN": {
+  "hash": "9d7c3ec80ed6ee90",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/JAMNAAUTO": {
+  "hash": "8058da4f2fbaf2ad",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/JASH": {
+  "hash": "591a65601dde6653",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/JAYAGROGN": {
+  "hash": "dadfeb7b8460a235",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/JAYBARMARU": {
+  "hash": "618e2c817d82b09d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/JAYNECOIND": {
+  "hash": "2f46e4411faec373",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/JAYSYNTH": {
+  "hash": "543e45ea2b2ea810",
   "lastmod": "2026-10-01"
  },
  "/stocks/JBMA": {
-  "hash": "9cfbf72f2cf9aa5b",
+  "hash": "cd86443015fe0b60",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/JETFREIGHT": {
+  "hash": "f9015766d2241487",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/JFL": {
+  "hash": "b2e2ddd8912cf60d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/JINDALPHOT": {
+  "hash": "20e4cc8139fe46eb",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/JINDALPOLY": {
+  "hash": "c410e0b73482c2db",
   "lastmod": "2026-10-01"
  },
  "/stocks/JINDALSAW": {
-  "hash": "ab554f992c4095b5",
+  "hash": "59049bc5484edcfe",
   "lastmod": "2026-10-01"
  },
  "/stocks/JINDALSTEL": {
-  "hash": "5a1c9ea2ca32ffc5",
+  "hash": "2816a89e56d8dda1",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/JINDRILL": {
+  "hash": "cc147ad53bd6e40d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/JINDWORLD": {
+  "hash": "c66a704ca6dfb03a",
   "lastmod": "2026-10-01"
  },
  "/stocks/JIOFIN": {
-  "hash": "1da5efc3f41da41f",
+  "hash": "9dcc9982d3d049dd",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/JITFINFRA": {
+  "hash": "72668dcdc93cd3ab",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/JJFINCOR": {
+  "hash": "afaa65a42408654e",
   "lastmod": "2026-10-01"
  },
  "/stocks/JKCEMENT": {
-  "hash": "4503a0ed6d4cf5de",
+  "hash": "67dc737d2df5995f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/JKIL": {
+  "hash": "f8db87e6a1954bec",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/JKLAKSHMI": {
+  "hash": "9eee547e3a541664",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/JKPAPER": {
+  "hash": "94a37d8538bb795d",
   "lastmod": "2026-10-01"
  },
  "/stocks/JKTYRE": {
-  "hash": "a865be0bef95554d",
+  "hash": "3da9117aced637fa",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/JLHL": {
+  "hash": "eaa61504b1dec8ef",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/JMA": {
+  "hash": "4c8b5019b9f7e46e",
   "lastmod": "2026-10-01"
  },
  "/stocks/JMFINANCIL": {
-  "hash": "266c5d82e9c423db",
+  "hash": "07cd3aedcc3632e2",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/JOCIL": {
+  "hash": "eb93c5dcbcc3c3f1",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/JONJUA": {
+  "hash": "4e3e6f15e8a2a685",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/JPOLYINVST": {
+  "hash": "c117959e59638ee1",
   "lastmod": "2026-10-01"
  },
  "/stocks/JPPOWER": {
-  "hash": "54cc25425fee4451",
+  "hash": "b670e0252907c487",
   "lastmod": "2026-10-01"
  },
  "/stocks/JSL": {
-  "hash": "c854deb1ccdb87c6",
+  "hash": "8e9fe1093bb2ddfd",
   "lastmod": "2026-10-01"
  },
  "/stocks/JSWCEMENT": {
-  "hash": "795087e4581ef35f",
+  "hash": "e4360ca673974861",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/JSWDULUX": {
+  "hash": "818ff82bfac5e41f",
   "lastmod": "2026-10-01"
  },
  "/stocks/JSWENERGY": {
-  "hash": "c790f3ad6bb41766",
+  "hash": "e0be296296de57cb",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/JSWHL": {
+  "hash": "6584545276e7c3c7",
   "lastmod": "2026-10-01"
  },
  "/stocks/JSWINFRA": {
-  "hash": "21a31cf837d83cd3",
+  "hash": "be7b2b571a9f298e",
   "lastmod": "2026-10-01"
  },
  "/stocks/JSWSTEEL": {
-  "hash": "f5133165ab70750b",
+  "hash": "db520356682442db",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/JTEKTINDIA": {
+  "hash": "2fa6be06316cd76c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/JTLIND": {
+  "hash": "d8398a48d32c5f2d",
   "lastmod": "2026-10-01"
  },
  "/stocks/JUBLFOOD": {
-  "hash": "71ad4a59189ecead",
+  "hash": "157f509f573fbfa3",
   "lastmod": "2026-10-01"
  },
  "/stocks/JUBLINGREA": {
-  "hash": "9d2b1fe17ab44c1d",
+  "hash": "aecf369144662808",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/JUBLPHARMA": {
+  "hash": "e564bad69662584d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/JUMBO": {
+  "hash": "ed8b35ec3188214f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/JUSTDIAL": {
+  "hash": "317d1ba68a8e88d9",
   "lastmod": "2026-10-01"
  },
  "/stocks/JWL": {
-  "hash": "396f8d788cbb6614",
+  "hash": "3a1147d9eb5a0f67",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/JYOTHYLAB": {
+  "hash": "9493b2c90db2e0fd",
   "lastmod": "2026-10-01"
  },
  "/stocks/JYOTICNC": {
-  "hash": "074541f73dfbbf5e",
+  "hash": "d361dce53d00ed84",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KABRAEXTRU": {
+  "hash": "ee75c7ea4ccb95ac",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KAIZENAGRO": {
+  "hash": "9d3a31644a503fe4",
   "lastmod": "2026-10-01"
  },
  "/stocks/KAJARIACER": {
-  "hash": "f3998a6bebcd7c9b",
+  "hash": "edeffa02afc50f8c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KAKA": {
+  "hash": "da51d778def2a0ca",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KAKATCEM": {
+  "hash": "07e1d3e04befd723",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KALIND": {
+  "hash": "77235510ef36a05b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KALLAM": {
+  "hash": "e508c772a1be3254",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KALYANIFRG": {
+  "hash": "89900a97c5f158b6",
   "lastmod": "2026-10-01"
  },
  "/stocks/KALYANKJIL": {
-  "hash": "966810d698c69ca2",
+  "hash": "dd6b823d6545a9bf",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KAMATHOTEL": {
+  "hash": "6017784a25d9079a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KAMATS": {
+  "hash": "30656341d8fc7964",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KAMDHENU": {
+  "hash": "a0488167029ddde6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KAMOPAINTS": {
+  "hash": "dd66ffab0312fb50",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KANDARP": {
+  "hash": "65536a716a18df9c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KANORICHEM": {
+  "hash": "cc2d18c82e7de0a6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KANPRPLA": {
+  "hash": "df060a976d8a8090",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KANSAINER": {
+  "hash": "f96c498943e21522",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KAPILRAJ": {
+  "hash": "8ad326426d2a22d8",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KAPSTON": {
+  "hash": "86007fd24d54b783",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KARMAENG": {
+  "hash": "3d166bc9991a21d9",
   "lastmod": "2026-10-01"
  },
  "/stocks/KARURVYSYA": {
-  "hash": "07733e15411d1612",
+  "hash": "9176e2e05ca396f6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KAVDEFENCE": {
+  "hash": "a0db561231509285",
   "lastmod": "2026-10-01"
  },
  "/stocks/KAYNES": {
-  "hash": "8750cdbc5ca9599d",
+  "hash": "17b5a8aff8dd8d3a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KCDGROUP": {
+  "hash": "5c35df397b3bdda8",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KCP": {
+  "hash": "078529879f6c713c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KCPSUGIND": {
+  "hash": "3e1e23b105311b5e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KDDL": {
+  "hash": "502c5d20d8f88d67",
   "lastmod": "2026-10-01"
  },
  "/stocks/KEC": {
-  "hash": "825ae4b01d4d8a9d",
+  "hash": "e990ffaa2cb3d279",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KECL": {
+  "hash": "de9ca7de8236191e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KEEPLEARN": {
+  "hash": "87a0fdfe95126a67",
   "lastmod": "2026-10-01"
  },
  "/stocks/KEI": {
-  "hash": "9fc8198fc724f0ca",
+  "hash": "974786b3379f02ed",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KELENRG": {
+  "hash": "b3f252d7dd44e596",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KENNAMET": {
+  "hash": "5c127f298fa090e6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KENVI": {
+  "hash": "8d3bb916c74b5367",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KERNEX": {
+  "hash": "44eb3543097eef97",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KESARENT": {
+  "hash": "1b42e77612434509",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KEYFINSERV": {
+  "hash": "1e4c3aead95ac4d2",
   "lastmod": "2026-10-01"
  },
  "/stocks/KFINTECH": {
-  "hash": "66efff9cb745d323",
+  "hash": "13031771330fa801",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KHAICHEM": {
+  "hash": "8fa3fd8ac2d2f4d9",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KHAITANLTD": {
+  "hash": "10d193c2b027f81b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KHANDSE": {
+  "hash": "be04b9e3eaafcaac",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KHAZANCHI": {
+  "hash": "f62d752d5c58c142",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KILITCH": {
+  "hash": "0ac8936d3745783e",
   "lastmod": "2026-10-01"
  },
  "/stocks/KIMS": {
-  "hash": "7f433fb664cd87fa",
+  "hash": "0fffe41329b30532",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KINETICENG": {
+  "hash": "ee84b2c9c66b5921",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KIOCL": {
+  "hash": "0f1a2cd18937bd05",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KIRIINDUS": {
+  "hash": "d38f6ece89269bde",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KIRLFER": {
+  "hash": "93b422dcf2c80c74",
   "lastmod": "2026-10-01"
  },
  "/stocks/KIRLOSBROS": {
-  "hash": "4bed94b6b0f2aa1f",
+  "hash": "01271af2a4db399c",
   "lastmod": "2026-10-01"
  },
  "/stocks/KIRLOSENG": {
-  "hash": "e6785f64f4a4032a",
+  "hash": "fd15d2d58e0b8469",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KIRLOSIND": {
+  "hash": "c3e4fd1cb71375ab",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KIRLPNU": {
+  "hash": "005eaea70f8592ad",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KISAN": {
+  "hash": "f62dadd117797d01",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KITEX": {
+  "hash": "38ec9a4fa6a6ffd5",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KKCL": {
+  "hash": "5c665b344e88d69d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KMSUGAR": {
+  "hash": "4740b97af95052c0",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KNAGRI": {
+  "hash": "8ffd37c862da4b3d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KNRCON": {
+  "hash": "8dab690cb7ecf1aa",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KOHINOOR": {
+  "hash": "ed5220ce9ee3f92e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KOKUYOCMLN": {
+  "hash": "735f29c8868c1827",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KOLTEPATIL": {
+  "hash": "afa37c58a26157da",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KONNDOR": {
+  "hash": "e878b4bdd2576abe",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KOPRAN": {
+  "hash": "bdf54a635a869f56",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KORE": {
+  "hash": "15b8366bbda39a79",
   "lastmod": "2026-10-01"
  },
  "/stocks/KOTAKBANK": {
-  "hash": "932a68d2f41951d3",
+  "hash": "18a878de5c203b21",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KOTARISUG": {
+  "hash": "df57a3b05dd71f84",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KOTHARIPET": {
+  "hash": "2c7bd6fab0743a4d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KOTHARIPRO": {
+  "hash": "0496a735c8ac9d94",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KOTYARK": {
+  "hash": "e118f09c7940ff7c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KPIGREEN": {
+  "hash": "ffd93f5bed51d512",
   "lastmod": "2026-10-01"
  },
  "/stocks/KPIL": {
-  "hash": "9ea5190babd14bd7",
+  "hash": "f28e0f19203f6d9b",
   "lastmod": "2026-10-01"
  },
  "/stocks/KPITTECH": {
-  "hash": "bcac416975c337c1",
+  "hash": "73b9b20fd9fc6f10",
   "lastmod": "2026-10-01"
  },
  "/stocks/KPRMILL": {
-  "hash": "def890bfa6d96942",
+  "hash": "c416c722affaf573",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KRANTI": {
+  "hash": "c3ae4fd3421ee14b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KRBL": {
+  "hash": "b4179dac9d92a259",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KREBSBIO": {
+  "hash": "8761f5b9dff7b282",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KREONFIN": {
+  "hash": "8aaaea81f5049bac",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KRISHANA": {
+  "hash": "b00d7ea67d06604b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KRISHCA": {
+  "hash": "2710234832e960ff",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KRISHIVAL": {
+  "hash": "61d01a04ddfc823f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KRISHNADEF": {
+  "hash": "e67b9ea747cbe019",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KRITIKA": {
+  "hash": "5e2f2daef678adf7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KRITINUT": {
+  "hash": "fef68da6e4ab6de8",
   "lastmod": "2026-10-01"
  },
  "/stocks/KSB": {
-  "hash": "77854f406438e1a4",
+  "hash": "7263ce76f80d3f05",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KSCL": {
+  "hash": "ea2616be07ffe0b6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KSHITIJPOL": {
+  "hash": "e6a36d5c137869ac",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KSL": {
+  "hash": "d6220f1c3fd7a708",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KSOLVES": {
+  "hash": "61c56cb2f9f8a21f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KTKBANK": {
+  "hash": "962c7e6c24458448",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KUANTUM": {
+  "hash": "7b8add448e1e7340",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/KVFORGE": {
+  "hash": "bfed7248f1f23d13",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/LAGNAM": {
+  "hash": "6465e907aadcadc1",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/LAL": {
+  "hash": "1bf16b7dd5dd3af9",
   "lastmod": "2026-10-01"
  },
  "/stocks/LALPATHLAB": {
-  "hash": "eac8a2c9ae0cb6e9",
+  "hash": "0544cb895f3be15c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/LAMBODHARA": {
+  "hash": "626dca7a99bc1539",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/LANDSMILL": {
+  "hash": "e5c09884a49b6628",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/LAOPALA": {
+  "hash": "4f9e9b3d03a16bd3",
   "lastmod": "2026-10-01"
  },
  "/stocks/LAURUSLABS": {
-  "hash": "2f4227659c17cb83",
+  "hash": "e0bb22ce2580884f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/LAXMICOT": {
+  "hash": "4ccfab37b24d4334",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/LEMERITE": {
+  "hash": "abb107b040b43d5f",
   "lastmod": "2026-10-01"
  },
  "/stocks/LEMONTREE": {
-  "hash": "df0c84e80eaecdce",
+  "hash": "e6002fbb187b9476",
   "lastmod": "2026-10-01"
  },
  "/stocks/LENSKART": {
-  "hash": "ec2a251866b076e0",
+  "hash": "4800aed35d3b5fa8",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/LFIC": {
+  "hash": "e23fb76b123e7dc6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/LGBBROSLTD": {
+  "hash": "c76e595f7baf6add",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/LGBFORGE": {
+  "hash": "f9df7afb99879bb6",
   "lastmod": "2026-10-01"
  },
  "/stocks/LGEINDIA": {
-  "hash": "3e8a60407248e5be",
+  "hash": "e6bcc0eb3135e2d3",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/LGHL": {
+  "hash": "483c3a991a181104",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/LIBERTSHOE": {
+  "hash": "030713943761182f",
   "lastmod": "2026-10-01"
  },
  "/stocks/LICHSGFIN": {
-  "hash": "6adc064e01c2f005",
+  "hash": "6528e800f73b76c3",
   "lastmod": "2026-10-01"
  },
  "/stocks/LICI": {
-  "hash": "eee5f8e9e1c48789",
+  "hash": "4f26ebc1d1d333e0",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/LIKHITHA": {
+  "hash": "9ef2765131d0f31e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/LINC": {
+  "hash": "5ecd2d2d6a0e5d9d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/LINCOLN": {
+  "hash": "62d018ad2305621e",
   "lastmod": "2026-10-01"
  },
  "/stocks/LINDEINDIA": {
-  "hash": "190e54cbe2bc4582",
+  "hash": "80ad7faffdfe6718",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/LIPPISYS": {
+  "hash": "d95aa731301aaffd",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/LLFICL": {
+  "hash": "a10101743345e3d3",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/LLOYDSENGG": {
+  "hash": "eefa13628ff19828",
   "lastmod": "2026-10-01"
  },
  "/stocks/LLOYDSME": {
-  "hash": "768aab5e84cc4333",
+  "hash": "46c3570bcede2e54",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/LMW": {
+  "hash": "e069507381961ce5",
   "lastmod": "2026-10-01"
  },
  "/stocks/LODHA": {
-  "hash": "b8659cad4a0bb79d",
+  "hash": "80915835aadc2aa6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/LOKESHMACH": {
+  "hash": "40759882067cd91a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/LOTUSEYE": {
+  "hash": "6f750cf03f887325",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/LPDC": {
+  "hash": "9a2788fb9ad51dac",
   "lastmod": "2026-10-01"
  },
  "/stocks/LT": {
-  "hash": "2d6a0f85bf6669f4",
+  "hash": "85b91f997941c14c",
   "lastmod": "2026-10-01"
  },
  "/stocks/LTF": {
-  "hash": "3a7c71effb2cb00a",
+  "hash": "033ebabb4f1c2a42",
   "lastmod": "2026-10-01"
  },
  "/stocks/LTFOODS": {
-  "hash": "3844e26fe023732e",
+  "hash": "b0bb48667760b2c9",
   "lastmod": "2026-10-01"
  },
  "/stocks/LTM": {
-  "hash": "6adf997dca866acb",
+  "hash": "f7cfecd1f16b7456",
   "lastmod": "2026-10-01"
  },
  "/stocks/LTTS": {
-  "hash": "f9cabb113adb7520",
+  "hash": "ded118177241543b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/LUMAXIND": {
+  "hash": "c1e866b1004a301e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/LUMAXTECH": {
+  "hash": "0198ea5a51abf163",
   "lastmod": "2026-10-01"
  },
  "/stocks/LUPIN": {
-  "hash": "9124dda32456d2f1",
+  "hash": "3379131e36fda777",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/LUXIND": {
+  "hash": "1554adc4e8082680",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/LYKALABS": {
+  "hash": "f0b4c2f8daaa50d9",
   "lastmod": "2026-10-01"
  },
  "/stocks/M&M": {
-  "hash": "e04a656476eb9f14",
+  "hash": "9facb08479be90c1",
   "lastmod": "2026-10-01"
  },
  "/stocks/M&MFIN": {
-  "hash": "814a248e0be8ac41",
+  "hash": "bc584a371afc9961",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MAANALU": {
+  "hash": "5fc6b48131973594",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MACPOWER": {
+  "hash": "d809cfe8f8dbac26",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MADHAV": {
+  "hash": "f0a28f3bfcd2b620",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MADHAVBAUG": {
+  "hash": "5a1282bd572e9c30",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MADRASFERT": {
+  "hash": "8a40f66a55b1d8d8",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MAGADSUGAR": {
+  "hash": "3cbce6b9e69f6f2f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MAGNUM": {
+  "hash": "4f201b2b5f9f33b6",
   "lastmod": "2026-10-01"
  },
  "/stocks/MAHABANK": {
-  "hash": "958941b1a4943e0f",
+  "hash": "6058cdc4734ed2ad",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MAHASTEEL": {
+  "hash": "e57c73fd065bc2f6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MAHESHWARI": {
+  "hash": "b38f28dace017576",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MAHLIFE": {
+  "hash": "8bc74248d49fbeed",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MAHSCOOTER": {
+  "hash": "34e80108c47dc3a5",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MAHSEAMLES": {
+  "hash": "d881e79d3f4927bd",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MAITHANALL": {
+  "hash": "4be6ea4c063a4a1f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MALLCOM": {
+  "hash": "be1b7e09cb11ddd6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MALUPAPER": {
+  "hash": "ce86c6f9ac01824c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MANAKALUCO": {
+  "hash": "2bb7ee4b96361db6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MANAKCOAT": {
+  "hash": "2e99423c3f6a619c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MANAKSTEEL": {
+  "hash": "af34348d54e2e87a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MANALIPETC": {
+  "hash": "4973d41480823e3e",
   "lastmod": "2026-10-01"
  },
  "/stocks/MANAPPURAM": {
-  "hash": "0017841d8cdd5044",
+  "hash": "38329a155e395afc",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MANGALAM": {
+  "hash": "d85853c31280758b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MANGLMCEM": {
+  "hash": "14600b315609271d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MANINDS": {
+  "hash": "2f624d60d999c87c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MANINFRA": {
+  "hash": "b276679d6d9514de",
   "lastmod": "2026-10-01"
  },
  "/stocks/MANKIND": {
-  "hash": "bf7196a14d35ac00",
+  "hash": "754ef083b9d911bf",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MANOMAY": {
+  "hash": "5ca2e1274abdd65c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MANORAMA": {
+  "hash": "16f36c1cb11fca4f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MAPMYINDIA": {
+  "hash": "02efc95042bba203",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MARALOVER": {
+  "hash": "f5a0ae15a59e87ab",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MARATHON": {
+  "hash": "d64c40b1309b3a16",
   "lastmod": "2026-10-01"
  },
  "/stocks/MARICO": {
-  "hash": "c7d42f50da8e670a",
+  "hash": "587d4ea6b19489de",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MARKSANS": {
+  "hash": "ae4f465f55bbc5a7",
   "lastmod": "2026-10-01"
  },
  "/stocks/MARUTI": {
-  "hash": "64a7722ffddf479a",
+  "hash": "a0a3b4bbfdb322e2",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MAWANASUG": {
+  "hash": "4625f0502db7bf91",
   "lastmod": "2026-10-01"
  },
  "/stocks/MAXHEALTH": {
-  "hash": "ce71ebb4ff04ec89",
+  "hash": "c3e1f446d81dd6c8",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MAXIND": {
+  "hash": "67f32f12843c8392",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MAYURUNIQ": {
+  "hash": "d7384c9d54f3bb76",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MAZDA": {
+  "hash": "34fc204a7ec806e3",
   "lastmod": "2026-10-01"
  },
  "/stocks/MAZDOCK": {
-  "hash": "2de94e87c39ecdf2",
+  "hash": "c2321e0300198751",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MBLINFRA": {
+  "hash": "7b640e6490634b98",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MCL": {
+  "hash": "eb91cfd38846eb04",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MCLEODRUSS": {
+  "hash": "e750232fc6104e6c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MCON": {
+  "hash": "2f999364919fd2df",
   "lastmod": "2026-10-01"
  },
  "/stocks/MCX": {
-  "hash": "1151e1fbe0e7d434",
+  "hash": "166419a5bf054e6f",
   "lastmod": "2026-10-01"
  },
  "/stocks/MEDANTA": {
-  "hash": "2c54cf21a093687c",
+  "hash": "13fe027e5608d7a2",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MEDICO": {
+  "hash": "24ef3917d942b645",
   "lastmod": "2026-10-01"
  },
  "/stocks/MEESHO": {
-  "hash": "f0a5b94b806f8977",
+  "hash": "b6cd5f0a83880e30",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MEGASTAR": {
+  "hash": "cb8c3e053d57b2c4",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MENONBE": {
+  "hash": "0ca7aecb7fc582c4",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MEP": {
+  "hash": "43ab6c7cf2bb911c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/METROBRAND": {
+  "hash": "4136195473db4100",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/METROPOLIS": {
+  "hash": "b2625fa7cc268085",
   "lastmod": "2026-10-01"
  },
  "/stocks/MFSL": {
-  "hash": "4603143009d20991",
+  "hash": "ef325f0dd95bea81",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MGEL": {
+  "hash": "5092cbac0f8daf51",
   "lastmod": "2026-10-01"
  },
  "/stocks/MGL": {
-  "hash": "e950176bc69c39a7",
+  "hash": "a2904f551039bbc8",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MHLXMIRU": {
+  "hash": "fdcaa78bc5c8ee09",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MHRIL": {
+  "hash": "a04b4a6503ffa4f6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MIDHANI": {
+  "hash": "ac6cd3afbbcf7c9e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MIHIKA": {
+  "hash": "2c58c679842229ac",
   "lastmod": "2026-10-01"
  },
  "/stocks/MINDACORP": {
-  "hash": "24772a76588a5475",
+  "hash": "4e104317b33dc100",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MINDTECK": {
+  "hash": "c9241dcc708970dc",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MITCON": {
+  "hash": "dbee326c24a771c6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MITTAL": {
+  "hash": "05d4fd74e2d0ba88",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MKPL": {
+  "hash": "383f9afe10b6a180",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MMFL": {
+  "hash": "646504b0ca59554c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MMP": {
+  "hash": "0abe7a87eccbd129",
   "lastmod": "2026-10-01"
  },
  "/stocks/MMTC": {
-  "hash": "2ee4781cf23f77a5",
+  "hash": "50984d704502b31b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MODAIRY": {
+  "hash": "8f038b9311fcdf88",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MODINSU": {
+  "hash": "270012f98d2f1486",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MODISONLTD": {
+  "hash": "a38e6c4d384a1d09",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MODRNSH": {
+  "hash": "60c373b31be09a40",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MOHITIND": {
+  "hash": "52bfec8f0005b863",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MOIL": {
+  "hash": "ff8a83c6efae2769",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MOLDTECH": {
+  "hash": "56a39a21f1341993",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MOLDTKPAC": {
+  "hash": "4afaac9f2604b277",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MONARCH": {
+  "hash": "fa764a3adcf46f90",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MONTECARLO": {
+  "hash": "9029af182eb94ede",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MOREPENLAB": {
+  "hash": "8bd96fefbf621427",
   "lastmod": "2026-10-01"
  },
  "/stocks/MOTHERSON": {
-  "hash": "483f88126588f39d",
+  "hash": "74254540d351c914",
   "lastmod": "2026-10-01"
  },
  "/stocks/MOTILALOFS": {
-  "hash": "42ee1f36e1180846",
+  "hash": "f004a2e3adb3a599",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MOTOGENFIN": {
+  "hash": "7f77bb4fb00f74b4",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MPAGI": {
+  "hash": "9de33a4eef8ff150",
   "lastmod": "2026-10-01"
  },
  "/stocks/MPHASIS": {
-  "hash": "b63f6e924565c3cf",
+  "hash": "16e098160e709858",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MPSLTD": {
+  "hash": "39b2055b965f0dbe",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MRCAGRO": {
+  "hash": "474a46bffe1edd08",
   "lastmod": "2026-10-01"
  },
  "/stocks/MRF": {
-  "hash": "a816d4c3df3c2b60",
+  "hash": "0c0473bafbf735b5",
   "lastmod": "2026-10-01"
  },
  "/stocks/MRPL": {
-  "hash": "7b174e450420bf0f",
+  "hash": "123f791acf108ed4",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MSTCLTD": {
+  "hash": "fb4d9ea2963dad5a",
   "lastmod": "2026-10-01"
  },
  "/stocks/MSUMI": {
-  "hash": "e1fea276c5e54c6c",
+  "hash": "afc326b1721166b0",
   "lastmod": "2026-10-01"
  },
  "/stocks/MTARTECH": {
-  "hash": "18fa616e220c6867",
+  "hash": "9c68af492c1f3bc5",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MTEDUCARE": {
+  "hash": "912aa3af6491313b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MUKANDLTD": {
+  "hash": "f038d01886b43a03",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MUKTA": {
+  "hash": "77b526b370800075",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MUKTAARTS": {
+  "hash": "62029f3f685d275e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MUNJALAU": {
+  "hash": "167c45bddff13b64",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MUNJALSHOW": {
+  "hash": "b08360c39566aed4",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MURUDCERA": {
+  "hash": "005fee92ce70d533",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MUTHOOTCAP": {
+  "hash": "61a6a04503809651",
   "lastmod": "2026-10-01"
  },
  "/stocks/MUTHOOTFIN": {
-  "hash": "049d7e5056082bf2",
+  "hash": "1206df16d287bd58",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/MWL": {
+  "hash": "07bdea76298ab88c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NACLIND": {
+  "hash": "dd86712b694965ff",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NAGREEKEXP": {
+  "hash": "8c681b77fc109564",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NAHARCAP": {
+  "hash": "280bbb03736b1107",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NAHARINDUS": {
+  "hash": "139cc20991f82419",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NAHARPOLY": {
+  "hash": "2bdb545b27037670",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NAHARSPING": {
+  "hash": "db8d61db8b544e1f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NAM": {
+  "hash": "82a63b335768ba83",
   "lastmod": "2026-10-01"
  },
  "/stocks/NAM-INDIA": {
-  "hash": "6960027f32a27275",
+  "hash": "259d29e8fdaf5084",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NARMADA": {
+  "hash": "a0aa3631746a87f5",
   "lastmod": "2026-10-01"
  },
  "/stocks/NATCOPHARM": {
-  "hash": "23a9703feff018ca",
+  "hash": "a6a4590e73c4095d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NATFIT": {
+  "hash": "4534f861c5a8b6b1",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NATHBIOGEN": {
+  "hash": "76d8f4201e5bf30c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NATHUEC": {
+  "hash": "7a379bf18f6e8591",
   "lastmod": "2026-10-01"
  },
  "/stocks/NATIONALUM": {
-  "hash": "7b58fab35a7b5d93",
+  "hash": "1bf576ee60155f69",
   "lastmod": "2026-10-01"
  },
  "/stocks/NAUKRI": {
-  "hash": "e9b9c338493f89a2",
+  "hash": "77d997c48194670a",
   "lastmod": "2026-10-01"
  },
  "/stocks/NAVA": {
-  "hash": "31a2b747b19ec081",
+  "hash": "e6d88fe85aceae59",
   "lastmod": "2026-10-01"
  },
  "/stocks/NAVINFLUOR": {
-  "hash": "e4e9e63e4c619d42",
+  "hash": "a5a4ebeaa7f70a16",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NAVNETEDUL": {
+  "hash": "8c5354eeb8364ccb",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NAZARA": {
+  "hash": "10280aee24c89045",
   "lastmod": "2026-10-01"
  },
  "/stocks/NBCC": {
-  "hash": "55f120150195dda4",
+  "hash": "b55e2b5405271bc0",
   "lastmod": "2026-10-01"
  },
  "/stocks/NCC": {
-  "hash": "5aba1901ff9c2f4d",
+  "hash": "eb665caa4b526553",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NCLIND": {
+  "hash": "0c0cc088b4680cb4",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NDGL": {
+  "hash": "a18940804d8d2df9",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NDL": {
+  "hash": "37734e810832fc2a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NDLVENTURE": {
+  "hash": "cb305ccfebb14f5c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NDRAUTO": {
+  "hash": "57ad6a741fc356bd",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NDTV": {
+  "hash": "1052dce188c032a5",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NECLIFE": {
+  "hash": "52f4c8785c4c7ca3",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NELCAST": {
+  "hash": "876797a0bbf9adfd",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NELCO": {
+  "hash": "0b0522b73aa09ca5",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NEOGEN": {
+  "hash": "cbed6f4c4d1ea457",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NESCO": {
+  "hash": "bc9a73b26f572758",
   "lastmod": "2026-10-01"
  },
  "/stocks/NESTLEIND": {
-  "hash": "1b9f278de9d892fb",
+  "hash": "715d5bfb66fbff28",
   "lastmod": "2026-10-01"
  },
  "/stocks/NETWEB": {
-  "hash": "631a75f31aaec457",
+  "hash": "b79bcadc89960b99",
   "lastmod": "2026-10-01"
  },
  "/stocks/NEULANDLAB": {
-  "hash": "8c878a6bae5cd047",
+  "hash": "34338d01484dbf1e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NEWGEN": {
+  "hash": "6f5925ef9ff750c4",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NFL": {
+  "hash": "032cd05f12ed270b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NGLFINE": {
+  "hash": "760a01171fe71f75",
   "lastmod": "2026-10-01"
  },
  "/stocks/NH": {
-  "hash": "d3840b6f7d2774a8",
+  "hash": "c8e0503318cef04f",
   "lastmod": "2026-10-01"
  },
  "/stocks/NHPC": {
-  "hash": "b8300d397f6ad7c9",
+  "hash": "4339aaa47aabeb50",
   "lastmod": "2026-10-01"
  },
  "/stocks/NIACL": {
-  "hash": "22722e98b6101d60",
+  "hash": "f1522e0d5916cd1e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NIBL": {
+  "hash": "bfb3ae5d5c7bd372",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NILAINFRA": {
+  "hash": "89b325afee477f8a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NILASPACES": {
+  "hash": "fc5682ee9ee295d8",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NILKAMAL": {
+  "hash": "99867c98bec7d1f6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NINSYS": {
+  "hash": "25feffdcf124275a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NIPPOBATRY": {
+  "hash": "e3ab8f736bebb25a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NIRMAN": {
+  "hash": "a37851cc3d774298",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NITCO": {
+  "hash": "45fb85f89aac12d7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NITINCAST": {
+  "hash": "081611c2aa0a352a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NITINSPIN": {
+  "hash": "5f4f8e74bd362821",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NITIRAJ": {
+  "hash": "24355837840cc5f7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NKIND": {
+  "hash": "1e23312837db4c86",
   "lastmod": "2026-10-01"
  },
  "/stocks/NLCINDIA": {
-  "hash": "67a800b2997c2462",
+  "hash": "706ea2340aea13e7",
   "lastmod": "2026-10-01"
  },
  "/stocks/NMDC": {
-  "hash": "9503decc384c6157",
+  "hash": "b38b942a27dcf2fd",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NOCIL": {
+  "hash": "8e8eb38fe7a6f442",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NOIDATOLL": {
+  "hash": "9bef54bdd27c2174",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NORBTEAEXP": {
+  "hash": "73ea666040c8e37d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NPRFIN": {
+  "hash": "59739c85194fbdce",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NPST": {
+  "hash": "e1263c0aa2848d84",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NRAIL": {
+  "hash": "b8b263453539eb23",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NRBBEARING": {
+  "hash": "fdb42516c2b88e3b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NRL": {
+  "hash": "64cbab27998abfa0",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NSIL": {
+  "hash": "8ec60b2aba4c2c0b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NSL": {
+  "hash": "b1494cf53f2a365d",
   "lastmod": "2026-10-01"
  },
  "/stocks/NSLNISP": {
-  "hash": "0b811eae7a5d148b",
+  "hash": "9ffa750e7ebee656",
   "lastmod": "2026-10-01"
  },
  "/stocks/NTPC": {
-  "hash": "0ee5b21e464d8772",
+  "hash": "b3295f2442147ac1",
   "lastmod": "2026-10-01"
  },
  "/stocks/NTPCGREEN": {
-  "hash": "afed8dded27bb3a4",
+  "hash": "67ad8b0f4bffc2c9",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NUCLEUS": {
+  "hash": "afe6c72e28b646da",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/NURECA": {
+  "hash": "d2d1aed93f0ede61",
   "lastmod": "2026-10-01"
  },
  "/stocks/NUVAMA": {
-  "hash": "9d35bc8956d71fdc",
+  "hash": "e86753b1e94ec3c7",
   "lastmod": "2026-10-01"
  },
  "/stocks/NUVOCO": {
-  "hash": "dda1d210a6dafcd6",
+  "hash": "2230e169cd98483c",
   "lastmod": "2026-10-01"
  },
  "/stocks/NYKAA": {
-  "hash": "9cd3f50be97ae707",
+  "hash": "ff47dae867de0fa0",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/OAL": {
+  "hash": "1aeda6deed7bea1d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/OASISEC": {
+  "hash": "a6a7bfe9cc530d2b",
   "lastmod": "2026-10-01"
  },
  "/stocks/OBEROIRLTY": {
-  "hash": "39492b1b6445ab9f",
+  "hash": "3f2b9367532559ce",
   "lastmod": "2026-10-01"
  },
  "/stocks/OFSS": {
-  "hash": "09cfda3ba6deba5e",
+  "hash": "b6b071cd99cd57c6",
   "lastmod": "2026-10-01"
  },
  "/stocks/OIL": {
-  "hash": "10a8652aae525206",
+  "hash": "2870fa2e9a146b33",
   "lastmod": "2026-10-01"
  },
  "/stocks/OLAELEC": {
-  "hash": "ff9c259c9a9826de",
+  "hash": "0b3b859137923819",
   "lastmod": "2026-10-01"
  },
  "/stocks/OLECTRA": {
-  "hash": "5081054a89adc27b",
+  "hash": "9d9162278f38efd6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/OMAXAUTO": {
+  "hash": "290208dafa28d47c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/OMAXE": {
+  "hash": "cb9d39bb3288d7b7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/OMINFRAL": {
+  "hash": "6b8dff1e5ffe9386",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ONELIFECAP": {
+  "hash": "9129b6cc1e06e4df",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ONEPOINT": {
+  "hash": "b54a8724e4fe2dd9",
   "lastmod": "2026-10-01"
  },
  "/stocks/ONESOURCE": {
-  "hash": "7225a20e526b54d0",
+  "hash": "0113bd22a6515a07",
   "lastmod": "2026-10-01"
  },
  "/stocks/ONGC": {
-  "hash": "1cfa03b0b098a532",
+  "hash": "fa6ca07524366886",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ONIDA": {
+  "hash": "f515374fc3bc2176",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ONTIC": {
+  "hash": "a06f5ed2b2f99ce6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ONWARDTEC": {
+  "hash": "2c783fa5d2cb289d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/OPTIEMUS": {
+  "hash": "1640e6a8aee8fd1a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ORBTEXP": {
+  "hash": "2c76b839c437e005",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ORIENTALTL": {
+  "hash": "b063d56473b93dcf",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ORIENTBELL": {
+  "hash": "85a7038a2dc73838",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ORIENTCEM": {
+  "hash": "f2e0824b94d6b935",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ORIENTCER": {
+  "hash": "7e42285deb65b5bf",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ORIENTELEC": {
+  "hash": "55a7909d06c995e4",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ORIENTHOT": {
+  "hash": "f8379e15c785eb3c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ORIENTLTD": {
+  "hash": "5db843b6a36a7a77",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ORISSAMINE": {
+  "hash": "06c8f9634f8fc03f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ORTINGLOBE": {
+  "hash": "7a3892a1a9e46e35",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/OSIAHYPER": {
+  "hash": "eb16f4eb21dcafc1",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/OSWALAGRO": {
+  "hash": "9a7a0c1f461263bd",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/OSWALSEEDS": {
+  "hash": "81ddeff887300575",
   "lastmod": "2026-10-01"
  },
  "/stocks/PAGEIND": {
-  "hash": "3c25e582e370af7d",
+  "hash": "f01d2360d00c56e5",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PAISALO": {
+  "hash": "8bd000367438b984",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PALASHSECU": {
+  "hash": "510b1849535fe55a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PANABYTE": {
+  "hash": "6a912f69f58492be",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PANACEABIO": {
+  "hash": "e62ae0a053979c43",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PANACHE": {
+  "hash": "0cee2b4206c2151c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PANKAJPO": {
+  "hash": "19c03042b69781d6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PANSARI": {
+  "hash": "9ec24d8fe25168a9",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PAR": {
+  "hash": "71b760df80c022ad",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PARACABLES": {
+  "hash": "a81baef300681ea9",
   "lastmod": "2026-10-01"
  },
  "/stocks/PARADEEP": {
-  "hash": "a84cd8f51a2f9877",
+  "hash": "063d8eaf226ac0e1",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PARAGMILK": {
+  "hash": "dcfce5bea6c59e7f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PARIN": {
+  "hash": "eaedc4f20ccf2775",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PARTYCRUS": {
+  "hash": "2db7ab09de71652d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PARVATI": {
+  "hash": "511a15ac65ad91b7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PASHUPATI": {
+  "hash": "ebc0400e7249d0e4",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PASUPTAC": {
+  "hash": "e428a814cebbea6e",
   "lastmod": "2026-10-01"
  },
  "/stocks/PATANJALI": {
-  "hash": "49ce105eafc82945",
+  "hash": "e36fca3759554876",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PATINTLOG": {
+  "hash": "90c0774ae4fd9d58",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PAVNAIND": {
+  "hash": "ce1004c115fcd873",
   "lastmod": "2026-10-01"
  },
  "/stocks/PAYTM": {
-  "hash": "61c93c0be2790dd1",
+  "hash": "6e81b4cc89167888",
   "lastmod": "2026-10-01"
  },
  "/stocks/PCBL": {
-  "hash": "4da75a17bc3b3a78",
+  "hash": "c0fc7a1751eec1bd",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PCCOSMA": {
+  "hash": "fefd4eadf67f051d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PCJEWELLER": {
+  "hash": "d8e2c1d5b618a5fa",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PDMJEPAPER": {
+  "hash": "79f1b7010f600e76",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PDSL": {
+  "hash": "5c56b55bf449296d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PEARLPOLY": {
+  "hash": "f4d0cc3fe2cd1942",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PENIND": {
+  "hash": "8adf01f7de293bc8",
   "lastmod": "2026-10-01"
  },
  "/stocks/PERSISTENT": {
-  "hash": "c6373dd425306fe6",
+  "hash": "a7b168b096cc9c53",
   "lastmod": "2026-10-01"
  },
  "/stocks/PETRONET": {
-  "hash": "0d7f77d09b714fd5",
+  "hash": "efe29fbf3e033302",
   "lastmod": "2026-10-01"
  },
  "/stocks/PFC": {
-  "hash": "d10bda887c57e66f",
+  "hash": "818b89ddd2dafbc0",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PFIZER": {
+  "hash": "d51a22be9da2da8f",
   "lastmod": "2026-10-01"
  },
  "/stocks/PFOCUS": {
-  "hash": "626f4042b890ea90",
+  "hash": "6149da8e5afc1111",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PFS": {
+  "hash": "4ec7a939ab8fd067",
   "lastmod": "2026-10-01"
  },
  "/stocks/PGEL": {
-  "hash": "0464e643af503947",
+  "hash": "63feff661cb76f89",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PGHH": {
+  "hash": "7acbb4750f4c5f1c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PGHL": {
+  "hash": "8033630d21d16a92",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PGIL": {
+  "hash": "1fc1fdcdf4698999",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PHANTOMFX": {
+  "hash": "8e836f32541d703f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PHCAP": {
+  "hash": "315b48d882f5ae84",
   "lastmod": "2026-10-01"
  },
  "/stocks/PHOENIXLTD": {
-  "hash": "dd7b1282c2e054c1",
+  "hash": "ed645148c5c1461b",
   "lastmod": "2026-10-01"
  },
  "/stocks/PIDILITIND": {
-  "hash": "211cc4c4f2549e70",
+  "hash": "d857f61919402709",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PIGL": {
+  "hash": "7753d9e1569e875b",
   "lastmod": "2026-10-01"
  },
  "/stocks/PIIND": {
-  "hash": "907b19d5eec7f16c",
+  "hash": "eb9fe4b0b35029d5",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PILANIINVS": {
+  "hash": "ca3143175de4676f",
   "lastmod": "2026-10-01"
  },
  "/stocks/PINELABS": {
-  "hash": "d29c2f42cc30da91",
+  "hash": "1e127d7135adc243",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PIONEEREMB": {
+  "hash": "c1787cf3f927bbac",
   "lastmod": "2026-10-01"
  },
  "/stocks/PIRAMALFIN": {
-  "hash": "dbe6c88652f0c1b7",
+  "hash": "24c1894ca637fb6c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PITTIENG": {
+  "hash": "a76e3e34cd313e17",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PIXTRANS": {
+  "hash": "82208716d16075f5",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PKTEA": {
+  "hash": "f7de4b71f151b7cd",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PLASTIBLEN": {
+  "hash": "b2e44d23a6a7c8d4",
   "lastmod": "2026-10-01"
  },
  "/stocks/PNB": {
-  "hash": "1863d9fb52b6a608",
+  "hash": "a08a1c0e1c25169d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PNBGILTS": {
+  "hash": "36bdf3cfb120db0d",
   "lastmod": "2026-10-01"
  },
  "/stocks/PNBHOUSING": {
-  "hash": "8e3eee57983c66eb",
+  "hash": "802d1b87ce2e08e8",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PNC": {
+  "hash": "52e78955a4c5979b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PNCINFRA": {
+  "hash": "736cc375414f33cd",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PODDARMENT": {
+  "hash": "dc5080e4eb79390b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/POKARNA": {
+  "hash": "1b5ca734138d0368",
   "lastmod": "2026-10-01"
  },
  "/stocks/POLICYBZR": {
-  "hash": "d22b96fc6f686dae",
+  "hash": "b2eea1a58e842403",
   "lastmod": "2026-10-01"
  },
  "/stocks/POLYCAB": {
-  "hash": "70080575aad35182",
+  "hash": "31cee204a2ab94f9",
   "lastmod": "2026-10-01"
  },
  "/stocks/POLYMED": {
-  "hash": "0ccf8df91ea0116c",
+  "hash": "db0e393f75c83a35",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/POLYPLEX": {
+  "hash": "e7d292b06cbb520b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PONNIERODE": {
+  "hash": "41e64dc751e75176",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/POOJA": {
+  "hash": "52f0725486259e54",
   "lastmod": "2026-10-01"
  },
  "/stocks/POONAWALLA": {
-  "hash": "46828175660455ed",
+  "hash": "74e1a46b104290e5",
   "lastmod": "2026-10-01"
  },
  "/stocks/POWERGRID": {
-  "hash": "278ce5e21f14daf3",
+  "hash": "90a8e98729cad149",
   "lastmod": "2026-10-01"
  },
  "/stocks/POWERINDIA": {
-  "hash": "c97a97b6c64bf729",
+  "hash": "fa5aa4d65f12096e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/POWERMECH": {
+  "hash": "0163df4a14309474",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PPAP": {
+  "hash": "36669d7519010011",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PPL": {
+  "hash": "893ed2eaca8d69dd",
   "lastmod": "2026-10-01"
  },
  "/stocks/PPLPHARMA": {
-  "hash": "220e04f0e2feda43",
+  "hash": "b7c2d92007278f61",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PRAENG": {
+  "hash": "39066f257b413f76",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PRAJIND": {
+  "hash": "6d9fcd9c62e9c483",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PRAKASH": {
+  "hash": "3a4928da0089635d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PRAMARA": {
+  "hash": "f0e625ee6f7342bb",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PRECAM": {
+  "hash": "249b0f233ffa3dda",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PRECISIO": {
+  "hash": "f61af655323dbc83",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PRECOT": {
+  "hash": "ecb0b4bf25dea552",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PRECWIRE": {
+  "hash": "2d3bac6329a00f21",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PREMEXPLN": {
+  "hash": "b59efe390faca04b",
   "lastmod": "2026-10-01"
  },
  "/stocks/PREMIERENE": {
-  "hash": "b74ae23bcd574833",
+  "hash": "6e3273561fb4d4ce",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PREMIERPOL": {
+  "hash": "48b72f48f272515f",
   "lastmod": "2026-10-01"
  },
  "/stocks/PRESTIGE": {
-  "hash": "10cfa9aaf8921f12",
+  "hash": "4289e02bcaa2bfec",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PREVEST": {
+  "hash": "25ebddd7f02a5c38",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PRICOLLTD": {
+  "hash": "f22a20e9081a085d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PRIMEFRESH": {
+  "hash": "b1b43285ec04a099",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PRIMESECU": {
+  "hash": "8a552d7fd12f088f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PRIMIND": {
+  "hash": "73b33895fc979f04",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PRINCEPIPE": {
+  "hash": "2240cb4dcea0ea03",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PRITI": {
+  "hash": "2eb9975c06285274",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PRITIKAUTO": {
+  "hash": "450a3532ba6992d6",
   "lastmod": "2026-10-01"
  },
  "/stocks/PRIVISCL": {
-  "hash": "551e894f7c126aa4",
+  "hash": "f874e8a90be8cdd9",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PROZONER": {
+  "hash": "08a187e117879537",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PRSMJOHNSN": {
+  "hash": "fb36402d0899a3b2",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PRUDENT": {
+  "hash": "c94113f38db3eb33",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PSPPROJECT": {
+  "hash": "5bc1b4064f32f86d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PTC": {
+  "hash": "9af3a860f505ef77",
   "lastmod": "2026-10-01"
  },
  "/stocks/PTCIL": {
-  "hash": "ea00f6581246a602",
+  "hash": "bc2e886748473502",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PUNJABCHEM": {
+  "hash": "0e44d2aed20cac2b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PUNJCOMMU": {
+  "hash": "0ddcf538d57df618",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PURVA": {
+  "hash": "bfac6b2c2c4e78d8",
   "lastmod": "2026-10-01"
  },
  "/stocks/PVRINOX": {
-  "hash": "b67e819ad8d7ac92",
+  "hash": "c8a2ff8ec3404281",
   "lastmod": "2026-10-01"
  },
  "/stocks/PWL": {
-  "hash": "2a79d0c5f237c4ef",
+  "hash": "eef06ecfc4833113",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/PYRAMID": {
+  "hash": "9a14fda42681adc3",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/QUICKHEAL": {
+  "hash": "2121b5fa7e23b932",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/QUICKTOUCH": {
+  "hash": "a777b1da5012adc6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RADAAN": {
+  "hash": "0249830cf0d5952c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RADHIKAJWE": {
+  "hash": "9a78dff20535a083",
   "lastmod": "2026-10-01"
  },
  "/stocks/RADICO": {
-  "hash": "29e0a8252805a869",
+  "hash": "d0dc6806e3168ff8",
   "lastmod": "2026-10-01"
  },
  "/stocks/RAILTEL": {
-  "hash": "9be00cc9ed81f2ec",
+  "hash": "316546b8f8446405",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RAIN": {
+  "hash": "f6d5c668d770cfc8",
   "lastmod": "2026-10-01"
  },
  "/stocks/RAINBOW": {
-  "hash": "e1740f30b5736021",
+  "hash": "05856a2f464b222e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RAJESHEXPO": {
+  "hash": "207c0bbfebffba82",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RAJMET": {
+  "hash": "0570b8fe58e7edcf",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RAJRATAN": {
+  "hash": "aee370d1c8a72b40",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RAJTV": {
+  "hash": "184ee0a23f87362f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RALLIS": {
+  "hash": "8321cf18c8b84b29",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RAMANEWS": {
+  "hash": "285020efe5f228de",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RAMASTEEL": {
+  "hash": "6396d85d7a029444",
   "lastmod": "2026-10-01"
  },
  "/stocks/RAMCOCEM": {
-  "hash": "5ad6ca750589e8d7",
+  "hash": "8a0898c6cc690edb",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RAMCOIND": {
+  "hash": "7eaa2a7c1f990891",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RAMCOSYS": {
+  "hash": "a85a901de300cbf0",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RAMKY": {
+  "hash": "8abfae1e7d421e65",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RAMRAT": {
+  "hash": "228131e6a162c682",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RANASUG": {
+  "hash": "c78af0e5fb9103b3",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RANEHOLDIN": {
+  "hash": "d87768e39f7dd3b6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RAPICUT": {
+  "hash": "e94ff8fb4c3908b6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RATEGAIN": {
+  "hash": "4e5bdc1c84ff498a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RATNAMANI": {
+  "hash": "2550aabc68befb7f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RATNAVEER": {
+  "hash": "69b4c85b9b57f1dd",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RAWEDGE": {
+  "hash": "70ca2965feb5e952",
   "lastmod": "2026-10-01"
  },
  "/stocks/RBLBANK": {
-  "hash": "7f6b3bc60bd196d2",
+  "hash": "c7f9453457093d8a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RBMINFRA": {
+  "hash": "d165f0446cc33fa0",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RCF": {
+  "hash": "c3d639e20fe789eb",
   "lastmod": "2026-10-01"
  },
  "/stocks/RECLTD": {
-  "hash": "e01599c401b98d87",
+  "hash": "8fa9c95a4e982143",
   "lastmod": "2026-10-01"
  },
  "/stocks/REDINGTON": {
-  "hash": "99b51ed2c1469513",
+  "hash": "471bcb72aa70eb47",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/REFEX": {
+  "hash": "6b1312310ef29955",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/REGENCERAM": {
+  "hash": "874dc4e6eb10c74d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RELAXO": {
+  "hash": "c3f84c84a671ce2a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RELIABLE": {
+  "hash": "cdc26286670ab47e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RELIABVEN": {
+  "hash": "f7204b5ecfa51d97",
   "lastmod": "2026-10-01"
  },
  "/stocks/RELIANCE": {
-  "hash": "0a09032395124344",
+  "hash": "1d2ca3f9d5d84950",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RELICAB": {
+  "hash": "df0b97c0a77ebc32",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/REMSONSIND": {
+  "hash": "a64a3611c2a88d40",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/REPCOHOME": {
+  "hash": "e049bcf323842a68",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/REPL": {
+  "hash": "86a4acfa45c43e70",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/REPRO": {
+  "hash": "674ee7551ad1039a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RESGEN": {
+  "hash": "d60baf8884562fcd",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RESONANCE": {
+  "hash": "df0972d62adf7876",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RESPONIND": {
+  "hash": "1b54ec3db92e377b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RETINA": {
+  "hash": "289c25e5f7361b18",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RGL": {
+  "hash": "afaf0fb294d0b3b1",
   "lastmod": "2026-10-01"
  },
  "/stocks/RHIM": {
-  "hash": "3e9211cf28878453",
+  "hash": "82ccaeb790c0a8bd",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RHL": {
+  "hash": "67d3325dbebbb7f8",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RIBATEX": {
+  "hash": "de980637dec1ab8d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RICOAUTO": {
+  "hash": "bc390d1c4d227788",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RIIL": {
+  "hash": "b88d34053df1d478",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RITCO": {
+  "hash": "a5301f9f0e5dce2f",
   "lastmod": "2026-10-01"
  },
  "/stocks/RITES": {
-  "hash": "c9da629b13179f53",
+  "hash": "5a88f1843bcb2c9b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RITESHIN": {
+  "hash": "115afedd35d1403b",
   "lastmod": "2026-10-01"
  },
  "/stocks/RKFORGE": {
-  "hash": "4f4efa2ac04fb701",
+  "hash": "473e535ec580a265",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RMDRIP": {
+  "hash": "7eb71c0de37f8d77",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RML": {
+  "hash": "b625c4afbe2a7a90",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ROBU": {
+  "hash": "2bf7045da61a6413",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ROHLTD": {
+  "hash": "c981a8acc67a9905",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ROJL": {
+  "hash": "fffcc1ba27b6832a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ROLEXRINGS": {
+  "hash": "d6606eaa67be203c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ROSSARI": {
+  "hash": "a261639664d9d8ab",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ROTO": {
+  "hash": "35aa07cfe24d026f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ROUTE": {
+  "hash": "3403009fc5129052",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RPGLIFE": {
+  "hash": "0b5d63fa3836de53",
   "lastmod": "2026-10-01"
  },
  "/stocks/RPOWER": {
-  "hash": "b69a02f60c76dd67",
+  "hash": "ac45a31b4ac27fd7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RPPINFRA": {
+  "hash": "a1f2032aeafd27ac",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RPPL": {
+  "hash": "7d21a14e16567405",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RPSGVENT": {
+  "hash": "e035ecd287a4d68f",
   "lastmod": "2026-10-01"
  },
  "/stocks/RRKABEL": {
-  "hash": "3d471b6efc6c0251",
+  "hash": "c8e1d067e962d9b2",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RSSOFTWARE": {
+  "hash": "ceea0a9e30d5dac2",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RSWM": {
+  "hash": "0295386e41124843",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RSYSTEMS": {
+  "hash": "ed6b354a66776b0d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RTNINDIA": {
+  "hash": "184750bc213b53a5",
   "lastmod": "2026-10-01"
  },
  "/stocks/RUBICON": {
-  "hash": "dbfb766f984d91e4",
+  "hash": "0d45fb85f1e20bbd",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RUBYMILLS": {
+  "hash": "a969efbac36cdcc6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RUCHIRA": {
+  "hash": "e4d1bea266d49b7f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RUDRAECO": {
+  "hash": "b8f04685752309b7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RUPA": {
+  "hash": "143f8d003daf7290",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RUSHIL": {
+  "hash": "5cc4af1553edb203",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RUSTOMJEE": {
+  "hash": "1c9f3733ef9ad7c6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/RVHL": {
+  "hash": "697edfb90b8507d0",
   "lastmod": "2026-10-01"
  },
  "/stocks/RVNL": {
-  "hash": "3a286f6590ac8a70",
+  "hash": "e6f0d6f78cc3072a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/S&SPOWER": {
+  "hash": "97d3daf7909b7de4",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SADBHAV": {
+  "hash": "160c087f22ac6b0e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SADBHIN": {
+  "hash": "133d1a871d2400c7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SAFARI": {
+  "hash": "31e4eab0af0007a7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SAGARDEEP": {
+  "hash": "b19ec0ee627b044c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SAGCEM": {
+  "hash": "3ae22dbb8cfe71ef",
   "lastmod": "2026-10-01"
  },
  "/stocks/SAGILITY": {
-  "hash": "1c02962a3a98f1f3",
+  "hash": "f5378c0b352b7d80",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SAHANA": {
+  "hash": "ff96806aca070c88",
   "lastmod": "2026-10-01"
  },
  "/stocks/SAIL": {
-  "hash": "0a04b4c5c9d89600",
+  "hash": "b1109965cd2cc27d",
   "lastmod": "2026-10-01"
  },
  "/stocks/SAILIFE": {
-  "hash": "dcfd62e93a3d06b6",
+  "hash": "7dcb82ff4f8d82b8",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SAKAR": {
+  "hash": "6501ef1e09fcb37e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SAKSOFT": {
+  "hash": "c5424b398620f7fb",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SAKUMA": {
+  "hash": "0b40e6cdd5aa6032",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SALASAR": {
+  "hash": "104eec698e5e0131",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SALONA": {
+  "hash": "7a898a31dccdc7f6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SALSTEEL": {
+  "hash": "07ace7151d172d89",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SALZERELEC": {
+  "hash": "fdf80ed5bcd40918",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SAMBHAAV": {
+  "hash": "9cddf2a73e805999",
   "lastmod": "2026-10-01"
  },
  "/stocks/SAMMAANCAP": {
-  "hash": "aa571a8847bb7522",
+  "hash": "8e0b1e8dc2db3c72",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SAMOR": {
+  "hash": "b261f7f947a15f8e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SANDESH": {
+  "hash": "b00019a577d6e2f4",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SANDHAR": {
+  "hash": "8cb09538497a3020",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SANDUMA": {
+  "hash": "6f0d277f45d4fd13",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SANGAMIND": {
+  "hash": "39dc79fba170b8b7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SANGHVIMOV": {
+  "hash": "95f49fcd387ea147",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SANOFI": {
+  "hash": "8c8a2d1162887776",
   "lastmod": "2026-10-01"
  },
  "/stocks/SANSERA": {
-  "hash": "1117fd00ca331a6a",
+  "hash": "b36c4850f547e07c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SAPPHIRE": {
+  "hash": "19c8c1c1db762576",
   "lastmod": "2026-10-01"
  },
  "/stocks/SARDAEN": {
-  "hash": "266faa4832e942ba",
+  "hash": "aaf4eab0da9a4934",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SAREGAMA": {
+  "hash": "dcb6141d09642094",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SARLAPOLY": {
+  "hash": "c53fd159c8ca29dc",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SARVESHWAR": {
+  "hash": "ef000a2a536ca0b6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SASKEN": {
+  "hash": "8d9eab8af1cdbdaa",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SATIA": {
+  "hash": "e590b64ca87a35c7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SATIN": {
+  "hash": "78687857d69c12e6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SBC": {
+  "hash": "fa4227fedd15e588",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SBCL": {
+  "hash": "6ecf8be89753d475",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SBFC": {
+  "hash": "c0486e098e05c731",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SBGLP": {
+  "hash": "9185558669a598e7",
   "lastmod": "2026-10-01"
  },
  "/stocks/SBICARD": {
-  "hash": "096013ffc0610a17",
+  "hash": "35aae7fe3202ed36",
   "lastmod": "2026-10-01"
  },
  "/stocks/SBILIFE": {
-  "hash": "192ae5b18c42ef99",
+  "hash": "c19bbbfb44ca4914",
   "lastmod": "2026-10-01"
  },
  "/stocks/SBIN": {
-  "hash": "fa97c73a33305a6a",
+  "hash": "b9ba3fb86b8735a6",
   "lastmod": "2026-10-01"
  },
  "/stocks/SCHAEFFLER": {
-  "hash": "715682d6ef3140f6",
+  "hash": "8b8f8f385d8c901d",
   "lastmod": "2026-10-01"
  },
  "/stocks/SCHNEIDER": {
-  "hash": "a56d12a2bc1e0618",
+  "hash": "b2515caab6e2d995",
   "lastmod": "2026-10-01"
  },
  "/stocks/SCI": {
-  "hash": "4f9db93bc4da828f",
+  "hash": "3258979749c88416",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SDBL": {
+  "hash": "857de4bb8a0af442",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SEALMATIC": {
+  "hash": "4ae517bd40b186c1",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SEAMECLTD": {
+  "hash": "82d85d4db5c570af",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SECURKLOUD": {
+  "hash": "17181ed06173d433",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SEL": {
+  "hash": "df960b7c9338c5cf",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SEMAC": {
+  "hash": "2006c1afd4eb53a9",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SEML": {
+  "hash": "d3149f20509b7268",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SENCO": {
+  "hash": "6c975887f5384766",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SERVOTECH": {
+  "hash": "c3a7204fc516ca05",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SESHAPAPER": {
+  "hash": "54afea009b9562fa",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SFL": {
+  "hash": "00a8a941f0f23900",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SGFRL": {
+  "hash": "b98edf12266322ab",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SGIL": {
+  "hash": "204f3a5bbc35d522",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SGL": {
+  "hash": "58de5f07edf9b489",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SHAH": {
+  "hash": "b21e0d773b2654e4",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SHAHALLOYS": {
+  "hash": "c462f626a9d9ca4f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SHAILY": {
+  "hash": "d46b62f8cf89a172",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SHAKTIPUMP": {
+  "hash": "dcd48b2acd8245a7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SHALBY": {
+  "hash": "436e774a77506ea0",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SHALPAINTS": {
+  "hash": "c4fcf79d574895e5",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SHANTI": {
+  "hash": "2c15f638eb8f2137",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SHANTIGEAR": {
+  "hash": "117407308c21d751",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SHARDACROP": {
+  "hash": "896cb34cf72fe850",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SHAREINDIA": {
+  "hash": "bdb80cc93c5b8d79",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SHARIKA": {
+  "hash": "02581e77659261dd",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SHEKHAWATI": {
+  "hash": "3a1be3df7eabf64c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SHEMAROO": {
+  "hash": "20280e4aa50c9a24",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SHERA": {
+  "hash": "e537fd9e85798747",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SHHARICH": {
+  "hash": "795f4f357b072de4",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SHIGAN": {
+  "hash": "9f719bb5ca26f878",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SHILPAMED": {
+  "hash": "fd9dcb6643b7cdb1",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SHINEFASH": {
+  "hash": "271c2759b08354ff",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SHIVAMAUTO": {
+  "hash": "eb96c7df46c4c964",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SHIVAMILLS": {
+  "hash": "b062a413823d83d7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SHIVATEX": {
+  "hash": "831d837d205a2f0e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SHOPERSTOP": {
+  "hash": "492f8586bec72c21",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SHRADHA": {
+  "hash": "abf7dcb4371cd487",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SHREDIGCEM": {
+  "hash": "f8c476765009cbba",
   "lastmod": "2026-10-01"
  },
  "/stocks/SHREECEM": {
-  "hash": "5d3007aaef077229",
+  "hash": "d7feab52178fc6d6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SHREEPUSHK": {
+  "hash": "8e2167764e2ac938",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SHREERAMA": {
+  "hash": "6c348c1f37e8c3c8",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SHREYANIND": {
+  "hash": "d2ca5ced55b135ff",
   "lastmod": "2026-10-01"
  },
  "/stocks/SHRIPISTON": {
-  "hash": "efedc4b896513f68",
+  "hash": "43d26e0028c04540",
   "lastmod": "2026-10-01"
  },
  "/stocks/SHRIRAMFIN": {
-  "hash": "ef56514e1195fe8a",
+  "hash": "eb922d2b73437812",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SHRIRAMPPS": {
+  "hash": "6b4caef241db39b6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SHRYDUS": {
+  "hash": "e77f48763cd44de7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SHYAMCENT": {
+  "hash": "feace51a4bfbd8c5",
   "lastmod": "2026-10-01"
  },
  "/stocks/SHYAMMETL": {
-  "hash": "88d87e5515da2e3b",
+  "hash": "2bb71408a0c1aa0f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SICALLOG": {
+  "hash": "985898f7ba3e6cfa",
   "lastmod": "2026-10-01"
  },
  "/stocks/SIEMENS": {
-  "hash": "c0a6f6d658db3937",
+  "hash": "239236d633666555",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SIGMAADV": {
+  "hash": "274bed191b9f37cd",
   "lastmod": "2026-10-01"
  },
  "/stocks/SIGNATURE": {
-  "hash": "fc09aa766a3e8639",
+  "hash": "47551c34847a9eee",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SIIL": {
+  "hash": "9d40136992ed3b41",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SIKKO": {
+  "hash": "9aa48deff745b7d2",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SILGO": {
+  "hash": "932e72c861005748",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SILINV": {
+  "hash": "dbcbe029af172c49",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SIMPLEXINF": {
+  "hash": "24f135d4f25bec99",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SINDHUTRAD": {
+  "hash": "04bc73870da2559e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SINTERCOM": {
+  "hash": "af58bb7817f37159",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SIRCA": {
+  "hash": "3ef9dc8b33044d77",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SIYSIL": {
+  "hash": "1d38ff725d1e368c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SIZEMASTER": {
+  "hash": "2068fceed06f9ec1",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SJS": {
+  "hash": "7922469466cc6b45",
   "lastmod": "2026-10-01"
  },
  "/stocks/SJVN": {
-  "hash": "b01d6f3f0d7955bb",
+  "hash": "f29ddc772d743110",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SKIPPER": {
+  "hash": "761e498555f16bc3",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SKMEGGPROD": {
+  "hash": "ec17aca283387b2f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SKP": {
+  "hash": "bc315798f0cf8855",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SKPMIL": {
+  "hash": "d29ab987d17ef13f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SKYGOLD": {
+  "hash": "e989c6ea02aa7b76",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SMARTLINK": {
+  "hash": "fc5c4a1d5a10539b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SMCGLOBAL": {
+  "hash": "3e604ed0d7856918",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SMGOLD": {
+  "hash": "4c485baaa1a66fb8",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SMLMAH": {
+  "hash": "e702f91a9e786a41",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SMLT": {
+  "hash": "1e59e1fa9eb24795",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SMSPHARMA": {
+  "hash": "d3ba80f443a356df",
   "lastmod": "2026-10-01"
  },
  "/stocks/SOBHA": {
-  "hash": "f913e9738c323299",
+  "hash": "5b98908e2e4a672d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SOFTTECH": {
+  "hash": "6daab6b6c1569a2b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SOLARA": {
+  "hash": "97550cd6744b2951",
   "lastmod": "2026-10-01"
  },
  "/stocks/SOLARINDS": {
-  "hash": "5922527e8d8d78f3",
+  "hash": "8cbfc075bbb72972",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SOLEX": {
+  "hash": "ea5136c0ecf48d8a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SOMANYCERA": {
+  "hash": "fe2c4bf9da17d9f5",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SOMATEX": {
+  "hash": "1ded7d02eaf87c28",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SOMICONVEY": {
+  "hash": "f9dadb9590f2b30a",
   "lastmod": "2026-10-01"
  },
  "/stocks/SONACOMS": {
-  "hash": "4f9c0ff9a34e8409",
+  "hash": "ea19cab1f77226cd",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SONALIS": {
+  "hash": "45868d367babb50e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SONAMLTD": {
+  "hash": "137e284c8698b606",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SONATSOFTW": {
+  "hash": "b0e6c977e08fa9ec",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SONUINFRA": {
+  "hash": "1504c1d77bc021f4",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SOTL": {
+  "hash": "deb25fe942a0bce6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SOUTHBANK": {
+  "hash": "6a6dfd93428fcaa7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SOUTHWEST": {
+  "hash": "fe3652a6a1aac745",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SOUTLAT": {
+  "hash": "ffa634ac13fe5f30",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SPAL": {
+  "hash": "1237a8d4858f4841",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SPARC": {
+  "hash": "34d17f53c16261e6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SPECTRUM": {
+  "hash": "95d90c2cb16df0fc",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SPENTA": {
+  "hash": "0b7e83198dec224b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SPIC": {
+  "hash": "1b86e35b949476ca",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SPICEJET": {
+  "hash": "77a5b28d17ebf302",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SPICELOUNG": {
+  "hash": "0692c68c2a594acd",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SPLIL": {
+  "hash": "70df9bdd91083e7c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SPLPETRO": {
+  "hash": "df185c7779f6bdd8",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SPORTKING": {
+  "hash": "64c64c4980f55158",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SPRAYKING": {
+  "hash": "ca7a51d267e45248",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SPTRSHI": {
+  "hash": "9c0bd6e836a827bb",
   "lastmod": "2026-10-01"
  },
  "/stocks/SRF": {
-  "hash": "80db006dc990a98a",
+  "hash": "10982702c9d78282",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SRGHFL": {
+  "hash": "c0107386a467fd63",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SRHHYPOLTD": {
+  "hash": "d77f77157ccccac5",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SRIVASAVI": {
+  "hash": "283ed1c194c7f0ef",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SRSOLTD": {
+  "hash": "3f0b001025a24c22",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SSFL": {
+  "hash": "84199fb76468692d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SSWL": {
+  "hash": "1cd38af01f94ead7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SSWRL": {
+  "hash": "f588361ff2267c69",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/STARCEMENT": {
+  "hash": "095f95d85dbf3c11",
   "lastmod": "2026-10-01"
  },
  "/stocks/STARHEALTH": {
-  "hash": "ce48b8168c8426a6",
+  "hash": "c14881f7baee6a7a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/STARPAPER": {
+  "hash": "1ae48162932701ff",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/STEELCAS": {
+  "hash": "fa80f2c172cbbcc2",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/STEL": {
+  "hash": "a83f6c453e8213d2",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/STERTOOLS": {
+  "hash": "7089c4bd09b1b6c1",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/STL": {
+  "hash": "e4a718f1722ef6d7",
   "lastmod": "2026-10-01"
  },
  "/stocks/STLTECH": {
-  "hash": "25f7d0ab7f9c5287",
+  "hash": "972b6b2069db6d82",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/STOVEKRAFT": {
+  "hash": "ab30e68c55dd40c5",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/STYLAMIND": {
+  "hash": "653ac390f0fe2d11",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/STYRENIX": {
+  "hash": "ce23b56a0c476a9a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SUBROS": {
+  "hash": "10b2c2b1fd97f7cf",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SUDARCOLOR": {
+  "hash": "8537bc5a84e7c9ef",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SUDARSCHEM": {
+  "hash": "59338bc140f3454b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SUKHJITS": {
+  "hash": "f23286e0e06e3884",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SULA": {
+  "hash": "f91339adc4dd5c48",
   "lastmod": "2026-10-01"
  },
  "/stocks/SUMICHEM": {
-  "hash": "ca7e08649981e0b2",
+  "hash": "bf25b9372cbe0556",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SUMIT": {
+  "hash": "f2e425075de0eee7",
   "lastmod": "2026-10-01"
  },
  "/stocks/SUNDARMFIN": {
-  "hash": "bb4786c668ef635a",
+  "hash": "77cc01eee94a483f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SUNDRMBRAK": {
+  "hash": "df4552d1c7beb6d8",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SUNDRMFAST": {
+  "hash": "48d37b2faf049ad5",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SUNDROP": {
+  "hash": "a555bb2cd3771086",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SUNFLAG": {
+  "hash": "ecf189d278b53910",
   "lastmod": "2026-10-01"
  },
  "/stocks/SUNPHARMA": {
-  "hash": "7496ec8b467deb7a",
+  "hash": "503e5a02c27b7fc3",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SUNTECK": {
+  "hash": "0ef38fa3e16c0150",
   "lastmod": "2026-10-01"
  },
  "/stocks/SUNTV": {
-  "hash": "67d747c03effcb1b",
+  "hash": "d0b2c6742af9f68e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SUPER": {
+  "hash": "54b85b145929a7e4",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SUPERSPIN": {
+  "hash": "a72dae5bf6ba252d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SUPRAJIT": {
+  "hash": "4f9663d175532496",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SUPREMEENG": {
+  "hash": "44539c7a123d0918",
   "lastmod": "2026-10-01"
  },
  "/stocks/SUPREMEIND": {
-  "hash": "be39614474462ce0",
+  "hash": "74bf9c4ab4d88a5b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SUPREMEINF": {
+  "hash": "427ee046111206bb",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SUPRIYA": {
+  "hash": "320d211fbd844dc4",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SURANAT&P": {
+  "hash": "f718b2f054391769",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SURYALAXMI": {
+  "hash": "8ba509a53e6734b6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SURYAROSNI": {
+  "hash": "1e02c8d0889b3cef",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SUTLEJTEX": {
+  "hash": "36cbf06a5822320f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SUVEN": {
+  "hash": "200e03bc7f43cddb",
   "lastmod": "2026-10-01"
  },
  "/stocks/SUZLON": {
-  "hash": "60d219e42e1b9ae1",
+  "hash": "3c563fa93d9843ed",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SVLL": {
+  "hash": "b125163fcbc4ab7d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SVRL": {
+  "hash": "a778c906c77a5f75",
   "lastmod": "2026-10-01"
  },
  "/stocks/SWANCORP": {
-  "hash": "69ed8deade89b86d",
+  "hash": "c1f84d07cb74a87f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SWARAJ": {
+  "hash": "3c3833c86862ab97",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SWARAJENG": {
+  "hash": "629b93976aa6d997",
   "lastmod": "2026-10-01"
  },
  "/stocks/SWIGGY": {
-  "hash": "011efbe53cdf15f3",
+  "hash": "9831389a45c8089f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SWITCHTE": {
+  "hash": "f52caf53052f9b23",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SYMPHONY": {
+  "hash": "0012a22225a44a11",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SYNCOMF": {
+  "hash": "d42a5eac416b5215",
   "lastmod": "2026-10-01"
  },
  "/stocks/SYNGENE": {
-  "hash": "117593efba853115",
+  "hash": "0748b00501c830b7",
   "lastmod": "2026-10-01"
  },
  "/stocks/SYRMA": {
-  "hash": "44f8307cc26dd5b0",
+  "hash": "810a2655d9918d06",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/SYSTANGO": {
+  "hash": "8d0581be0b835cf3",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TAINWALCHM": {
+  "hash": "fda434261c7e67e0",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TAJGVK": {
+  "hash": "0da088293c36c426",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TAKE": {
+  "hash": "350be563506b49a3",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TALBROAUTO": {
+  "hash": "a6c41addf90a5cd7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TANFACIND": {
+  "hash": "f79bcc761f54f5e2",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TANLA": {
+  "hash": "d69d4f77476e3163",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TARACHAND": {
+  "hash": "5067514d6271cc52",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TARC": {
+  "hash": "3de99528c0237319",
   "lastmod": "2026-10-01"
  },
  "/stocks/TARIL": {
-  "hash": "7de009d70190f75d",
+  "hash": "d0710d3deff5b187",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TARMAT": {
+  "hash": "b7c3363d61b0e344",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TASTYBITE": {
+  "hash": "1059459ec8449d3c",
   "lastmod": "2026-10-01"
  },
  "/stocks/TATACAP": {
-  "hash": "5b7da8d77c39eaee",
+  "hash": "d653a33bb1893a99",
   "lastmod": "2026-10-01"
  },
  "/stocks/TATACHEM": {
-  "hash": "74024fcbd1bcee8c",
+  "hash": "74461e47da11b342",
   "lastmod": "2026-10-01"
  },
  "/stocks/TATACOMM": {
-  "hash": "5995d6cfbd9de9fe",
+  "hash": "73bea4bea5324b2a",
   "lastmod": "2026-10-01"
  },
  "/stocks/TATACONSUM": {
-  "hash": "9c580fde793caaca",
+  "hash": "d93d1745cff82d3a",
   "lastmod": "2026-10-01"
  },
  "/stocks/TATAELXSI": {
-  "hash": "4669c9913d21bc4a",
+  "hash": "6f88aa57b74028aa",
   "lastmod": "2026-10-01"
  },
  "/stocks/TATAINVEST": {
-  "hash": "c91c1eb267e49e74",
+  "hash": "fbff4c4da5332179",
   "lastmod": "2026-10-01"
  },
  "/stocks/TATAPOWER": {
-  "hash": "8bc34fd4fe3c1bc6",
+  "hash": "ca79d3c7818bfe13",
   "lastmod": "2026-10-01"
  },
  "/stocks/TATASTEEL": {
-  "hash": "aaee5c88c9fe8e89",
+  "hash": "9b81cde682125aca",
   "lastmod": "2026-10-01"
  },
  "/stocks/TATATECH": {
-  "hash": "7e88bdbd78b9e8fd",
+  "hash": "aee0156a5891a12d",
   "lastmod": "2026-10-01"
  },
  "/stocks/TBOTEK": {
-  "hash": "f42b3bde56a05f81",
+  "hash": "0df024602bfd7274",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TBZ": {
+  "hash": "48be079fbbb1ff62",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TCI": {
+  "hash": "419d1d33581d350c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TCIEXP": {
+  "hash": "2d273a6240f63f9f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TCPLPACK": {
+  "hash": "900c4d7e847e997f",
   "lastmod": "2026-10-01"
  },
  "/stocks/TCS": {
-  "hash": "52b00c454e0a24db",
+  "hash": "0e21f793cfd8680c",
   "lastmod": "2026-10-01"
  },
  "/stocks/TDPOWERSYS": {
-  "hash": "5a449dd04f8064ca",
+  "hash": "363bae9e36de97be",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TEAMGTY": {
+  "hash": "f469f83a2139c027",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TEAMLEASE": {
+  "hash": "54e4df4bea5728e4",
   "lastmod": "2026-10-01"
  },
  "/stocks/TECHM": {
-  "hash": "005fd3c5ab89e877",
+  "hash": "f0dacb520db01709",
   "lastmod": "2026-10-01"
  },
  "/stocks/TECHNOE": {
-  "hash": "d7f3e364b84268b2",
+  "hash": "f2583c4f78b0c41c",
   "lastmod": "2026-10-01"
  },
  "/stocks/TEGA": {
-  "hash": "ebf4085e5c47d5ee",
+  "hash": "65280dc18a034859",
   "lastmod": "2026-10-01"
  },
  "/stocks/TEJASNET": {
-  "hash": "a466a993a8448c4d",
+  "hash": "3427c06dc89d677e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TELOGICA": {
+  "hash": "246fa6eeec4ff0a0",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TEMBO": {
+  "hash": "e300b815fa6aae82",
   "lastmod": "2026-10-01"
  },
  "/stocks/TENNIND": {
-  "hash": "fe56b65453e3eeb3",
+  "hash": "e515ae07031a0d6a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TERASOFT": {
+  "hash": "a0ceaaf1a3a6d2e2",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TEXINFRA": {
+  "hash": "b3c7a07ac2eb5cb6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TEXMOPIPES": {
+  "hash": "ea694481d622533b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TFCILTD": {
+  "hash": "31e41cd640d482fc",
   "lastmod": "2026-10-01"
  },
  "/stocks/THANGAMAYL": {
-  "hash": "143d071732974a58",
+  "hash": "1ef7562043972b1b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/THEJO": {
+  "hash": "c0257a44ab254554",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/THEMISMED": {
+  "hash": "e76aee93abff54ad",
   "lastmod": "2026-10-01"
  },
  "/stocks/THERMAX": {
-  "hash": "92957a522394ea63",
+  "hash": "14c2ba91e2fddebf",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/THOMASCOOK": {
+  "hash": "3c3bb55cfce936c9",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/THOMASCOTT": {
+  "hash": "d2d4a2ba65bdc42c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/THRIVE": {
+  "hash": "a37537713aec78ad",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TI": {
+  "hash": "43d8eb57dbdd5c56",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TIIL": {
+  "hash": "a33e7a0305755023",
   "lastmod": "2026-10-01"
  },
  "/stocks/TIINDIA": {
-  "hash": "ca5dceaf1105b7da",
+  "hash": "7dd2784c1a08b08e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TIMETECHNO": {
+  "hash": "09decf1c0df53ab6",
   "lastmod": "2026-10-01"
  },
  "/stocks/TIMKEN": {
-  "hash": "0799f2796a796a38",
+  "hash": "236ff57dca4407a3",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TIPSFILMS": {
+  "hash": "cb485729e77dbdff",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TIPSMUSIC": {
+  "hash": "445dbab2aebd1700",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TIRUMALCHM": {
+  "hash": "c56f4949c69b5c0c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TIRUPATIFL": {
+  "hash": "00f4079dbd9c7ead",
   "lastmod": "2026-10-01"
  },
  "/stocks/TITAGARH": {
-  "hash": "474cef49b9a8dab2",
+  "hash": "bf2e5a27b6db94ef",
   "lastmod": "2026-10-01"
  },
  "/stocks/TITAN": {
-  "hash": "65a04a9c2eca18b2",
+  "hash": "57bfef663b9b19d4",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TITANBIO": {
+  "hash": "6eec1d3f6ca20bfa",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TLL": {
+  "hash": "b6e7c8f6b13e6c2c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TMB": {
+  "hash": "965815f5d5daedbf",
   "lastmod": "2026-10-01"
  },
  "/stocks/TMCV": {
-  "hash": "ab7687447b3c9a2c",
+  "hash": "56c8a8af53bb7487",
   "lastmod": "2026-10-01"
  },
  "/stocks/TMPV": {
-  "hash": "5c9e77b417ae9e34",
+  "hash": "30d6954d6f3ef226",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TNPETRO": {
+  "hash": "ad6b997ea13fffa1",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TNPL": {
+  "hash": "af19e190eba1c181",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TNTELE": {
+  "hash": "af4909bcab1eec08",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TOKYOPLAST": {
+  "hash": "c02f11ec1b10bc00",
   "lastmod": "2026-10-01"
  },
  "/stocks/TORNTPHARM": {
-  "hash": "51f578f73ded6f11",
+  "hash": "f0c77dd1120f042d",
   "lastmod": "2026-10-01"
  },
  "/stocks/TORNTPOWER": {
-  "hash": "b36c47cae63f8d9a",
+  "hash": "491074172a65abf2",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TOTAL": {
+  "hash": "e838619c0dce3541",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TOUCHWOOD": {
+  "hash": "379e5a64521716a2",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TPLPLASTEH": {
+  "hash": "8a439efc6fbbfb4f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TRACXN": {
+  "hash": "5b3f3326dfe1b6c5",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TRANSCHEM": {
+  "hash": "b0121f9806bb15b6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TRANSWORLD": {
+  "hash": "4b285e73d5d958eb",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TREEHOUSE": {
+  "hash": "70c315c19beff3fd",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TREJHARA": {
+  "hash": "b8936a31ad3ee6cb",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TREL": {
+  "hash": "8f4930687ef5c2e0",
   "lastmod": "2026-10-01"
  },
  "/stocks/TRENT": {
-  "hash": "5e9892771cb63435",
+  "hash": "ed29ef8164dafeb0",
   "lastmod": "2026-10-01"
  },
  "/stocks/TRIDENT": {
-  "hash": "810e377239e8af3c",
+  "hash": "91d36fedba0d517c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TRIGYN": {
+  "hash": "7053b08e8b25a6f8",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TRIOMERC": {
+  "hash": "0e655814d160a896",
   "lastmod": "2026-10-01"
  },
  "/stocks/TRITURBINE": {
-  "hash": "0233293b76333a91",
+  "hash": "7e21ccece6b2f1ba",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TRIVENI": {
+  "hash": "ea6dd01e5de02bd1",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TRIVENIGQ": {
+  "hash": "d9acd63cac451272",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TRL": {
+  "hash": "b3a025c8b1068685",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TRUEGREEN": {
+  "hash": "c90798716a2c30dd",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TSFINV": {
+  "hash": "ad57f42614e450b3",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TTKHLTCARE": {
+  "hash": "dcbc49c7eff53eee",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TTKPRESTIG": {
+  "hash": "d6adcfc40f2e89c2",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TTL": {
+  "hash": "bbf42cc6b82dc2b2",
   "lastmod": "2026-10-01"
  },
  "/stocks/TTML": {
-  "hash": "13d3d3839918ddf3",
+  "hash": "8076cd7769f7d827",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TUNITEX": {
+  "hash": "5cf5f0c75e8d1860",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TVSELECT": {
+  "hash": "cab1bd5eae3d534c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TVSHLTD": {
+  "hash": "13e497c994df1b52",
   "lastmod": "2026-10-01"
  },
  "/stocks/TVSMOTOR": {
-  "hash": "45629f9d17262583",
+  "hash": "b36e5e9a8cbe7c4f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TVSSRICHAK": {
+  "hash": "19dab966389d901a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/TVTODAY": {
+  "hash": "c86967e4921da450",
   "lastmod": "2026-10-01"
  },
  "/stocks/UBL": {
-  "hash": "b3c0b753cd77b7e4",
+  "hash": "d656d8b0f975da26",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/UCAL": {
+  "hash": "82889f4c1955da4a",
   "lastmod": "2026-10-01"
  },
  "/stocks/UCOBANK": {
-  "hash": "bc14c5b172c4d32f",
+  "hash": "3c579e3a76042f96",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/UFLEX": {
+  "hash": "bd4478215b6b5770",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/UGARSUGAR": {
+  "hash": "f6834eace477ebdd",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/UGROCAP": {
+  "hash": "16f014497beaf32a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/UJJIVANSFB": {
+  "hash": "743995afbb83644a",
   "lastmod": "2026-10-01"
  },
  "/stocks/ULTRACEMCO": {
-  "hash": "762a5411acccfa7f",
+  "hash": "d9a098a91230909f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/UMAEXPORTS": {
+  "hash": "d14e8515e909cd26",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/UNIAUTO": {
+  "hash": "fb7e8d78de3504ff",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/UNICHEMLAB": {
+  "hash": "7d4559d6d3d9cea1",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/UNIDT": {
+  "hash": "ed784dcf58857d40",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/UNIENTER": {
+  "hash": "111e36dd416f370b",
   "lastmod": "2026-10-01"
  },
  "/stocks/UNIONBANK": {
-  "hash": "20807f07228e193e",
+  "hash": "7ceb41f2706463fe",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/UNISON": {
+  "hash": "65bcaa70308300d6",
   "lastmod": "2026-10-01"
  },
  "/stocks/UNITDSPR": {
-  "hash": "3a6e59220c397aa8",
+  "hash": "80b363fb59daef6e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/UNITEDPOLY": {
+  "hash": "0396051525573433",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/UNITEDTEA": {
+  "hash": "8e35cd94504175dc",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/UNIVASTU": {
+  "hash": "5d6b684c5b207de5",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/UNIVCABLES": {
+  "hash": "7be332be4e42c07b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/UNIVPHOTO": {
+  "hash": "38297fcfbf86b9c9",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/UNJHAFOR": {
+  "hash": "0cad39ff1ad40d7b",
   "lastmod": "2026-10-01"
  },
  "/stocks/UNOMINDA": {
-  "hash": "89bef0005e622b94",
+  "hash": "ccc2f2e4e811c149",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/UNRYLMA": {
+  "hash": "010e130d043b4941",
   "lastmod": "2026-10-01"
  },
  "/stocks/UPL": {
-  "hash": "ad797fc9fcebb503",
+  "hash": "e90d15b70f33a121",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/URAVIDEF": {
+  "hash": "2cfd57d520942a09",
   "lastmod": "2026-10-01"
  },
  "/stocks/URBANCO": {
-  "hash": "4c2cf6eec14b326a",
+  "hash": "658bf9344540a12c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/URJA": {
+  "hash": "bce07dc3b1acfdd2",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/URSUGAR": {
+  "hash": "e6e8bae62bc13640",
   "lastmod": "2026-10-01"
  },
  "/stocks/USHAMART": {
-  "hash": "7c3881ac1c79b151",
+  "hash": "5e21fba18bec3b3f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/USK": {
+  "hash": "90b933a86e92e508",
   "lastmod": "2026-10-01"
  },
  "/stocks/UTIAMC": {
-  "hash": "c8cdf63114710dab",
+  "hash": "28c6ff8ffbcf9ea5",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/UTTAMSUGAR": {
+  "hash": "1b59da9bc2e4c8ad",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/V2RETAIL": {
+  "hash": "cec61c70f981d52c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VADILALIND": {
+  "hash": "2fa60590b9041f25",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VAIBHAVGBL": {
+  "hash": "baf767ca5b512ef4",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VAISHALI": {
+  "hash": "bf6f8dc4dd84f95f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VAKRANGEE": {
+  "hash": "95deea705f6b6d17",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VALIANT": {
+  "hash": "e77e52e42c963176",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VALSONQ": {
+  "hash": "9420e4a2e700dfa2",
   "lastmod": "2026-10-01"
  },
  "/stocks/VAML": {
-  "hash": "450dfb0a631b0f7b",
+  "hash": "07776b29737a912e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VARDHACRLC": {
+  "hash": "ddf92681aa316fb7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VARDMNPOLY": {
+  "hash": "f78610de78d9c86e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VASWANI": {
+  "hash": "f8c81d9f71d9edc4",
   "lastmod": "2026-10-01"
  },
  "/stocks/VBL": {
-  "hash": "6aebf6ffdb365e47",
+  "hash": "434a8502157abbbe",
   "lastmod": "2026-10-01"
  },
  "/stocks/VEDL": {
-  "hash": "3726ee782d229c05",
+  "hash": "04997dfb412aae1b",
   "lastmod": "2026-10-01"
  },
  "/stocks/VEDPOWER": {
-  "hash": "b7b141939edf2190",
+  "hash": "608148f472fd3772",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VEEDOL": {
+  "hash": "e09ad24f54bb8151",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VEEFIN": {
+  "hash": "fae55d71ecdf68c7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VEERHEALTH": {
+  "hash": "5839a04c1e98c70e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VENKEYS": {
+  "hash": "5f2bb1a4a88d40db",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VENUSPIPES": {
+  "hash": "cb95cb4ba63577ee",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VERTOZ": {
+  "hash": "bd54fe76ae1fece3",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VESUVIUS": {
+  "hash": "97baecd080e92a99",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VETO": {
+  "hash": "09b2b504bf2c73be",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VGIL": {
+  "hash": "239da54f79d2fe9f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VGL": {
+  "hash": "aac8be647ad12fc9",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VGUARD": {
+  "hash": "5065ab6ef79f378c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VHL": {
+  "hash": "4c7ad9c306566d99",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VICTMILL": {
+  "hash": "ac2e9ded49642993",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VIDHIING": {
+  "hash": "9df82f08c0caa8a7",
   "lastmod": "2026-10-01"
  },
  "/stocks/VIJAYA": {
-  "hash": "59ff9ebfbc3c330f",
+  "hash": "79a11a93415a1d4f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VIMTALABS": {
+  "hash": "30657454d502aabb",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VINATIORGA": {
+  "hash": "9f2e53658ffa6c71",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VINDHYATEL": {
+  "hash": "1b768638c5176490",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VINSYS": {
+  "hash": "48f0d9a14493e6fc",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VINYLINDIA": {
+  "hash": "51cd53806a72ee13",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VIPCLOTHNG": {
+  "hash": "479f3c10531565c9",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VIPIND": {
+  "hash": "cf60cb053a181db0",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VIPULLTD": {
+  "hash": "dd7a405c0f37b17d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VISAKAIND": {
+  "hash": "aa8f62128c31b30f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VISHALBL": {
+  "hash": "f078eb4eb139a370",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VISHNU": {
+  "hash": "1d3e3151f3d4f4ca",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VISHWARAJ": {
+  "hash": "8aba7a45c6c7a67e",
   "lastmod": "2026-10-01"
  },
  "/stocks/VISL": {
-  "hash": "c51ce74ad36c8f0c",
+  "hash": "b1da3145dac8a33a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VIVIANA": {
+  "hash": "2bd9cddf1e688dbe",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VIYASH": {
+  "hash": "e87161e96e9dc2ce",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VLEGOV": {
+  "hash": "00733e8ea373b17e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VLSFINANCE": {
+  "hash": "ad7612a05f9cd83b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VMART": {
+  "hash": "2377e72a88c38309",
   "lastmod": "2026-10-01"
  },
  "/stocks/VMM": {
-  "hash": "1bbd321313c9e00a",
+  "hash": "fe0b2a0e3762fb94",
   "lastmod": "2026-10-01"
  },
  "/stocks/VOGL": {
-  "hash": "2e88603bf1449c63",
+  "hash": "8491997fae969585",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VOLTAMP": {
+  "hash": "fd1d2770c30ac92a",
   "lastmod": "2026-10-01"
  },
  "/stocks/VOLTAS": {
-  "hash": "e0815972c2e69353",
+  "hash": "635fbc38e992a66d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VPRPL": {
+  "hash": "266e156e84dd649b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VRLLOG": {
+  "hash": "7079b5f07b41511b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VSL": {
+  "hash": "c315293e54f19f09",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VSSL": {
+  "hash": "e8ee66a14923d11a",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VSTIND": {
+  "hash": "6c1cd10134cf800d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/VSTTILLERS": {
+  "hash": "9ef85f7a3d94685c",
   "lastmod": "2026-10-01"
  },
  "/stocks/VTL": {
-  "hash": "bcea9a6d5e86ff7a",
+  "hash": "4a2bc51593c24f6c",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/WAA": {
+  "hash": "4c035b3aceb3cc9d",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/WAAREE": {
+  "hash": "8b454081cd0124d9",
   "lastmod": "2026-10-01"
  },
  "/stocks/WAAREEENER": {
-  "hash": "7613278f319bc2fa",
+  "hash": "644c275108cc92ac",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/WABAG": {
+  "hash": "504c9d041d2949ec",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/WALCHANNAG": {
+  "hash": "33facee465bdbbf6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/WANBURY": {
+  "hash": "bf49fefed77e3b2e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/WATERBASE": {
+  "hash": "5cb110a64ab6e1e1",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/WEALTH": {
+  "hash": "fc9e69c2a6ab41be",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/WEBELSOLAR": {
+  "hash": "164bf3b0b26371d7",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/WEIZMANIND": {
+  "hash": "39b952d370a788a8",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/WEL": {
+  "hash": "30b9852ef34d76a9",
   "lastmod": "2026-10-01"
  },
  "/stocks/WELCORP": {
-  "hash": "c6045e9702fdd727",
+  "hash": "bc5f5b53fb741d19",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/WELENT": {
+  "hash": "fa05d3a1b0747b82",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/WELINV": {
+  "hash": "b1612e4c0732696b",
   "lastmod": "2026-10-01"
  },
  "/stocks/WELSPUNLIV": {
-  "hash": "16c74b3d38f614a0",
+  "hash": "b1873073bdf15f9e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/WENDT": {
+  "hash": "4ebf8f2c8cfdd4ac",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/WESTLIFE": {
+  "hash": "8821373c34cc4c73",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/WEWIN": {
+  "hash": "8d52d8f468a87f4e",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/WHEELS": {
+  "hash": "33a2048b4a0a45db",
   "lastmod": "2026-10-01"
  },
  "/stocks/WHIRLPOOL": {
-  "hash": "3b449d8b173c718f",
+  "hash": "c1382a5ef0bbbb8b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/WILLAMAGOR": {
+  "hash": "d82045fc05627d8b",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/WINDLAS": {
+  "hash": "085d4e3940be7d41",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/WINDMACHIN": {
+  "hash": "cf793eb883fd64f8",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/WIPL": {
+  "hash": "af4236bda740a1dd",
   "lastmod": "2026-10-01"
  },
  "/stocks/WIPRO": {
-  "hash": "f6515998a5022110",
+  "hash": "02a82bbfab5de2eb",
   "lastmod": "2026-10-01"
  },
  "/stocks/WOCKPHARMA": {
-  "hash": "1b050b8848479d06",
+  "hash": "01d9cdd54e529a58",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/WONDERLA": {
+  "hash": "402b1deb93e62644",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/WORTHPERI": {
+  "hash": "8e2eb4f7b82722c6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/WSTCSTPAPR": {
+  "hash": "e6e9dcd353f759fc",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/XCHANGING": {
+  "hash": "b3f5a03e70d1ad82",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/XELPMOC": {
+  "hash": "a0000c3d6c3e48f1",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/XPROINDIA": {
+  "hash": "87024b243533b901",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/YAANENT": {
+  "hash": "833def227f1b0eb6",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/YASHO": {
+  "hash": "d4f7db662426bec2",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/YASHRAJC": {
+  "hash": "cf977409a44c1776",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/YATHARTH": {
+  "hash": "fee8cd261d81218a",
   "lastmod": "2026-10-01"
  },
  "/stocks/YESBANK": {
-  "hash": "fca555a3c1b258db",
+  "hash": "b412a1491de6c75f",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/YUKEN": {
+  "hash": "ade6953c905bc0c1",
   "lastmod": "2026-10-01"
  },
  "/stocks/ZEEL": {
-  "hash": "8aba144c42649289",
+  "hash": "4d85426d42dc47e0",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ZEELEARN": {
+  "hash": "6957c83a3860e688",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ZEEMEDIA": {
+  "hash": "47a7e79166ffc3fb",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ZENITHEXPO": {
+  "hash": "43a9172cb6dbaa99",
   "lastmod": "2026-10-01"
  },
  "/stocks/ZENSARTECH": {
-  "hash": "1764b9328d2edd3c",
+  "hash": "690ff8c202a193f3",
   "lastmod": "2026-10-01"
  },
  "/stocks/ZENTEC": {
-  "hash": "e8c2be5b72c00d49",
+  "hash": "46980a581dd39e23",
   "lastmod": "2026-10-01"
  },
  "/stocks/ZFCVINDIA": {
-  "hash": "c35fc2eae28a94fc",
+  "hash": "f60d138f3700b896",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ZODIAC": {
+  "hash": "0107ee202ae4f208",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ZOTA": {
+  "hash": "fa4c7af735240fd9",
+  "lastmod": "2026-10-01"
+ },
+ "/stocks/ZUARI": {
+  "hash": "9a7589468a133df7",
   "lastmod": "2026-10-01"
  },
  "/stocks/ZYDUSLIFE": {
-  "hash": "64aa55eaafcc29e0",
+  "hash": "b6759ed47c30bf6a",
   "lastmod": "2026-10-01"
  },
  "/stocks/ZYDUSWELL": {
-  "hash": "37bd4927552fb28a",
+  "hash": "731e08c2e101b94c",
   "lastmod": "2026-10-01"
  },
  "/terms": {

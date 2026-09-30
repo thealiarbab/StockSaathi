@@ -71,7 +71,7 @@ Audit date: 2026-09-30. Numbers below were counted from the repo on that date.
 14. Hinglish mode for the coach.
 15. Educational simulator; not a SEBI-registered broker or adviser; not affiliated with SEBI, NSE or BSE.
 16. Account and data deletion: on request to grievance@stocksaathi.co.in. (Settings → "Delete account" currently only signs out and flags the profile; never claim deletion from Settings until a real self-delete ships.)
-17. Only Nifty 100 stock pages are indexable; the other Nifty 500 pages are `noindex, follow` and out of the sitemap because their text is almost entirely shared.
+17. A stock page is indexable only if the stock passed the data-quality gate in `scripts/build_dip_stats.py` (≥3 years of prices, not frozen, liquid, no unadjusted jumps, ≥3 recovered 10% dips) and so carries its own real recovery figures: 1,727 of 4,324 stocks on 2026-10-01. Nifty 500 stocks that fail keep a `noindex, follow` page; the rest are app-only. Reasons per stock: `scripts/dip-quality.json`.
 
 ## 3. Cannot verify / contradicted — never publish
 
@@ -118,7 +118,7 @@ Audit date: 2026-09-30. Numbers below were counted from the repo on that date.
 - Phase 2 — homepage copy. Source: `partials/landing.html` → `python scripts/build_landing.py` (injects into index.html + js/pages/landingContent.js, rebuilds the FAQPage JSON-LD from the visible FAQ).
 - Phase 3 — metadata, pre-rendering, structured data, sitemap, robots, llms.txt, manifest, icons.
   - `scripts/prerender.py` writes 513 pages from `index.html` + `universeFull.json` + `crashes.js` + `partials/pages/`. The daily `universe-refresh` workflow re-runs it.
-  - Indexable: `/`, `/stocks`, the 100 Nifty 100 stock pages (the other 397 Nifty 500 pages are generated but `noindex, follow`), `/crash-replay` + 3 curated replays, `/chat`, `/learn-stock-market`, `/for-students`, legal pages. `noindex`: `/news`, `/app-shell` (gated routes + stocks outside the Nifty 500 + `CUSTOM_*` replays), `404.html`.
+  - Indexable: `/`, `/stocks`, 1,727 stock pages that passed the dip-history quality gate (Nifty 500 pages that fail are generated but `noindex, follow`), `/crash-replay` + 3 curated replays, `/chat`, `/learn-stock-market`, `/for-students`, legal pages. `noindex`: `/news`, `/app-shell` (gated routes + stocks outside the Nifty 500 + `CUSTOM_*` replays), `404.html`.
   - Images: `scripts/render_assets.py` renders `images/*.png` + `favicon.ico` from `logo.svg` / `og-image.svg` (the old OG image showed invented ticker moves; replaced).
   - Data fix: `GFC_2008.finalDelta` was `0.4` (claimed holding won); its own numbers say the panic-seller finished 41.5% ahead within the window.
 - Phase 4 — admin URL cleanup.

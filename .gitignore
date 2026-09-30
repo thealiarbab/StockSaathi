@@ -40,3 +40,7 @@ build/
 # handlers are stdlib-only; nothing imports werkzeug.
 werkzeug/
 *.dist-info/
+
+# Price cache for scripts/build_dip_stats.py
+scripts/.dipcache/
+scripts/.device-shots/

@@ -725,6 +725,7 @@ export async function generateCustomCrash(description, opts = {}) {
 
   // Real data gives us the hard truth about whether this was a crash or rally.
   const closes = history.points.map(p => p.c);
+  const pointDates = history.points.map(p => p.d);
   const startIdx = closes[0];
   const troughIdx = Math.min(...closes);
   const endIdx = closes[closes.length - 1];
@@ -767,6 +768,7 @@ export async function generateCustomCrash(description, opts = {}) {
           { day: history.points.length - 1, label: "End of window", narration: "" },
         ],
         _realCloses: closes,
+        _realDates: pointDates,
         _startIso: bracket.startIso,
       };
       const stubScenario = buildScenario(stubMeta, hash);
@@ -813,6 +815,7 @@ export async function generateCustomCrash(description, opts = {}) {
       // Attach real daily closes so buildScenario can use them for the
       // day-by-day curve instead of interpolating.
       meta._realCloses = closes;
+      meta._realDates = pointDates;
       meta._startIso = bracket.startIso;
       _perfMark("cc:build-start");
       const scenario = buildScenario(meta, hash);
@@ -1258,6 +1261,9 @@ function buildScenario(m, hash) {
     recoveryDays: Math.max(0, Math.floor(m.recoveryDays ?? 0)),
     frames,
     narrations,
+    // Real trading date of each frame (the replay's date flip shows them).
+    // Absent on replays cached before 2026-10-01; the UI falls back to days.
+    dates: Array.isArray(m._realDates) && m._realDates.length === frames.length ? m._realDates : undefined,
     isCustom: true,
   };
 }

@@ -70,33 +70,34 @@ export function renderCrashReplay(main, params) {
   }
   const path = location.pathname;
   const mine = ++_buildSeq;
-  playBuildSequence(main, scenario).then(() => {
-    if (mine !== _buildSeq) return;              // a newer render took over
+  playTimeMachine(main, scenario).then((skipped) => {
+    if (mine !== _buildSeq || location.pathname !== path) return;   // superseded
     markBuiltThisSession(scenario.id);
-    if (location.pathname === path) renderReplay(main, scenario);
+    renderReplay(main, scenario);
+    if (!skipped) assembleReplay(main, scenario, mine);
   });
 }
 
 // -----------------------------------------------------------------------------
-// BUILD SEQUENCE — shown before a replay that is already built: the curated
-// three, cached featured replays and shared links. Those used to appear
-// instantly, which felt canned next to a live generation. This steps through
-// the replay's OWN data on screen (its real closes, the day-3 sale, the real
-// low, the opening narration), so every line shown is true; only the pacing
-// is added. About 3.5 s, skippable, once per replay per session, and skipped
-// right after a live generation the user has just watched.
+// REPLAY INTRO — shown before a replay that is already built (the curated
+// three, cached featured replays, shared links), which used to appear
+// instantly and felt canned. Two beats, both made of the replay's own data:
+//
+//  1. Time machine: the real trading dates flip from the start of the window
+//     to the end, with the real closing level and move under each one.
+//  2. Assemble: the actual replay page renders with its controls locked, runs
+//     itself forward through every frame (the chart, both portfolio cards and
+//     the narration all update for real), then rewinds to day 0 and unlocks.
+//
+// Nothing shown is invented; only the pacing is added. Once per replay per
+// browser session (closing the site resets it), skipped right after a live
+// generation, skippable at any point, and much shorter with reduced motion.
 // -----------------------------------------------------------------------------
 const BUILT_KEY = "ss.replayBuilt.v1";
 // The router can render the same route twice during boot (auth settling
-// fires another navigation event), so only the newest build may finish.
+// fires another navigation event), so only the newest intro may finish.
 let _buildSeq = 0;
-let _cancelBuild = null;
-const BUILD_STAGES = [
-  { id: "prices",  shortLabel: "Prices" },
-  { id: "sim",     shortLabel: "Simulate" },
-  { id: "moments", shortLabel: "Key moments" },
-  { id: "story",   shortLabel: "Story" },
-];
+let _cancelIntro = null;
 
 function builtSet() {
   try { return new Set(JSON.parse(sessionStorage.getItem(BUILT_KEY) || "[]")); } catch { return new Set(); }
@@ -109,85 +110,125 @@ function markBuiltThisSession(id) {
   } catch {}
 }
 
-function playBuildSequence(main, scenario) {
-  const frames = scenario.frames || [];
-  if (frames.length < 4) return Promise.resolve();
-  const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-  const k = reduce ? 0.25 : 1;           // time scale
-  const rupee = (v) => "₹" + Math.round(v).toLocaleString("en-IN");
-  const pct = (v) => `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`;
-  const closes = frames.map(f => f.nifty);
-  const c0 = closes[0];
-  const low = closes.reduce((m, c, i) => (c < closes[m] ? i : m), 0);
-  const last = frames[frames.length - 1];
-  const sold = frames.find(f => f.day === 3) || frames[Math.min(3, frames.length - 1)];
-  const firstNarr = sanitizeNarration(scenario.narrations?.[frames[0].n] || scenario.description || "");
+const REDUCED = () => !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function fmtDate(iso) {
+  const [y, m, d] = String(iso).split("-").map(Number);
+  return y && m && d ? `${d} ${MONTHS[m - 1]} ${y}` : "";
+}
 
-  main.innerHTML = `<div class="container" style="max-width: 880px; padding-top: var(--sp-6);">
-    <div class="card" id="custom-crash-card"></div>
-    <p style="text-align: right; margin-top: var(--sp-2);">
-      <button class="btn btn-ghost btn-sm" id="build-skip" type="button">Skip ⏭</button>
-    </p>
-  </div>`;
-  renderGeneratingStage(main, scenario.title, {
-    stages: BUILD_STAGES,
-    headerHtml: `<span class="gen-pulse"></span>
-      <strong>Building</strong>
-      <h1 class="gen-query replay-build-title">${escapeHtml(scenario.title)} replay</h1>`,
-  });
+// Beat 1. Resolves true if the user skipped the whole intro.
+function playTimeMachine(main, scenario) {
+  const frames = scenario.frames || [];
+  if (frames.length < 4) return Promise.resolve(true);
+  const dates = Array.isArray(scenario.dates) && scenario.dates.length === frames.length ? scenario.dates : null;
+  const series = scenario.isCustom ? "Close" : "Nifty 50";
+  const c0 = frames[0].nifty;
+  const whenLabel = (i) => dates ? fmtDate(dates[i]) : `Day ${frames[i].day}`;
+  const level = (v) => Number(v).toLocaleString("en-IN", { maximumFractionDigits: v < 1000 ? 2 : 0 });
+  const dur = REDUCED() ? 350 : 1900;
+
+  main.innerHTML = `
+    <section class="tm-stage">
+      <h1 class="tm-title">${escapeHtml(scenario.title)} replay</h1>
+      <p class="tm-status" id="tm-status">Loading ${frames.length} real trading days…</p>
+      <div class="tm-date tabular" id="tm-date">${escapeHtml(dates ? fmtDate(dates[0]) : (scenario.startLabel || "Day 0"))}</div>
+      <div class="tm-level tabular">
+        <span class="tm-series">${series}</span>
+        <strong id="tm-level">${level(c0)}</strong>
+        <span class="tm-move" id="tm-move">0.0%</span>
+      </div>
+      <div class="tm-track" aria-hidden="true"><span id="tm-fill"></span></div>
+      <button class="tm-skip" id="tm-skip" type="button">Skip intro</button>
+    </section>`;
 
   return new Promise((resolve) => {
-    const timers = [];
-    let done = false;
-    const finish = () => {
+    let raf = 0, done = false, t0 = 0;
+    const finish = (skipped) => {
       if (done) return;
       done = true;
-      timers.forEach(clearTimeout);
-      resolve();
+      cancelAnimationFrame(raf);
+      resolve(skipped);
     };
-    const at = (ms, fn) => timers.push(setTimeout(() => { if (!done) fn(); }, ms * k));
-    _cancelBuild?.();
-    _cancelBuild = finish;
-    main.querySelector("#build-skip")?.addEventListener("click", finish);
-
-    // 1. Prices: the replay's real closes, as a tape.
-    at(0, () => advanceGeneratingStage(main, "prices", "active", `${closes.length} closes`));
-    const picks = [...new Set([0, 1, 2, 3, low, Math.floor(closes.length * 0.6), closes.length - 1])].sort((x, y) => x - y);
-    picks.forEach((i, n) => at(120 + n * 130, () => {
-      const d = i === 0 ? 0 : (closes[i] / c0 - 1) * 100;
-      appendGenFeedRow(main, `<span class="day">D${frames[i].day}</span><span class="px">${Math.round(closes[i]).toLocaleString("en-IN")}</span>` +
-        (i ? `<span class="${d >= 0 ? "delta-up" : "delta-down"}">${pct(d)}</span>` : ""));
-    }));
-    at(250, () => drawGenSparkline(main, closes));
-    // 2. Simulate: both portfolios from the same ₹1,00,000.
-    at(1150, () => { advanceGeneratingStage(main, "prices", "done"); advanceGeneratingStage(main, "sim", "active"); });
-    at(1300, () => appendGenFeedRow(main, `<span class="day">D0</span><span class="px">${rupee(frames[0].held)} invested</span>`));
-    at(1600, () => appendGenFeedRow(main, `<span class="day">D${sold.day}</span><span class="px">Panic-sell at close → ${rupee(sold.panic)} cash</span>`));
-    at(1900, () => appendGenFeedRow(main, `<span class="day">D${last.day}</span><span class="px">Held portfolio ${rupee(last.held)}</span>`));
-    // 3. Key moments: the real low and who finished ahead.
-    at(2200, () => { advanceGeneratingStage(main, "sim", "done"); advanceGeneratingStage(main, "moments", "active"); });
-    at(2350, () => appendGenFeedRow(main, `<span class="day">Low</span><span class="px">Day ${frames[low].day}</span><span class="delta-down">${pct((closes[low] / c0 - 1) * 100)}</span>`));
-    at(2650, () => {
-      const heldWon = last.held >= last.panic;
-      const gap = heldWon ? (last.held / last.panic - 1) * 100 : (last.panic / last.held - 1) * 100;
-      appendGenFeedRow(main, `<span class="day">End</span><span class="px">${heldWon ? "Holding" : "Panic-selling"} ahead</span><span class="${heldWon ? "delta-up" : "delta-down"}">${pct(gap)}</span>`);
-    });
-    // 4. Story: type the replay's opening narration.
-    at(2950, () => {
-      advanceGeneratingStage(main, "moments", "done", `${frames.filter(f => f.n).length} moments`);
-      advanceGeneratingStage(main, "story", "active");
-      startGenFeedNarrative(main);
-    });
-    const words = firstNarr.split(" ");
-    const per = Math.max(12, Math.min(35, 700 / Math.max(1, words.length)));
-    words.forEach((_, i) => at(3000 + i * per, () => updateGenFeedNarrative(main, words.slice(0, i + 1).join(" "))));
-    const end = 3000 + words.length * per + 350;
-    at(end, () => {
-      advanceGeneratingStage(main, "story", "done");
-      main.querySelector("#gen-stage")?.classList.add("gen-fading-out");
-    });
-    at(end + 150, finish);
+    _cancelIntro?.();
+    _cancelIntro = () => finish(true);
+    main.querySelector("#tm-skip")?.addEventListener("click", () => finish(true));
+    const dateEl = main.querySelector("#tm-date");
+    const levelEl = main.querySelector("#tm-level");
+    const moveEl = main.querySelector("#tm-move");
+    const fill = main.querySelector("#tm-fill");
+    const status = main.querySelector("#tm-status");
+    const endLabel = whenLabel(frames.length - 1);
+    let last = -1;
+    const step = (now) => {
+      if (done) return;
+      if (!t0) t0 = now;
+      const k = Math.min(1, (now - t0) / dur);
+      // Ease out so the last days land slowly enough to read.
+      const i = Math.min(frames.length - 1, Math.round((1 - Math.pow(1 - k, 2.2)) * (frames.length - 1)));
+      if (i !== last) {
+        last = i;
+        const move = (frames[i].nifty / c0 - 1) * 100;
+        dateEl.textContent = whenLabel(i);
+        levelEl.textContent = level(frames[i].nifty);
+        moveEl.textContent = `${move >= 0 ? "+" : ""}${move.toFixed(1)}%`;
+        moveEl.classList.toggle("down", move < 0);
+        fill.style.width = `${(i / (frames.length - 1)) * 100}%`;
+        if (k > 0.15) status.textContent = `Travelling to ${endLabel}…`;
+      }
+      if (k < 1) raf = requestAnimationFrame(step);
+      else {
+        status.textContent = "Back to day 0.";
+        main.querySelector(".tm-stage")?.classList.add("tm-out");
+        setTimeout(() => finish(false), REDUCED() ? 0 : 380);
+      }
+    };
+    raf = requestAnimationFrame(step);
   });
+}
+
+// Beat 2. The real replay, locked, runs itself forward then rewinds.
+function assembleReplay(main, scenario, token) {
+  const scrubber = main.querySelector("#scrubber");
+  const root = main.querySelector(".replay-panel")?.parentElement || main;
+  if (!scrubber) return;
+  const n = scenario.frames.length;
+  const reduced = REDUCED();
+  const dur = reduced ? 0 : 1700;
+  const bar = document.createElement("div");
+  bar.className = "assemble-bar";
+  bar.setAttribute("role", "status");
+  bar.innerHTML = `<span class="assemble-dot" aria-hidden="true"></span><span id="assemble-text">Running ₹1,00,000 both ways…</span>
+    <button type="button" class="assemble-skip" id="assemble-skip">Skip</button>`;
+  main.prepend(bar);
+  root.classList.add("replay-assembling");
+
+  let raf = 0, t0 = 0, finished = false;
+  const go = (i) => { scrubber.value = String(i); scrubber.dispatchEvent(new Event("input", { bubbles: true })); };
+  const unlock = () => {
+    if (finished) return;
+    finished = true;
+    cancelAnimationFrame(raf);
+    go(0);
+    root.classList.remove("replay-assembling");
+    const text = bar.querySelector("#assemble-text");
+    if (text) text.textContent = "Your turn: press Play, or drag through it yourself.";
+    bar.classList.add("assemble-done");
+    bar.querySelector("#assemble-skip")?.remove();
+    setTimeout(() => bar.remove(), 3200);
+  };
+  bar.querySelector("#assemble-skip")?.addEventListener("click", unlock);
+  if (reduced) { unlock(); return; }
+  const step = (now) => {
+    if (finished || token !== _buildSeq) return unlock();
+    if (!t0) t0 = now;
+    const k = Math.min(1, (now - t0) / dur);
+    go(Math.round(k * (n - 1)));
+    if (k > 0.55) { const t = bar.querySelector("#assemble-text"); if (t) t.textContent = "Writing the story…"; }
+    if (k < 1) raf = requestAnimationFrame(step);
+    else setTimeout(unlock, 450);
+  };
+  raf = requestAnimationFrame(step);
 }
 
 function renderSelector(main) {

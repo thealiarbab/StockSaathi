@@ -106,6 +106,7 @@ def build(cid):
     print("  frames: [")
     print("\n".join(lines))
     print("  ],")
+    print("  dates: %s," % json.dumps([win[i][0] for i in sorted(keep)]))
     for d in narr:
         i = dates.index(d) - i0
         prev = win[i - 1][1] if i else c0
