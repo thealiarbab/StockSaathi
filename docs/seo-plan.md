@@ -127,7 +127,7 @@ Audit date: 2026-09-30. Numbers below were counted from the repo on that date.
 2. GSC → **Sitemaps** → submit `https://stocksaathi.co.in/sitemap.xml`.
 3. GSC → **URL inspection** → request indexing for `/`, `/stocks`, `/crash-replay`, `/learn-stock-market`, `/for-students`, `/crash-replay/COVID_2020`.
 4. **Bing Webmaster Tools** → **Import from Google Search Console** (fastest; copies the verified site and sitemap). Otherwise add the site, verify by DNS CNAME or the `msvalidate.01` meta tag (same placement rule as step 1), and submit the sitemap.
-5. Bing → **IndexNow**: optional later; Bing, Yandex and others accept pings for changed URLs.
+5. **IndexNow** (Bing, Yandex, Seznam, Naver; no account needed): the key file `448b5ef0e83555a5524be82dbe99f74d.txt` is served at the site root. After deploying changed pages, run `python scripts/indexnow.py /changed/path ...`; with no arguments it submits every page URL in `sitemap.xml`. Ping only changed URLs, because resubmitting unchanged pages gets a host throttled.
 6. Recheck in 1–2 weeks: GSC **Pages** report (indexed vs "Crawled — currently not indexed" for stock pages), **Enhancements** for breadcrumbs and FAQ parse errors.
 
 ## 9. Wikidata entity draft (owner to review and submit; not submitted)
