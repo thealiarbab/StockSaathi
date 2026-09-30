@@ -91,7 +91,7 @@ function render(main) {
         <span class="data-badge"><span class="dot ${loading ? "offline" : ""}"></span> ${loading ? "Loading…" : "Live from RSS"}</span>
         <button class="btn btn-ghost btn-sm" id="refresh-btn">↻ Refresh</button>
       </div>
-      <p class="muted">Real-time headlines from Moneycontrol, Economic Times, LiveMint, Business Standard. Click a story to open the original article.</p>
+      <p class="muted">Headlines from Economic Times, LiveMint, Business Standard, BusinessLine and CNBC-TV18. Click a story to open the original article.</p>
     </div>
 
     <div class="flex gap-2 wrap" style="margin-bottom: var(--sp-4);">

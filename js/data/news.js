@@ -1,15 +1,19 @@
 // =============================================================================
 // NEWS & SENTIMENT — Real RSS feeds via rss2json.com (free, CORS-enabled).
-// Sources: Moneycontrol, Economic Times, LiveMint, Business Standard.
+// Sources: Economic Times, LiveMint, Business Standard, BusinessLine, CNBC-TV18.
 // Sentiment is a keyword scorer.
 // =============================================================================
 
 const RSS2JSON = "https://api.rss2json.com/v1/api.json?rss_url=";
 const FETCH_TIMEOUT_MS = 7_000;
 
+// Moneycontrol's RSS (marketsnews.xml, business.xml) started refusing automated
+// fetches in Sept 2026 — 503 direct, 422 through rss2json — so every page load
+// paid two failed requests for nothing. Replaced with two market feeds that
+// return fresh items through rss2json (checked 2026-09-30).
 const FEEDS = [
-  { url: "https://www.moneycontrol.com/rss/marketsnews.xml", source: "Moneycontrol" },
-  { url: "https://www.moneycontrol.com/rss/business.xml", source: "Moneycontrol" },
+  { url: "https://www.thehindubusinessline.com/markets/stock-markets/feeder/default.rss", source: "BusinessLine" },
+  { url: "https://www.cnbctv18.com/commonfeeds/v1/cne/rss/market.xml", source: "CNBC-TV18" },
   { url: "https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms", source: "Economic Times" },
   { url: "https://economictimes.indiatimes.com/industry/rssfeeds/13352306.cms", source: "Economic Times" },
   { url: "https://www.livemint.com/rss/markets", source: "LiveMint" },
