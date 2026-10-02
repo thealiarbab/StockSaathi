@@ -93,8 +93,8 @@ CRAWLER_PAGES = {
     "/login": (None, False),          # app shell
     "/portfolio": (None, False),
     "/stocks/AANCHALISP": (None, False),  # failed the data-quality gate, no page: shell, noindex
-    "/stocks/SPICEJET": ("SpiceJet", True),  # outside the Nifty 500 but passed the gate: own page
-    "/stocks/AAIL": ("Akar Auto", True),     # BSE-only stock that passed the gate
+    "/stocks/SPICEJET": ("SpiceJet", False),  # outside the Nifty 500: own page, but noindex
+    "/stocks/AAIL": ("Akar Auto", False),     # BSE-only, outside the Nifty 500: own page, noindex
 }
 
 # Console noise judged elsewhere. "Failed to load resource" carries no URL, so

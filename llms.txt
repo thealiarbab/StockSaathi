@@ -35,4 +35,4 @@ StockSaathi teaches by doing rather than through lessons: there are no course mo
 - [For students, parents and teachers](https://stocksaathi.co.in/for-students)
 - [Privacy policy](https://stocksaathi.co.in/privacy), [Terms of use](https://stocksaathi.co.in/terms), [Grievance officer](https://stocksaathi.co.in/grievance)
 
-Individual stock pages (most with that stock's real record of falls and recoveries since 2011 or its listing) follow the pattern https://stocksaathi.co.in/stocks/SYMBOL (for example https://stocksaathi.co.in/stocks/RELIANCE).
+Individual stock pages for Nifty 500 companies (with that stock's real record of falls and recoveries since 2011 or its listing) follow the pattern https://stocksaathi.co.in/stocks/SYMBOL (for example https://stocksaathi.co.in/stocks/RELIANCE).

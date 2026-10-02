@@ -347,9 +347,25 @@ MIN_RECOVERED = 3      # same as scripts/build_dip_stats.py
 
 
 def indexable_dips(sym):
-    """Enough recovered 10% falls for a median: the page gets indexed."""
+    """Enough recovered 10% falls for a median (a full record on the page)."""
     row = DIPS.get(sym, {}).get("10")
     return bool(row) and row[1] >= MIN_RECOVERED
+
+
+def rich_page(r):
+    """Only the richest stock pages are offered to search engines.
+
+    A page is "rich" when the stock is in the Nifty 500 (the names people
+    actually search for, with index membership and sector peers on the page)
+    AND it carries its own full recovery record. On 2026-10-02 that was 385
+    pages. Every other stock page still exists for visitors as
+    noindex, follow: 1,727 indexable pages, 1,448 of them with identical prose
+    once names and numbers were masked, read as scaled template content to
+    Google (sampled pages sat at "Discovered/Crawled - currently not
+    indexed"). Widen this only after Search Console shows most of these
+    pages indexed.
+    """
+    return bool((r.get("idx") or 0) & 4) and indexable_dips(r["symbol"])
 
 
 def inr(v):
@@ -449,7 +465,8 @@ def org_node():
         "description": "StockSaathi makes a free stock market simulator that teaches Indian teenagers to invest with virtual money.",
         "founder": {"@id": FOUNDER_ID},
         "areaServed": {"@type": "Country", "name": "India"},
-        "sameAs": ["https://www.instagram.com/stocksaathi.co.in/", "https://github.com/thealiarbab/StockSaathi"],
+        "sameAs": ["https://www.instagram.com/stocksaathi.co.in/", "https://x.com/stocksaathiCoIn",
+                   "https://github.com/thealiarbab/StockSaathi"],
         "contactPoint": {"@type": "ContactPoint", "contactType": "customer support",
                          "email": "grievance@stocksaathi.co.in", "areaServed": "IN",
                          "availableLanguage": ["English"]},
@@ -661,7 +678,7 @@ def stocks_hub_main(equities, etfs, paged):
   </ul>
   <h2>Nifty 50 stocks</h2>
   <ul class="link-list cols">{"".join(link(r) for r in n50)}</ul>
-  <h2>Stocks by sector</h2>
+  <h2>Nifty 500 stocks by sector</h2>
   {sectors}
   <p class="fineprint">StockSaathi is an educational simulator using virtual money. It is not a SEBI-registered
   broker or adviser and is not affiliated with NSE or BSE.</p>
@@ -813,6 +830,7 @@ def build_pages():
     in500 = {r["symbol"] for r in nifty500}
     paged = sorted(nifty500 + [r for r in equities if indexable_dips(r["symbol"]) and r["symbol"] not in in500],
                    key=lambda r: r["name"].lower())
+    rich = [r for r in paged if rich_page(r)]
     pages = []
 
     def add(**p):
@@ -846,33 +864,34 @@ def build_pages():
         description=("Browse 4,000+ NSE and BSE stocks, ETFs and mutual funds, and practise trading them with virtual "
                      "money at real market prices. Free for Indian teens."),
         crumbs=[("Home", "/"), ("Markets", "/stocks")],
-        main=stocks_hub_main(equities, etfs, paged))
+        main=stocks_hub_main(equities, etfs, rich))
 
+    # Internal links (hub + "other stocks" lists) point only at indexable
+    # pages, so crawl budget goes where it can count.
     by_sector = {}
-    for r in paged:
+    for r in rich:
         by_sector.setdefault(r.get("sector") or "Other", []).append(r)
     for r in paged:
-        group = by_sector[r.get("sector") or "Other"]
-        i = group.index(r)
+        group = by_sector.get(r.get("sector") or "Other", [])
+        others = [s for s in group if s is not r]
         # Four of the sector's biggest names (by index membership), then
-        # alphabetical neighbours so every page still gets links from peers.
-        big = sorted(group, key=sector_rank)
-        sib = [s for s in big if s is not r][:4]
-        sib += [s for s in (group[i + 1:] + group[:i]) if s is not r and s not in sib][:8 - len(sib)]
-        if len(sib) < 4:                       # tiny sector: pad with alphabetical neighbours
-            j = paged.index(r)
-            sib += [s for s in paged[j + 1:j + 9] if s not in sib][:8 - len(sib)]
+        # alphabetical neighbours so every rich page still gets peer links.
+        sib = sorted(others, key=sector_rank)[:4]
+        later = [s for s in others if s["name"].lower() > r["name"].lower()]
+        earlier = [s for s in others if s["name"].lower() <= r["name"].lower()]
+        sib += [s for s in later + earlier if s not in sib][:8 - len(sib)]
+        if len(sib) < 4:                       # tiny sector: pad with alphabetical rich neighbours
+            nxt = [s for s in rich if s["name"].lower() > r["name"].lower()] + rich
+            sib += [s for s in nxt if s is not r and s not in sib][:8 - len(sib)]
         sym, name = r["symbol"], r["name"]
         exch = "BSE" if r.get("exchange") == "BSE" else "NSE"
         corp = {"@type": "Corporation", "name": name, "tickerSymbol": "%s %s" % (exch, sym)}
         if r.get("isin"):
             corp["identifier"] = {"@type": "PropertyValue", "propertyID": "ISIN", "value": r["isin"]}
-        # A stock page is indexable only when it carries real, stock-specific
-        # figures: the dip-recovery history of a stock that passed the data-
-        # quality gate in scripts/build_dip_stats.py. Nifty 500 stocks without
-        # it keep a page for people (noindex, follow) but stay out of search.
+        # Only rich pages (see rich_page) are indexable; the rest keep a page
+        # for people (noindex, follow) but stay out of search and the sitemap.
         add(path=stock_path(sym), file="stocks/%s.html" % sym, priority="0.5", changefreq="monthly",
-            index=indexable_dips(sym),
+            index=rich_page(r),
             title=stock_title(name, sym),
             ogTitle="Practice trading %s (%s) | StockSaathi" % (name, sym),
             description=stock_description(name, sym),
