@@ -4662,3 +4662,47 @@ table.compare { min-width: 560px; }
 /* Touch-size controls on the replay page (44 px, Apple/Google guidance). */
 .replay-controls .btn-sm { min-height: 44px; }
 .replay-marker { min-height: 32px; }
+
+/* Order book + recent trades on phones: numbers never break mid-figure
+   ("7,0 / 27", "SEL / L" at 320 px). Tighter cells and a smaller gap. */
+.ob-table td, .ob-table th { white-space: nowrap; }
+@media (max-width: 480px) {
+  .ob-grid { gap: var(--sp-2) !important; }
+  .ob-table { font-size: var(--text-xs) !important; }
+  .ob-table td, .ob-table th { padding: 8px 6px; }
+  .ob-table .pill { padding: 2px 6px; }
+}
+
+/* Header controls are 44 px touch targets on phones and tablets. */
+@media (max-width: 820px) {
+  .nav-cmdk-btn, .nav-theme-toggle, .nav-burger {
+    min-width: 44px; height: 44px; justify-content: center; place-items: center;
+  }
+}
+
+/* Touch targets on phones and tablets (device_check flagged these under 40 px). */
+@media (pointer: coarse), (max-width: 820px) {
+  .view-toggle-btn { min-width: 44px; min-height: 44px; justify-content: center; }
+  .auth-pw-toggle { width: 44px; height: 44px; right: 2px; }
+  .composer-btn { min-width: 44px; min-height: 44px; }
+}
+
+/* Markets list on phones ≤480 px: price and day change stack in one right
+   column so the company name gets the width ("20 Micro…" → "20 Microns"). */
+@media (max-width: 480px) {
+  .stocks-grid--tiles .stock-card {
+    grid-template-columns: minmax(0, 1fr) max-content;
+    grid-auto-flow: row;
+    column-gap: 12px; row-gap: 2px;
+  }
+  .stocks-grid--tiles .stock-card .tile-head { grid-column: 1; grid-row: 1 / span 2; }
+  .stocks-grid--tiles .stock-card .tile-price-cell { grid-column: 2; grid-row: 1; }
+  .stocks-grid--tiles .stock-card .tile-change-cell { grid-column: 2; grid-row: 2; justify-content: flex-end; text-align: right; }
+  .stocks-grid--tiles .stock-card .tile-spark,
+  .stocks-grid--tiles .stock-card .stock-sparkline { display: none; }
+  .stocks-grid--tiles-header { grid-template-columns: minmax(0, 1fr) max-content; }
+  .stocks-grid--tiles-header > :nth-child(2),
+  .stocks-grid--tiles-header > :nth-child(4) { display: none; }
+  .tile-name { font-size: 13px; }
+  .tile-sym { font-size: 10px; }
+}

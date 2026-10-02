@@ -182,6 +182,14 @@ function todaysMarketWindowMs() {
 // gutters) 440 overflows and causes horizontal clipping of axis labels
 // on the right. Clamp to viewport-minus-padding with a 280 floor so
 // the chart is always legible.
+// Must match the host's CSS height, clamp(260px, 44vh, 360px): the SVG is
+// drawn at this height, and a 360 px drawing in a 260 px host spilled over
+// the next card on short phones.
+function computeChartHeight() {
+  if (typeof window === "undefined") return 360;
+  return Math.round(Math.min(360, Math.max(260, window.innerHeight * 0.44)));
+}
+
 function computeChartWidth() {
   if (typeof window === "undefined") return 800;
   const iw = window.innerWidth;
@@ -884,7 +892,7 @@ function render(inst, symbol) {
                      </div>
                    </div>`
                 : _renderMfChartSafe(chartOhlc, ui, computeChartWidth(), chartXAxisRange))
-            : `<div id="stock-chart-host" style="height: clamp(260px, 44vh, 360px); width: 100%;">${stockChart(chartOhlc, { height: 360, mode: ui.chartMode, width: computeChartWidth(), xAxisRange: chartXAxisRange })}</div>`}
+            : `<div id="stock-chart-host" style="height: clamp(260px, 44vh, 360px); width: 100%;">${stockChart(chartOhlc, { height: computeChartHeight(), mode: ui.chartMode, width: computeChartWidth(), xAxisRange: chartXAxisRange })}</div>`}
           ${liveHistory?._fallbackLabel && ui.timeframe === "1D" ? `
             <div class="dim text-xs" style="margin-top: 6px; padding: 4px 8px; background: var(--bg-soft); border-radius: var(--r-sm); display: inline-flex; align-items: center; gap: 6px;">
               <span aria-hidden="true">📅</span>
@@ -1991,9 +1999,9 @@ function _renderMfChartSafe(chartOhlc, uiState, width, xAxisRange) {
   try {
     if (uiState.chartMode === "candle") {
       const synth = _synthMfDayOverDayOhlc(chartOhlc);
-      return `<div id="stock-chart-host" style="height: clamp(260px, 44vh, 360px); width: 100%;">${stockChart(synth, { height: 360, mode: "candle", width, xAxisRange })}</div>`;
+      return `<div id="stock-chart-host" style="height: clamp(260px, 44vh, 360px); width: 100%;">${stockChart(synth, { height: computeChartHeight(), mode: "candle", width, xAxisRange })}</div>`;
     }
-    return `<div id="stock-chart-host" style="height: clamp(260px, 44vh, 360px); width: 100%;">${stockChart(chartOhlc, { height: 360, mode: "area", width, xAxisRange })}</div>`;
+    return `<div id="stock-chart-host" style="height: clamp(260px, 44vh, 360px); width: 100%;">${stockChart(chartOhlc, { height: computeChartHeight(), mode: "area", width, xAxisRange })}</div>`;
   } catch (e) {
     console.warn("[mf chart] candle/area render failed â€” falling back to lineChart:", e);
     const closes = (chartOhlc || []).map(k => k?.c).filter(c => Number.isFinite(c));
@@ -2244,11 +2252,11 @@ function renderOrderBook(symbol, curPrice) {
         <h3>Order book <span class="pill pill-yellow" style="font-size:10px; margin-left:6px; vertical-align:middle;" title="Real NSE market depth requires a paid data feed (Dhan/TrueData). This book + trades are synthesised around the live LTP — useful for teaching the concept, not actual tradeable queue positions.">SIMULATED</span></h3>
         <span class="data-badge"><span class="dot"></span> Spread ${fmt(ob.spread)}</span>
       </div>
-      <div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--sp-4);">
+      <div class="grid ob-grid" style="grid-template-columns: 1fr 1fr; gap: var(--sp-4);">
         <div>
-          <div class="text-xs uppercase muted" style="margin-bottom: var(--sp-2); color: var(--positive);">Bids (buy orders)</div>
+          <div class="text-xs uppercase muted" style="margin-bottom: var(--sp-2); color: var(--positive);">Bids (buy)</div>
           <div class="table-wrap">
-            <table class="table" style="font-size: var(--text-sm);">
+            <table class="table ob-table" style="font-size: var(--text-sm);">
               <thead><tr><th class="num">Qty</th><th class="num">Price</th></tr></thead>
               <tbody>
                 ${ob.bids.map(b => `
@@ -2260,9 +2268,9 @@ function renderOrderBook(symbol, curPrice) {
           </div>
         </div>
         <div>
-          <div class="text-xs uppercase muted" style="margin-bottom: var(--sp-2); color: var(--negative);">Asks (sell orders)</div>
+          <div class="text-xs uppercase muted" style="margin-bottom: var(--sp-2); color: var(--negative);">Asks (sell)</div>
           <div class="table-wrap">
-            <table class="table" style="font-size: var(--text-sm);">
+            <table class="table ob-table" style="font-size: var(--text-sm);">
               <thead><tr><th class="num">Price</th><th class="num">Qty</th></tr></thead>
               <tbody>
                 ${ob.asks.map(a => `
@@ -2277,7 +2285,7 @@ function renderOrderBook(symbol, curPrice) {
       <div style="margin-top: var(--sp-4);">
         <div class="text-xs uppercase muted" style="margin-bottom: var(--sp-2);">Recent trades <span class="dim" style="text-transform:none; font-weight:400;">(simulated)</span></div>
         <div class="table-wrap">
-          <table class="table" style="font-size: var(--text-sm);">
+          <table class="table ob-table" style="font-size: var(--text-sm);">
             <thead><tr><th>When</th><th>Side</th><th class="num">Qty</th><th class="num">Price</th></tr></thead>
             <tbody>
               ${trades.map(t => `

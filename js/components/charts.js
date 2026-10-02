@@ -358,7 +358,9 @@ export function stockChart(ohlc, {
         close - 60 * 60 * 1000,           // -1h ≈ 14:30
         close,
       ];
-      for (const t of tickTimes) {
+      // Phones: open, midday, close only.
+      const shown = width < 480 ? [tickTimes[0], tickTimes[2], tickTimes[4]] : tickTimes;
+      for (const t of shown) {
         const x = toXt(t);
         xLabels += `<text class="chart-axis-label" x="${x}" y="${height - 10}" text-anchor="middle">${fmtTime(t)}</text>`;
       }
@@ -372,7 +374,8 @@ export function stockChart(ohlc, {
     }
   } else {
     // Original: 5 evenly-spaced labels keyed off the data array.
-    const nTicks = Math.min(5, ohlc.length);
+    // Phone-width charts get 3 labels: five "03 Sept" labels overlap at ~280 px.
+    const nTicks = Math.min(width < 480 ? 3 : 5, ohlc.length);
     const spanMs = ohlc[ohlc.length - 1].t - ohlc[0].t;
     const isIntraday = spanMs > 0 && spanMs < 3 * 86400000;
     for (let i = 0; i < nTicks; i++) {
@@ -477,7 +480,7 @@ export function stockChart(ohlc, {
   // clipped anything longer, so measure off the string instead.
   const lastLabelW = Math.max(52, lastLabelText.length * 6.6 + 10);
   const lastLabel = `
-    <g transform="translate(${lastX + labelOffset}, ${lastY})">
+    <g transform="translate(${Math.min(lastX + labelOffset, width - lastLabelW - 1).toFixed(1)}, ${lastY})">
       <rect x="0" y="-10" width="${lastLabelW.toFixed(1)}" height="20" rx="4" fill="var(--brand, #00B386)" />
       <text x="${(lastLabelW / 2).toFixed(1)}" y="4" text-anchor="middle" font-size="11" font-weight="700" fill="#fff" font-family="var(--font-mono, monospace)">${lastLabelText}</text>
     </g>`;
@@ -488,7 +491,7 @@ export function stockChart(ohlc, {
   // screenshot is shared out of context.
   const wmY = paddingTop + plotH / 2 + 6;
   const wmX = paddingLeft + plotW / 2;
-  const watermark = `<text class="chart-watermark" x="${wmX}" y="${wmY}" text-anchor="middle" font-size="${Math.round(height * 0.055)}" font-weight="700" fill="currentColor" opacity="0.055" style="pointer-events:none; user-select:none; letter-spacing:0.12em;">PAPER TRADING · VIRTUAL MONEY</text>`;
+  const watermark = `<text class="chart-watermark" x="${wmX}" y="${wmY}" text-anchor="middle" font-size="${Math.round(Math.min(height * 0.055, width * 0.042))}" font-weight="700" fill="currentColor" opacity="0.055" style="pointer-events:none; user-select:none; letter-spacing:0.12em;">PAPER TRADING · VIRTUAL MONEY</text>`;
 
   // Time-axis range exposed via data-attrs so attachStockChartHover can
   // read them without us having to plumb the value through a second arg.

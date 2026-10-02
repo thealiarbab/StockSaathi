@@ -95,10 +95,13 @@ export function mountNav() {
           { route: "__menu",       label: "More",   icon: "☰" },
         ]
       : [
+          // The header's theme toggle only looked "missing" because this bar
+          // used to render inside the header and cover it (see below), so the
+          // bar no longer needs its own Dark/Light slot.
           { route: "",             label: "Home",   icon: "🏠" },
+          { route: "stocks",       label: "Markets", icon: "📈" },
           { route: "chat",         label: "Coach",  icon: "💬" },
           { route: "crash-replay", label: "Replay", icon: "⏱" },
-          { route: "__theme",      label: themeLabel, icon: themeIcon },
           { route: "login",        label: "Log in", icon: "🔑" },
         ];
     const mobileNavHtml = `
@@ -125,8 +128,19 @@ export function mountNav() {
       </nav>
     `;
 
+    // The bottom tab bar lives OUTSIDE the header: .nav has backdrop-filter,
+    // which makes it the containing block for position:fixed descendants, so
+    // inside it the "bottom" bar was pinned to the header and covered the
+    // logo, Ask and menu buttons on every phone.
+    let mobileRoot = document.getElementById("mobile-nav-root");
+    if (!mobileRoot) {
+      mobileRoot = document.createElement("div");
+      mobileRoot.id = "mobile-nav-root";
+      document.body.appendChild(mobileRoot);
+    }
+    mobileRoot.innerHTML = mobileNavHtml;
+
     root.innerHTML = `
-      ${mobileNavHtml}
       <div class="nav-inner">
         <a href="${state.isAuthed ? "/portfolio" : "/"}" class="brand-logo" aria-label="StockSaathi home">
           <span class="logo-mark" aria-hidden="true"><svg viewBox="0 0 64 64" width="22" height="22" style="display:block;"><path d="M16 40 L26 28 L34 36 L48 20" stroke="white" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="48" cy="20" r="3.5" fill="white"/></svg></span>
@@ -235,8 +249,8 @@ export function mountNav() {
     root.querySelector("#nav-burger-btn")?.addEventListener("click", openDrawer);
     // Mobile bottom nav "More" button opens the same drawer as the top-bar
     // burger — keeps the full nav menu reachable in one tap from anywhere.
-    root.querySelector("[data-mobile-menu]")?.addEventListener("click", openDrawer);
-    root.querySelector("[data-mobile-theme]")?.addEventListener("click", toggleTheme);
+    mobileRoot.querySelector("[data-mobile-menu]")?.addEventListener("click", openDrawer);
+    mobileRoot.querySelector("[data-mobile-theme]")?.addEventListener("click", toggleTheme);
     root.querySelector("#theme-toggle-btn")?.addEventListener("click", toggleTheme);
     root.querySelector("#cmdk-open-btn")?.addEventListener("click", () => {
       import("./commandPalette.js").then(m => m.openCommandPalette());
