@@ -449,7 +449,7 @@ def org_node():
         "description": "StockSaathi makes a free stock market simulator that teaches Indian teenagers to invest with virtual money.",
         "founder": {"@id": FOUNDER_ID},
         "areaServed": {"@type": "Country", "name": "India"},
-        "sameAs": ["https://github.com/thealiarbab/StockSaathi"],
+        "sameAs": ["https://www.instagram.com/stocksaathi.co.in/", "https://github.com/thealiarbab/StockSaathi"],
         "contactPoint": {"@type": "ContactPoint", "contactType": "customer support",
                          "email": "grievance@stocksaathi.co.in", "areaServed": "IN",
                          "availableLanguage": ["English"]},
