@@ -119,6 +119,32 @@ function fmtDate(iso) {
 // step, and each step in the list completes at the moment the flip actually
 // passes that day (the day-3 sale, the lowest close, the last day). Then the
 // opening narration types out.
+// Trading-day position of each frame. The curated replays keep every day of
+// the crash and then every 3rd or 4th day, so plotting by frame index
+// stretched the first weeks across half the chart. Charts, the timeline and
+// playback all use these positions instead. Falls back to the index when a
+// generated replay has no usable day numbers.
+function frameXs(frames) {
+  const days = frames.map((f, i) => (Number.isFinite(f?.day) ? f.day : i));
+  return days.every((d, i) => i === 0 || d > days[i - 1]) ? days : frames.map((_, i) => i);
+}
+
+// The timeline <input type=range> runs in trading days; frames are indices.
+function scrubVal(scrubber, i) {
+  const xs = scrubber?._xs;
+  return String(xs ? xs[Math.max(0, Math.min(xs.length - 1, i))] : i);
+}
+function nearestIdx(xs, v) {
+  let best = 0;
+  for (let i = 1; i < xs.length; i++) if (Math.abs(xs[i] - v) < Math.abs(xs[best] - v)) best = i;
+  return best;
+}
+function floorIdx(xs, v) {
+  let k = 0;
+  for (let i = 0; i < xs.length; i++) if (xs[i] <= v) k = i;
+  return k;
+}
+
 function playTimeMachine(main, scenario) {
   const frames = scenario.frames || [];
   if (frames.length < 4) return Promise.resolve(true);
@@ -140,7 +166,8 @@ function playTimeMachine(main, scenario) {
   // Sparkline geometry (viewBox units; the SVG scales to the card width).
   const W = 600, H = 84, P = 4;
   const lo = Math.min(...closes), hi = Math.max(...closes), span = hi - lo || 1;
-  const sx = (i) => P + (i / (n - 1)) * (W - 2 * P);
+  const xs = frameXs(frames), xLast = xs[n - 1] || 1;
+  const sx = (i) => P + (xs[i] / xLast) * (W - 2 * P);
   const sy = (v) => P + (H - 2 * P) * (1 - (v - lo) / span);
   const sparkTo = (i) => {
     let d = "";
@@ -257,7 +284,7 @@ function assembleReplay(main, scenario, token) {
   root.classList.add("replay-assembling");
 
   let raf = 0, t0 = 0, finished = false;
-  const go = (i) => { scrubber.value = String(i); scrubber.dispatchEvent(new Event("input", { bubbles: true })); };
+  const go = (i) => { scrubber.value = scrubVal(scrubber, i); scrubber.dispatchEvent(new Event("input", { bubbles: true })); };
   const unlock = () => {
     if (finished) return;
     finished = true;
@@ -276,7 +303,8 @@ function assembleReplay(main, scenario, token) {
     if (finished || token !== _buildSeq) return unlock();
     if (!t0) t0 = now;
     const k = Math.min(1, (now - t0) / dur);
-    go(Math.round(k * (n - 1)));
+    const xs = scrubber._xs;
+    go(xs ? floorIdx(xs, k * xs[xs.length - 1]) : Math.round(k * (n - 1)));
     if (k > 0.55) { const t = bar.querySelector("#assemble-text"); if (t) t.textContent = "Writing the story…"; }
     if (k < 1) raf = requestAnimationFrame(step);
     else setTimeout(unlock, 450);
@@ -636,6 +664,7 @@ function renderReplay(main, scenario) {
 
   // Derive "mood markers" from frames: pick ~5 interesting moments
   const markers = buildMarkers(scenario);
+  const xs = frameXs(frames), xLast = xs[totalFrames - 1] || 1;
 
   main.innerHTML = `
     <div class="replay-topbar">
@@ -676,10 +705,10 @@ function renderReplay(main, scenario) {
       </div>
 
       <div class="replay-slider-wrap" id="slider-wrap">
-        <input type="range" min="0" max="${totalFrames - 1}" value="0" class="replay-slider" id="scrubber" step="1" aria-label="Move through the crash one trading day at a time" />
+        <input type="range" min="0" max="${xLast}" value="0" class="replay-slider" id="scrubber" step="1" aria-label="Move through the crash one trading day at a time" />
         <div class="replay-markers" id="markers-wrap">
           ${markers.map(mk => `
-            <button class="replay-marker" data-idx="${mk.idx}" title="${escapeAttr(mk.label)}" style="left: ${(mk.idx / (totalFrames - 1)) * 100}%;">
+            <button class="replay-marker" data-idx="${mk.idx}" title="${escapeAttr(mk.label)}" style="left: ${(xs[mk.idx] / xLast) * 100}%;">
               ${escapeHtml(mk.short)}
             </button>
           `).join("")}
@@ -759,6 +788,7 @@ function renderReplay(main, scenario) {
   const sliderWrap = main.querySelector("#slider-wrap");
   const gapEl = main.querySelector("#replay-gap");
   const soldIdx = Math.max(0, frames.findIndex(fr => fr.day >= 3));
+  scrubber._xs = xs;
   const dates = Array.isArray(scenario.dates) && scenario.dates.length === frames.length ? scenario.dates : null;
   const whenAt = (i) => dates ? `${fmtDate(dates[i])}, day ${frames[i].day}` : `Day ${frames[i].day}`;
   const signedPct = (x) => `${x > 0 ? "+" : x < 0 ? "−" : ""}${Math.abs(x * 100).toFixed(1)}%`;
@@ -801,7 +831,7 @@ function renderReplay(main, scenario) {
     const when = whenAt(currentIdx);
     heldDaysLabel.textContent = when;
     sliderPos.textContent = when;
-    scrubber.style.setProperty("--pct", `${(currentIdx / Math.max(1, frames.length - 1)) * 100}%`);
+    scrubber.style.setProperty("--pct", `${(xs[currentIdx] / xLast) * 100}%`);
     if (gapEl) {
       const diff = f.held - f.panic;
       gapEl.className = "replay-gap " + (diff > 0 ? "up" : diff < 0 ? "down" : "");
@@ -837,7 +867,7 @@ function renderReplay(main, scenario) {
     const geo = {};
     chartRoot.innerHTML = dualLineChart({
       held: heldSeries, panic: panicSeries, width: cw, height: cw < 520 ? 230 : 320,
-      currentIndex: currentIdx, geometry: geo,
+      currentIndex: currentIdx, geometry: geo, xs,
     });
     // Line the timeline up with the chart's plot area so the handle sits
     // under the playhead.
@@ -918,7 +948,7 @@ function renderReplay(main, scenario) {
   } catch {}
 
   scrubber.addEventListener("input", (e) => {
-    const idx = parseInt(e.target.value, 10);
+    const idx = nearestIdx(xs, Number(e.target.value));
     renderAt(idx);
     stopPlayback();
   });
@@ -930,9 +960,9 @@ function renderReplay(main, scenario) {
     const seek = (clientX) => {
       const r = chartHit.getBoundingClientRect();
       const k = Math.min(1, Math.max(0, (clientX - r.left) / Math.max(1, r.width)));
-      const idx = Math.round(k * (frames.length - 1));
-      if (String(idx) !== scrubber.value) {
-        scrubber.value = String(idx);
+      const idx = nearestIdx(xs, k * xLast);
+      if (scrubVal(scrubber, idx) !== scrubber.value) {
+        scrubber.value = scrubVal(scrubber, idx);
         scrubber.dispatchEvent(new Event("input", { bubbles: true }));
       }
     };
@@ -956,12 +986,12 @@ function renderReplay(main, scenario) {
 
   resetBtn.addEventListener("click", () => {
     stopPlayback();
-    scrubber.value = "0";
+    scrubber.value = scrubVal(scrubber, 0);
     renderAt(0);
   });
   jumpEndBtn.addEventListener("click", () => {
     stopPlayback();
-    scrubber.value = String(frames.length - 1);
+    scrubber.value = scrubVal(scrubber, frames.length - 1);
     renderAt(frames.length - 1);
     fireEndMessage();
   });
@@ -972,8 +1002,8 @@ function renderReplay(main, scenario) {
     function step(now) {
       const elapsed = now - startTime;
       const pct = Math.min(1, elapsed / durationMs);
-      const idx = Math.floor(pct * (frames.length - 1));
-      scrubber.value = String(idx);
+      const idx = floorIdx(xs, pct * xLast);
+      scrubber.value = scrubVal(scrubber, idx);
       renderAt(idx);
       if (pct < 1) playHandle = requestAnimationFrame(step);
       else { stopPlayback(); fireEndMessage(); }
@@ -990,7 +1020,7 @@ function renderReplay(main, scenario) {
     for (let i = 0; i < frames.length; i++) {
       if (frames[i].held < minVal) { minVal = frames[i].held; minIdx = i; }
     }
-    scrubber.value = String(minIdx);
+    scrubber.value = scrubVal(scrubber, minIdx);
     renderAt(minIdx);
   });
 
@@ -999,7 +1029,7 @@ function renderReplay(main, scenario) {
     mk.addEventListener("click", () => {
       const idx = parseInt(mk.dataset.idx, 10);
       stopPlayback();
-      scrubber.value = String(idx);
+      scrubber.value = scrubVal(scrubber, idx);
       renderAt(idx);
     });
   });

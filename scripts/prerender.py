@@ -49,7 +49,7 @@ STATE = ROOT / "scripts" / "prerender-state.json"
 IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
 TODAY = dt.datetime.now(IST).date().isoformat()
 
-OG_IMAGE = SITE + "/images/og-image.png"
+OG_IMAGE = SITE + "/images/og-image-v2.png"
 OG_ALT = ("StockSaathi: Invest virtually. Learn for real. A free stock market simulator for Indian teens, beside "
           "a chart of the COVID-19 crash replay: ₹1,00,000 held finished at ₹1,02,764, sold on day 3 at ₹97,295.")
 ROBOTS_INDEX = "index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1"
@@ -67,8 +67,37 @@ e = html.escape
 
 # ─── data ───────────────────────────────────────────────────────────────────
 
+# Short connecting words lower-cased when an ALL-CAPS exchange name is title-cased.
+SMALL_WORDS = {"AND": "and", "OF": "of", "THE": "the", "FOR": "for", "IN": "in"}
+
+
+def clean_name(name):
+    """Exchange names as people write them.
+
+    BSE suffixes some names with "-$" (e.g. "Super Sales India Ltd-$") and
+    some rows are ALL CAPS ("GMR AIRPORTS"). Words of up to three letters
+    (GMR, ITC, NBCC-style initials) stay upper-case; longer ones are
+    title-cased.
+    """
+    n = re.sub(r"\s*-\s*\$\s*$", "", name.strip())
+    if n.upper() == n and re.search(r"[A-Z]{4,}", n):
+        words = []
+        for i, w in enumerate(n.split()):
+            core = re.sub(r"[^A-Za-z]", "", w)
+            if i and w in SMALL_WORDS:
+                words.append(SMALL_WORDS[w])
+            elif len(core) <= 3 or "&" in w or "." in w:
+                words.append(w)
+            else:
+                words.append(w[:1] + w[1:].lower())
+        n = " ".join(words)
+    return n
+
+
 def load_universe():
     rows = json.loads((ROOT / "js" / "data" / "universeFull.json").read_text(encoding="utf-8"))
+    for r in rows:
+        r["name"] = clean_name(r.get("name") or r["symbol"])
     equities = [r for r in rows if r.get("kind") == "EQUITY"]
     etfs = [r for r in rows if r.get("kind") == "ETF"]
     nifty500 = sorted((r for r in equities if (r.get("idx") or 0) & 4), key=lambda r: r["name"].lower())
@@ -92,35 +121,118 @@ def check_claim_floors(equities, etfs):
     active = sum(1 for m in mfs if not ((isinstance(m.get("nav"), (int, float)) and m["nav"] < 0.01)
                                         or (m.get("nav_date") and m["nav_date"][:10] < cutoff)))
     have = {"stocks": len(equities), "etfs": len(etfs), "active mutual funds": active}
+    HAVE.update(have)
     for k, floor in CLAIM_FLOORS.items():
         if have[k] < floor:
             raise SystemExit("copy claims %s+ %s but the data has %d; update the copy" % (format(floor, ","), k, have[k]))
 
 
+HAVE = {}
+# "4,000+ NSE and BSE stocks", "more than 8,000 active mutual fund schemes", "300+ ETFs"
+COUNT_CLAIM = re.compile(r"(\d{1,3}(?:,\d{3})+|\d+)\+?\s+(?:NSE (?:and|&amp;|&) BSE |active |listed )?"
+                         r"(stocks|ETFs|mutual fund)", re.I)
+COUNT_KIND = {"stocks": "stocks", "etfs": "etfs", "mutual fund": "active mutual funds"}
+
+
+def check_copy_counts(texts):
+    """Every count claimed in public copy must be <= the real count.
+
+    CLAIM_FLOORS only guards the data; the copy is typed by hand, so a
+    "10,000+ mutual funds" would otherwise build cleanly (it did once).
+    """
+    for name, text in texts:
+        for m in COUNT_CLAIM.finditer(text):
+            claimed = int(m.group(1).replace(",", ""))
+            kind = COUNT_KIND[m.group(2).lower()]
+            if claimed >= 100 and claimed > HAVE[kind]:
+                raise SystemExit("%s claims %s %s but the data has %d" % (name, m.group(1), kind, HAVE[kind]))
+
+
+NIFTY_CSV = ROOT / "scripts" / "data" / "nifty50_closes.csv"
+
+
+def nifty_closes():
+    out = {}
+    for line in NIFTY_CSV.read_text(encoding="utf-8").splitlines():
+        if line and not line.startswith(("#", "date")):
+            d, c = line.split(",")
+            out[d] = float(c)
+    return out
+
+
+NIFTY = nifty_closes()
+# Rupee amounts a narration may mention that are not portfolio values.
+NARRATION_RUPEES_OK = {100000, 1000, 500}
+
+
 def check_crash(cid, body, n):
-    """Refuse to publish a replay whose numbers contradict its own frames.
+    """Refuse to publish a replay that contradicts real prices or itself.
 
     The first published versions sold the panic portfolio on day 3 for far
     less than it was worth that day (COVID: ₹66,800 against a ₹95,900
-    portfolio), which flipped every headline result. See the model notes at
-    the top of js/data/crashes.js.
+    portfolio), which flipped every headline result. Checks, all of which
+    raise SystemExit (not assert, which python -O strips):
+    - every frame's Nifty level equals the real close on its date
+      (scripts/data/nifty50_closes.csv), one date per frame, days increasing;
+    - held moves with the index, panic equals held up to day 3 and the day-3
+      value after it;
+    - heldEnd, panicEnd, finalDelta, indexDrop and recoveryDays match;
+    - every rupee amount in a narration is a value the replay actually shows.
     """
-    frames = [tuple(float(x) for x in f) for f in
+    def fail(msg):
+        raise SystemExit("crash replay %s: %s" % (cid, msg))
+
+    frames = [(int(d), float(i), float(h), float(pn)) for d, i, h, pn in
               re.findall(r"frame\((\d+),\s*([\d.]+),\s*(\d+),\s*(\d+)", body)]
-    by_day = {int(d): (idx, held, panic) for d, idx, held, panic in frames}
-    assert 3 in by_day, "%s: no day-3 frame" % cid
-    sold = by_day[3][1]
+    dm = re.search(r"\n\s*dates:\s*\[([^\]]*)\]", body)
+    dates = re.findall(r'"(\d{4}-\d{2}-\d{2})"', dm.group(1)) if dm else []
+    if len(dates) != len(frames):
+        fail("%d frames but %d dates" % (len(frames), len(dates)))
+    days = [f[0] for f in frames]
+    if days != sorted(set(days)) or days[0] != 0:
+        fail("frame days must start at 0 and strictly increase")
+    if dates != sorted(set(dates)):
+        fail("dates must strictly increase")
+    trading = sorted(d for d in NIFTY if dates[0] <= d <= dates[-1])
+    for (day, idx, _, _), d in zip(frames, dates):
+        if d not in NIFTY:
+            fail("%s is not a trading day in nifty50_closes.csv" % d)
+        if abs(NIFTY[d] - idx) > 0.01:
+            fail("day %d (%s): Nifty %s, real close %s" % (day, d, idx, NIFTY[d]))
+        if trading.index(d) != day:
+            fail("%s is trading day %d of the window, frame says %d" % (d, trading.index(d), day))
+    by_day = {d: (i, h, pn) for d, i, h, pn in frames}
+    if 3 not in by_day:
+        fail("no day-3 frame")
+    base, sold = by_day[0][0], by_day[3][1]
     for day, (idx, held, panic) in by_day.items():
+        if abs(held - 100000 * idx / base) > 1:
+            fail("day %d: held %d not proportional to the index" % (day, held))
         want = held if day <= 3 else sold
-        assert abs(panic - want) <= 1, "%s day %d: panic %d, expected %d" % (cid, day, panic, want)
-        assert abs(held - 100000 * idx / by_day[0][0]) <= 1, "%s day %d: held not proportional to index" % (cid, day)
+        if abs(panic - want) > 1:
+            fail("day %d: panic %d, expected %d" % (day, panic, want))
     last = by_day[max(by_day)]
     held_end, panic_end = n("heldEnd"), n("panicEnd")
-    assert abs(held_end - last[1]) <= 1 and abs(panic_end - sold) <= 1, "%s: heldEnd/panicEnd != frames" % cid
+    if abs(held_end - last[1]) > 1 or abs(panic_end - sold) > 1:
+        fail("heldEnd/panicEnd != frames")
     delta = (held_end / panic_end - 1) * 100 if held_end >= panic_end else -(panic_end / held_end - 1) * 100
-    assert abs(delta - n("finalDelta")) < 0.06, "%s: finalDelta %s, frames say %.1f" % (cid, n("finalDelta"), delta)
-    drop = (min(v[0] for v in by_day.values()) / by_day[0][0] - 1) * 100
-    assert abs(drop - n("indexDrop")) < 0.06, "%s: indexDrop %s, frames say %.1f" % (cid, n("indexDrop"), drop)
+    if abs(delta - n("finalDelta")) >= 0.06:
+        fail("finalDelta %s, frames say %.1f" % (n("finalDelta"), delta))
+    window = [NIFTY[d] for d in trading]
+    low_i = min(range(len(window)), key=window.__getitem__)
+    drop = (window[low_i] / base - 1) * 100
+    if abs(drop - n("indexDrop")) >= 0.06:
+        fail("indexDrop %s, real closes say %.1f" % (n("indexDrop"), drop))
+    after = sorted(d for d in NIFTY if d > trading[low_i])
+    back = next((k + 1 for k, d in enumerate(after) if NIFTY[d] >= base), None)
+    if back is None or back != n("recoveryDays"):
+        fail("recoveryDays %s, real closes say %s" % (n("recoveryDays"), back))
+    shown = {int(round(v)) for f in frames for v in (f[2], f[3])} | {int(held_end), int(panic_end)}
+    narr = re.search(r"narrations:\s*\{(.*?)\n\s*\},", body, re.S).group(1)
+    for amt in re.findall(r"₹([\d,]+)", narr):
+        v = int(amt.replace(",", ""))
+        if v not in NARRATION_RUPEES_OK and not any(abs(v - x) <= 1 for x in shown):
+            fail("narration mentions ₹%s, which no frame shows" % amt)
 
 
 def load_crashes():
@@ -176,6 +288,11 @@ def exch_label(r):
     return {"BSE": "BSE", "NSE_SME": "NSE SME"}.get(r.get("exchange"), "NSE")
 
 
+def sector_rank(r):
+    idx = r.get("idx") or 0
+    return (not idx & 1, not idx & 2, not idx & 4, not idx & 8, r["name"].lower())
+
+
 def stock_path(sym):
     return "/stocks/" + sym
 
@@ -186,14 +303,25 @@ def short_name(name):
 
 
 def stock_title(name, sym, limit=60):
-    """Shortest honest title that fits in a search result (~60 characters)."""
+    """Longest honest title that fits in a search result (60 characters).
+
+    Keeps "Paper Trading" and the brand; drops trailing words of a long
+    company name instead ("Deepak Fertilizers (DEEPAKFERT) Paper Trading").
+    """
     n = short_name(name)
-    for t in ("%s (%s) Paper Trading Simulator | StockSaathi", "%s (%s) Paper Trading | StockSaathi",
-              "%s (%s) Paper Trading", "%s (%s) | StockSaathi"):
+    for t in ("%s (%s) Paper Trading Simulator | StockSaathi", "%s (%s) Paper Trading | StockSaathi"):
         title = t % (n, sym)
         if len(title) <= limit:
             return title
-    return "%s (%s)" % (n, sym)
+    words = n.split()
+    while len(words) > 1:
+        words.pop()
+        while words and words[-1].lower() in ("and", "of", "the", "&", "for", "in"):
+            words.pop()
+        title = "%s (%s) Paper Trading | StockSaathi" % (" ".join(words), sym)
+        if len(title) <= limit:
+            return title
+    return ("%s (%s) Paper Trading" % (n, sym))[:limit]
 
 
 def load_dips():
@@ -203,28 +331,102 @@ def load_dips():
     def obj(name):
         m = re.search(r"export const %s = (\{.*?\});" % name, src, re.S)
         return json.loads(m.group(1))
-    return obj("DIPS"), obj("DIP_SINCE")
+    # Pages quote "on <date> X closed at ..." from this file, so it must keep
+    # moving (.github/workflows/dip-stats.yml, weekly).
+    built = re.search(r"GENERATED by scripts/build_dip_stats.py on (\d{4}-\d{2}-\d{2})", src)
+    age = (dt.date.today() - dt.date.fromisoformat(built.group(1))).days if built else 999
+    if age > 45:
+        raise SystemExit("js/data/dipStats.js is %d days old; run scripts/build_dip_stats.py" % age)
+    if age > 10:
+        print("::warning::js/data/dipStats.js is %d days old (weekly dip-stats workflow failing?)" % age)
+    return obj("DIPS"), obj("DIP_SINCE"), obj("DIP_NOW")
 
 
-DIPS, DIP_SINCE = load_dips()
+DIPS, DIP_SINCE, DIP_NOW = load_dips()
+MIN_RECOVERED = 3      # same as scripts/build_dip_stats.py
+
+
+def indexable_dips(sym):
+    """Enough recovered 10% falls for a median: the page gets indexed."""
+    row = DIPS.get(sym, {}).get("10")
+    return bool(row) and row[1] >= MIN_RECOVERED
+
+
+def inr(v):
+    """1850.8 -> '₹1,850.80' with Indian digit grouping."""
+    whole, frac = ("%.2f" % v).split(".")
+    return rupees(int(whole)) + "." + frac
+
+
+def human_date(iso):
+    d = dt.date.fromisoformat(iso)
+    return "%d %s %d" % (d.day, d.strftime("%b"), d.year)
 
 
 def dip_html(sym, name):
-    """One real, stock-specific paragraph where the history exists."""
-    row = DIPS.get(sym, {}).get("10")
-    if not row or row[1] < 3:
+    """This stock's real record of falls and recoveries, unrecovered ones included.
+
+    The first version printed only the median of the falls that recovered.
+    JUSTDIAL read "median recovery 12 trading days" while still 65% below its
+    2014 high eight years later. Always say how many falls never recovered,
+    and where the stock stands now.
+    """
+    row, now = DIPS.get(sym, {}).get("10"), DIP_NOW.get(sym)
+    if not now:
         return ""
-    st = dict(zip(("recoveryDays", "sampleSize", "minRecoveryDays", "maxRecoveryDays", "open"), row))
     since = DIP_SINCE.get(sym, "")[:4]
-    still = " One fall of 10% or more has not recovered yet." if st.get("open") else ""
-    return f"""
-  <h2>How {e(sym)} has recovered from past dips</h2>
+    peak, peak_date, last, last_date, open_start = now
+    below = (1 - last / peak) * 100 if peak else 0
+    paras = []
+    if not row:
+        paras.append("Since %s, %s has never closed 10%% or more below a previous high." % (since, e(name)))
+    else:
+        med, n, fast, slow, open_days = row
+        falls = n + (1 if open_days else 0)
+        s1 = ("Since %s, %s has fallen 10%% or more below a previous high %s." %
+              (since, e(name), {1: "once", 2: "twice"}.get(falls, "%d times" % falls)))
+        if n == 0:
+            s2 = " It has not climbed back to that high yet."
+        elif n == falls:
+            s2 = (" It climbed back every time: the median recovery took %d trading days, the fastest %d "
+                  "and the slowest %d." % (med, fast, slow)) if n > 1 else \
+                 " It climbed back, after %s trading days." % format(med, ",")
+        elif n == 1:
+            s2 = " It climbed back once, after %s trading days." % format(med, ",")
+        else:
+            s2 = (" It climbed back %d of those times: the median recovery took %d trading days, the fastest %d "
+                  "and the slowest %d." % (n, med, fast, slow))
+        paras.append(s1 + s2)
+        row20 = DIPS.get(sym, {}).get("20")
+        if row20:
+            f20 = row20[1] + (1 if row20[4] else 0)
+            paras.append("Falls of 20%% or more: %s, %s." % (
+                "one" if f20 == 1 else "%d" % f20,
+                "not recovered yet" if row20[1] == 0 else
+                ("recovered" if f20 == 1 else "all recovered") if row20[1] == f20 else
+                "%d recovered" % row20[1]))
+        if open_days:
+            paras.append(
+                "The latest fall began on %s and has not recovered after %s trading days: on %s %s closed at %s, "
+                "%.1f%% below its highest close since %s (%s on %s)."
+                % (human_date(open_start), format(open_days, ","), human_date(last_date), e(sym), inr(last), below, since,
+                   inr(peak), human_date(peak_date)))
+    if not row or not row[4]:
+        if below < 0.5:
+            paras.append("On %s it closed at %s, at or near its highest close since %s." %
+                         (human_date(last_date), inr(last), since))
+        else:
+            paras.append("On %s it closed at %s, %.1f%% below its highest close since %s (%s on %s)." %
+                         (human_date(last_date), inr(last), below, since, inr(peak), human_date(peak_date)))
+    return """
+  <h2>How %s has recovered from past falls</h2>
   <p>
-    Since {since}, {e(name)} has fallen 10% or more below a previous high and then climbed back to that high
-    {st['sampleSize']} times. The median recovery took {st['recoveryDays']} trading days; the fastest took
-    {st['minRecoveryDays']} and the slowest {st['maxRecoveryDays']}.{still} StockSaathi shows figures like these
-    before a likely panic-sell. Past recoveries don't guarantee future ones.
-  </p>"""
+    %s
+  </p>
+  <p>
+    StockSaathi shows this record, unrecovered falls included, before a likely panic-sell. Daily closing prices
+    from Yahoo Finance since %s. Past recoveries don't guarantee future ones.
+  </p>""" % (e(sym), "\n    ".join(paras), since)
 
 
 def stock_description(name, sym, limit=158):
@@ -284,7 +486,7 @@ def app_node():
             "4,000+ NSE and BSE stocks, 300+ ETFs and 8,000+ mutual funds at real market prices",
             "Market, limit and after-market orders",
             "AI coach that checks every trade for nine common investing mistakes",
-            "Pause before a likely panic-sell showing how long past dips took to recover",
+            "Pause before a likely panic-sell showing how often that stock's past falls recovered, and which never did",
             "Replays of the 2020 COVID-19 crash, the 2008 financial crisis and 2016 demonetisation, built from real Nifty 50 closes",
             "Report card that grades decision quality from A+ to D",
             "Optional Hinglish mode",
@@ -383,7 +585,10 @@ def crumbs_html(crumbs):
 
 def stock_main(r, siblings):
     name, sym = r["name"], r["symbol"]
-    listed = "the NSE and BSE" if r.get("bseScripCd") else "the " + exch_label(r)
+    # BSE-only rows carry a bseScripCd too, so only an NSE listing plus a scrip
+    # code means both exchanges.
+    listed = ("the NSE and BSE" if r.get("exchange") == "NSE" and r.get("bseScripCd")
+              else "the " + exch_label(r))
     bse = (" (BSE scrip code %s)" % e(r["bseScripCd"])) if r.get("bseScripCd") else ""
     rows = [("Company", e(name)), ("%s symbol" % ("BSE" if r.get("exchange") == "BSE" else "NSE"), e(sym))]
     if r.get("bseScripCd"):
@@ -529,8 +734,8 @@ def crash_main(c, others):
   <p>
     Crashes feel endless from the inside, and the urge to sell is strongest near the bottom. Replaying one lets
     you feel that pressure with virtual money and see how the decision played out. StockSaathi's coach uses the
-    same idea in live trading: before a likely panic-sell it shows how long similar past dips took to recover,
-    then lets you decide.
+    same idea in live trading: before a likely panic-sell it shows how often that stock's past falls recovered,
+    how long that took and which never did, then lets you decide.
   </p>
   <h2>More crash replays</h2>
   <ul class="link-list">{other}</ul>
@@ -606,7 +811,7 @@ def build_pages():
     equities, etfs, nifty500 = load_universe()
     crashes = load_crashes()
     in500 = {r["symbol"] for r in nifty500}
-    paged = sorted(nifty500 + [r for r in equities if r["symbol"] in DIPS and r["symbol"] not in in500],
+    paged = sorted(nifty500 + [r for r in equities if indexable_dips(r["symbol"]) and r["symbol"] not in in500],
                    key=lambda r: r["name"].lower())
     pages = []
 
@@ -626,7 +831,7 @@ def build_pages():
             "title": "StockSaathi: Free Paper Trading & Stock Market Simulator for Teens",
             "description": ("Free paper trading app for Indian teens, 13–18. Practise with ₹1,00,000 of virtual "
                             "money on real NSE and BSE stocks, with an AI coach that spots mistakes."),
-            "images": [(SITE + "/images/og-image.png", OG_ALT),
+            "images": [(SITE + "/images/og-image-v2.png", OG_ALT),
                        (SITE + "/images/screenshot-wide.png", "The StockSaathi home page on a desktop screen"),
                        (SITE + "/images/screenshot-narrow.png", "The StockSaathi home page on a phone")],
             "graph": [website_node(), org_node(), founder_node(), app_node(),
@@ -649,7 +854,11 @@ def build_pages():
     for r in paged:
         group = by_sector[r.get("sector") or "Other"]
         i = group.index(r)
-        sib = [s for s in (group[i + 1:] + group[:i]) if s is not r][:8]
+        # Four of the sector's biggest names (by index membership), then
+        # alphabetical neighbours so every page still gets links from peers.
+        big = sorted(group, key=sector_rank)
+        sib = [s for s in big if s is not r][:4]
+        sib += [s for s in (group[i + 1:] + group[:i]) if s is not r and s not in sib][:8 - len(sib)]
         if len(sib) < 4:                       # tiny sector: pad with alphabetical neighbours
             j = paged.index(r)
             sib += [s for s in paged[j + 1:j + 9] if s not in sib][:8 - len(sib)]
@@ -663,7 +872,7 @@ def build_pages():
         # quality gate in scripts/build_dip_stats.py. Nifty 500 stocks without
         # it keep a page for people (noindex, follow) but stay out of search.
         add(path=stock_path(sym), file="stocks/%s.html" % sym, priority="0.5", changefreq="monthly",
-            index=sym in DIPS,
+            index=indexable_dips(sym),
             title=stock_title(name, sym),
             ogTitle="Practice trading %s (%s) | StockSaathi" % (name, sym),
             description=stock_description(name, sym),
@@ -829,6 +1038,9 @@ def main():
         prev = state.get(p["path"], {})
         lastmod = prev.get("lastmod") if prev.get("hash") == digest else TODAY
         new_state[p["path"]] = {"hash": digest, "lastmod": lastmod or TODAY}
+
+    check_copy_counts([(str(f.relative_to(ROOT)), t) for f, t in outputs.items()] +
+                      [(n, (ROOT / n).read_text(encoding="utf-8")) for n in ("llms.txt", "index.html")])
 
     outputs[ROOT / "sitemap.xml"] = sitemap(pages, new_state)
     outputs[ROOT / "robots.txt"] = robots()

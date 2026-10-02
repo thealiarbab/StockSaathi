@@ -4,6 +4,8 @@
 // per-user per-day in localStorage so reloads are instant.
 // =============================================================================
 
+import { aiLang } from "./aiLang.js";
+
 const CACHE_KEY = "ss.portfolioDigest.v1";
 
 export function cachedDigest(userId) {
@@ -55,7 +57,7 @@ export async function fetchDigest(userId, payload) {
     }
   } catch {}
 
-  const res = await fetch("/api/ai?op=portfolio-digest", {
+  const res = await fetch("/api/ai?op=portfolio-digest" + aiLang(), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),

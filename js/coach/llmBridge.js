@@ -5,6 +5,9 @@
 // deterministic template layer silently.
 // =============================================================================
 
+import { formatAnalog } from "./historicalAnalog.js";
+import { getState } from "../state.js";
+
 const LLM_API_URL = "https://api.anthropic.com/v1/messages";
 const LLM_MODEL = "claude-sonnet-5";  // remote model identifier string required by the upstream API
 const LLM_TIMEOUT_MS = 8000;
@@ -23,11 +26,16 @@ You will receive structured input with: detected biases (from a deterministic en
 
 Output format: plain prose, 2-3 sentences, ending with ONE Socratic question. Do NOT wrap in JSON.`;
 
+function _hinglishOn() {
+  try { return !!getState()?.settings?.hinglish; } catch { return false; }
+}
+
 export async function callExternalLlm(apiKey, { event, tick, biases, analog, payload }) {
   if (!apiKey || apiKey.length < 20) return null;
 
   const userMsg = [
     `Event: ${event.type}`,
+    _hinglishOn() ? `Language: the user has switched on Hinglish mode. Reply in natural, light Hinglish (Roman script).` : `Language: English.`,
     tick.symbol ? `Instrument: ${tick.name || tick.symbol}` : null,
     tick.qty != null ? `Quantity: ${tick.qty}` : null,
     tick.pricePaise ? `Price: ₹${(tick.pricePaise / 100).toFixed(2)}` : null,
@@ -35,7 +43,7 @@ export async function callExternalLlm(apiKey, { event, tick, biases, analog, pay
       ? `Detected biases (with severity):\n${biases.map(b => `- ${b.bias}: ${(b.severity * 100).toFixed(0)}%, evidence=${JSON.stringify(b.evidence)}`).join("\n")}`
       : `No biases detected.`,
     analog
-      ? `Historical analog available: ${analog.sampleSize} past dips ≥${analog.bucket}% on ${analog.source === "nifty" ? "the Nifty 50 index" : analog.instrument.name}, median recovery ${analog.recoveryDays} trading days.`
+      ? `Historical analog (state the falls that did NOT recover too, never the median alone): ${formatAnalog(analog)}`
       : null,
     `Your template-layer draft (for reference — you may rephrase but keep the substance):\n"${payload.reflection}"`,
     `Suggested question: "${payload.suggested_q || ""}"`,

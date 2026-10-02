@@ -9,6 +9,7 @@ import { formatRupees, formatPct, deltaClass } from "../money.js";
 import { runDetectors, ALL_DETECTORS } from "../coach/biasDetectors.js";
 import { getInstrument, SECTORS } from "../data/universe.js";
 import { getPriceAt } from "../data/prices.js";
+import { aiLang } from "../features/aiLang.js";
 
 let aiCard = null;           // { narrative, strengths, watchouts } | null
 let aiCardLoading = false;
@@ -330,7 +331,7 @@ async function maybeFetchAiCard(state) {
   }
 
   try {
-    const res = await fetch("/api/ai?op=report-card", {
+    const res = await fetch("/api/ai?op=report-card" + aiLang(), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

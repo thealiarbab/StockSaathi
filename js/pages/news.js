@@ -5,6 +5,7 @@
 import { getNews, fmtRelativeTime, labelSentiment } from "../data/news.js";
 import { track } from "../features/track.js";
 import { getState, subscribe } from "../state.js";
+import { aiLang } from "../features/aiLang.js";
 
 let filter = "all";    // all | holdings | watchlist
 let newsCache = [];
@@ -241,7 +242,7 @@ async function fetchAiTag({ main, n, hk, ctrl }) {
   // user is still looking at.
   const timer = setTimeout(() => { try { ctrl.abort(); } catch {} }, 12000);
   try {
-    const r = await fetch("/api/ai?op=news-tldr", {
+    const r = await fetch("/api/ai?op=news-tldr" + aiLang(), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ headline: n.headline, source: n.source, symbols: n.symbols || [] }),

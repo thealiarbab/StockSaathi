@@ -10,6 +10,7 @@ import { formatRupees, formatPct, deltaClass } from "../money.js";
 import { getState, addToWatchlist, removeFromWatchlist, subscribe } from "../state.js";
 import { toast } from "../components/toast.js";
 import { go } from "../navigation.js";
+import { aiLang } from "../features/aiLang.js";
 
 // Default tab = Stocks (showing the full universe sorted by index prominence
 // — Nifty 50/100 stocks naturally land on top). No Featured/All split.
@@ -1862,7 +1863,7 @@ async function fetchMarketMood() {
     .sort((a, b) => Math.abs(b.avgPct) - Math.abs(a.avgPct))
     .slice(0, 10);
   if (!sectors.length) return null;
-  const r = await fetch("/api/ai?op=market-mood", {
+  const r = await fetch("/api/ai?op=market-mood" + aiLang(), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ sectors, asOf: Date.now() }),

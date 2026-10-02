@@ -267,7 +267,9 @@ def main():
                 comp = page.locator("#seo-companion")
                 checks.append(("rendered %s keeps pre-rendered title" % path, page.title() == raw_title))
                 checks.append(("rendered %s keeps article below app" % path,
-                               comp.count() == 1 and frag in comp.inner_text()))
+                               # text_content: the companion uses content-visibility:auto,
+                               # so off-screen it is in the DOM but not in innerText.
+                               comp.count() == 1 and frag in (comp.text_content() or "")))
                 checks.append(("rendered %s has one h1" % path, page.locator("h1").count() == 1))
             page.locator("footer a[href='/learn-stock-market']").click()
             page.wait_for_timeout(1500)

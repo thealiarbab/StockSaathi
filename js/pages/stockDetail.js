@@ -18,12 +18,14 @@ import {
 } from "../state.js";
 import { coach } from "../coach/orchestrator.js";
 import { detectPanicSell } from "../coach/biasDetectors.js";
-import { buildAnalogContext } from "../coach/historicalAnalog.js";
+import { buildAnalogContext, formatAnalog } from "../coach/historicalAnalog.js";
+import { primeRealCloses } from "../data/realCloses.js";
 import { showInterventionModal } from "../components/interventionModal.js";
 import { mountQuantitySelector } from "../components/quantitySelector.js";
 import { toast } from "../components/toast.js";
 import { termHtml } from "../features/aiExplainer.js";
 import { go } from "../navigation.js";
+import { aiLang } from "../features/aiLang.js";
 
 // Timeframe → Yahoo range/interval. Granularity tuned to match Groww/
 // Zerodha density at every TF the user lives in (1D, 1W, 1M).
@@ -1104,7 +1106,7 @@ async function fetchStockWhy(main, symbol, inst, curPricePaise, changePct) {
       changePct: (changePct || 0) * 100,
       newsItems: (newsItems || []).slice(0, 8).map(n => ({ headline: n.headline, source: n.source })),
     };
-    const r = await fetch("/api/ai?op=stock-why", {
+    const r = await fetch("/api/ai?op=stock-why" + aiLang(), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -1568,12 +1570,14 @@ async function _reviewTrade(inst, symbol, curPrice, holding) {
 
   // SELL → check panic detector FIRST (before confirmation modal)
   if (ui.side === "SELL" && holding) {
+    // The detector needs REAL recent closes; without them it stays silent.
+    await primeRealCloses(symbol);
     const biasResult = detectPanicSell({
       trade: { symbol, side: "SELL", qty, pricePaise: curPrice },
       holding,
     });
     if (biasResult && biasResult.severity >= 0.35) {
-      const analog = buildAnalogContext(symbol);
+      const analog = buildAnalogContext(symbol, curPrice);
       showInterventionModal(
         { analog, biasResult, instrument: inst, trade: { qty, pricePaise: curPrice, holding } },
         {
@@ -1587,7 +1591,7 @@ async function _reviewTrade(inst, symbol, curPrice, holding) {
               model: "template",
               payload: {
                 reflection: `You paused a panic-sell on ${inst.name}. Doing nothing in the middle of a drop is the rarest skill in investing. The muscle you just used is the one that actually matters long-term.`,
-                historical_context: analog ? `Median recovery for dips of this size on ${analog.source === "nifty" ? "the Nifty 50 index" : inst.name}: ${analog.recoveryDays} trading days (n=${analog.sampleSize}).` : null,
+                historical_context: analog ? formatAnalog(analog) : null,
                 warning_level: "info",
                 suggested_q: "Set a rule right now — if this drops another 5%, what will you do? Write it down.",
                 citations: ["hold_decision", "panic_averted"],
@@ -1687,7 +1691,7 @@ async function fetchTradeNudge(modalRoot, inst, symbol, side, qty, curPricePaise
   const totalTradeCountInSymbol = (state.transactions || []).filter(t => t.symbol === symbol).length;
 
   try {
-    const res = await fetch("/api/ai?op=trade-nudge", {
+    const res = await fetch("/api/ai?op=trade-nudge" + aiLang(), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

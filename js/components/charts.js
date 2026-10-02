@@ -173,7 +173,7 @@ export function lineChart(values, {
 // same duration. Axis labels, scrubber, legend fade in at 1.55s.
 // On scrubber drag the caller passes animate:false so the chart
 // re-renders instantly without replaying the intro animation.
-export function dualLineChart({ held, panic, height = 280, width = 800, currentIndex = null, geometry = null }) {
+export function dualLineChart({ held, panic, height = 280, width = 800, currentIndex = null, geometry = null, xs = null }) {
   // The crash replay's chart. Drawn at the container's real pixel width so
   // text never stretches. Days already replayed are solid, the rest faded;
   // the space between the two lines fills in as time passes, green where
@@ -189,7 +189,11 @@ export function dualLineChart({ held, panic, height = 280, width = 800, currentI
   const pl = compact ? 44 : 58, pr = 12, pt = 14, pb = 12;
   const plotW = width - pl - pr, plotH = height - pt - pb;
   if (geometry) { geometry.left = pl; geometry.right = pr; }
-  const x = (i) => pl + (n > 1 ? (i / (n - 1)) * plotW : 0);
+  // xs: optional x value per point (trading day), so unevenly spaced frames
+  // sit at their real place in time instead of one slot each.
+  const xv = Array.isArray(xs) && xs.length === n ? xs : null;
+  const xSpan = xv ? (xv[n - 1] - xv[0]) || 1 : 1;
+  const x = (i) => pl + (n > 1 ? (xv ? (xv[i] - xv[0]) / xSpan : i / (n - 1)) * plotW : 0);
   const y = (v) => pt + plotH - ((v - min) / (max - min)) * plotH;
   const cur = currentIndex == null ? n - 1 : Math.max(0, Math.min(n - 1, currentIndex));
   const line = (s, a, b) => {

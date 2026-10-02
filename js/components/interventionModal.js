@@ -20,8 +20,10 @@ export function showInterventionModal({ analog, biasResult, instrument, trade },
   if (!modalRoot) return;
 
   const sev = biasResult?.severity ?? 0;
-  const dropPct = analog?.drawdownPct ?? Math.abs(biasResult?.evidence?.drop_3d_pct ?? 0);
-  const recoveryDays = analog?.recoveryDays;
+  // The recent move (real closes, from the detector), not the fall from the
+  // all-time high; the analog block below states that one separately.
+  const ev = biasResult?.evidence || {};
+  const dropPct = Math.max(Math.abs(ev.drop_3d_pct ?? 0), Math.abs(ev.drop_intraday_pct ?? 0));
   const instName = escapeHtml(instrument?.name || "this stock");
   const instSym = escapeHtml(instrument?.symbol || "");
 
@@ -41,17 +43,7 @@ export function showInterventionModal({ analog, biasResult, instrument, trade },
             a <strong>${Number(dropPct).toFixed(1)}%</strong> drop in recent sessions, within
             <strong>${daysSince(trade?.holding?.firstBoughtAt)}</strong> of buying it.
           </p>
-          ${recoveryDays ? `
-            <div class="intervention-data">
-              <div class="dim intervention-caption">Historical analog</div>
-              <div class="big-num tabular">${recoveryDays}</div>
-              <div class="sublabel">
-                Median trading days to get back to the previous high, across <strong>${escapeHtml(String(analog.sampleSize))} dips of ${escapeHtml(String(analog.bucket))}% or more</strong>
-                on ${analog.source === "nifty" ? "the Nifty 50 index" : instName}${analog.sinceYear ? ` since ${escapeHtml(String(analog.sinceYear))}` : ""}.
-                Slowest: ${escapeHtml(String(analog.maxRecoveryDays))} days. Past recoveries don't guarantee this one.
-              </div>
-            </div>
-          ` : ""}
+          ${analog ? analogBlock(analog, instName) : ""}
           <p class="dim intervention-fineprint">
             This is not advice. This is pattern-matched history.
             If your thesis for owning ${instSym || instName} hasn't changed, the drop itself isn't the signal to sell.
@@ -152,4 +144,37 @@ function escapeHtml(s) {
   const d = document.createElement("div");
   d.textContent = String(s ?? "");
   return d.innerHTML;
+}
+
+function fmtDay(iso) {
+  if (!iso) return "";
+  const d = new Date(iso + "T00:00:00Z");
+  return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+}
+
+// Recovered falls AND the ones that never recovered, never the median alone.
+function analogBlock(a, instName) {
+  const n = (v) => escapeHtml(String(v));
+  const who = a.source === "nifty" ? "the Nifty 50 index" : instName;
+  const where = a.source === "symbol" && a.peak
+    ? `<p>${instName} is <strong>${n(a.drawdownPct)}% below its highest close</strong>
+         (₹${n(Number(a.peak).toLocaleString("en-IN"))} on ${n(fmtDay(a.peakDate))}).</p>`
+    : `<p>We don't have reliable long-term prices for ${instName}. For reference, here is ${who}.</p>`;
+  const back = a.sampleSize
+    ? `It climbed back ${n(a.sampleSize)} of those times: median <strong>${n(a.recoveryDays)} trading days</strong>, slowest ${n(a.maxRecoveryDays)}.`
+    : `It has not climbed back from any of them yet.`;
+  const open = a.openDays
+    ? ` The current fall has lasted ${n(a.openDays)} trading days so far${a.asOf ? ` (to ${n(fmtDay(a.asOf))})` : ""}.`
+    : "";
+  return `
+            ${where}
+            <div class="intervention-data">
+              <div class="dim intervention-caption">Past falls of ${n(a.bucket)}% or more that recovered</div>
+              <div class="big-num tabular">${n(a.sampleSize)} of ${n(a.falls)}</div>
+              <div class="sublabel">
+                Since ${n(a.sinceYear || "listing")}, ${who} has fallen ${n(a.bucket)}% or more below a previous high
+                ${n(a.falls)} time${a.falls === 1 ? "" : "s"}. ${back}${open}
+                Past recoveries don't guarantee this one.
+              </div>
+            </div>`;
 }

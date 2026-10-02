@@ -14,6 +14,7 @@ import { getInstrument } from "../data/universe.js";
 import { getPriceAt } from "../data/prices.js";
 import { getState } from "../state.js";
 import { callExternalLlm } from "./llmBridge.js";
+import { primeRealCloses } from "../data/realCloses.js";
 
 /**
  * @param {Object} event — { type, ...fields }
@@ -21,6 +22,9 @@ import { callExternalLlm } from "./llmBridge.js";
  */
 export async function coach(event) {
   const s = getState();
+
+  // Price-move detectors only read real closes; load them first.
+  if (event.symbol && !String(event.type || "").startsWith("CRASH_")) await primeRealCloses(event.symbol);
 
   // Build a unified context
   const ctx = buildContext(event, s);
@@ -45,7 +49,7 @@ export async function coach(event) {
   // overwrote the merged instrument with a fresh getInstrument()
   // lookup, throwing away the live-fundamentals merge.
   const instrument = event.instrument || (event.symbol ? getInstrument(event.symbol) : null);
-  const analog = event.symbol ? buildAnalogContext(event.symbol) : null;
+  const analog = event.symbol ? buildAnalogContext(event.symbol, event.pricePaise || event.trade?.pricePaise) : null;
 
   const tick = makeTick({
     trade: ctx.trade,
@@ -74,9 +78,9 @@ export async function coach(event) {
   // Attach citations if analog was used
   if (analog && !payload.citations.length) {
     payload.citations = [
-      `Nifty ${analog.bucket}% dip bucket`,
-      `n=${analog.sampleSize} analogs`,
-      `Median recovery: ${analog.recoveryDays}d`,
+      `${analog.source === "nifty" ? "Nifty 50" : analog.symbol} ${analog.bucket}% falls`,
+      `${analog.sampleSize} of ${analog.falls} recovered`,
+      analog.recoveryDays != null ? `Median recovery: ${analog.recoveryDays}d` : "None recovered yet",
     ];
   }
   if (biases.length) {

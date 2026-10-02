@@ -1267,6 +1267,11 @@
 /* Pre-rendered content pages (scripts/prerender.py). */
 /* Pre-rendered article kept below the app view on a cold load (staticPage.js). */
 .seo-companion { border-top: 1px solid var(--border); margin-top: var(--sp-8); }
+/* The companion and the long stock lists stay in the DOM for crawlers but are
+   not laid out until scrolled near: /stocks carries ~1,900 links and spent
+   seconds in style and layout on phones. */
+.seo-companion { content-visibility: auto; contain-intrinsic-size: auto 2400px; }
+.static-page .link-list.cols { content-visibility: auto; contain-intrinsic-size: auto 480px; }
 .static-page { max-width: 880px; padding-top: var(--sp-8); padding-bottom: var(--sp-16); }
 .static-page h1 { font-size: clamp(1.7rem, 4vw, 2.5rem); line-height: 1.15; margin: var(--sp-3) 0 var(--sp-4); color: var(--text-strong); }
 .static-page h2 { font-size: var(--text-xl); margin: var(--sp-10) 0 var(--sp-3); color: var(--text-strong); }
@@ -4637,12 +4642,15 @@ table.compare { min-width: 560px; }
   .replay-title-inline { order: -1; width: 100%; }
   .replay-back { order: -2; min-height: 32px; padding: 0; }
   .replay-title-inline .replay-title-h1 { font-size: var(--text-md); }
+  /* Two rows instead of a sideways scroll: "Low point" and "End" were cut
+     off on 320-412 px phones. Play buttons on top, jumps below. */
   .replay-controls-top {
-    flex-wrap: nowrap; overflow-x: auto; gap: var(--sp-2); padding-bottom: 2px;
-    scrollbar-width: none; -webkit-overflow-scrolling: touch; margin: 0 calc(-1 * var(--sp-4)); padding-inline: var(--sp-4);
+    display: grid; grid-template-columns: repeat(6, 1fr); gap: var(--sp-2); width: 100%;
   }
-  .replay-controls-top::-webkit-scrollbar { display: none; }
-  .replay-controls-top .btn-sm { flex: 0 0 auto; min-height: 40px; }
+  .replay-controls-top .btn-sm { min-width: 0; padding-inline: var(--sp-2); }
+  .replay-controls-top #play-btn, .replay-controls-top #play-slow-btn { grid-column: span 3; }
+  .replay-controls-top #reset-btn, .replay-controls-top #jump-bottom-btn,
+  .replay-controls-top #jump-end-btn, .replay-controls-top #skip-anim-btn { grid-column: span 2; }
   .assemble-bar { font-size: var(--text-xs); top: calc(var(--nav-h) + var(--sp-1)); }
 }
 .replay-stat .who .short { display: none; }
@@ -4650,3 +4658,7 @@ table.compare { min-width: 560px; }
   .replay-stat .who .long { display: none; }
   .replay-stat .who .short { display: inline; }
 }
+
+/* Touch-size controls on the replay page (44 px, Apple/Google guidance). */
+.replay-controls .btn-sm { min-height: 44px; }
+.replay-marker { min-height: 32px; }

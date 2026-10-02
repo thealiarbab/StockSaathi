@@ -12,8 +12,12 @@ Finance and measures, for each dip bucket X (5/7/10/15/20%):
 - recoveryDays = trading days from the dip start to the recovery close.
 - After a recovery the peak tracking restarts from the recovery close, so one
   long fall counts once per bucket, not once per day.
-- Dips that have not recovered yet are flagged (`open`), never folded into
-  the median.
+- The running peak is therefore always the highest close so far.
+- A dip that has not recovered yet is reported with its length so far
+  (`openDays`). It is never folded into the median, and every place that shows
+  the median must also say how many falls have NOT recovered: leaving them out
+  made long-broken stocks look quick to bounce back (JUSTDIAL showed "median
+  12 days" while 65% below a 2014 high, 2,986 sessions later).
 
 QUALITY GATE. Small and illiquid stocks often have bad Yahoo data (gaps,
 prices frozen for months, unadjusted splits). A stock only gets its own
@@ -24,10 +28,13 @@ statistics, and its own indexable page, if all of these hold:
     before, and the last 10 closes not all identical,
   - fewer than MAX_ZERO_VOL of the last year's sessions with zero volume,
   - no single-day move above MAX_JUMP (Indian circuit limits are 20%, so a
-    bigger jump is almost always an unadjusted split, bonus or demerger),
-  - at least MIN_RECOVERED recovered dips of 10% or more.
-Everything else falls back to the Nifty 50 figures in the app. The reason
-each stock failed is written to scripts/dip-quality.json.
+    bigger jump is almost always an unadjusted split, bonus or demerger).
+Stocks that pass get their own figures even if they rarely recovered: that is
+exactly what someone about to sell needs to see. Stocks that fail have no
+usable history, and the app says it is showing the Nifty 50 instead. A stock
+gets an indexable page only with at least MIN_RECOVERED recovered 10% dips
+(enough for a median). The reason each stock failed is written to
+scripts/dip-quality.json ("few_recoveries" = has figures, page not indexed).
 
 Downloads are cached in scripts/.dipcache/ (gitignored) so a failed run can
 resume. The whole run takes roughly 10-15 minutes.
@@ -97,7 +104,8 @@ def fetch(tk, refresh=False):
 
 
 def dips(closes, pct):
-    done, open_ = [], 0
+    """(recovery lengths, index where the still-open dip began or None)."""
+    done = []
     peak, start = None, None
     for i, c in enumerate(closes):
         if peak is None or (start is None and c > peak):
@@ -109,18 +117,29 @@ def dips(closes, pct):
         elif c >= peak:
             done.append(i - start)
             peak, start = c, None
-    if start is not None:
-        open_ = 1
-    return done, open_
+    return done, start
 
 
-def stats(closes):
-    out = {}
+def stats(rows):
+    """Per bucket [median, recovered, fastest, slowest, openDays] plus a NOW row.
+
+    median/fastest/slowest are null when no dip of that size ever recovered.
+    openDays = trading days since the still-open dip began (0 if none).
+    NOW = [highest close, its date, last close, last date, date the open 10% dip began or ""].
+    """
+    closes = [c for _, c, _ in rows]
+    out, open10 = {}, ""
     for pct in BUCKETS:
-        done, open_ = dips(closes, pct)
-        if done:
-            out[pct] = [int(round(statistics.median(done))), len(done), min(done), max(done), open_]
-    return out
+        done, start = dips(closes, pct)
+        open_days = len(closes) - 1 - start if start is not None else 0
+        if pct == 10 and start is not None:
+            open10 = rows[start][0]
+        if done or start is not None:
+            out[pct] = ([int(round(statistics.median(done))), len(done), min(done), max(done), open_days]
+                        if done else [None, 0, None, None, open_days])
+    hi = max(range(len(closes)), key=lambda i: closes[i])
+    now = [round(closes[hi], 2), rows[hi][0], round(closes[-1], 2), rows[-1][0], open10]
+    return out, now
 
 
 def quality(rows):
@@ -147,7 +166,7 @@ def main():
     refresh = "--refresh" in sys.argv
     universe = json.loads((ROOT / "js" / "data" / "universeFull.json").read_text(encoding="utf-8"))
     equities = [r for r in universe if r.get("kind") == "EQUITY"]
-    data, since, reasons = {}, {}, {}
+    data, since, now, reasons = {}, {}, {}, {}
 
     def work(r):
         return r, fetch(ticker(r), refresh)
@@ -158,17 +177,16 @@ def main():
             sym = r["symbol"]
             why = "no_data" if not rows else quality(rows)
             if not why:
-                st = stats([c for _, c, _ in rows])
-                if st.get(10, [0, 0])[1] < MIN_RECOVERED:
+                data[sym], now[sym] = stats(rows)
+                since[sym] = rows[0][0]
+                if data[sym].get(10, [0, 0])[1] < MIN_RECOVERED:
                     why = "few_recoveries"
-                else:
-                    data[sym], since[sym] = st, rows[0][0]
             reasons[sym] = why or "ok"
             if n % 250 == 0:
                 print("%5d/%d  %d qualified  %.0fs" % (n, len(equities), len(data), time.time() - t0), flush=True)
 
     nifty = fetch("^NSEI", refresh)
-    composite = stats([c for _, c, _ in nifty])
+    composite, now["NIFTY50"] = stats(nifty)
     since["NIFTY50"] = nifty[0][0]
 
     counts = {}
@@ -183,12 +201,18 @@ def main():
         "// Real dip-recovery statistics from Yahoo Finance daily closes since %s\n"
         "// (or since listing, see DIP_SINCE), for the %d stocks that pass the\n"
         "// script's data-quality gate. Per bucket (5/7/10/15/20%%):\n"
-        "// [median recovery days, recovered dips, fastest, slowest, still-open flag].\n\n"
+        "// [median recovery days, recovered dips, fastest, slowest, days the\n"
+        "// still-unrecovered dip has lasted (0 = none)]; median/fastest/slowest are\n"
+        "// null when no dip of that size has recovered.\n"
+        "// DIP_NOW: [highest close, its date, last close, last date, start of the\n"
+        "// open 10%% dip or \"\"].\n\n"
         "export const DIP_SINCE = %s;\n\n"
+        "export const DIP_NOW = %s;\n\n"
         "export const DIPS = %s;\n\n"
         "export const NIFTY_COMPOSITE = %s;\n"
         % (dt.date.today().isoformat(), SINCE, len(data),
            json.dumps(since, sort_keys=True, separators=(",", ":")),
+           json.dumps(now, sort_keys=True, separators=(",", ":")),
            json.dumps(data, sort_keys=True, separators=(",", ":")),
            json.dumps(composite, separators=(",", ":")))
     )

@@ -9,9 +9,10 @@
 // Higher severity = more confident the pattern is present.
 // =============================================================================
 
-import {
-  getCloses, getPriceAt, pctChange, getDrawdownFromHigh, get52wRange, getSeries,
-} from "../data/prices.js";
+import { getPriceAt, pctChange } from "../data/prices.js";
+// Price-move detectors read REAL closes only (see realCloses.js); the
+// prices.js series is a seeded walk and once produced invented "drops".
+import { realCloses, real52w } from "../data/realCloses.js";
 import { getInstrument } from "../data/universe.js";
 
 // MFs trade at end-of-day NAV with no intraday price movement and no
@@ -35,7 +36,7 @@ export function detectPanicSell({ trade, holding }) {
   if (!trade || trade.side !== "SELL") return null;
   if (_isMfSymbol(trade.symbol)) return null;   // MF redemption ≠ panic sell
   const sym = trade.symbol;
-  const closes = getCloses(sym, 10);
+  const closes = realCloses(sym, 10);
   if (closes.length < 4) return null;
 
   const todayClose = closes[closes.length - 1];
@@ -82,7 +83,7 @@ export function detectFOMO({ trade, holdingBefore }) {
   if (_isMfSymbol(trade.symbol)) return null;     // MF NAV doesn't FOMO-spike
 
   const sym = trade.symbol;
-  const closes = getCloses(sym, 8);
+  const closes = realCloses(sym, 8);
   if (closes.length < 8) return null;
   const weekAgo = closes[0];
   const today = closes[closes.length - 1];
@@ -201,9 +202,9 @@ export function detectDisposition({ transactions }) {
 export function detectAnchoring({ trade }) {
   if (!trade || trade.side !== "BUY") return null;
   if (_isMfSymbol(trade.symbol)) return null;   // 52W range from synthetic stub for MFs
-  const { hi, lo } = get52wRange(trade.symbol);
-  // Bail if no seeded series (Tier-2 imported stock with no price history) —
-  // get52wRange returns ±Infinity in that case, which makes distHi/distLo NaN.
+  const range = real52w(trade.symbol);
+  if (!range) return null;                      // no real history loaded
+  const { hi, lo } = range;
   if (!Number.isFinite(hi) || !Number.isFinite(lo) || hi <= 0 || lo <= 0) return null;
   const distHi = Math.abs(pctChange(hi, trade.pricePaise));
   const distLo = Math.abs(pctChange(lo, trade.pricePaise));
@@ -249,7 +250,7 @@ export function detectChurning({ transactions, trade }) {
 export function detectPumpChase({ trade }) {
   if (!trade || trade.side !== "BUY") return null;
   if (_isMfSymbol(trade.symbol)) return null;   // MF NAV doesn't pump intraday
-  const closes = getCloses(trade.symbol, 2);
+  const closes = realCloses(trade.symbol, 2);
   if (closes.length < 2) return null;
   const intraday = pctChange(closes[0], closes[1]);
   if (intraday < 0.05) return null;

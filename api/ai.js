@@ -137,7 +137,17 @@ async function cacheDelete(bucket, cacheKey) {
 // WITHOUT doing a /api/chat HTTP hop. Picks Gemini > OpenAI > Groq by
 // availability. Honours a `profile` hint so fast lanes prefer Flash.
 // -----------------------------------------------------------------------------
-async function callLlm({ messages, temperature = 0.4, max_tokens = 400, response_format, profile = "reasoning" }) {
+// Hinglish mode (Settings): the client adds &lang=hi to every /api/ai call that
+// writes prose for the user. Cached answers are keyed separately per language.
+const HINGLISH_RULE = "\n\nLANGUAGE: the user has switched on Hinglish mode. Write the user-facing text in natural, light Hinglish (Hindi-English mix in Roman script), the way an Indian teen texts a friend. Keep numbers, tickers and any JSON keys exactly as specified.";
+function hinglishOf(req) {
+  try { return new URL(req.url).searchParams.get("lang") === "hi"; } catch { return false; }
+}
+
+async function callLlm({ messages, temperature = 0.4, max_tokens = 400, response_format, profile = "reasoning", hinglish = false }) {
+  if (hinglish && messages?.[0]?.role === "system") {
+    messages = [{ ...messages[0], content: messages[0].content + HINGLISH_RULE }, ...messages.slice(1)];
+  }
   const env = globalThis.process?.env || {};
   const providers = [];
 
@@ -344,7 +354,7 @@ function explanationLooksGood(text) {
 async function opExplain(req, origin, url) {
   const term = (url.searchParams.get("term") || "").trim().slice(0, 60);
   if (!term) return j(400, { error: "missing_term" }, origin);
-  const key = normalizeKey(term);
+  const key = normalizeKey(term) + (hinglishOf(req) ? "_hi" : "");
   const hit = await cacheGet("explain", key);
   if (hit?.explanation) {
     if (explanationLooksGood(hit.explanation)) {
@@ -364,7 +374,7 @@ async function opExplain(req, origin, url) {
     // "Beta measures how much a". Flash-lite is genuinely non-thinking so
     // the whole max_tokens budget reaches the user. max_tokens bumped
     // 120 → 200 as belt-and-braces against future regressions.
-    const text = await callLlm({
+    const text = await callLlm({ hinglish: hinglishOf(req),
       messages: [
         { role: "system", content: SYSTEM_EXPLAIN },
         { role: "user", content: `Explain "${term}" in one sentence.` },
@@ -399,7 +409,7 @@ async function opNewsTldr(req, origin) {
   const symbols = Array.isArray(body.symbols) ? body.symbols.filter(s => typeof s === "string").slice(0, 6) : [];
   const source = typeof body.source === "string" ? body.source.slice(0, 40) : "";
 
-  const key = "h_" + await sha12(headline);
+  const key = "h_" + await sha12(headline) + (hinglishOf(req) ? "_hi" : "");
   const hit = await cacheGet("news_tldr", key);
   if (hit?.sentiment && hit?.tldr) return j(200, { ...hit, source: "cache" }, origin);
 
@@ -410,7 +420,7 @@ async function opNewsTldr(req, origin) {
   ].filter(Boolean).join("\n");
 
   try {
-    const text = await callLlm({
+    const text = await callLlm({ hinglish: hinglishOf(req),
       messages: [{ role: "system", content: SYSTEM_NEWS_TLDR }, { role: "user", content: userMsg }],
       max_tokens: 180, temperature: 0.3, response_format: { type: "json_object" }, profile: "json",
     });
@@ -445,7 +455,7 @@ async function opPortfolioDigest(req, origin) {
       : `Holdings:\n${holdings.map(h => `  ${h.symbol} (${h.name}, ${h.sector}) — ${h.qty} units, avg ₹${Number(h.avgRupees).toFixed(2)}, now ₹${Number(h.curRupees).toFixed(2)}, day ${h.dayPct >= 0 ? "+" : ""}${Number(h.dayPct).toFixed(2)}%, P/L ${h.plPct >= 0 ? "+" : ""}${(Number(h.plPct) * 100).toFixed(2)}%`).join("\n")}`,
   ].join("\n");
   try {
-    const text = await callLlm({
+    const text = await callLlm({ hinglish: hinglishOf(req),
       messages: [{ role: "system", content: SYSTEM_PORTFOLIO }, { role: "user", content: userMsg }],
       max_tokens: 260, temperature: 0.4, response_format: { type: "json_object" }, profile: "json",
     });
@@ -469,7 +479,7 @@ async function opStockWhy(req, origin) {
   if (!sym) return j(400, { error: "missing_symbol" }, origin);
   const changePct = Number(body.changePct) || 0;
   const dir = changePct >= 0 ? "up" : "down";
-  const key = `${sym.toLowerCase()}_${dir}_${istDayKey()}`;
+  const key = `${sym.toLowerCase()}_${dir}_${istDayKey()}` + (hinglishOf(req) ? "_hi" : "");
   const hit = await cacheGet("stock_why", key);
   if (hit?.explanation) return j(200, { explanation: hit.explanation, source: "cache" }, origin);
 
@@ -484,7 +494,7 @@ async function opStockWhy(req, origin) {
   ].filter(Boolean).join("\n");
 
   try {
-    const text = await callLlm({
+    const text = await callLlm({ hinglish: hinglishOf(req),
       messages: [{ role: "system", content: SYSTEM_STOCK_WHY }, { role: "user", content: userMsg }],
       max_tokens: 240, temperature: 0.35, response_format: { type: "json_object" }, profile: "json",
     });
@@ -523,7 +533,7 @@ async function opTradeNudge(req, origin) {
     pf.sectorAllocPct != null ? `  Current ${body.sector} sector weight: ${Number(pf.sectorAllocPct).toFixed(0)}%` : null,
   ].filter(Boolean).join("\n");
   try {
-    const text = await callLlm({
+    const text = await callLlm({ hinglish: hinglishOf(req),
       messages: [{ role: "system", content: SYSTEM_TRADE_NUDGE }, { role: "user", content: userMsg }],
       max_tokens: 220, temperature: 0.4, response_format: { type: "json_object" }, profile: "json",
     });
@@ -565,7 +575,7 @@ async function opMarketMood(req, origin) {
   const sectors = Array.isArray(body.sectors) ? body.sectors.slice(0, 12) : [];
   if (!sectors.length) return j(400, { error: "no_sectors" }, origin);
   const sig = sectors.slice(0, 6).map(s => `${String(s.name).toLowerCase().slice(0, 10)}:${(Number(s.avgPct) || 0).toFixed(1)}`).join("|");
-  const key = `${istDayKey()}_${sig}`;
+  const key = `${istDayKey()}_${sig}` + (hinglishOf(req) ? "_hi" : "");
   const hit = await cacheGet("market_mood", key);
   if (hit?.narrative) return j(200, { ...hit, source: "cache" }, origin);
 
@@ -589,7 +599,7 @@ async function opMarketMood(req, origin) {
   ].join("\n");
 
   try {
-    const text = await callLlm({
+    const text = await callLlm({ hinglish: hinglishOf(req),
       messages: [{ role: "system", content: SYSTEM_MOOD }, { role: "user", content: userMsg }],
       max_tokens: 220, temperature: 0.25, response_format: { type: "json_object" }, profile: "json",
     });
@@ -622,7 +632,7 @@ async function opMarketMood(req, origin) {
       // One stricter retry. Provide the exact list of words to avoid.
       try {
         const retryMsg = userMsg + `\n\nThe previous attempt named these companies that are NOT in the allowed list: ${leaked.join(", ")}. Rewrite the paragraph WITHOUT mentioning any of them. Stick to the allowed tickers only, or just describe sectors generically without specific stocks.`;
-        const retryText = await callLlm({
+        const retryText = await callLlm({ hinglish: hinglishOf(req),
           messages: [{ role: "system", content: SYSTEM_MOOD }, { role: "user", content: retryMsg }],
           max_tokens: 220, temperature: 0.15, response_format: { type: "json_object" }, profile: "json",
         });
@@ -701,7 +711,7 @@ async function opReportCard(req, origin) {
     `Bias flags raised: ${(body.biasFlags || []).length ? (body.biasFlags || []).join(", ") : "none"}`,
   ].join("\n");
   try {
-    const text = await callLlm({
+    const text = await callLlm({ hinglish: hinglishOf(req),
       messages: [{ role: "system", content: SYSTEM_REPORT }, { role: "user", content: userMsg }],
       max_tokens: 360, temperature: 0.45, response_format: { type: "json_object" }, profile: "json",
     });

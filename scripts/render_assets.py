@@ -71,6 +71,9 @@ def write_ico(pngs, out):
     out.write_bytes(struct.pack("<HHH", 0, 1, len(pngs)) + b"".join(entries) + b"".join(blobs))
 
 
+OG_VERSION = "v2"
+
+
 def main():
     IMG.mkdir(exist_ok=True)
     logo = (ROOT / "logo.svg").read_text(encoding="utf-8")
@@ -85,7 +88,12 @@ def main():
     with sync_playwright() as pw:
         br = pw.chromium.launch()
         page = br.new_page(device_scale_factor=1)
+        # Pages point at the versioned name: WhatsApp, X and LinkedIn cache a
+        # preview per URL, so a changed image needs a new name. Bump OG_VERSION
+        # here and OG_IMAGE in prerender.py together. og-image.png stays for
+        # old links.
         shot(page, svg_page(og, 1200, 630), 1200, 630, IMG / "og-image.png")
+        shot(page, svg_page(og, 1200, 630), 1200, 630, IMG / ("og-image-%s.png" % OG_VERSION))
         for size, name in ((512, "logo-512.png"), (192, "icon-192.png"), (512, "icon-512.png"),
                            (180, "apple-touch-icon.png"), (48, "favicon-48.png")):
             shot(page, svg_page(logo, size, size), size, size, IMG / name)

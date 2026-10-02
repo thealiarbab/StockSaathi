@@ -20,6 +20,8 @@
 // answer for free.
 // =============================================================================
 
+import { aiLang } from "./aiLang.js";
+
 const TOOLTIP_ID = "ai-term-tooltip";
 const HOVER_DELAY_MS = 250;  // avoid firing on accidental hover pass-through
 const memoryCache = new Map();   // term -> explanation
@@ -117,7 +119,7 @@ async function fetchExplanation(term) {
   if (inflight.has(term)) return inflight.get(term);
   const p = (async () => {
     try {
-      const r = await fetch("/api/ai?op=explain&term=" + encodeURIComponent(term), { cache: "default" });
+      const r = await fetch("/api/ai?op=explain&term=" + encodeURIComponent(term) + aiLang(), { cache: "default" });
       if (!r.ok) throw new Error("http_" + r.status);
       const j = await r.json();
       const text = j?.explanation || "";
