@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-06T09:13:42.833Z",
+  "generated_at": "2026-10-07T09:04:36.328Z",
   "source": "https://portal.amfiindia.com/spages/NAVAll.txt",
   "row_count": 14115,
   "distinct_amcs": 54,
@@ -18,7 +18,7 @@
     "Direct": 4255,
     "Regular": 9860
   },
-  "sha8": "82985412",
-  "raw_bytes": 5838042,
-  "brotli_bytes": 239705
+  "sha8": "346a3ecb",
+  "raw_bytes": 5838195,
+  "brotli_bytes": 239932
 }
