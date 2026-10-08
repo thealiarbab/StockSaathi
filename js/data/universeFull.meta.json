@@ -1,7 +1,7 @@
 {
-  "builtAt": "2026-10-07T09:04:21.131Z",
-  "rowCount": 4692,
-  "equityCount": 4340,
+  "builtAt": "2026-10-08T09:19:32.345Z",
+  "rowCount": 4702,
+  "equityCount": 4350,
   "etfCount": 352,
   "nifty50": 50,
   "nifty100": 100,
@@ -9,8 +9,8 @@
   "niftyMid150": 150,
   "niftySmall250": 251,
   "industryCoverage": 755,
-  "buildDurationMs": 16638,
-  "sha8": "35ca1145",
-  "rawBytes": 1052689,
-  "brotliBytes": 96269
+  "buildDurationMs": 13519,
+  "sha8": "ada114ed",
+  "rawBytes": 1054934,
+  "brotliBytes": 96477
 }
