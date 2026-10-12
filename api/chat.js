@@ -50,7 +50,9 @@ export const config = { runtime: "edge" };
 // blocks (upstream_blocks, a few KiB each) on every assistant turn on top of
 // the ~20 KiB coach prompt + dossier and up to five 4 KiB tool results.
 const MAX_BODY = 128 * 1024;
-export const MAX_OUTPUT_TOKENS = 4000;
+// The Gemini models' own output ceiling. Not a budget: see the max_tokens
+// block in the handler.
+export const MAX_OUTPUT_TOKENS = 65535;
 
 // How long any ONE upstream gets to return response headers before we give
 // up and try the next in the chain.
@@ -472,10 +474,11 @@ export default async function handler(req) {
   // mean "no cap", it meant 800, and on a thinking model most of that goes
   // to reasoning before a single visible word is produced. An absent
   // max_tokens now means the real ceiling.
-  const mt = Number.isFinite(payload.max_tokens)
-    ? Math.min(payload.max_tokens, MAX_OUTPUT_TOKENS)
-    : MAX_OUTPUT_TOKENS;
-  payload.max_tokens = mt;
+  //
+  // And now the caller's value is ignored entirely: no Saathi reply may be
+  // cut short by a token cap, by decision. Every upstream gets its full
+  // output room (the Messages adapter applies its own, larger ceiling).
+  payload.max_tokens = MAX_OUTPUT_TOKENS;
 
   // Thinking budget — by far the biggest lever on time-to-first-token.
   //

@@ -245,7 +245,10 @@ async function callLlm({ messages, temperature = 0.4, max_tokens = 400, response
       }
     }
     try {
-      const body = { model: p.model, messages, temperature, max_tokens };
+      // The per-op max_tokens values are kept as documentation of each op's
+      // expected size but never sent: no Saathi output is cut by a cap.
+      // 65535 is the Gemini models' own ceiling.
+      const body = { model: p.model, messages, temperature, max_tokens: 65535 };
       if (response_format) body.response_format = response_format;
       // Vertex AI OpenAI-compat uses x-goog-api-key for API-key auth.
       // Everything else (OpenAI/Groq/AI Studio/Cerebras) takes Bearer.

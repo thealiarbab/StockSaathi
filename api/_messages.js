@@ -83,17 +83,17 @@ export function effortFor(profile, requested) {
   return DEFAULT_EFFORT[profile] || "medium";
 }
 
-// Thinking is billed out of max_tokens. Callers here pass caps sized for a
-// NON-thinking model (180 for a news TL;DR, 200 for a tooltip): reuse those
-// and a single think step can leave zero tokens for the answer - the same
-// "Beta measures how much a" truncation api/ai.js documents for 2.5 Flash.
-// Length is controlled by each prompt; the cap only has to never bite.
-// Output on this model is $0.50 per million tokens, so 8k is a ceiling on a
-// runaway, not a budget.
-const FLOOR_TOKENS = 8192;
-export function maxTokensFor(requested) {
-  const n = Number.isFinite(requested) ? requested : 0;
-  return Math.max(n, FLOOR_TOKENS);
+// NO OUTPUT CAP, by decision: every request gets the full output room and
+// whatever the caller asked for is ignored. Thinking is billed out of
+// max_tokens, and callers here pass caps sized for a NON-thinking model (180
+// for a news TL;DR, 200 for a tooltip) - reuse those and a single think step
+// can leave zero tokens for the answer, the same "Beta measures how much a"
+// truncation api/ai.js documents for 2.5 Flash. Length is controlled by each
+// prompt, never by a cap. 64k is half this model's 128k ceiling: enough that
+// no reply is ever cut, while still bounding a pathological runaway.
+const OUTPUT_TOKENS = 64000;
+export function maxTokensFor() {
+  return OUTPUT_TOKENS;
 }
 
 // -----------------------------------------------------------------------------
