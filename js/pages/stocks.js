@@ -1880,6 +1880,11 @@ function changeFor(sym, quoteCache) {
   return getTodayChange(sym);
 }
 
+// Former company name -> current NSE symbol, for the Markets search box.
+const FORMER_NAMES = {
+  zomato: "ETERNAL",
+};
+
 function applyFilters(all, f, state, quoteCache) {
   // If an AI-search result is active, it overrides the keyword filter
   // entirely — show exactly the AI's ordered matches. Other filters
@@ -1934,10 +1939,17 @@ function applyFilters(all, f, state, quoteCache) {
   if (f.kind !== "MF" && f.sector !== "all") list = list.filter(i => getCanonicalCategory(i) === f.sector);
   if (f.q) {
     const q = f.q.toLowerCase();
+    // Former names that teens still search by. "Zomato" matched nothing after
+    // the company became Eternal Ltd, and users told the coach "it shows no
+    // match" (2026-10-08 and 2026-10-10).
+    const renamed = new Set(q.trim().length >= 3
+      ? Object.entries(FORMER_NAMES).filter(([old]) => old.startsWith(q.trim()) || q.includes(old)).map(([, sym]) => sym)
+      : []);
     list = list.filter(i =>
       i.name.toLowerCase().includes(q) ||
       i.symbol.toLowerCase().includes(q) ||
-      (i.sector || "").toLowerCase().includes(q)
+      (i.sector || "").toLowerCase().includes(q) ||
+      renamed.has(i.symbol)
     );
   }
   if (f.sort === "gainers") list.sort((a, b) => changeFor(b.symbol, quoteCache) - changeFor(a.symbol, quoteCache));

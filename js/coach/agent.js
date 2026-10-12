@@ -202,6 +202,14 @@ async function execGetStockPrice(input) {
     const q = await getQuote(sym);
     const inst = getInstrument(sym);
     if (!q || !inst) return { ok: false, error: `No quote for ${sym}.` };
+    // getQuote's last resort is a synthetic walk meant for charts. For a
+    // symbol NSE does not list (the plausible-ticker fallback above lets
+    // "ZOMATO" through) that walk was handed back as a price: the coach told
+    // users Zomato was at ₹1,386.89 while ETERNAL closed at ₹323.45, and that
+    // it was "definitely on the app". Never quote an invented number.
+    if (q.source === "synthetic") {
+      return { ok: false, error: `No real price for "${raw}" — NSE has no listing under ${sym} (it may be renamed, delisted or misspelt). Do not quote any price; call search_stocks with the company name.` };
+    }
     return {
       ok: true,
       symbol: sym,
@@ -310,7 +318,8 @@ async function execGetUserPortfolio() {
     if (!inst) continue;
     try {
       const q = await getQuote(sym);
-      const curPx = q ? q.pricePaise : h.avgCostPaise;
+      // A synthetic chart walk is not a price; fall back to cost like a miss.
+      const curPx = q && q.source !== "synthetic" ? q.pricePaise : h.avgCostPaise;
       holdings.push({
         symbol: sym, name: inst.name, qty: h.qty,
         avg_cost_inr: +(h.avgCostPaise / 100).toFixed(2),
@@ -593,6 +602,8 @@ function nameToSymbol() {
     hul: "HINDUNILVR", "hindustan unilever": "HINDUNILVR",
     "tata motors": "TMPV", tmpv: "TMPV", tmcv: "TMCV",
     "tata steel": "TATASTEEL",
+    // Zomato Ltd renamed itself Eternal Ltd in 2025 (NSE: ETERNAL).
+    zomato: "ETERNAL", "zomato ltd": "ETERNAL", "zomato limited": "ETERNAL",
     nestle: "NESTLEIND",
     "sun pharma": "SUNPHARMA",
     "dr reddy": "DRREDDY",

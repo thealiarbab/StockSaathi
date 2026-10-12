@@ -243,7 +243,8 @@ export async function buildDossier() {
     const h = holdings[sym];
     if (isCorrupt(h)) { corrupt.push(sym); continue; }
     const q = quotes[sym];
-    const last = q && Number.isFinite(q.pricePaise) ? q.pricePaise : null;
+    // A "synthetic" quote is a chart walk, not a price — treat it as missing.
+    const last = q && q.source !== "synthetic" && Number.isFinite(q.pricePaise) ? q.pricePaise : null;
     const cost = Math.round(h.avgCostPaise * h.qty);
     costBasisTotal += cost;
     if (last == null) { unpriced++; rows.push({ sym, h, last: null, mkt: null, pl: null, plPct: null }); continue; }
