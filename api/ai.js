@@ -23,6 +23,8 @@
 //   op=command            POST { query, context }         -> { action, response, target?, query?, symbol?, side?, qty? }
 // =============================================================================
 
+import { messagesEnabled, messagesFetch, toMessagesBody, textOf } from "./_messages.js";
+
 export const config = { runtime: "edge" };
 
 const MAX_BODY = 128 * 1024;
@@ -144,12 +146,18 @@ function hinglishOf(req) {
   try { return new URL(req.url).searchParams.get("lang") === "hi"; } catch { return false; }
 }
 
-async function callLlm({ messages, temperature = 0.4, max_tokens = 400, response_format, profile = "reasoning", hinglish = false }) {
+// `effort` only reaches the Messages upstream (see api/_messages.js for the
+// scale). Each op below picks its own: low where the job is one sentence and
+// latency is what the user feels, medium where numbers and rules have to be
+// respected, high where a wrong answer is the documented failure.
+async function callLlm({ messages, temperature = 0.4, max_tokens = 400, response_format, profile = "reasoning", hinglish = false, effort }) {
   if (hinglish && messages?.[0]?.role === "system") {
     messages = [{ ...messages[0], content: messages[0].content + HINGLISH_RULE }, ...messages.slice(1)];
   }
   const env = globalThis.process?.env || {};
   const providers = [];
+  // Leads every profile when configured; Gemini below is the fallback.
+  if (messagesEnabled()) providers.push({ kind: "messages", label: "messages" });
 
   // 2.5 = production GA, available in every Vertex region. 3.x = preview-only.
   const geminiFastModel = env.GEMINI_FAST_MODEL || "gemini-2.5-flash";
@@ -206,6 +214,36 @@ async function callLlm({ messages, temperature = 0.4, max_tokens = 400, response
 
   let lastErr = null;
   for (const p of providers) {
+    if (p.kind === "messages") {
+      // Bounded: ai.js has no other timeout, and a stall here must leave
+      // the Gemini fallback room inside the ~25s edge limit.
+      const ctrl = new AbortController();
+      const killer = setTimeout(() => ctrl.abort(), 14000);
+      try {
+        const body = toMessagesBody(
+          { messages, max_tokens, response_format, reasoning_effort: effort },
+          { profile },
+        );
+        const res = await messagesFetch(body, { signal: ctrl.signal });
+        if (!res.ok) {
+          lastErr = `messages_http_${res.status}`;
+          console.log(JSON.stringify({ evt: "ai_upstream", ok: false, upstream: "messages", status: res.status, body: (await res.text().catch(() => "")).slice(0, 300) }));
+          continue;
+        }
+        const data = await res.json();
+        // A safety decline is HTTP 200 with stop_reason "refusal"; let the
+        // next provider try rather than caching an empty answer.
+        if (data?.stop_reason === "refusal") { lastErr = "messages_refusal"; continue; }
+        const text = textOf(data);
+        if (!text.trim()) { lastErr = "empty"; continue; }
+        return text;
+      } catch (e) {
+        lastErr = ctrl.signal.aborted ? "messages_timeout" : (e?.message || "fetch_failed");
+        continue;
+      } finally {
+        clearTimeout(killer);
+      }
+    }
     try {
       const body = { model: p.model, messages, temperature, max_tokens };
       if (response_format) body.response_format = response_format;
@@ -381,7 +419,7 @@ async function opExplain(req, origin, url) {
       ],
       max_tokens: 200,
       temperature: 0.3,
-      profile: "json",
+      profile: "json", effort: "low",
     });
     const explanation = String(text || "").trim().replace(/^["'""]|["'""]$/g, "").trim();
     if (!explanationLooksGood(explanation)) {
@@ -422,7 +460,7 @@ async function opNewsTldr(req, origin) {
   try {
     const text = await callLlm({ hinglish: hinglishOf(req),
       messages: [{ role: "system", content: SYSTEM_NEWS_TLDR }, { role: "user", content: userMsg }],
-      max_tokens: 180, temperature: 0.3, response_format: { type: "json_object" }, profile: "json",
+      max_tokens: 180, temperature: 0.3, response_format: { type: "json_object" }, profile: "json", effort: "low",
     });
     const parsed = parseJsonLoose(text);
     if (!parsed) return j(502, { error: "non_json" }, origin);
@@ -457,7 +495,7 @@ async function opPortfolioDigest(req, origin) {
   try {
     const text = await callLlm({ hinglish: hinglishOf(req),
       messages: [{ role: "system", content: SYSTEM_PORTFOLIO }, { role: "user", content: userMsg }],
-      max_tokens: 260, temperature: 0.4, response_format: { type: "json_object" }, profile: "json",
+      max_tokens: 260, temperature: 0.4, response_format: { type: "json_object" }, profile: "json", effort: "medium",
     });
     const parsed = parseJsonLoose(text);
     if (!parsed) return j(502, { error: "non_json" }, origin);
@@ -496,7 +534,7 @@ async function opStockWhy(req, origin) {
   try {
     const text = await callLlm({ hinglish: hinglishOf(req),
       messages: [{ role: "system", content: SYSTEM_STOCK_WHY }, { role: "user", content: userMsg }],
-      max_tokens: 240, temperature: 0.35, response_format: { type: "json_object" }, profile: "json",
+      max_tokens: 240, temperature: 0.35, response_format: { type: "json_object" }, profile: "json", effort: "medium",
     });
     const parsed = parseJsonLoose(text);
     if (!parsed) return j(502, { error: "non_json" }, origin);
@@ -535,7 +573,7 @@ async function opTradeNudge(req, origin) {
   try {
     const text = await callLlm({ hinglish: hinglishOf(req),
       messages: [{ role: "system", content: SYSTEM_TRADE_NUDGE }, { role: "user", content: userMsg }],
-      max_tokens: 220, temperature: 0.4, response_format: { type: "json_object" }, profile: "json",
+      max_tokens: 220, temperature: 0.4, response_format: { type: "json_object" }, profile: "json", effort: "medium",
     });
     const parsed = parseJsonLoose(text);
     if (!parsed) return j(502, { error: "non_json" }, origin);
@@ -601,7 +639,7 @@ async function opMarketMood(req, origin) {
   try {
     const text = await callLlm({ hinglish: hinglishOf(req),
       messages: [{ role: "system", content: SYSTEM_MOOD }, { role: "user", content: userMsg }],
-      max_tokens: 220, temperature: 0.25, response_format: { type: "json_object" }, profile: "json",
+      max_tokens: 220, temperature: 0.25, response_format: { type: "json_object" }, profile: "json", effort: "high",
     });
     const parsed = parseJsonLoose(text);
     if (!parsed) return j(502, { error: "non_json" }, origin);
@@ -634,7 +672,7 @@ async function opMarketMood(req, origin) {
         const retryMsg = userMsg + `\n\nThe previous attempt named these companies that are NOT in the allowed list: ${leaked.join(", ")}. Rewrite the paragraph WITHOUT mentioning any of them. Stick to the allowed tickers only, or just describe sectors generically without specific stocks.`;
         const retryText = await callLlm({ hinglish: hinglishOf(req),
           messages: [{ role: "system", content: SYSTEM_MOOD }, { role: "user", content: retryMsg }],
-          max_tokens: 220, temperature: 0.15, response_format: { type: "json_object" }, profile: "json",
+          max_tokens: 220, temperature: 0.15, response_format: { type: "json_object" }, profile: "json", effort: "high",
         });
         const reParsed = parseJsonLoose(retryText);
         if (reParsed?.narrative) {
@@ -677,7 +715,7 @@ async function opMarketSearch(req, origin) {
   try {
     const text = await callLlm({
       messages: [{ role: "system", content: SYSTEM_NL_SEARCH }, { role: "user", content: userMsg }],
-      max_tokens: 400, temperature: 0.2, response_format: { type: "json_object" }, profile: "json",
+      max_tokens: 400, temperature: 0.2, response_format: { type: "json_object" }, profile: "json", effort: "medium",
     });
     const parsed = parseJsonLoose(text);
     if (!parsed) return j(502, { error: "non_json" }, origin);
@@ -713,7 +751,7 @@ async function opReportCard(req, origin) {
   try {
     const text = await callLlm({ hinglish: hinglishOf(req),
       messages: [{ role: "system", content: SYSTEM_REPORT }, { role: "user", content: userMsg }],
-      max_tokens: 360, temperature: 0.45, response_format: { type: "json_object" }, profile: "json",
+      max_tokens: 360, temperature: 0.45, response_format: { type: "json_object" }, profile: "json", effort: "medium",
     });
     const parsed = parseJsonLoose(text);
     if (!parsed) return j(502, { error: "non_json" }, origin);
@@ -755,7 +793,7 @@ async function opCrashSuggestions(req, origin) {
   try {
     const text = await callLlm({
       messages: [{ role: "system", content: SYSTEM_CRASH_SUGG }, { role: "user", content: "Generate 10 suggestions." }],
-      max_tokens: 300, temperature: 0.8, response_format: { type: "json_object" }, profile: "json",
+      max_tokens: 300, temperature: 0.8, response_format: { type: "json_object" }, profile: "json", effort: "low",
     });
     const parsed = parseJsonLoose(text);
     if (!parsed) return j(502, { error: "non_json" }, origin);
@@ -1043,7 +1081,7 @@ async function opCommand(req, origin) {
   try {
     const text = await callLlm({
       messages: [{ role: "system", content: SYSTEM_COMMAND }, { role: "user", content: userMsg }],
-      max_tokens: 400, temperature: 0.2, response_format: { type: "json_object" }, profile: "json",
+      max_tokens: 400, temperature: 0.2, response_format: { type: "json_object" }, profile: "json", effort: "medium",
     });
     const parsed = parseJsonLoose(text);
     if (!parsed) return j(502, { error: "non_json" }, origin);

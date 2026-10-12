@@ -46,6 +46,9 @@ jobs:
       - name: Node parse — ai.js
         run: node --check api/ai.js
 
+      - name: Node parse — _messages.js
+        run: node --check api/_messages.js
+
       - name: Node parse — crashReplay.js
         run: node --check js/pages/crashReplay.js
 

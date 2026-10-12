@@ -793,11 +793,16 @@ export async function runAgent({ apiKey, system, messages, onStep, profile = "fa
     if (wantsTools) {
       onStep?.({ stepIndex: loops, action: "tool_calls", tools: toolCalls.map(tc => tc.function?.name) });
 
-      // Append assistant tool-call turn as-is
+      // Append assistant tool-call turn as-is. upstream_blocks (when the
+      // proxy sends it) is opaque here and must go back untouched on the
+      // next request: it carries the model's reasoning for this turn, which
+      // the upstream requires alongside the tool results. /api/chat strips
+      // it before any upstream that does not understand it.
       conv.push({
         role: "assistant",
         content: msg.content ?? "",
         tool_calls: toolCalls,
+        ...(Array.isArray(msg.upstream_blocks) ? { upstream_blocks: msg.upstream_blocks } : {}),
       });
 
       // Execute tools in parallel, collect results

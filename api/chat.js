@@ -40,9 +40,16 @@
 // nothing else. Do not rely on this endpoint to sanitise them.
 // =============================================================================
 
+import {
+  messagesEnabled, messagesFetch, toMessagesBody, toChatCompletion, toChatSse, MESSAGES_MODEL,
+} from "./_messages.js";
+
 export const config = { runtime: "edge" };
 
-const MAX_BODY = 64 * 1024;
+// 128 KiB, up from 64: a tool loop now carries the upstream's reasoning
+// blocks (upstream_blocks, a few KiB each) on every assistant turn on top of
+// the ~20 KiB coach prompt + dossier and up to five 4 KiB tool results.
+const MAX_BODY = 128 * 1024;
 export const MAX_OUTPUT_TOKENS = 4000;
 
 // How long any ONE upstream gets to return response headers before we give
@@ -53,6 +60,12 @@ export const MAX_OUTPUT_TOKENS = 4000;
 // nothing at all — which is strictly worse than a fallback answer. 9s leaves
 // room for two full attempts plus overhead inside the limit.
 export const UPSTREAM_TIMEOUT_MS = Number(globalThis.process?.env?.UPSTREAM_TIMEOUT_MS) || 9000;
+// The Messages upstream leads every chain, and its non-streaming endpoint
+// returns headers only once the whole reply (thinking included) is written,
+// so a tool turn or a crash-replay date pick needs longer than 9s to show
+// headers on a slow day. 14s + one 9s fallback attempt still lands inside
+// the ~25s edge limit.
+export const MESSAGES_TIMEOUT_MS = Number(globalThis.process?.env?.MESSAGES_TIMEOUT_MS) || 14000;
 
 // Per-profile thinking budget. See the block where this is applied for the
 // measurements behind it. Env-overridable so the trade can be retuned
@@ -204,6 +217,16 @@ function jsonResponse(status, body, origin) {
 export function providerDescriptors() {
   const env = globalThis.process?.env || {};
   return {
+    // Leads every chain when configured. Speaks the Messages API, not
+    // OpenAI's, so callUpstream routes it through the _messages.js adapter.
+    // Off (enabled() false) until VERTEX_MESSAGES=1 or MESSAGES_API_KEY is
+    // set, in which case every chain is exactly what it was before.
+    messages: {
+      label: "messages",
+      kind: "messages",
+      enabled: messagesEnabled,
+      model: MESSAGES_MODEL(),
+    },
     openai: {
       label: "openai",
       enabled: () => !!env.OPENAI_API_KEY,
@@ -264,29 +287,38 @@ export function providerDescriptors() {
 // GPT sits behind it as the escalation for anything Pro can't handle.
 export function chainFor(profile) {
   switch (profile) {
+    // "messages" leads every lane (see providerDescriptors). The Gemini
+    // entries behind it are now the outage fallback, not the primary.
     case "chat":
       // Live-typing coach chat. Leads with the smartest model (see
       // GEMINI_CHAT above) and degrades to Flash then OpenAI, so a slow or
       // unavailable Pro costs one fallback hop rather than hanging the
       // coach. gemini_pro is not repeated here — it is already the lead.
-      return ["gemini_chat", "gemini_fast", "openai", "cerebras"];
+      return ["messages", "gemini_chat", "gemini_fast", "openai", "cerebras"];
     case "json":
       // JSON-returning ops (command palette, market-search, report-card,
-      // crash-replay). Leads with 2.5 Flash (non-thinking, GA everywhere),
-      // falling back to Chat / Fast / OpenAI. Explicitly NO thinking models
-      // first — 3.x previews truncate structured JSON via reasoning tokens.
-      return ["gemini_json", "gemini_chat", "gemini_fast", "openai"];
+      // crash-replay). The Gemini fallback leads with 2.5 Flash Lite
+      // (non-thinking) — 3.x previews truncate structured JSON via reasoning
+      // tokens. The Messages lead avoids that by sizing max_tokens itself.
+      return ["messages", "gemini_json", "gemini_chat", "gemini_fast", "openai"];
     case "fast":
-      return ["gemini_fast", "cerebras", "gemini_pro", "openai"];
+      return ["messages", "gemini_fast", "cerebras", "gemini_pro", "openai"];
     case "creative":
-      return ["openai", "gemini_pro", "gemini_fast"];
+      return ["messages", "openai", "gemini_pro", "gemini_fast"];
     case "reasoning":
     default:
-      return ["gemini_pro", "openai", "gemini_fast", "cerebras"];
+      return ["messages", "gemini_pro", "openai", "gemini_fast", "cerebras"];
   }
 }
 
-export async function callUpstream(desc, payload) {
+export async function callUpstream(desc, payload, ctx = {}) {
+  if (desc.kind === "messages") return callMessagesUpstream(desc, payload, ctx);
+  // `upstream_blocks` rides along on assistant turns the Messages upstream
+  // produced (so its thinking blocks survive a tool loop). It is meaningless
+  // to OpenAI-shaped upstreams and strict ones reject unknown fields.
+  if (Array.isArray(payload.messages) && payload.messages.some((m) => m?.upstream_blocks)) {
+    payload = { ...payload, messages: payload.messages.map(({ upstream_blocks, ...m }) => m) };
+  }
   // Vertex AI's OpenAI-compat endpoint uses x-goog-api-key for API-key auth,
   // NOT Authorization: Bearer (which is reserved for OAuth access tokens on
   // that endpoint). Every other upstream (OpenAI, Groq, Cerebras, AI Studio
@@ -352,6 +384,36 @@ export async function callUpstream(desc, payload) {
   // fallover decisions we only need the status + a peek at error bodies
   // which we read lazily below.
   return { status: res.status, res, upstream: desc.label, t0, ttftMs };
+}
+
+// Same contract as callUpstream (unread Response + timings, timeout thrown
+// as __timeout), via the Messages adapter. `ctx.callerEffort` is the
+// reasoning_effort the CALLER sent, before the handler filled in the Gemini
+// lane default — that default is tuned for Gemini's scale, not this model's.
+async function callMessagesUpstream(desc, payload, ctx) {
+  const body = toMessagesBody(
+    { ...payload, reasoning_effort: ctx.callerEffort },
+    { profile: ctx.profile, stream: !!ctx.stream },
+  );
+  const t0 = performance.now();
+  const ctrl = new AbortController();
+  let timedOut = false;
+  const killer = setTimeout(() => { timedOut = true; ctrl.abort(); }, MESSAGES_TIMEOUT_MS);
+  let res;
+  try {
+    res = await messagesFetch(body, { signal: ctrl.signal });
+  } catch (e) {
+    if (timedOut) {
+      const err = new Error("upstream_timeout");
+      err.__timeout = true;
+      err.__ms = MESSAGES_TIMEOUT_MS;
+      throw err;
+    }
+    throw e;
+  } finally {
+    clearTimeout(killer);
+  }
+  return { status: res.status, res, upstream: desc.label, t0, ttftMs: Math.round(performance.now() - t0) };
 }
 
 export default async function handler(req) {
@@ -431,6 +493,10 @@ export default async function handler(req) {
   //
   // So: conversational lanes get a small budget, lanes that exist to reason
   // keep theirs. A caller that sets reasoning_effort explicitly always wins.
+  //
+  // These measurements and defaults are Gemini's. The Messages upstream
+  // gets the caller's own value (or none) and applies its own lane default.
+  const callerEffort = payload.reasoning_effort;
   if (payload.reasoning_effort === undefined) {
     const effort = REASONING_EFFORT[profile];
     if (effort) payload.reasoning_effort = effort;
@@ -491,7 +557,36 @@ export default async function handler(req) {
   const trail = () => attempts.join(",") || "none";
   for (const desc of order) {
     try {
-      const r = await callUpstream(desc, payload);
+      const r = await callUpstream(desc, payload, { profile, stream: wantsStream, callerEffort });
+      const isMessages = desc.kind === "messages";
+      // The Messages upstream answers in its own shape. Translate it here so
+      // everything below this point (headers, timing, passthrough) is shared.
+      //   - refusal on a non-streaming call: a decline from this model's
+      //     safety layer is HTTP 200, but another upstream may well answer,
+      //     so it falls over like a 5xx instead of returning an empty bubble.
+      //   - 400: treated as fallover too. With a translation layer in the
+      //     path, a 400 is far more likely our mapping than a body every
+      //     upstream would reject, and the Gemini entries take the original
+      //     OpenAI shape natively. The body is logged below either way.
+      let translatedText = null;
+      if (isMessages && r.status >= 200 && r.status < 300 && !wantsStream) {
+        const raw = await r.res.text();
+        let msg = null;
+        try { msg = JSON.parse(raw); } catch {}
+        if (!msg || msg.stop_reason === "refusal") {
+          attempts.push(`${desc.label}:${msg ? "refusal" : "bad_json"}:${r.ttftMs}ms`);
+          console.log(JSON.stringify({
+            evt: "chat_upstream", profile, ok: false, upstream: desc.label,
+            status: msg ? "refusal" : "bad_json",
+            category: msg?.stop_details?.category || null,
+            attempts: trail(),
+          }));
+          last = { status: 502, text: JSON.stringify({ error: "upstream_declined" }), upstream: desc.label };
+          lastText = last.text;
+          continue;
+        }
+        translatedText = JSON.stringify(toChatCompletion(msg));
+      }
       // Pass any 2xx through immediately. Streaming responses get their body
       // piped; non-streaming ones get their body read + forwarded as JSON.
       if (r.status >= 200 && r.status < 300) {
@@ -524,10 +619,11 @@ export default async function handler(req) {
           outHeaders.set("Cache-Control", "no-store");
           outHeaders.set("X-Accel-Buffering", "no");  // disable proxy buffering
           outHeaders.set("Server-Timing", `ttft;dur=${r.ttftMs};desc="${desc.label}"`);
-          return new Response(r.res.body, { status: r.status, headers: outHeaders });
+          const streamBody = isMessages ? toChatSse(r.res.body) : r.res.body;
+          return new Response(streamBody, { status: r.status, headers: outHeaders });
         }
         outHeaders.set("Content-Type", "application/json");
-        const text = await r.res.text();
+        const text = translatedText ?? await r.res.text();
         const llmMs = Math.round(performance.now() - r.t0);
         // Best-effort: extract completion_tokens from upstream usage so the
         // client can correlate generation time with output size.
@@ -574,6 +670,7 @@ export default async function handler(req) {
       // every upstream.
       const isFallover = r.status === 429
                       || r.status >= 500
+                      || (isMessages && r.status === 400)
                       || r.status === 401
                       || r.status === 403
                       || r.status === 404

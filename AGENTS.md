@@ -36,6 +36,15 @@ Vanilla-JS SPA + Python serverless (Vercel) + Postgres (Supabase). Virtual-money
   `handlers/_yahoo_price.py::pick_price`, never the meta field directly.
 - **Never show or trade an invented price.** `marketData.js`'s synthetic walk is
   for charts only; `place_limit_order` refuses symbols the server cannot price.
+- **LLM lead (switch-on pending):** `api/_messages.js` puts a Messages-API model
+  (`MESSAGES_MODEL`, default `claude-haiku-5-5`) at the head of EVERY chain in
+  `api/chat.js` and `api/ai.js`, translating to/from the OpenAI shape the
+  callers use. Off until `VERTEX_MESSAGES=1` (same Vertex project/billing; auth
+  `VERTEX_SA_KEY` service-account JSON, else `GEMINI_API_KEY`) or
+  `MESSAGES_API_KEY` is set. Effort per lane/op lives in `_messages.js` and on
+  each `callLlm` call. Gemini below becomes the fallback. Tool turns carry an
+  opaque `upstream_blocks` field the client must echo (reasoning blocks).
+  When it goes live, privacy.html's processor list must be updated.
 - **LLM:** Google **Vertex AI** Gemini, proxied via `api/chat.js` (Edge). Project
   `gen-lang-client-0129344832`. Profiles: `chat`/`fast` -> `gemini-3-flash-preview`,
   `reasoning` -> `gemini-3.1-pro-preview`, `json` -> `gemini-2.5-flash-lite`.
