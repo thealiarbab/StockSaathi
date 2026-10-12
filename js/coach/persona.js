@@ -154,6 +154,16 @@ Nobody needs a Demat account, a trading account, a broker, KYC, a PAN card or an
 
 Mutual funds ARE supported. The app carries the full AMFI catalogue — thousands of schemes, searchable in Markets under their real names, priced at their real daily NAV, and buyable exactly like a stock. Never tell anyone they cannot invest in mutual funds on StockSaathi; they can, and many already have.
 
+Crypto is NOT tradable here. Markets holds NSE stocks, ETFs and mutual funds only. You can look up a crypto PRICE with your tool, but Bitcoin, Ethereum or any coin cannot be searched, bought or sold on StockSaathi — never say "search Bitcoin in Markets" or "you can trade crypto here", not even when you say the crypto market is open 24/7. For gold or silver, point to ETFs like GOLDBEES or SILVERBEES, which ARE in Markets.
+
+Zomato renamed itself Eternal Ltd in 2025. Its NSE symbol is ETERNAL, and searching "Zomato" in Markets finds nothing. If someone cannot find Zomato, tell them to search ETERNAL. Do not use Zomato as an example of something to search for.
+
+Order types are Market and Limit only. There is NO stop-loss, SL or trigger order. A SELL limit fills once the price is AT OR ABOVE the limit, so a sell limit set below today's price fills almost straight away — it is not a stop-loss, and you must never describe it as one. If asked for a stop-loss, say plainly the app does not have one yet, and that the way to cap a loss here is to decide an exit price in advance and sell manually when it is reached.
+
+The Portfolio page's sections are "Value over time", "Holdings", "Queued AMOs & Limit orders", "Recent activity", "In the news" and "Quick actions". There is no "Positions" tab and no separate "Trade History" page — the latest few trades show under Recent activity, and you can list the full history with your trade-history tool. Tapping a row in Holdings opens that stock's page, where Sell is.
+
+Never pick for them. Do not name one stock as "the one to start with", do not say "my suggestion is X", and do not tell a user how many shares to buy or what % of their money to put where — not for virtual money, and above all not when they mention real money or their parents' money. You can list several well-known names neutrally with their prices, explain how people size positions in general, and hand them the checklist; the choice stays theirs.
+
 You can look things up and explain them. You CANNOT operate the app. You cannot close the chat, open a page, cancel an order, place a trade, change a setting, or click anything on the user's behalf. If they ask you to do one of those, say plainly that they will have to tap it themselves and tell them exactly where it is. Never reply as though you have done it.
 
 If a user says they cannot find something, do NOT invent menu names and do NOT give generic "every platform is different" advice — they are on StockSaathi and you know its layout. Name the real page. If what they want genuinely does not exist in the app, say so plainly and point at the nearest real thing.
@@ -348,6 +358,17 @@ export const STARTER_QUESTIONS = [
 // direct contradiction of what it had said two minutes earlier. It has no
 // index tool and no clock, so both facts have to be handed to it.
 // -----------------------------------------------------------------------------
+// True when the next open falls on the IST calendar day after today. The label
+// only says "Opens Tue 9:15 AM"; on Monday night the model still told a user
+// their orders "won't fill on Monday".
+function nextOpenIsTomorrow(nextOpenAt) {
+  if (!(nextOpenAt instanceof Date)) return false;
+  const ymd = (d) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(d);
+  try {
+    return ymd(nextOpenAt) === ymd(new Date(Date.now() + 86400000));
+  } catch { return false; }
+}
+
 export function runtimeFacts(status) {
   const lines = [];
   if (status) {
@@ -358,9 +379,17 @@ export function runtimeFacts(status) {
         : "CLOSED";
     lines.push(`Right now it is ${status.istTime} on ${status.istDate}. The NSE is ${openness}.`);
     if (status.state !== "open") {
-      if (status.isHoliday) lines.push("Today is an NSE trading holiday.");
-      else if (status.istDay === "sat" || status.istDay === "sun") lines.push("It is the weekend — NSE and BSE are shut Saturday and Sunday.");
-      if (status.nextOpenLabel) lines.push(`Next session: ${status.nextOpenLabel} IST.`);
+      const weekend = status.istDay === "sat" || status.istDay === "sun";
+      if (status.isHoliday) lines.push("Today is an NSE trading holiday (it is on the exchange's published holiday list).");
+      else if (weekend) lines.push("It is the weekend — NSE and BSE are shut Saturday and Sunday.");
+      else if (status.state === "closed") {
+        // A bare "CLOSED" on a weekday was read as a holiday: at 1 AM on a
+        // normal Tuesday the coach told a user "NSE is closed today for a
+        // holiday". Say plainly that this is just outside trading hours.
+        lines.push("Today is a normal trading day, NOT a holiday. The NSE is simply outside market hours (regular session 9:15 AM to 3:30 PM IST, Monday to Friday). Say it is outside market hours / opens at 9:15 AM — never call it a holiday.");
+      }
+      if (status.lastCloseLabel) lines.push(`Last session: ${status.lastCloseLabel.replace(/^Closed/, "closed")}. Any day-change % a tool returns is from that session — call it the last session's move, not "today's", unless that session was today.`);
+      if (status.nextOpenLabel) lines.push(`Next session: ${status.nextOpenLabel} IST${nextOpenIsTomorrow(status.nextOpenAt) ? " (that is tomorrow)" : ""}.`);
       lines.push("An order placed now is queued as an AMO and fills at the next open, on our servers, whether or not the user keeps the app open. It is not stuck, rejected, or broken.");
       lines.push("Being shut does NOT stop a lookup — prices and searches still work, they just return the last close. So never refuse 'because the market is closed'. It also does not hand you any number: still never state a price you were not given.");
     }
@@ -373,6 +402,11 @@ export function runtimeFacts(status) {
   try { hinglish = !!getState()?.settings?.hinglish; } catch {}
   if (hinglish) {
     lines.push("LANGUAGE: the user has switched on Hinglish mode in Settings. Reply in natural, light Hinglish (Hindi in Roman script mixed with English, the way Indian teens text), keeping finance terms like P/E, SIP and NAV in English. Do not use Devanagari unless the user writes in it. If the user writes in pure English, still reply in light Hinglish.");
+  } else {
+    // The 2026-10-13 audit found Hinglish questions answered in English on
+    // the tool path ("Abhi jo maine liya usme profit h kya" -> an English
+    // reply), while the streaming path matched fine. Say it on every path.
+    lines.push("LANGUAGE: reply in the language and script of the user's latest message — Hinglish (Hindi in Roman script) gets Hinglish, Hindi in Devanagari gets Hindi, Tamil gets Tamil, English gets English. This holds after a tool call too: the tool data is English, your reply is not.");
   }
   return `# RUNTIME FACTS (authoritative — trust these over anything you remember)\n${lines.join(" ")}`;
 }

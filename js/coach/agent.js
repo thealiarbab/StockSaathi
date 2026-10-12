@@ -1191,6 +1191,9 @@ export function needsLiveData(text, history) {
   // orotfdilio" that no keyword list will ever match.
   if (/^(?:my|mera|meri|mere)\b/i.test(t) && t.split(/\s+/).length <= 4) return true;
 
+  // "yes" / "Yaa" / "ok" to an offer or promise to look something up.
+  if (t.split(/\s+/).length <= 5 && AFFIRM_RE.test(t) && assistantOfferedLookup(history)) return true;
+
   // A short continuation inherits the previous user turn's routing. Without
   // this, a two-word clarification drops off the tool path mid-thread.
   if (Array.isArray(history) && history.length && (t.split(/\s+/).length <= 8 || CONTINUATION_RE.test(t))) {
@@ -1339,6 +1342,46 @@ export function looksLikeLookupOffer(text) {
   // Long replies are explanations that happen to end with an offer.
   if (s.length > 400) return false;
   return OFFER_RE.test(s);
+}
+
+// -----------------------------------------------------------------------------
+// The PROMISE shape — kept apart from OFFER_RE on purpose (see above: that one
+// must stay narrow). An offer asks; a promise announces a lookup the model
+// cannot perform on the tool-less path and then stops:
+//
+//   "I'll pull up a few of the biggest names... One sec while I grab those
+//    live prices for you."
+//   "Give me a moment to fetch those numbers."
+//   "Hang tight, fetching those figures for you."
+//
+// From the 2026-10-13 chat audit: one user got three of these in a row and
+// had to send "Yaa", "Yaa", "Mm", "Yes" before any number arrived. A promise
+// is never a correct reply, so nothing it matches is a false positive worth
+// protecting — but the same short, figure-free limits apply.
+// -----------------------------------------------------------------------------
+const PROMISE_RE = /\b(?:one sec(?:ond)?|give me a (?:sec(?:ond)?|moment|minute)|hang tight|hold on|bear with me|let me (?:grab|fetch|pull|get|check|look)|i'?ll (?:grab|fetch|pull|get|check|look up)|i am (?:grabbing|fetching|pulling)|i'?m (?:grabbing|fetching|pulling)|fetching (?:th|the|those|that|it)|grabbing (?:th|the|those|that|it)|abhi (?:check|nikaal|dekh)(?:ta|ti)? (?:hoon|hu)|ek (?:sec|second|minute) (?:ruko|do))\b/i;
+
+export function looksLikeFetchPromise(text) {
+  const s = String(text || "").trim();
+  if (!s) return false;
+  if (/₹\s?[0-9]|[0-9]+(?:\.[0-9]+)?\s?%/.test(s)) return false;
+  if (s.length > 400) return false;
+  return PROMISE_RE.test(s);
+}
+
+// A short "yes" to an assistant turn that offered or promised a lookup. The
+// continuation rule in needsLiveData only inherits the previous USER turn, so
+// "Yaa" after "want me to pull up the big names?" fell onto the streaming
+// path, which has no tools — and got another promise instead of the prices.
+const AFFIRM_RE = /^(?:(?:pls|please|ok(?:ay)?|haan?|ha+|ji|yes|yeah|ya+|yep|yup|sure|mm+|hmm+|bilkul|theek hai|thik hai)[\s,.!]*)+(?:go ahead|do it|show(?: me)?|dikhao|batao|kar do|check karo|pull it)?[\s.!]*$|^(?:go ahead|do it|show me|dikhao|batao)\b/i;
+const OFFERISH_RE = /\b(?:want me to|shall i|should i|would you like me to|do you want me to)\b.{0,60}\b(?:pull|fetch|check|show|look|get|grab|find|search|list)\b|\b(?:main|mai)\b.{0,40}\b(?:nikaal|check kar|dikha)/i;
+
+function assistantOfferedLookup(history) {
+  if (!Array.isArray(history) || !history.length) return false;
+  const last = history[history.length - 1];
+  if (!last || last.role !== "assistant") return false;
+  const txt = String(last.text ?? last.content ?? "");
+  return looksLikeLookupOffer(txt) || looksLikeFetchPromise(txt) || OFFERISH_RE.test(txt.slice(-300));
 }
 
 // -----------------------------------------------------------------------------

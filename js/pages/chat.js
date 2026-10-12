@@ -8,7 +8,7 @@ import { getState } from "../state.js";
 import { getInstrument } from "../data/universe.js";
 import { SYSTEM_PROMPT, matchTemplate, isOffTopic, offTopicRedirect, STARTER_QUESTIONS, runtimeFacts, NO_TOOLS_NOTE } from "../coach/persona.js";
 import { marketStatus } from "../data/prices.js";
-import { runAgent, streamChat, needsLiveData, logChatTurn, stripToolCallScaffolding, isToolCallOnly, looksLikeLookupOffer, looksLikePricelessList, isDiscoveryQuery } from "../coach/agent.js";
+import { runAgent, streamChat, needsLiveData, logChatTurn, stripToolCallScaffolding, isToolCallOnly, looksLikeLookupOffer, looksLikeFetchPromise, looksLikePricelessList, isDiscoveryQuery } from "../coach/agent.js";
 import { buildDossier } from "../coach/dossier.js";
 import {
   loadSessions, saveSessions, getActiveSession, setActiveSession,
@@ -714,7 +714,7 @@ This is a discovery question. Search for the instruments AND call get_stock_pric
     // which is what "fetch a list of 20 top bank stocks" actually returned in
     // production. See looksLikePricelessList in coach/agent.js.
     const pricelessList = looksLikePricelessList(cleanedReply, userText);
-    if (looksLikeLookupOffer(cleanedReply) || pricelessList) {
+    if (looksLikeLookupOffer(cleanedReply) || looksLikeFetchPromise(cleanedReply) || pricelessList) {
       try {
         // Bounded — see the note on the streaming escalation below. A retry
         // that outlives the user's patience is worse than the reply we're
@@ -734,7 +734,7 @@ You already offered to look this up and the user already asked. Do NOT ask again
           messages, profile: "fast",
         }), 12_000);
         const cleanRetry = stripScaffolding(retry);
-        const retryStillBad = looksLikeLookupOffer(cleanRetry)
+        const retryStillBad = looksLikeLookupOffer(cleanRetry) || looksLikeFetchPromise(cleanRetry)
           || looksLikePricelessList(cleanRetry, userText);
         if (cleanRetry && cleanRetry.trim() && !retryStillBad) cleanedReply = cleanRetry;
       } catch (e) { console.warn("[chat] lookup-offer retry failed:", e?.message || e); }
@@ -891,7 +891,7 @@ You already offered to look this up and the user already asked. Do NOT ask again
       entry.text = "Hmm, I'm having trouble reaching my brain right now. Give it a sec and try again?";
     } else if (!entry.text.trim() && result?.text) {
       entry.text = result.text;
-    } else if (looksLikeLookupOffer(entry.text)) {
+    } else if (looksLikeLookupOffer(entry.text) || looksLikeFetchPromise(entry.text)) {
       // Streaming has no tools at all, so an offer here is guaranteed to be
       // a dead end. Re-run through runAgent and replace the bubble.
       //
