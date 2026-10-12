@@ -226,7 +226,8 @@ export async function answerPriceQuery(text) {
     const chPct = q.changePct * 100;
     const chStr = fmtPct(chPct);
     const live = q.source === "yahoo" || q.source === "finnhub";
-    const peStr = inst.pe ? ` P/E is ${inst.pe}.` : "";
+    const peNum = Number(inst.pe);
+    const peStr = Number.isFinite(peNum) && peNum > 0 ? ` P/E is ${peNum.toLocaleString("en-IN", { maximumFractionDigits: peNum >= 100 ? 0 : 1 })}.` : "";
     const tail = live ? "Live from Yahoo Finance." : "Cached price (live feed not reachable).";
     return [
       `**${inst.name}** (${det.symbol}) — ₹${price}, ${chStr} today. Sector: ${inst.sector}.${peStr}`,

@@ -93,7 +93,9 @@ const CONCENTRATION_VARIANTS = [
     reflection: `Your ${tick.name} position is now ${tick.concentration}% of your entire portfolio. Not wrong — just worth noticing. Single-stock concentration is how both biggest wins and biggest losses happen.`,
     historical_context: null,
     warning_level: "info",
-    suggested_q: `If ${(tick.name || "").split(" ")[0] || "this stock"} fell 30% overnight, how would you feel?`,
+    // The first word alone read badly ("If Country fell 30%", "If 20 fell 30%"),
+    // so name the position plainly.
+    suggested_q: `If this position fell 30% overnight, how would you feel?`,
   }),
 ];
 
@@ -117,7 +119,7 @@ const ANCHORING_VARIANTS = [
 
 const DISPOSITION_VARIANTS = [
   (tick) => ({
-    reflection: `In the last 30 days you've sold ${tick.winnersSold} winning positions and held ${tick.losersSold || "most"} losing ones. This is the most documented pattern in retail investing — "sell the winners, hold the losers".`,
+    reflection: `In the last 30 days you've sold ${tick.winnersSold} winning position${tick.winnersSold === 1 ? "" : "s"} and held ${tick.losersSold === 1 ? "1 losing one" : `${tick.losersSold || "most"} losing ones`}. This is the most documented pattern in retail investing — "sell the winners, hold the losers".`,
     historical_context: null,
     warning_level: "caution",
     suggested_q: "If you'd flipped those decisions — sold losers, held winners — how would your portfolio look today?",
@@ -199,8 +201,12 @@ const STOCK_INTRO = [
     const sectorClause = sector ? ` is ${article} ${sector} company.` : ` is a listed Indian company.`;
     const pe = Number(inst.pe);
     const hasPe = Number.isFinite(pe) && pe > 0;
+    // The universe carries P/E as a raw float, and 884 of 1,160 intros in the
+    // week to 2026-10-13 read "P/E is 10.146366722686368, which means
+    // investors are paying ₹10.146366722686368 ...". One decimal is plenty.
+    const peShown = hasPe ? pe.toLocaleString("en-IN", { maximumFractionDigits: pe >= 100 ? 0 : 1 }) : "";
     const peClause = hasPe
-      ? ` P/E is ${pe}, which means investors are paying ₹${pe} for every ₹1 of annual earnings. A P/E of 25 is average for Indian large-caps; >50 usually implies investors expect fast growth.`
+      ? ` P/E is ${peShown}, which means investors are paying ₹${peShown} for every ₹1 of annual earnings. A P/E of 25 is average for Indian large-caps; >50 usually implies investors expect fast growth.`
       : ` We don't have a P/E on file for it right now — that usually means the company isn't profitable, or the data hasn't landed yet. Either way, valuation is worth checking before the price is.`;
     return {
       reflection: `${name}${sectorClause}${peClause}`,
