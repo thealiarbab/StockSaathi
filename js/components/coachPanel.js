@@ -11,7 +11,7 @@ import { getNews } from "../data/news.js";
 import { formatRupees, formatPct } from "../money.js";
 import { SYSTEM_PROMPT, matchTemplate, isOffTopic, offTopicRedirect, STARTER_QUESTIONS, runtimeFacts, NO_TOOLS_NOTE } from "../coach/persona.js";
 import { marketStatus } from "../data/prices.js";
-import { runAgent, streamChat, needsLiveData, logChatTurn, isToolCallOnly, looksLikeLookupOffer, looksLikePricelessList } from "../coach/agent.js";
+import { runAgent, streamChat, needsLiveData, logChatTurn, isToolCallOnly, looksLikeLookupOffer, looksLikeFetchPromise, looksLikePricelessList } from "../coach/agent.js";
 import { buildDossier } from "../coach/dossier.js";
 
 const CHAT_LOG_KEY = "ss.coachchat.v1";
@@ -330,7 +330,7 @@ function render() {
             : "No worries — ask again when you're ready.";
         } else if (result?.error && !entry.text.trim()) {
           entry.text = "Hmm, I can't reach my brain right now. Give it a sec and try again?";
-        } else if (looksLikeLookupOffer(entry.text) || looksLikePricelessList(entry.text, text)) {
+        } else if (looksLikeLookupOffer(entry.text) || looksLikeFetchPromise(entry.text) || looksLikePricelessList(entry.text, text)) {
           // No tools on the streaming path, so an offer to fetch is a dead
           // end. The user already asked — go get it.
           // Also covers the bare-list shape: a long reply naming several
@@ -375,10 +375,10 @@ function render() {
       reply = await callLlmAgent(s.settings.llmApiKey || null, chatHistory, s);
     } catch (e) { console.warn("coach panel error:", e); }
     // If it offered to look something up instead of doing it, push once more.
-    if (reply && (looksLikeLookupOffer(reply) || looksLikePricelessList(reply, text))) {
+    if (reply && (looksLikeLookupOffer(reply) || looksLikeFetchPromise(reply) || looksLikePricelessList(reply, text))) {
       try {
         const again = await callLlmAgent(s.settings.llmApiKey || null, chatHistory, s);
-        const stillBad = looksLikeLookupOffer(again) || looksLikePricelessList(again, text);
+        const stillBad = looksLikeLookupOffer(again) || looksLikeFetchPromise(again) || looksLikePricelessList(again, text);
         if (again && again.trim() && !stillBad) reply = again;
       } catch (e) { console.warn("coach panel lookup-offer retry:", e); }
     }
@@ -386,7 +386,9 @@ function render() {
       reply = "Hmm, I can't reach my brain right now. Give it a sec and try again?";
     } else {
       // Successful tool-use turn — log to DB for admin review.
-      logChatTurn({ userText: text, assistantText: reply, model: "gemini-chat-tools" });
+      // surface is required: without it rebuildChatSessionsFromDb filed these
+      // turns under the /chat page, so they vanished from this panel on reload.
+      logChatTurn({ userText: text, assistantText: reply, model: "gemini-chat-tools", surface: "side_panel" });
     }
 
     chatHistory.push({ role: "assistant", text: reply, ts: Date.now() });

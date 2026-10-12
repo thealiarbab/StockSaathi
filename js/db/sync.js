@@ -374,6 +374,66 @@ const COACHLOG_LS_KEY = "ss.coachchat.v1";
 const CHAT_OWNER_KEY  = "ss.chat.owner.v1";
 const SESSION_GAP_MS = 30 * 60_000;
 
+function readLocalJson(key) {
+  try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; }
+  catch { return null; }
+}
+
+const chatMsgKey = (m) => `${m.role}|${String(m.text || "").trim()}`;
+const usableMsg = (m) => m && !m.streaming && (m.role === "user" || m.role === "assistant") &&
+  typeof m.text === "string" && m.text.trim();
+
+/**
+ * Fold this device's not-yet-persisted chat messages into the rebuilt
+ * structures, in place. A local message survives when it is newer than the
+ * newest DB row it would sit beside (2 s of slack for client/server clock
+ * skew) and is not already there by role + text. Local sessions the DB has
+ * never seen are kept when they are newer than everything in the DB — e.g.
+ * a chat started a moment ago whose first turn is still in flight.
+ * Call only after enforceChatCacheOwner(), so the cache is this user's.
+ */
+function mergeLocalChatTail(sessions, coachLog) {
+  const SKEW_MS = 2_000;
+
+  const local = readLocalJson(SESSIONS_LS_KEY);
+  if (local && Array.isArray(local.sessions)) {
+    const dbNewest = sessions.reduce((n, s) => Math.max(n, s.updatedAt || 0), 0);
+    const byId = new Map(sessions.map(s => [s.id, s]));
+    for (const ls of local.sessions) {
+      if (!ls?.id || !Array.isArray(ls.messages)) continue;
+      const msgs = ls.messages.filter(usableMsg);
+      const db = byId.get(ls.id);
+      if (db) {
+        const seen = new Set(db.messages.map(chatMsgKey));
+        const extra = msgs.filter(m => (m.ts || 0) > (db.updatedAt || 0) + SKEW_MS && !seen.has(chatMsgKey(m)));
+        if (extra.length) {
+          db.messages.push(...extra.map(m => ({ role: m.role, text: m.text, ts: m.ts })));
+          db.updatedAt = Math.max(db.updatedAt || 0, ...extra.map(m => m.ts || 0));
+        }
+      } else {
+        const newest = Math.max(ls.createdAt || 0, ...msgs.map(m => m.ts || 0));
+        if (newest > dbNewest + SKEW_MS && (msgs.length || ls.id === local.activeId)) {
+          sessions.push({
+            id: ls.id,
+            title: ls.title || "New chat",
+            messages: msgs.map(m => ({ role: m.role, text: m.text, ts: m.ts })),
+            createdAt: ls.createdAt || newest,
+            updatedAt: newest,
+          });
+        }
+      }
+    }
+  }
+
+  const localLog = readLocalJson(COACHLOG_LS_KEY);
+  if (Array.isArray(localLog) && localLog.length) {
+    const dbNewest = coachLog.reduce((n, m) => Math.max(n, m.ts || 0), 0);
+    const seen = new Set(coachLog.map(chatMsgKey));
+    const extra = localLog.filter(m => usableMsg(m) && (m.ts || 0) > dbNewest + SKEW_MS && !seen.has(chatMsgKey(m)));
+    coachLog.push(...extra.map(m => ({ role: m.role, text: m.text, ts: m.ts })));
+  }
+}
+
 /**
  * Which user the cached chat history on this device belongs to.
  *
@@ -450,10 +510,21 @@ export function rebuildChatSessionsFromDb(coachMessagesRows, userId = null) {
   if (!chatRows.length) return;
 
   // Split by surface. Legacy rows (surface=NULL, pre-v142) belong to the
-  // chat-page history — the side panel has always written through via
-  // the same logChatTurn path so the merge is correct.
-  const chatPageRows = chatRows.filter(r => !r.surface || r.surface === "chat_page");
-  const sidePanelRows = chatRows.filter(r => r.surface === "side_panel");
+  // chat-page history — except the side panel's tool-path turns, which were
+  // logged without a surface until 2026-10-13 (model "gemini-chat-tools").
+  // Filed under the chat page, those replies vanished from the panel on the
+  // next boot and turned up as stray sessions on /chat instead.
+  const panelToolRow = new Set();
+  for (let i = 0; i < chatRows.length; i++) {
+    const r = chatRows[i];
+    if (r.surface || r.event_type !== "chat_assistant" || r.model !== "gemini-chat-tools") continue;
+    panelToolRow.add(r);
+    const u = chatRows[i - 1];
+    if (u && !u.surface && u.event_type === "chat_user" &&
+        new Date(r.created_at) - new Date(u.created_at) < 5_000) panelToolRow.add(u);
+  }
+  const chatPageRows = chatRows.filter(r => (!r.surface && !panelToolRow.has(r)) || r.surface === "chat_page");
+  const sidePanelRows = chatRows.filter(r => r.surface === "side_panel" || panelToolRow.has(r));
 
   // /chat multi-session envelope. Prefer explicit session_id; fall back
   // to the 30-min time-gap heuristic for legacy rows.
@@ -503,9 +574,20 @@ export function rebuildChatSessionsFromDb(coachMessagesRows, userId = null) {
     ts: new Date(r.created_at).getTime(),
   }));
 
+  // Keep the turns this device has that the DB does not yet. This rebuild
+  // used to REPLACE the local cache with the DB snapshot fetched at boot, so
+  // a message sent while that fetch was in flight — or a turn whose insert
+  // had not landed — was wiped from localStorage, and the chat page reloaded
+  // without it: the "message vanished" reports. Only messages newer than the
+  // newest DB row are carried over, so cleaned-up local copies of turns the
+  // DB already holds are not duplicated.
+  mergeLocalChatTail(sessions, coachLog);
+
   let touched = false;
   if (sessions.length) {
-    const activeId = sessions[sessions.length - 1].id;
+    let activeId = sessions[sessions.length - 1].id;
+    const localActive = readLocalJson(SESSIONS_LS_KEY)?.activeId;
+    if (localActive && sessions.some(s => s.id === localActive)) activeId = localActive;
     try {
       localStorage.setItem(SESSIONS_LS_KEY, JSON.stringify({ activeId, sessions }));
       touched = true;

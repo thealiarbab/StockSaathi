@@ -138,8 +138,9 @@ const CASES = [
 async function dossierChecks() {
   let src = fs.readFileSync(path.join(ROOT, "js/coach/dossier.js"), "utf8");
   src = src.replace(/^import .*$/gm, "").replace(/export (async )?function/g, "$1function");
-  const mk = new Function("getState", "getInstrument", "getQuoteBatch",
-    src + "; return { buildDossier, realisedPaise, isCorrupt };");
+  const mk = (getState, getInstrument, getQuoteBatch, getCachedQuotes = () => ({})) =>
+    new Function("getState", "getInstrument", "getQuoteBatch", "getCachedQuotes",
+      src + "; return { buildDossier, realisedPaise, isCorrupt };")(getState, getInstrument, getQuoteBatch, getCachedQuotes);
 
   const state = {
     isAuthed: true, username: "aarav", profile: { age: 15, riskProfile: "balanced" },
@@ -167,7 +168,18 @@ async function dossierChecks() {
   const signedOut = mk(() => ({ isAuthed: false }), () => null, async () => ({}));
   const emptyText = await signedOut.buildDossier();
 
+  // A quote batch that never answers must not hold the reply hostage: the
+  // dossier gives up on it after its deadline and uses the tab's cached
+  // quotes. Messages used to sit 10-18 s before the model was called.
+  const hung = mk(() => state, (x) => ({ name: x + " Ltd" }), () => new Promise(() => {}),
+    (syms) => Object.fromEntries(syms.filter((x) => quotes[x]).map((x) => [x, quotes[x]])));
+  const t0 = Date.now();
+  const hungText = await hung.buildDossier();
+  const hungMs = Date.now() - t0;
+
   return [
+    ["hung quote batch: dossier returns within 5 s", hungMs < 5000, true],
+    ["hung quote batch: falls back to cached quotes", hungText.includes(totalStr), true],
     ["TOTAL equals cash + SUM(qty x last price)", text.includes(totalStr), true],
     ["states market value, not just cost basis", text.includes("438.20") && text.includes("17,528.00"), true],
     ["corrupt row flagged, not narrated as free shares", text.includes("GHOST") && text.includes("CORRUPT"), true],

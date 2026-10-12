@@ -54,14 +54,53 @@ export function sb() {
 // for the lock with "fail immediately if busy", and Firefox surfaces that
 // failure as an uncaught error on every page load. This keeps calls in one
 // tab strictly one-at-a-time, which is what the auth client needs.
+//
+// acquireTimeout is honoured for the one value auth-js actually uses besides
+// -1: the background refresh tick asks with 0 ("skip this tick if busy") and
+// catches an error carrying isAcquireTimeout. Queueing that tick instead used
+// to stack refreshes behind whatever held the lock, and every DB query waits
+// on this lock (each one reads the session first) — console showed
+// refreshCurrentUser_timeout and listPendingOrders timing out at 10 s.
 const _authLocks = new Map();
-async function inTabLock(name, _acquireTimeout, fn) {
+const _authLockDepth = new Map();
+async function inTabLock(name, acquireTimeout, fn) {
+  if (acquireTimeout === 0 && (_authLockDepth.get(name) || 0) > 0) {
+    const err = new Error(`Lock "${name}" is busy`);
+    err.isAcquireTimeout = true;
+    throw err;
+  }
+  _authLockDepth.set(name, (_authLockDepth.get(name) || 0) + 1);
   const prev = _authLocks.get(name) || Promise.resolve();
   let release;
   const mine = new Promise((r) => { release = r; });
   _authLocks.set(name, prev.then(() => mine));
-  await prev.catch(() => {});
-  try { return await fn(); } finally { release(); }
+  try {
+    await prev.catch(() => {});
+    return await fn();
+  } finally {
+    _authLockDepth.set(name, (_authLockDepth.get(name) || 1) - 1);
+    release();
+  }
+}
+
+// Auth and REST requests get a ceiling. supabase-js sets none, so a single
+// request that never answers (flaky mobile data) held the auth lock above
+// forever and every later query queued behind it until reload. A timed-out
+// token refresh is a retryable fetch error to auth-js: it backs off and
+// retries, it does not sign the user out. Storage uploads and realtime are
+// left alone.
+const SB_FETCH_TIMEOUT_MS = 20_000;
+function sbFetch(input, init = {}) {
+  const url = typeof input === "string" ? input : (input?.url || "");
+  if (!/\/(auth|rest)\/v1\//.test(url)) return fetch(input, init);
+  const ctrl = new AbortController();
+  const outer = init.signal;
+  if (outer) {
+    if (outer.aborted) ctrl.abort(outer.reason);
+    else outer.addEventListener("abort", () => ctrl.abort(outer.reason), { once: true });
+  }
+  const timer = setTimeout(() => ctrl.abort(), SB_FETCH_TIMEOUT_MS);
+  return fetch(input, { ...init, signal: ctrl.signal }).finally(() => clearTimeout(timer));
 }
 
 async function createSb() {
@@ -77,7 +116,7 @@ async function createSb() {
       storageKey: "ss.sb.session.v1",
       lock: inTabLock,
     },
-    global: { headers: { "x-application-name": "stocksaathi" } },
+    global: { headers: { "x-application-name": "stocksaathi" }, fetch: sbFetch },
   });
   return _client;
 }

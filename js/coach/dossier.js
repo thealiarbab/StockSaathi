@@ -41,10 +41,25 @@
 
 import { getState } from "../state.js";
 import { getInstrument } from "../data/universe.js";
-import { getQuoteBatch } from "../data/marketData.js";
+import { getQuoteBatch, getCachedQuotes } from "../data/marketData.js";
 import { sb } from "../db/supabase.js";
 
 const MAX_POSITIONS_SHOWN = 12;
+
+// Deadlines for the dossier's lookups. Context is worth a second or two, not
+// the 10-18 s the old sequential version could cost before the model was
+// even called.
+const QUOTES_DEADLINE_MS = 3_500;
+const DB_DEADLINE_MS = 2_500;
+
+/** Resolve to the promise's value, or null after `ms`. Never rejects. */
+function withDeadline(promise, ms) {
+  let timer;
+  return Promise.race([
+    Promise.resolve(promise).catch(() => null),
+    new Promise((resolve) => { timer = setTimeout(() => resolve(null), ms); }),
+  ]).finally(() => clearTimeout(timer));
+}
 
 const inr = (paise) =>
   "₹" + (paise / 100).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -190,11 +205,28 @@ export async function buildDossier() {
   const symbols = Object.keys(holdings);
   const txns = Array.isArray(s.transactions) ? s.transactions : [];
 
-  let quotes = {};
+  // The three network lookups below run IN PARALLEL, each with a short
+  // deadline, because every chat message awaits this function before the
+  // model is called at all. They used to run one after another with no
+  // overall cap: quotes (MF holdings fall through three endpoints), then
+  // pending orders (a 10 s Supabase timeout, hit whenever the auth lock was
+  // busy), then activity. Measured 2026-10-12: messages sat 10-18 s before
+  // /api/chat was even requested, which users reported as "chat stuck".
+  // A slow lookup now degrades one line of context, never the reply.
+  const quotesP = symbols.length
+    ? withDeadline(getQuoteBatch(symbols).catch(() => null), QUOTES_DEADLINE_MS)
+    : Promise.resolve({});
+  const pendingP = withDeadline(pendingOrderLines(), DB_DEADLINE_MS);
+  const activityP = withDeadline(activitySummary(), DB_DEADLINE_MS);
+
+  // Batched, not a getQuote loop: the single-symbol path goes to /api/quote,
+  // the only quote endpoint with no Supabase cache layer. On a timeout, fall
+  // back to whatever this tab already has cached (the Portfolio page and the
+  // ticker keep it warm), so positions keep a price instead of "NO PRICE".
+  let quotes = (await quotesP) || {};
   if (symbols.length) {
-    // Batched, not a getQuote loop: the single-symbol path goes to /api/quote,
-    // the only quote endpoint with no Supabase cache layer.
-    try { quotes = (await getQuoteBatch(symbols)) || {}; } catch { quotes = {}; }
+    const cached = getCachedQuotes(symbols.filter((sym) => !quotes[sym]));
+    quotes = { ...cached, ...quotes };
   }
 
   const cash = s.portfolio?.cashPaise ?? 0;
@@ -249,7 +281,9 @@ export async function buildDossier() {
   ].filter(Boolean).join(", ");
   if (who) L.push(who);
 
-  const pending = await pendingOrderLines();
+  // null on a timeout, which renders as "COULD NOT CHECK" below — the same
+  // contract as a failed lookup, never "no orders".
+  const pending = await pendingP;
 
   if (!symbols.length) {
     L.push(`Cash ${inr(cash)}${reserved > 0 ? ` (${inr(reserved)} reserved by pending orders)` : ""}. NO HOLDINGS — no order has filled yet.`);
@@ -301,7 +335,7 @@ export async function buildDossier() {
     L.push(`Trades 0 — this user has NEVER placed a trade. Say exactly that if asked; do not invent one.`);
   }
 
-  const activity = await activitySummary();
+  const activity = await activityP;
   if (activity) L.push(activity);
 
   const wl = Array.isArray(s.watchlist) ? s.watchlist.length : 0;

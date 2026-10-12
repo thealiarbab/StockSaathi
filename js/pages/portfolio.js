@@ -24,6 +24,7 @@ import { ensureUniverseLoaded, ensureMfUniverseLoaded } from "../data/universeLo
 import { getPriceAt, getTodayChange, marketStatus } from "../data/prices.js";
 import { getQuoteBatch, getDataSource, subscribeToQuotes, getCachedQuotes } from "../data/marketData.js";
 import { listPendingOrders, cancelOrder } from "../features/limitOrders.js";
+import { go } from "../navigation.js";
 import { getNews, fmtRelativeTime, labelSentiment } from "../data/news.js";
 import { stockChart, attachStockChartHover } from "../components/charts.js";
 import { attachChartZoom } from "../components/chartZoom.js";
@@ -793,6 +794,18 @@ export function renderPortfolio(main) {
     // Wire up Cancel buttons on Pending orders. Without this the buttons
     // looked active but did nothing — users assumed the AMO system was
     // broken when they couldn't cancel a queued order.
+    // Holdings rows are styled clickable but had no handler, so only the
+    // small "Trade" button at the far right worked — off-screen on a phone,
+    // where the table scrolls sideways. A user reported "trade ko tap karne
+    // par nahi khul raha" to the coach on 2026-10-12. The whole row opens
+    // the stock page now; the button's own link still works as before.
+    main.querySelectorAll("tr.clickable[data-sym]").forEach(row => {
+      row.addEventListener("click", (e) => {
+        if (e.target.closest("a, button")) return;
+        const sym = row.dataset.sym;
+        if (sym) go("/stocks/" + sym);
+      });
+    });
     main.querySelectorAll("[data-cancel-order]").forEach(btn => {
       btn.addEventListener("click", async () => {
         const id = btn.dataset.cancelOrder;
