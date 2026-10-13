@@ -47,7 +47,26 @@ jobs:
           fi
           echo "CRON_SECRET present (${#CRON_SECRET} chars)"
 
+      # NAVs first. Fund orders and fund valuations depend on them, and the
+      # step is short. It used to run LAST, after a ~30-minute fundamentals
+      # loop; on 12 Oct the runner lost DNS near the end of that loop, the
+      # NAV step failed with it, and mf_master sat two days stale. Retries
+      # cover a transient blip; mf-nav.yml covers a lost night.
+      - name: Sync AMFI mutual-fund master
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          for attempt in 1 2 3 4 5; do
+            code=$(curl -sS -o /tmp/mf.json -w '%{http_code}' --max-time 180               -H "Authorization: Bearer $CRON_SECRET"               https://stocksaathi.co.in/api/admin-sync-mf) || code=000
+            echo "attempt $attempt: HTTP $code"; head -c 600 /tmp/mf.json; echo
+            [ "$code" = "200" ] && exit 0
+            sleep $(( attempt * 30 ))
+          done
+          echo "::error::AMFI sync failed 5 times"
+          exit 1
+
       - name: Sync NSE instrument master
+        if: ${{ !cancelled() }}
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
@@ -80,6 +99,7 @@ jobs:
           fi
 
       - name: Sync fundamentals (stalest first, capped per night)
+        if: ${{ !cancelled() }}
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
@@ -116,21 +136,11 @@ jobs:
             sleep 3
           done
           echo "fundamentals: processed=$total success=$ok_total failed_pages=$fail_pages"
-          # Best-effort (upstream rate-limits), so warn rather than fail and
-          # let the MF step still run. But zero success means the chain is
+          # Best-effort (upstream rate-limits), so warn rather than fail.
+          # But zero success means the chain is
           # broken, not throttled -- that should be loud.
           [ "$fail_pages" = "0" ] || echo "::warning::$fail_pages fundamentals page(s) failed"
           if [ "$ok_total" = "0" ]; then
             echo "::error::fundamentals refreshed 0 symbols"
             exit 1
           fi
-
-      - name: Sync AMFI mutual-fund master
-        env:
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
-        run: |
-          code=$(curl -sS -o /tmp/mf.json -w '%{http_code}' --max-time 180 \
-            -H "Authorization: Bearer $CRON_SECRET" \
-            https://stocksaathi.co.in/api/admin-sync-mf)
-          echo "HTTP $code"; head -c 600 /tmp/mf.json; echo
-          [ "$code" = "200" ] || exit 1

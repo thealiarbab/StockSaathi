@@ -1,0 +1,40 @@
+name: mf-nav
+
+# Mutual-fund NAVs on their own, twice a day. AMFI publishes the day's NAVs
+# in the evening (often after 21:00 IST), so data-sync's 18:45 IST slot
+# frequently picks up the previous day's, and when that job dies (12 Oct:
+# the runner lost DNS mid-run) mf_master goes stale for days. Fund orders
+# allot at the next NAV, so a stale mf_master holds them up.
+#
+# Same endpoint and secret as data-sync.yml. Re-running is harmless: the
+# handler upserts.
+
+on:
+  schedule:
+    - cron: "30 17 * * *"   # 23:00 IST
+    - cron: "30 1 * * *"    # 07:00 IST
+  workflow_dispatch: {}
+
+concurrency:
+  group: mf-nav
+  cancel-in-progress: false
+
+jobs:
+  nav:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync AMFI mutual-fund master
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          [ -n "$CRON_SECRET" ] || { echo "::error::CRON_SECRET not set"; exit 1; }
+          for attempt in 1 2 3 4 5; do
+            code=$(curl -sS -o /tmp/mf.json -w '%{http_code}' --max-time 180 \
+              -H "Authorization: Bearer $CRON_SECRET" \
+              https://stocksaathi.co.in/api/admin-sync-mf) || code=000
+            echo "attempt $attempt: HTTP $code"; head -c 600 /tmp/mf.json; echo
+            [ "$code" = "200" ] && exit 0
+            sleep $(( attempt * 30 ))
+          done
+          echo "::error::AMFI sync failed 5 times"
+          exit 1
