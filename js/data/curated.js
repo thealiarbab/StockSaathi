@@ -57,51 +57,48 @@ export const FEATURED_SYMBOLS = [
   "TATACOMM",
 ];
 
-// Featured MUTUAL_FUNDS — kept as bare AMFI scheme codes until Landing G
-// imports the full ~5,000-scheme AMFI universe. ONBOARDING_PORTFOLIOS
-// references these symbols. Once mfFull.json is wired, these become just
-// pointers into that catalog (same pattern as FEATURED_SYMBOLS for stocks).
-export const FEATURED_MF_CODES = [
-  "MF_NIFTY50_INDEX",     // UTI Nifty 50 Index Fund (placeholder until AMFI lands)
-  "MF_SENSEX_INDEX",
-  "MF_NIFTY_NEXT_50",
-  "MF_PARAG_FLEXI",
-  "MF_MIRAE_LARGE",
-  "MF_AXIS_SMALL",
-  "MF_SBI_BLUECHIP",
-  "MF_HDFC_BALANCED",
-  "MF_ICICI_LIQUID",
-  "MF_NIPPON_GOLD",
-];
-
-// Stub MF metadata kept ONLY because onboarding portfolios reference these
-// symbols and we need SOME shape to render before Landing G replaces this
-// with a Supabase mf_master query. After Landing G this whole block is
-// removed and onboarding portfolios reference real AMFI scheme codes
-// (e.g. "MF_120503" for HDFC Index Nifty 50 Direct Plan).
+// Featured mutual funds: real AMFI schemes, Direct plan, Growth option.
+// The names here only cover the first paint, before mfFull.json loads; the
+// AMFI catalogue then supplies the full record (NAV, category, AMC).
 //
-// IMPORTANT: this is the LAST hand-typed data block in the codebase. Tagged
-// for removal in Landing G when AMFI scheme codes replace these placeholders.
-export const PLACEHOLDER_MFS = [
-  { symbol: "MF_NIFTY50_INDEX",  name: "Nifty 50 Index Fund (placeholder)",   category: "Index",   risk: "low",  bench: "NIFTY 50",         placeholder: true },
-  { symbol: "MF_SENSEX_INDEX",   name: "Sensex Index Fund (placeholder)",     category: "Index",   risk: "low",  bench: "SENSEX",           placeholder: true },
-  { symbol: "MF_NIFTY_NEXT_50",  name: "Nifty Next 50 Index Fund (placeholder)", category: "Index", risk: "med", bench: "NIFTY Next 50",   placeholder: true },
-  { symbol: "MF_PARAG_FLEXI",    name: "Parag Parikh Flexi Cap (placeholder)",category: "Equity",  risk: "med",  bench: "NIFTY 500",        placeholder: true },
-  { symbol: "MF_MIRAE_LARGE",    name: "Mirae Asset Large Cap (placeholder)", category: "Equity",  risk: "med",  bench: "NIFTY 100",        placeholder: true },
-  { symbol: "MF_AXIS_SMALL",     name: "Axis Small Cap (placeholder)",        category: "Equity",  risk: "high", bench: "NIFTY SmallCap 250",placeholder: true },
-  { symbol: "MF_SBI_BLUECHIP",   name: "SBI Bluechip (placeholder)",          category: "Equity",  risk: "med",  bench: "BSE 100",          placeholder: true },
-  { symbol: "MF_HDFC_BALANCED",  name: "HDFC Balanced Advantage (placeholder)",category:"Hybrid",  risk: "med",  bench: "CRISIL Hybrid",    placeholder: true },
-  { symbol: "MF_ICICI_LIQUID",   name: "ICICI Pru Liquid (placeholder)",      category: "Debt",    risk: "low",  bench: "CRISIL Liquid",    placeholder: true },
-  { symbol: "MF_NIPPON_GOLD",    name: "Nippon Gold Savings (placeholder)",   category: "Gold",    risk: "med",  bench: "Domestic Gold",    placeholder: true },
+// These used to be ten hand-typed placeholders (MF_NIFTY50_INDEX, ...) with
+// no NAV anywhere: they opened as pages and showed up in search, but could
+// never be bought or valued. One user held one worth Rs 0. LEGACY_MF_ALIASES
+// keeps old links working by mapping each to the real scheme.
+export const FEATURED_MFS = [
+  { symbol: "MF_120716", name: "UTI Nifty 50 Index Fund - Direct Plan - Growth", category: "Index", risk: "low", bench: "NIFTY 50" },
+  { symbol: "MF_149803", name: "UTI BSE Sensex Index Fund - Direct Plan - Growth", category: "Index", risk: "low", bench: "SENSEX" },
+  { symbol: "MF_120684", name: "ICICI Prudential Nifty Next 50 Index Fund - Direct Plan - Growth", category: "Index", risk: "med", bench: "NIFTY Next 50" },
+  { symbol: "MF_122639", name: "Parag Parikh Flexi Cap Fund - Direct Plan - Growth", category: "Equity", risk: "med", bench: "NIFTY 500" },
+  { symbol: "MF_118825", name: "Mirae Asset Large Cap Fund - Direct Plan - Growth", category: "Equity", risk: "med", bench: "NIFTY 100" },
+  { symbol: "MF_125354", name: "Axis Small Cap Fund - Direct Plan - Growth", category: "Equity", risk: "high", bench: "NIFTY SmallCap 250" },
+  { symbol: "MF_119598", name: "SBI Large Cap Fund - Direct Plan - Growth", category: "Equity", risk: "med", bench: "BSE 100" },
+  { symbol: "MF_118968", name: "HDFC Balanced Advantage Fund - Direct Plan - Growth", category: "Hybrid", risk: "med", bench: "CRISIL Hybrid" },
+  { symbol: "MF_120197", name: "ICICI Prudential Liquid Fund - Direct Plan - Growth", category: "Debt", risk: "low", bench: "CRISIL Liquid" },
+  { symbol: "MF_118663", name: "Nippon India Gold Savings Fund - Direct Plan - Growth", category: "Gold", risk: "med", bench: "Domestic Gold" },
 ];
+export const FEATURED_MF_CODES = FEATURED_MFS.map(m => m.symbol);
+
+export const LEGACY_MF_ALIASES = {
+  MF_NIFTY50_INDEX: "MF_120716",
+  MF_SENSEX_INDEX: "MF_149803",
+  MF_NIFTY_NEXT_50: "MF_120684",
+  MF_PARAG_FLEXI: "MF_122639",
+  MF_MIRAE_LARGE: "MF_118825",
+  MF_AXIS_SMALL: "MF_125354",
+  MF_SBI_BLUECHIP: "MF_119598",
+  MF_HDFC_BALANCED: "MF_118968",
+  MF_ICICI_LIQUID: "MF_120197",
+  MF_NIPPON_GOLD: "MF_118663",
+};
 
 // Onboarding starter portfolios — UX choice (which symbols + how many units),
 // not data. The actual price + market cap of each holding comes from
 // /api/quote and /api/fundamentals at runtime.
 export const ONBOARDING_PORTFOLIOS = {
   cautious: [
-    { symbol: "MF_NIFTY50_INDEX", qty: 3.0 },
-    { symbol: "MF_HDFC_BALANCED", qty: 3.0 },
+    { symbol: "MF_120716", qty: 3.0 },
+    { symbol: "MF_118968", qty: 3.0 },
     { symbol: "HDFCBANK",         qty: 5 },
     { symbol: "TCS",              qty: 2 },
   ],
@@ -111,7 +108,7 @@ export const ONBOARDING_PORTFOLIOS = {
     { symbol: "HDFCBANK",         qty: 10 },
     { symbol: "INFY",             qty: 6 },
     { symbol: "ITC",              qty: 40 },
-    { symbol: "MF_NIFTY50_INDEX", qty: 1.5 },
+    { symbol: "MF_120716", qty: 1.5 },
   ],
   bold: [
     { symbol: "TMPV",        qty: 20 },

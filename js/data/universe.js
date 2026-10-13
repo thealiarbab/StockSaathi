@@ -12,6 +12,7 @@ export {
   INSTRUMENT_BY_SYMBOL,
   ONBOARDING_PORTFOLIOS,
   getInstrument,
+  canonicalSymbol,
   ensureUniverseLoaded,
   ensureMfUniverseLoaded,
   getAllInstruments,

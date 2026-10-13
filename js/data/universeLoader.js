@@ -15,9 +15,9 @@
 // pages can re-render with the proper sector / risk / industry tags.
 // =============================================================================
 
-import { FEATURED_SYMBOLS, FEATURED_MF_CODES, PLACEHOLDER_MFS, ONBOARDING_PORTFOLIOS } from "./curated.js";
+import { FEATURED_SYMBOLS, FEATURED_MF_CODES, FEATURED_MFS, LEGACY_MF_ALIASES, ONBOARDING_PORTFOLIOS } from "./curated.js";
 
-export { ONBOARDING_PORTFOLIOS, FEATURED_SYMBOLS, FEATURED_MF_CODES };
+export { ONBOARDING_PORTFOLIOS, FEATURED_SYMBOLS, FEATURED_MF_CODES, LEGACY_MF_ALIASES };
 
 // ── Mutable module-scoped state ─────────────────────────────────────────────
 let _fullBySymbol = null;          // populated after ensureUniverseLoaded resolves
@@ -49,9 +49,16 @@ function _bareStub(symbol, kind = "EQUITY") {
   };
 }
 
-const _placeholderMfsByS = Object.fromEntries(
-  PLACEHOLDER_MFS.map(m => [m.symbol, { ...m, kind: "MF", _placeholder: true }])
+// First-paint records for the featured funds (real AMFI codes), used until
+// mfFull.json lands. The catalogue record always wins once it is loaded.
+const _featuredMfsByS = Object.fromEntries(
+  FEATURED_MFS.map(m => [m.symbol, { ...m, kind: "MF", price: null, logo: "MF" }])
 );
+
+/** Old placeholder fund symbols resolve to the real scheme they stood for. */
+export function canonicalSymbol(symbol) {
+  return LEGACY_MF_ALIASES[symbol] || symbol;
+}
 
 // ── Public sync exports (live bindings — re-read after universe-loaded) ─────
 // `let` so we can swap in upgraded values when Tier-2 lands.
@@ -60,11 +67,10 @@ const _placeholderMfsByS = Object.fromEntries(
  *  after universeFull.json loads. */
 export let STOCKS = FEATURED_SYMBOLS.map(s => _bareStub(s, "EQUITY"));
 
-/** Mutual funds — placeholders until Landing G ships AMFI's full ~5,000-
- *  scheme catalog. */
-export let MUTUAL_FUNDS = PLACEHOLDER_MFS.map(m => ({ ...m, kind: "MF" }));
+/** Featured mutual funds (real AMFI schemes). */
+export let MUTUAL_FUNDS = Object.values(_featuredMfsByS);
 
-/** Combined featured + placeholder MFs. Equivalent to old `INSTRUMENTS`. */
+/** Combined featured stocks + featured MFs. Equivalent to old `INSTRUMENTS`. */
 export let INSTRUMENTS = [...STOCKS, ...MUTUAL_FUNDS];
 
 /** Symbol → instrument map. Live binding so callers reading after
@@ -73,22 +79,21 @@ export let INSTRUMENT_BY_SYMBOL = Object.fromEntries(
   INSTRUMENTS.map(i => [i.symbol, i])
 );
 
-/** Sector list for the curated view (featured + MF placeholders).
+/** Sector list for the curated view (featured stocks).
  *  After Tier-2 loads, getAllSectors() returns the broader union. */
 export let SECTORS = [...new Set(STOCKS.map(s => s.sector).filter(s => s && s !== "Unknown"))].sort();
 
 // ── Resolve a single symbol to its richest available instrument record ──────
 export function getInstrument(symbol) {
   if (!symbol || typeof symbol !== "string") return null;
+  symbol = canonicalSymbol(symbol);
   // 1) AMFI catalog (MF_<scheme code> primary key — wins over the placeholder
   //    list when both are loaded, since AMFI ships richer metadata).
   if (_mfBySymbol && _mfBySymbol[symbol]) return _mfBySymbol[symbol];
   // 2) Tier 2 equity universe (lazy-loaded NSE + ETF rows).
   if (_fullBySymbol && _fullBySymbol[symbol]) return _fullBySymbol[symbol];
-  // 3) MF placeholder (kept for ONBOARDING_PORTFOLIOS symbols only — these
-  //    are the legacy 10 hand-typed scheme codes that onboarding starter
-  //    portfolios reference. Real AMFI codes use the (1) branch.)
-  if (_placeholderMfsByS[symbol]) return _placeholderMfsByS[symbol];
+  // 3) Featured fund before the AMFI catalogue has loaded.
+  if (_featuredMfsByS[symbol]) return _featuredMfsByS[symbol];
   // 4) Stub — pages render stub-tolerant skeletons + kick Tier-3 enrichment
   return _bareStub(symbol, symbol.startsWith("MF_") ? "MF" : "EQUITY");
 }
@@ -230,28 +235,15 @@ export function ensureMfUniverseLoaded() {
   return _mfLoadPromise;
 }
 
-// ── Full merged view (Tier-2 + AMFI MFs + legacy MF placeholders) ──────────
+// ── Full merged view (Tier-2 + AMFI MFs + featured-fund stubs) ────────────
 export function getAllInstruments() {
   if (!_fullBySymbol && !_mfBySymbol) return INSTRUMENTS;
   if (_mergedBySymbol) return Object.values(_mergedBySymbol);
-  // ORDER MATTERS, and it used to be wrong.
-  //
-  // _placeholderMfsByS was spread LAST, so the 8 legacy placeholder funds in
-  // curated.js overrode the real AMFI catalogue for their symbols. Those
-  // placeholders carry no NAV, so the winning entry was unpriceable — while
-  // still appearing in search and therefore being buyable.
-  //
-  // That is not hypothetical. One user holds 56.86 units of MF_NIPPON_GOLD
-  // bought 2026-04-22 (cost basis Rs 17,984). It is in neither quote_cache
-  // nor mf_master, so apply_trade raises 'no price available' and they cannot
-  // sell it. Same failure class as the order-rot incident in AGENTS.md.
-  //
-  // Placeholders now go FIRST, making them a FALLBACK that real data
-  // overrides, which is what "placeholder" was always supposed to mean. They
-  // stay in the merge so existing holdings still resolve to a name rather
-  // than rendering as a bare symbol.
+  // Featured-fund stubs first, so the real catalogue rows override them.
+  // (The old hand-typed placeholder funds were spread LAST and overrode real
+  // AMFI data with unpriceable records; they are gone now, see curated.js.)
   const merged = {
-    ..._placeholderMfsByS,         // legacy starter-portfolio codes (fallback only)
+    ..._featuredMfsByS,
     ...(_fullBySymbol || {}),
     ...(_mfBySymbol || {}),
   };

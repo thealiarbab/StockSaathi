@@ -832,8 +832,8 @@ export function renderStocks(main) {
     // Use the boolean tracked at function scope (set true by onUniverseLoaded
     // event listener OR pre-flagged at mount when allInst > 1000 already).
     // The previous `allInst.length > STOCKS.length` heuristic was off by 10
-    // because curated.js's PLACEHOLDER_MFS still get included in allInst at
-    // pre-universeFull state.
+    // because the featured funds are included in allInst before
+    // universeFull loads.
     const universeReady = _universeLoaded;
     // Page is "real-grid ready" only when ALL of (a) the full universe has
     // landed (b) the cold-start quote batch has resolved (c) the viewport

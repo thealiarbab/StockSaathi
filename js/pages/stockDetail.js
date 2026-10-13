@@ -3,7 +3,7 @@
 // for buy/sell. Panic-sell intervention before SELL executes.
 // =============================================================================
 
-import { getInstrument, ensureMfUniverseLoaded, ensureUniverseLoaded } from "../data/universe.js";
+import { getInstrument, canonicalSymbol, ensureMfUniverseLoaded, ensureUniverseLoaded } from "../data/universe.js";
 import { track } from "../features/track.js";
 import { getQuote, getHistory, getMfHistory, subscribeToQuotes, quoteAge, getFundamentals, getFreshCachedQuote } from "../data/marketData.js";
 import { placeLimitOrder, listPendingOrders } from "../features/limitOrders.js";
@@ -199,6 +199,13 @@ function computeChartWidth() {
 }
 
 export function renderStockDetail(main, params) {
+  // Old placeholder fund links (/stocks/MF_NIFTY50_INDEX) move to the real
+  // scheme page, replacing the history entry so Back doesn't bounce.
+  const canonical = canonicalSymbol(params.symbol);
+  if (canonical !== params.symbol) {
+    go(`/stocks/${encodeURIComponent(canonical)}`, { replace: true });
+    return;
+  }
   const symbol = params.symbol;
   const inst = getInstrument(symbol);
   // Throttled to one row per symbol per minute in track.js, so a
