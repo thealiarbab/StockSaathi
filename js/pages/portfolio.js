@@ -585,7 +585,7 @@ export function renderPortfolio(main) {
         <div class="stat-tile"><div class="l">Cash</div><div class="v tabular">${formatRupees(cash, { compact: true })}</div></div>
         <div class="stat-tile"><div class="l">Invested</div><div class="v tabular">${formatRupees(holdValue, { compact: true })}</div></div>
         <div class="stat-tile"><div class="l">Holdings</div><div class="v tabular">${holdings.length}</div></div>
-        <div class="stat-tile ${pendingOrders.length ? 'has-pending' : ''}"><div class="l">Queued AMOs</div><div class="v tabular" ${ordersUnavailable ? 'title="Could not load your queued orders just now — this is a display problem, not a cancellation. Your orders are safe."' : ''}>${ordersUnavailable ? "—" : pendingOrders.length}</div></div>
+        <div class="stat-tile ${pendingOrders.length ? 'has-pending' : ''}"><div class="l">Queued orders</div><div class="v tabular" ${ordersUnavailable ? 'title="Could not load your queued orders just now — this is a display problem, not a cancellation. Your orders are safe."' : ''}>${ordersUnavailable ? "—" : pendingOrders.length}</div></div>
       </div>
 
       <div class="portfolio-grid">
@@ -642,7 +642,7 @@ export function renderPortfolio(main) {
 
           ${ordersUnavailable && !pendingOrders.length ? `
             <div class="card" id="order-list" style="border: 1px solid var(--warning, #b26a00);">
-              <div class="card-head"><h3><span>🕗</span> Queued AMOs &amp; Limit orders</h3></div>
+              <div class="card-head"><h3><span>🕗</span> Queued orders</h3></div>
               <p class="dim text-sm" style="margin: 0;">
                 Couldn't load your queued orders just now — that's a display
                 problem on our side, not a cancellation. Nothing has been

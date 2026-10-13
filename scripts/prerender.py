@@ -51,7 +51,7 @@ TODAY = dt.datetime.now(IST).date().isoformat()
 
 # <lastmod> follows what a crawler reads, not the asset tags every page shares:
 # adding an analytics script must not date every page to today.
-SCRIPT_TAG = re.compile(r'^[ \t]*<script(?: defer| async)* src="[^"]+"></script>\n', re.M)
+SCRIPT_TAG = re.compile(r'^[ \t]*<script\b[^>]*\bsrc="[^"]+"[^>]*></script>\n', re.M)
 
 
 def content_digest(body):

@@ -153,8 +153,8 @@ export function renderChat(main) {
           <p class="muted" style="margin-top: var(--sp-2);">I'm Saathi — your finance coach. Ask anything about money, investing, Indian markets, taxes, behavioral econ, or how a past crash played out. Out of scope: everything else.</p>
         </div>
 
-        <div class="card" style="padding: 0; overflow: hidden;">
-          <div id="chat-messages" style="height: 520px; overflow-y: auto; padding: var(--sp-5); display: flex; flex-direction: column; gap: var(--sp-3); background: var(--bg-soft);">
+        <div class="card chat-card">
+          <div id="chat-messages" class="chat-messages">
             ${renderMessages()}
           </div>
 
