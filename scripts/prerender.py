@@ -961,7 +961,7 @@ def build_pages():
     add(path="/for-students", file="for-students.html", priority="0.8", changefreq="monthly",
         title="Stock Market Game for School Students in India | StockSaathi",
         description=("A free virtual stock market game for Indian students aged 13–18: ₹1,00,000 of virtual money, "
-                     "real NSE and BSE stocks and an AI coach. No payments, no ads."),
+                     "real NSE and BSE stocks and an AI coach. No payments."),
         crumbs=[("Home", "/"), ("For students", "/for-students")],
         main=partial("for-students.html", "/for-students"))
 

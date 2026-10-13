@@ -8,7 +8,7 @@ export function renderPrivacy(main) {
     <div style="max-width: 820px; margin: 0 auto;">
       <h1>Privacy Policy</h1>
       <p class="muted" style="margin: var(--sp-2) 0 var(--sp-5);">
-        Last updated: 23 April 2026 &middot; Effective immediately.
+        Last updated: 14 October 2026 &middot; Effective immediately.
       </p>
 
       <div class="card" style="margin-bottom: var(--sp-4);">
@@ -57,8 +57,18 @@ export function renderPrivacy(main) {
         <p class="text-sm" style="line-height: 1.75; margin-top: var(--sp-2);">
           <strong>Technical data:</strong> IP address (seen by our hosting provider), user
           agent, referral URL, session timestamps. We use Vercel Web Analytics to count page
-          views; it sets no cookies and does not track you across other websites. We do not
-          set advertising cookies.
+          views; it sets no cookies and does not track you across other websites.
+        </p>
+        <p class="text-sm" style="line-height: 1.75; margin-top: var(--sp-2);">
+          <strong>Advertising:</strong> StockSaathi shows ads served by Google AdSense. Google
+          and its partners, as third-party vendors, use cookies to serve ads based on your
+          prior visits to this website and other websites. Google&rsquo;s use of advertising
+          cookies lets it and its partners serve ads based on your visits to StockSaathi
+          and/or other sites on the internet. You can opt out of personalised advertising in
+          <a href="https://adssettings.google.com" rel="noopener">Google Ads Settings</a>, and read
+          <a href="https://policies.google.com/technologies/partner-sites" rel="noopener">how Google
+          uses information from sites that use its services</a>. Your account, trade and coach
+          data is not shared with Google for advertising.
         </p>
       </div>
 
@@ -70,6 +80,7 @@ export function renderPrivacy(main) {
           <li>To provide the AI coach&rsquo;s behavioural reflection and educational prompts.</li>
           <li>To let you transfer virtual money between your friends on the platform.</li>
           <li>To debug the service and prevent abuse (rate limits, spam signup blocks).</li>
+          <li>To show ads (served by Google AdSense) that help keep StockSaathi free.</li>
           <li>To comply with legal obligations that apply to us as a data fiduciary.</li>
         </ul>
       </div>
@@ -105,10 +116,12 @@ export function renderPrivacy(main) {
           <li><strong>Anthropic</strong> (optional, only if the user brings their own key) &mdash; alternative LLM backend.</li>
           <li><strong>Yahoo Finance, CoinGecko, AMFI/MFAPI</strong> &mdash; public price feeds we
             query anonymously on your behalf; no personal data is shared with them.</li>
+          <li><strong>Google AdSense</strong> (US) &mdash; serves the ads shown on the site and sets
+            its own advertising cookies (see section 2).</li>
         </ul>
         <p class="text-sm" style="line-height: 1.75; margin-top: var(--sp-3);">
-          We do not sell your personal data. We do not share it with advertisers or data
-          brokers. We do not use it to build advertising profiles.
+          We do not sell your personal data. We do not give your account, trade or coach
+          data to advertisers or data brokers.
         </p>
       </div>
 
@@ -131,8 +144,8 @@ export function renderPrivacy(main) {
           Settings, or ask the grievance officer below to erase it.
         </p>
         <p class="text-sm" style="line-height: 1.75; margin-top: var(--sp-3);">
-          We do not use children&rsquo;s personal data for advertising, tracking across third-party
-          websites, or targeted profiling. The behavioural coach operates only on
+          StockSaathi does not use your account, trade or coach data for advertising. The
+          behavioural coach operates only on
           the user&rsquo;s own simulated trades inside the app and exists solely to return
           educational reflection to that same user.
         </p>
