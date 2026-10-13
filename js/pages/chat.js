@@ -8,7 +8,7 @@ import { getState } from "../state.js";
 import { getInstrument } from "../data/universe.js";
 import { SYSTEM_PROMPT, matchTemplate, isOffTopic, offTopicRedirect, STARTER_QUESTIONS, runtimeFacts, NO_TOOLS_NOTE } from "../coach/persona.js";
 import { marketStatus } from "../data/prices.js";
-import { runAgent, streamChat, needsLiveData, logChatTurn, stripToolCallScaffolding, isToolCallOnly, looksLikeLookupOffer, looksLikeFetchPromise, looksLikePricelessList, isDiscoveryQuery } from "../coach/agent.js";
+import { runAgent, streamChat, needsLiveData, logChatTurn, stripToolCallScaffolding, isToolCallOnly, looksLikeLookupOffer, looksLikeFetchPromise, looksLikePricelessList, isDiscoveryQuery, scrubAdvice, looksHinglish, replyLanguageMismatch } from "../coach/agent.js";
 import { buildDossier } from "../coach/dossier.js";
 import {
   loadSessions, saveSessions, getActiveSession, setActiveSession,
@@ -33,6 +33,29 @@ import {
  * anything. A retry is an optimisation; it must never be able to cost more
  * than it saves.
  */
+// Last step for every reply on this page. If the user wrote Hinglish and
+// the reply came back in English (C28), ask once more, bounded. Then remove
+// any sentence that picks a stock, praises or judges the user's trade,
+// nudges the next trade or times the market (C19-C21, scrubAdvice).
+async function finishReply(text, userText, system, messages) {
+  let out = text;
+  if (replyLanguageMismatch(userText, out)) {
+    try {
+      const again = await withDeadline(runAgent({
+        apiKey: getState().settings.llmApiKey || null,
+        system: `${system}
+
+# THIS TURN
+Your last draft was in English. The user wrote in Hinglish: answer again in Hinglish (Roman script).`,
+        messages, profile: "fast",
+      }), 12_000);
+      const clean = stripScaffolding(again);
+      if (clean && clean.trim() && !replyLanguageMismatch(userText, clean)) out = clean.trim();
+    } catch (e) { console.warn("[chat] language retry failed:", e?.message || e); }
+  }
+  return scrubAdvice(out, userText).text;
+}
+
 function withDeadline(promise, ms) {
   return Promise.race([
     Promise.resolve(promise).catch(() => null),
@@ -650,6 +673,14 @@ async function sendAndReply(userText) {
   const dossier = await buildDossier();
 
   const wantTools = needsLiveData(userText, chatLog.slice(-8, -1));
+  // C28: the general language rule in runtimeFacts still lost to English
+  // replies; a line about THIS message, last in the prompt, holds better.
+  const turnLang = looksHinglish(userText)
+    ? `
+
+# THIS TURN: LANGUAGE
+The user wrote in Hinglish (Hindi in Roman script). Reply in Hinglish, the way they wrote, keeping finance terms like P/E and NAV in English.`
+    : "";
 
   if (wantTools) {
     // Tool-use path: non-streaming, standard runAgent with TOOLS.
@@ -688,7 +719,7 @@ async function sendAndReply(userText) {
 # THIS TURN
 This is a discovery question. Search for the instruments AND call get_stock_price for every symbol you plan to name - in parallel, in ONE turn - then reply with the names and their prices together. A list of names with no prices is not an acceptable answer, and do not ask whether the user wants the prices.`
       : "";
-    const system = `${SYSTEM_PROMPT}\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# TOOL USE\nYou have tools for live data: get_stock_price, get_crypto_price, search_stocks, get_market_news, get_user_portfolio, get_trade_history, get_watchlist, get_limit_orders. USE them whenever the user asks about any specific stock, crypto, market state, or their portfolio. Never guess numbers — always call the tool.\n\nCRITICAL: Call tools via the STRUCTURED tool_calls API only. NEVER write literal text like 'CALL search_stocks(...)' or '[Tool call: ...]' or fenced ` + "```tool_calls```" + ` JSON in your visible response. Those are internal scaffolding the user must never see. If you want to call a tool, emit the tool_call JSON block and let the system handle it. Your visible reply either (a) answers the user's question with real data you just received from a tool, or (b) says you'll look it up — never describes the mechanics of looking it up.\n\n# TONE\nKeep replies conversational and short by default (1–3 sentences). Only go longer when the user asks for explanation or depth.` + discoveryNudge;
+    const system = `${SYSTEM_PROMPT}\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# TOOL USE\nYou have tools for live data: get_stock_price, get_crypto_price, search_stocks, get_market_news, get_user_portfolio, get_trade_history, get_watchlist, get_limit_orders, get_fundamentals. USE them whenever the user asks about any specific stock, crypto, market state, company fundamentals (profit, EPS, ROE, P/E, debt, market cap), or their portfolio. Never guess numbers — always call the tool.\n\nCRITICAL: Call tools via the STRUCTURED tool_calls API only. NEVER write literal text like 'CALL search_stocks(...)' or '[Tool call: ...]' or fenced ` + "```tool_calls```" + ` JSON in your visible response. Those are internal scaffolding the user must never see. If you want to call a tool, emit the tool_call JSON block and let the system handle it. Your visible reply either (a) answers the user's question with real data you just received from a tool, or (b) says you'll look it up — never describes the mechanics of looking it up.\n\n# TONE\nKeep replies conversational and short by default (1–3 sentences). Only go longer when the user asks for explanation or depth.` + discoveryNudge + turnLang;
     try {
       replyText = await runAgent({
         apiKey: state.settings.llmApiKey || null,
@@ -739,6 +770,7 @@ You already offered to look this up and the user already asked. Do NOT ask again
         if (cleanRetry && cleanRetry.trim() && !retryStillBad) cleanedReply = cleanRetry;
       } catch (e) { console.warn("[chat] lookup-offer retry failed:", e?.message || e); }
     }
+    cleanedReply = await finishReply(cleanedReply, userText, system, messages);
     const finalText = (cleanedReply && cleanedReply.trim()) ? cleanedReply : (errorText || "Saathi couldn't answer that. Try rephrasing or asking again.");
     ownerMessages.push({ role: "assistant", text: finalText, ts: Date.now() });
     // Title/timestamp refresh on the owner session
@@ -751,7 +783,7 @@ You already offered to look this up and the user already asked. Do NOT ask again
     saveSessions(sessionsData);
     if (replyText && replyText.trim()) {
       logChatTurn({
-        userText, assistantText: replyText, model: "gemini-chat",
+        userText, assistantText: finalText, model: "gemini-chat",
         sessionId: ownerSession.id, surface: "chat_page",
       });
     }
@@ -820,7 +852,9 @@ You already offered to look this up and the user already asked. Do NOT ask again
   // Named distinctly from the tool path's `system`. Two same-named consts in
   // nested scopes is what produced the TDZ bug above; keeping them distinct
   // means a stray reference is a loud ReferenceError, not a silent no-op.
-  const streamSystem = `${SYSTEM_PROMPT}\n\n${NO_TOOLS_NOTE}\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# TONE\nKeep replies conversational and short by default (1–3 sentences). Only go longer when the user asks for explanation or depth.`;
+  const streamSystem = `${SYSTEM_PROMPT}\n\n${NO_TOOLS_NOTE}\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# TONE\nKeep replies conversational and short by default (1–3 sentences). Only go longer when the user asks for explanation or depth.
+
+Answer only the latest message. Do not restate prices or facts from earlier turns unless the user asks for them again.` + turnLang;
   let result = null;
   try {
     result = await streamChat({
@@ -934,6 +968,9 @@ Keep replies conversational and short by default (1–3 sentences).`;
         : "Let me pull that up — ask me once more?";
     } else if (!entry.text.trim()) {
       entry.text = "Hmm, I went quiet there. Ask me once more?";
+    }
+    if (!result?.aborted && entry.text && !entry.text.startsWith("Hmm")) {
+      entry.text = await finishReply(entry.text, userText, streamSystem, messages);
     }
     // Save the OWNER session (refresh its timestamp + title)
     ownerSession.updatedAt = Date.now();

@@ -1910,9 +1910,12 @@ function changeFor(sym, quoteCache) {
   return getTodayChange(sym);
 }
 
-// Former company name -> current NSE symbol, for the Markets search box.
+// Former company name or ticker -> current NSE symbol(s), for the Markets
+// search box. Tata Motors demerged in 2025 into TMPV and TMCV; its old
+// ticker matched neither.
 const FORMER_NAMES = {
-  zomato: "ETERNAL",
+  zomato: ["ETERNAL"],
+  tatamotors: ["TMPV", "TMCV"],
 };
 
 function applyFilters(all, f, state, quoteCache) {
@@ -1973,7 +1976,7 @@ function applyFilters(all, f, state, quoteCache) {
     // the company became Eternal Ltd, and users told the coach "it shows no
     // match" (2026-10-08 and 2026-10-10).
     const renamed = new Set(q.trim().length >= 3
-      ? Object.entries(FORMER_NAMES).filter(([old]) => old.startsWith(q.trim()) || q.includes(old)).map(([, sym]) => sym)
+      ? Object.entries(FORMER_NAMES).filter(([old]) => old.startsWith(q.trim()) || q.includes(old)).flatMap(([, syms]) => syms)
       : []);
     list = list.filter(i =>
       i.name.toLowerCase().includes(q) ||

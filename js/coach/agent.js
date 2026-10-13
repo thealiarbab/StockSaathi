@@ -8,7 +8,7 @@
 // =============================================================================
 
 import { getInstrument, getAllInstruments, STOCKS, MUTUAL_FUNDS } from "../data/universe.js";
-import { getQuote, getQuoteBatch } from "../data/marketData.js";
+import { getQuote, getQuoteBatch, getFundamentals } from "../data/marketData.js";
 import { listPendingOrders, listAllOrders } from "../features/limitOrders.js";
 import { getNews } from "../data/news.js";
 import { getState, getPortfolioValue } from "../state.js";
@@ -175,6 +175,21 @@ const TOOLS = [
   {
     type: "function",
     function: {
+      name: "get_fundamentals",
+      description:
+        "Company fundamentals from the app's daily-refreshed cache: P/E, P/B, EPS (trailing 12 months), ROE, market cap, dividend yield, beta, debt-to-equity and the 52-week high/low, with the date they were refreshed. Use for ANY question about profit, earnings, EPS, ROE, valuation, P/E, debt, market cap, dividends or 'is it expensive'. Never state these figures from memory.",
+      parameters: {
+        type: "object",
+        properties: {
+          symbol: { type: "string", description: "NSE ticker or company name." },
+        },
+        required: ["symbol"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "get_limit_orders",
       description:
         "The user's limit orders and AMOs — pending, filled and cancelled. Use for 'my orders', 'pending orders', 'did my order execute', 'why hasn't my order filled', 'cancel', 'AMO'. get_user_portfolio does NOT contain orders; an unfilled order is not a holding yet.",
@@ -199,7 +214,13 @@ async function execGetStockPrice(input) {
   const sym = resolveSymbolFuzzy(raw);
   if (!sym) return { ok: false, error: `No NSE stock matching "${raw}". Try search_stocks.` };
   try {
-    const q = await getQuote(sym);
+    const [q, fund] = await Promise.all([
+      getQuote(sym),
+      // universe.js valuation fields are hand-typed and drift after splits
+      // and results (D9); the nightly cache is the real one. Bounded so a
+      // slow fundamentals call never holds up a price.
+      Promise.race([getFundamentals(sym).catch(() => null), new Promise((r) => setTimeout(() => r(null), 1500))]),
+    ]);
     const inst = getInstrument(sym);
     if (!q || !inst) return { ok: false, error: `No quote for ${sym}.` };
     // getQuote's last resort is a synthetic walk meant for charts. For a
@@ -220,12 +241,48 @@ async function execGetStockPrice(input) {
       day_change_pct: +(q.changePct * 100).toFixed(2),
       day_high_inr: +(q.high / 100).toFixed(2),
       day_low_inr: +(q.low / 100).toFixed(2),
-      pe_ratio: inst.pe,
-      pb_ratio: inst.pb,
-      market_cap: inst.marketCap,
+      pe_ratio: fund?.pe_ratio != null ? +Number(fund.pe_ratio).toFixed(1) : null,
+      pb_ratio: fund?.pb_ratio != null ? +Number(fund.pb_ratio).toFixed(2) : null,
+      market_cap_crore_inr: fund?.market_cap ? Math.round(fund.market_cap / 1e7) : null,
       risk_tier: inst.risk,
       data_source: q.source,
       is_live: !q.stale,
+    };
+  } catch (e) {
+    return { ok: false, error: String(e?.message || e) };
+  }
+}
+
+// C23: the coach quoted HDFC Bank's "FY2023-24 net profit of over ₹60,000
+// crore" and an ROE of "15-17%" from memory, while the cache said ROE 13.3%.
+// fundamentals_cache (refreshed nightly) is the only source it may use.
+async function execGetFundamentals(input) {
+  const raw = String(input.symbol || "").trim();
+  const sym = resolveSymbolFuzzy(raw);
+  if (!sym) return { ok: false, error: `No NSE stock matching "${raw}". Try search_stocks.` };
+  try {
+    const f = await getFundamentals(sym);
+    if (!f) return { ok: false, error: `No fundamentals on file for ${sym}. Say you don't have them; do not estimate.` };
+    const num = (v, d = 2) => (typeof v === "number" && Number.isFinite(v) ? +v.toFixed(d) : null);
+    const asOf = f.cached_at_ms ? new Date(f.cached_at_ms).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" }) : null;
+    return {
+      ok: true,
+      symbol: sym,
+      name: f.name || getInstrument(sym)?.name || sym,
+      sector: f.sector || null,
+      industry: f.industry || null,
+      pe_ratio: num(f.pe_ratio ?? f.pe_ttm, 1),
+      pb_ratio: num(f.pb_ratio, 2),
+      eps_ttm_inr: num(f.eps, 2),
+      roe_pct: f.roe != null ? num(f.roe * 100, 1) : null,
+      market_cap_crore_inr: f.market_cap ? Math.round(f.market_cap / 1e7) : null,
+      dividend_yield_pct: f.dividend_yield != null ? num(f.dividend_yield * 100, 2) : null,
+      beta: num(f.beta, 2),
+      debt_to_equity: num(f.debt_to_equity, 2),
+      fifty_two_week_high_inr: num(f.fifty_two_week_high, 2),
+      fifty_two_week_low_inr: num(f.fifty_two_week_low, 2),
+      as_of: asOf,
+      note: "No total profit or revenue figure is available here, and no fiscal-year breakdown. If asked for one, say so and offer EPS (trailing 12 months) instead. Fields that are null are unknown: say you don't have them.",
     };
   } catch (e) {
     return { ok: false, error: String(e?.message || e) };
@@ -552,6 +609,7 @@ const EXECUTORS = {
   get_user_portfolio: execGetUserPortfolio,
   get_watchlist: execGetWatchlist,
   get_limit_orders: execGetLimitOrders,
+  get_fundamentals: execGetFundamentals,
 };
 
 // -----------------------------------------------------------------------------
@@ -1144,7 +1202,7 @@ const SELF_DATA_RE = new RegExp([
 const MARKET_STATUS_RE = /\b(market|nse|bse|exchange|trading)\b.*\b(open|close|closed|closing|band|khula|khulega|chalu|hours|timing|today|aaj|holiday|chuti|chhutti)\b|\b(band|khula|khulega)\b.*\b(market|nse|bse)\b/i;
 
 // Explicit market-data nouns.
-const DATA_NOUN_RE = /\b(price|prices|quote|rate|ltp|cmp|news|headline|headlines|market cap|marketcap|market capitalisation|market capitalization|p\/?e|pe ratio|p\/?b|valuation|movers|gainers|losers|top performers|52 week|52-week|day high|day low)\b/i;
+const DATA_NOUN_RE = /\b(price|prices|quote|rate|ltp|cmp|news|headline|headlines|market cap|marketcap|market capitalisation|market capitalization|p\/?e|pe ratio|p\/?b|valuation|movers|gainers|losers|top performers|52 week|52-week|day high|day low|profit|profits|revenue|earnings|eps|roe|debt|dividend|dividends|munafa|kamai|fundamentals)\b/i;
 
 // Discovery / screening — needs search_stocks, not a canned essay.
 const DISCOVERY_RE = /\b(bank|banks|banking|it stocks|pharma|auto|fmcg|energy|metal|metals|cement|infra|infrastructure|psu|realty|telecom|defence|defense|rail|railway|shipping|chemical|textile|sector|sectors|compan(?:y|ies)|which stock|which stocks|what stock|what stocks|suggest.*stock|list.*stock|show.*stock|find.*stock|top \d+|best.*stock|stocks? (?:to|in|for|under|like))\b/i;
@@ -1453,4 +1511,105 @@ export function isToolCallOnly(raw) {
   if (!s) return false;
   if (stripToolCallScaffolding(s).trim()) return false;
   return /CALL\s+\w+|\[(?:tool|function)[ _]?call|tool_calls/i.test(s);
+}
+
+// ---------------------------------------------------------------------------
+// ADVICE GUARD — code layer behind the persona's "never pick, never cheer"
+// rules. Every pattern below comes from a real reply (13 Oct audit, C19-C21):
+//   jan 10 Oct    "Mera suggestion hai ki Reliance ya SBI se shuru karo ...
+//                  5-10 shares buy karke dekho"
+//   zane_pro      "you could buy 100 shares of Tata Steel"
+//   jessie        "a company you know—like Tata Motors or Reliance"
+//                 "picking 2-3 companies from different sectors"
+//   _hardik_720_  "A 'safe' bet for beginners is usually a Nifty 50 blue-chip"
+//   yashraj       "kaafi sahi move tha", "profit book karna hamesha achha hota
+//                  hai", "sahi time par entry li thi", "Agla target kaunsa
+//                  stock hai?", "koi naya stock lene ka plan hai?"
+//   sharma        "crashes are when the 'smart money' goes shopping for
+//                  discounts"
+//   shlokmulay    "Ready to make your first move?"
+//   aarush        "Want to try buying your first stock ... like Zomato or Tata"
+// The prompt rule alone did not hold, so offending SENTENCES are removed from
+// the reply. Cheaper and more predictable than asking the model again.
+// ---------------------------------------------------------------------------
+const ADVICE_RULES = [
+  { rule: "pick", re: /\b(?:mera|meri|my)\s+suggestion\b/i },
+  { rule: "pick", re: /\b(?:se|say)\s+shuru\s+karo\b/i },
+  { rule: "pick", re: /\b\d+\s*(?:-|–|to)\s*\d+\s+shares?\s+(?:buy|le|lo|kharid)/i },
+  { rule: "pick", re: /\b(?:buy|kharido|kharid lo|le lo)\s+\d+\s+shares?\b/i },
+  { rule: "pick", re: /\bpick(?:ing)?\s+\d\s*(?:-|–|to)\s*\d\s+(?:companies|stocks)\b/i },
+  // "a company you know—like Tata Motors or Reliance" / "something you use
+  // every day, like Zomato or Tata". Case-sensitive on the names so "a
+  // sector like IT or Banking" (a clean reply) is left alone by the
+  // company/stock/something anchor.
+  { rule: "pick", re: /\b(?:compan(?:y|ies)|stocks?|something)\b[^.?!\n]{0,40}\blike\s+[A-Z][\w&.]*(?:\s+[A-Z][\w&.]*)?\s+or\s+[A-Z]/ },
+  { rule: "pick", re: /\b(?:safe|best|good)["'”’]?\s+bet\b/i },
+  { rule: "pick", re: /\b(?:great|good|best|perfect)\s+(?:place|stock|company|pick)\s+to\s+start\b/i },
+  { rule: "judge", re: /\b(?:sahi|accha|achha|acha|great|smart|good|solid|perfect|bad|galat|wrong)\s+(?:move|time|entry|exit|decision|trade|call)\b/i },
+  { rule: "judge", re: /\bprofit\s+book\s+karna\s+hamesha\b/i },
+  { rule: "judge", re: /\bhamesha\s+(?:achha|accha|acha)\s+(?:hota|hai)\b/i },
+  { rule: "nudge", re: /\b(?:agla|agli|next)\s+(?:target|stock|buy|trade)\b/i },
+  { rule: "nudge", re: /\bnaya\s+stock\s+(?:lene|kharidne)\b/i },
+  { rule: "nudge", re: /\bready\s+to\s+make\s+your\s+(?:first|next)\s+(?:move|trade)\b/i },
+  { rule: "nudge", re: /\bwant\s+to\s+try\s+buying\s+your\s+first\b/i },
+  { rule: "timing", re: /\bsmart\s+money\b/i },
+  { rule: "timing", re: /\bshopping\s+for\s+discounts\b/i },
+  { rule: "timing", re: /\bbuy\s+the\s+dip\b/i },
+];
+
+/** First advice rule the text breaks, or null. */
+export function adviceViolation(text) {
+  const s = String(text || "");
+  for (const { rule, re } of ADVICE_RULES) if (re.test(s)) return rule;
+  return null;
+}
+
+// Roman-script Hindi markers. Two or more = the message is Hinglish. "me" is
+// left out on purpose: it is an English word too.
+const HINGLISH_RE = /\b(?:hai|hain|kya|kaise|kaisa|maine|mujhe|batao|bata|kitne|kitna|karo|karu|kiya|kar|ke|ka|ki|mein|bhai|nahi|nahin|kyu|kyun|kab|abhi|yaar|accha|achha|tum|tumhe|tumne|mera|meri|hoga|tha|thi|wala|kaun|kaunsa|lekin|aur|bhi|ye|yeh|woh|hum)\b/gi;
+export function looksHinglish(text) {
+  const hits = String(text || "").match(HINGLISH_RE);
+  return !!hits && hits.length >= 2;
+}
+
+/** User wrote Hinglish and the reply is (almost) pure English. */
+export function replyLanguageMismatch(userText, replyText) {
+  if (!looksHinglish(userText)) return false;
+  const hits = String(replyText || "").match(HINGLISH_RE);
+  return !hits || hits.length < 2;
+}
+
+/**
+ * Remove sentences that break an advice rule. Returns { text, rules }: the
+ * cleaned reply and the rules that fired. When too little survives, or the
+ * closing question was the problem, a short reflective line is used instead,
+ * in the user's language.
+ */
+export function scrubAdvice(text, userText = "") {
+  const src = String(text || "");
+  const rules = [];
+  const hinglish = looksHinglish(userText) || looksHinglish(src);
+  const lines = src.split("\n").map((line) => {
+    if (!adviceViolation(line)) return line;
+    // Split a prose line into sentences; keep the clean ones.
+    const parts = line.split(/(?<=[.!?।])\s+/);
+    const kept = parts.filter((p) => {
+      const r = adviceViolation(p);
+      if (r) rules.push(r);
+      return !r;
+    });
+    return kept.join(" ");
+  });
+  if (!rules.length) return { text: src, rules };
+  let out = lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  const reflect = hinglish
+    ? "Is trade ke peeche tumhara plan kya tha, aur kis baat pe tum sell ya hold karoge?"
+    : "What was your plan behind this, and what would make you sell or hold?";
+  const neutral = hinglish
+    ? "Main tumhare liye stock ya quantity choose nahi karta. Chaho to main dikha sakta hoon log companies ko kaise compare karte hain: profit growth, P/E aur debt."
+    : "I don't pick stocks or quantities for you. I can show you how people compare companies instead: profit growth, P/E and debt.";
+  if (out.replace(/[*_#>\s-]/g, "").length < 40) return { text: rules.includes("pick") ? neutral : reflect, rules };
+  // A removed closing question leaves the reply hanging: end on reflection.
+  if (!/[?？]\s*$/.test(out) && (rules.includes("nudge") || rules.includes("judge"))) out += `\n\n${reflect}`;
+  return { text: out, rules };
 }

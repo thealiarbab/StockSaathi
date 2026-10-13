@@ -11,7 +11,8 @@ import { getNews } from "../data/news.js";
 import { formatRupees, formatPct } from "../money.js";
 import { SYSTEM_PROMPT, matchTemplate, isOffTopic, offTopicRedirect, STARTER_QUESTIONS, runtimeFacts, NO_TOOLS_NOTE } from "../coach/persona.js";
 import { marketStatus } from "../data/prices.js";
-import { runAgent, streamChat, needsLiveData, logChatTurn, isToolCallOnly, looksLikeLookupOffer, looksLikeFetchPromise, looksLikePricelessList } from "../coach/agent.js";
+import { runAgent, streamChat, needsLiveData, logChatTurn, isToolCallOnly, looksLikeLookupOffer, looksLikeFetchPromise, looksLikePricelessList, scrubAdvice, looksHinglish, replyLanguageMismatch } from "../coach/agent.js";
+import { getFreshCachedQuote } from "../data/marketData.js";
 import { buildDossier } from "../coach/dossier.js";
 
 const CHAT_LOG_KEY = "ss.coachchat.v1";
@@ -37,7 +38,7 @@ function isCoachAllowed() {
 // Streaming path only — no tools are wired there, so say so.
 const SAATHI_NO_TOOLS = `${SYSTEM_PROMPT}\n\n${NO_TOOLS_NOTE}`;
 
-const SAATHI_SYSTEM = `${SYSTEM_PROMPT}\n\n# TOOL USE\nYou have tools for live data: get_stock_price, get_crypto_price, search_stocks, get_market_news, get_user_portfolio, get_trade_history, get_watchlist, get_limit_orders. USE them whenever the user asks about any specific stock, crypto, market state, or their portfolio. Never guess numbers — always call the tool.`;
+const SAATHI_SYSTEM = `${SYSTEM_PROMPT}\n\n# TOOL USE\nYou have tools for live data: get_stock_price, get_crypto_price, search_stocks, get_market_news, get_user_portfolio, get_trade_history, get_watchlist, get_limit_orders, get_fundamentals. USE them whenever the user asks about any specific stock, crypto, market state, company fundamentals (profit, EPS, ROE, P/E, debt, market cap), or their portfolio. Never guess numbers — always call the tool.`;
 
 function loadChat() {
   try { const raw = localStorage.getItem(CHAT_LOG_KEY); return raw ? JSON.parse(raw) : []; }
@@ -97,7 +98,54 @@ function smartTemplateReply(userText, state) {
 // model has no arithmetic to do. Do not reintroduce a second portfolio
 // block alongside it: two of them in one prompt is how §3 happened.
 
-async function callLlmAgent(apiKey, history, state) {
+// C24: the panel opens on top of a page, and users ask about that page
+// ("This company's profit this year" on /stocks/HDFCBANK got "Which company
+// are you looking at?"). Tell the model what is on screen.
+function currentScreen() {
+  const path = location.pathname || "/";
+  const m = path.match(/^\/stocks\/([^/]+)\/?$/);
+  if (m) {
+    const sym = decodeURIComponent(m[1]);
+    const inst = getInstrument(sym);
+    if (!inst) return "";
+    const q = getFreshCachedQuote(inst.symbol, 10 * 60_000);
+    const px = q?.pricePaise ? `, last price ${formatRupees(q.pricePaise)}` : "";
+    const kind = inst.kind === "MF" ? "mutual fund" : inst.kind === "ETF" ? "ETF" : "stock";
+    return `## Current screen\nThe user is on the ${kind} page for ${inst.name || inst.symbol} (${inst.symbol})${px}. "This company", "this stock", "isme", "iska" and similar mean ${inst.symbol}.`;
+  }
+  if (path === "/portfolio") return "## Current screen\nThe user is looking at their own portfolio page.";
+  const r = path.match(/^\/crash-replay\/([^/]+)/);
+  if (r) return `## Current screen\nThe user is watching the crash replay "${decodeURIComponent(r[1])}".`;
+  return "";
+}
+
+// "This company…" / "isme…" on a stock page is a question about that stock:
+// it needs the tool path even without a data word in it.
+const DEICTIC_RE = /\b(?:this|isme|iska|iski|iske|ye|yeh)\b/i;
+function onInstrumentPage() { return /^\/stocks\/[^/]+\/?$/.test(location.pathname || ""); }
+
+function turnLanguage(userText) {
+  return looksHinglish(userText)
+    ? "\n\n# THIS TURN: LANGUAGE\nThe user wrote in Hinglish (Hindi in Roman script). Reply in Hinglish, the way they wrote, keeping finance terms like P/E and NAV in English."
+    : "";
+}
+
+const LANG_RETRY_NOTE = "\n\n# THIS TURN\nYour last draft was in English. The user wrote in Hinglish: answer again in Hinglish (Roman script).";
+
+// Same last step as /chat: one bounded language retry, then remove any
+// sentence that picks, praises/judges, nudges or times the market.
+async function finishPanelReply(text, userText, retryAgent) {
+  let out = text;
+  if (replyLanguageMismatch(userText, out) && retryAgent) {
+    try {
+      const again = await Promise.race([retryAgent(), new Promise((r) => setTimeout(() => r(null), 12_000))]);
+      if (again && again.trim() && !replyLanguageMismatch(userText, again)) out = again.trim();
+    } catch (e) { console.warn("[coach] language retry failed:", e?.message || e); }
+  }
+  return scrubAdvice(out, userText).text;
+}
+
+async function callLlmAgent(apiKey, history, state, extraSystem = "") {
   // No client-side off-topic pre-filter. Let the LLM decide how to handle
   // off-topic questions per the system prompt — previously we'd intercept
   // "hello" and return a canned redirect before the model ever saw it,
@@ -109,7 +157,9 @@ async function callLlmAgent(apiKey, history, state) {
   // blocks in one prompt is exactly how §3 happened.
   const dossier = await buildDossier();
   const newsContext = newsSnap.slice(0, 5).map(n => `- ${n.headline} (${n.source}) [${n.sentiment}]`).join("\n");
-  const system = `${SAATHI_SYSTEM}\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# RUNTIME CONTEXT\n## Latest market headlines\n${newsContext || "(none loaded)"}\n\n# TONE\nKeep replies short by default (1–3 sentences). Go longer only when asked for depth.`;
+  const screen = currentScreen();
+  const lastUser = [...history].reverse().find((m) => m.role === "user")?.text || "";
+  const system = `${SAATHI_SYSTEM}\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# RUNTIME CONTEXT\n${screen ? screen + "\n" : ""}## Latest market headlines\n${newsContext || "(none loaded)"}\n\n# TONE\nKeep replies short by default (1–3 sentences). Go longer only when asked for depth.` + turnLanguage(lastUser) + extraSystem;
 
   const messages = history.slice(-12).map(m => ({
     role: m.role === "user" ? "user" : "assistant",
@@ -319,14 +369,16 @@ function render() {
     // tool-use path below.
     // chatHistory already has this turn's user message pushed, so hand the
     // heuristic the turns BEFORE it as context for short follow-ups.
-    if (!needsLiveData(text, chatHistory.slice(-9, -1))) {
+    const deictic = onInstrumentPage() && DEICTIC_RE.test(text);
+    if (!deictic && !needsLiveData(text, chatHistory.slice(-9, -1))) {
       abortController = new AbortController();
       const placeholderIdx = chatHistory.length;
       chatHistory.push({ role: "assistant", text: "", ts: Date.now(), streaming: true });
       render();
       const dossier = await buildDossier();
       const newsContext = newsSnap.slice(0, 5).map(n => `- ${n.headline} (${n.source}) [${n.sentiment}]`).join("\n");
-      const system = `${SAATHI_NO_TOOLS}\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# RUNTIME CONTEXT\n## Latest market headlines\n${newsContext || "(none loaded)"}\n\n# TONE\nKeep replies short by default (1–3 sentences). Go longer only when asked for depth.`;
+      const screen = currentScreen();
+      const system = `${SAATHI_NO_TOOLS}\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# RUNTIME CONTEXT\n${screen ? screen + "\n" : ""}## Latest market headlines\n${newsContext || "(none loaded)"}\n\n# TONE\nKeep replies short by default (1–3 sentences). Go longer only when asked for depth.\n\nAnswer only the latest message. Do not restate prices or facts from earlier turns unless the user asks for them again.` + turnLanguage(text);
       const messages = chatHistory.slice(-12).filter(m => !m.streaming || m === chatHistory[placeholderIdx]).slice(0, -1).map(m => ({
         role: m.role === "user" ? "user" : "assistant",
         content: m.text,
@@ -398,6 +450,10 @@ function render() {
             ? result.text
             : "Hmm, I went quiet there. Ask me once more?";
         }
+        if (!result?.aborted && entry.text && !entry.text.startsWith("Hmm")) {
+          entry.text = await finishPanelReply(entry.text, text,
+            () => callLlmAgent(s.settings.llmApiKey || null, chatHistory.filter((m) => m !== entry), s, LANG_RETRY_NOTE));
+        }
       }
       saveChat();
       pending = false;
@@ -431,6 +487,8 @@ function render() {
     if (!reply || !reply.trim()) {
       reply = "Hmm, I can't reach my brain right now. Give it a sec and try again?";
     } else {
+      reply = await finishPanelReply(reply, text,
+        () => callLlmAgent(s.settings.llmApiKey || null, chatHistory, s, LANG_RETRY_NOTE));
       // Successful tool-use turn — log to DB for admin review.
       // surface is required: without it rebuildChatSessionsFromDb filed these
       // turns under the /chat page, so they vanished from this panel on reload.
