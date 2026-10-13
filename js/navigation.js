@@ -69,6 +69,8 @@ export function go(path, { replace = false } = {}) {
   if (!target.startsWith("/")) target = "/" + target;
   const here = location.pathname + location.search;
   if (target === here) return;
+  // Before the URL changes, so no GA hit can carry an admin slug.
+  window.ssGa?.guard(target);
   if (replace) history.replaceState(null, "", target);
   else history.pushState(null, "", target);
   announce();

@@ -6,7 +6,7 @@
 import { getInstrument, ensureMfUniverseLoaded, ensureUniverseLoaded } from "../data/universe.js";
 import { track } from "../features/track.js";
 import { getQuote, getHistory, getMfHistory, subscribeToQuotes, quoteAge, getFundamentals, getFreshCachedQuote } from "../data/marketData.js";
-import { placeLimitOrder } from "../features/limitOrders.js";
+import { placeLimitOrder, listPendingOrders } from "../features/limitOrders.js";
 import { buildOrderBook, buildRecentTrades } from "../data/orderBook.js";
 import { getSeries, getCloses, getPriceAt, getTodayChange, get52wRange, marketStatus } from "../data/prices.js";
 import { candleChart, lineChart, stockChart, attachStockChartHover } from "../components/charts.js";
@@ -1417,6 +1417,46 @@ function attachListeners(main, inst, symbol, curPrice, holding, chartOhlc, sessi
 // Rs 10,000 liquid-fund orders from one user, created 50 ms apart.
 let _tradeInFlight = false;
 
+// The widest NSE price band. place_limit_order refuses limits outside it.
+const LIMIT_BAND = 0.2;
+function limitBandError(limitPaise, refPaise) {
+  if (!(refPaise > 0)) return null;
+  const lo = Math.round(refPaise * (1 - LIMIT_BAND));
+  const hi = Math.round(refPaise * (1 + LIMIT_BAND));
+  if (limitPaise >= lo && limitPaise <= hi) return null;
+  return `Limit must be within 20% of the last price (${formatRupees(lo)} – ${formatRupees(hi)}).`;
+}
+
+// Shares already promised to queued SELL orders. null = couldn't load them;
+// the server checks again either way.
+async function queuedSellQty(symbol) {
+  const orders = await listPendingOrders().catch(() => null);
+  if (!Array.isArray(orders)) return null;
+  return orders
+    .filter(o => o.symbol === symbol && o.side === "SELL")
+    .reduce((sum, o) => sum + Number(o.qty || 0), 0);
+}
+
+// Fresh quote straight through /api/live-quote, which also rewrites the
+// server's quote_cache row that apply_trade books from. "live" mirrors the
+// server's rule: not the exchange's previous-close row, and from a trade
+// made today (IST). Without this the market path could only discover a
+// stale price after the user had confirmed.
+const _istDay = (ms) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date(ms));
+async function freshTradeQuote(inst) {
+  const wire = inst.exchange === "BSE" && !inst.symbol.includes(".") ? `${inst.symbol}.BO` : inst.symbol;
+  try {
+    const r = await fetch(`/api/live-quote?symbols=${encodeURIComponent(wire)}&nocache=1&_=${Date.now()}`, { cache: "no-store" });
+    const d = await r.json();
+    const q = d?.quotes?.[wire];
+    if (!q || !(q.price > 0)) return null;
+    return {
+      pricePaise: Math.round(q.price * 100),
+      live: q.source !== "nse_eod" && !!q.ts_ms && _istDay(q.ts_ms) === _istDay(Date.now()),
+    };
+  } catch { return null; }
+}
+
 async function reviewTrade(inst, symbol, curPrice, holding) {
   if (_tradeInFlight) {
     console.warn("[trade] ignored a second submit while one is in flight");
@@ -1437,6 +1477,13 @@ async function _reviewTrade(inst, symbol, curPrice, holding) {
     toast({ kind: "error", message: `You only hold ${holding?.qty || 0}.` });
     return;
   }
+  if (ui.side === "SELL" && inst.kind !== "MF") {
+    const queued = await queuedSellQty(symbol);
+    if (queued > 0 && holding.qty - queued < qty - 1e-9) {
+      toast({ kind: "error", message: `You hold ${formatQty(holding.qty, inst.kind)} but ${formatQty(queued, inst.kind)} are already queued to sell. Cancel that order first.`, duration: 6000 });
+      return;
+    }
+  }
 
   // ---- After-hours AMO path --------------------------------------------
   // Mirror Groww: when NSE is closed, we never call apply_trade — we queue
@@ -1455,6 +1502,8 @@ async function _reviewTrade(inst, symbol, curPrice, holding) {
       toast({ kind: "error", message: "Couldn't read the AMO price. Edit the limit price field and try again." });
       return;
     }
+    const amoBand = inst.kind === "MF" ? null : limitBandError(limitPaise, curPrice);
+    if (amoBand) { toast({ kind: "error", message: amoBand, duration: 6000 }); return; }
     if (ui.side === "BUY" && Math.round(qty * limitPaise) > (getState().portfolio?.cashPaise || 0)) {
       toast({ kind: "error", message: "Not enough cash to reserve for this AMO." });
       return;
@@ -1519,6 +1568,8 @@ async function _reviewTrade(inst, symbol, curPrice, holding) {
       return;
     }
     const limitPaise = Math.round(limitRupees * 100);
+    const band = inst.kind === "MF" ? null : limitBandError(limitPaise, curPrice);
+    if (band) { toast({ kind: "error", message: band, duration: 6000 }); return; }
     console.info("[limit] click fired", { symbol, side: ui.side, qty, limitRupees, limitPaise, curPrice });
     // Basic UX sanity: BUY limit above current price or SELL limit below
     // current price would fire immediately — still valid, but warn once.
@@ -1571,6 +1622,14 @@ async function _reviewTrade(inst, symbol, curPrice, holding) {
   }
 
   // ---- Market order path — existing flow --------------------------------
+  // Market orders book the server's latest price, so there must be a live
+  // one. Stocks with no feed today (mostly SME) can only take limit orders.
+  const fresh = await freshTradeQuote(inst);
+  if (fresh && !fresh.live) {
+    toast({ kind: "error", message: `No live price for ${symbol} right now: it hasn't traded yet today. Switch to Limit and set your price.`, duration: 7000 });
+    return;
+  }
+  if (fresh) curPrice = fresh.pricePaise;
   if (ui.side === "BUY" && Math.round(qty * curPrice) > getState().portfolio.cashPaise) {
     toast({ kind: "error", message: "Not enough cash." });
     return;
@@ -1753,12 +1812,12 @@ async function executeTrade(inst, side, qty, pricePaise, biasResult) {
     // Simulate exchange latency + matching
     await new Promise(r => setTimeout(r, 400 + Math.random() * 500));
 
-    // Fetch fresh live quote at execution moment (may have ticked since review)
+    // Fresh quote at execution (may have ticked since review). This also
+    // refreshes the server row apply_trade books from, so a confirm modal
+    // left open for minutes doesn't fail as "price more than 5 minutes old".
     let fillPrice = pricePaise;
-    try {
-      const q = await getQuote(inst.symbol);
-      if (q && !q.stale) fillPrice = q.pricePaise;
-    } catch {}
+    const fresh = await freshTradeQuote(inst);
+    if (fresh) fillPrice = fresh.pricePaise;
 
     // Guard: if we reached here with no valid price (Tier-2 imported stock
     // with no seed series AND no live upstream), refuse the trade rather

@@ -235,26 +235,13 @@ def equity_prices(symbols):
             except Exception:
                 pass
 
-    # Stocks no live feed covers. Yahoo has no listing for many new NSE SME
-    # stocks, so without this their orders could never match. The exchange's
-    # own end-of-day close (nightly admin-ingest-eod) is the best price that
-    # exists for them. Only that source, and only a recent close: matching
-    # against a months-old cached price is what the 90-second rule above
-    # exists to prevent.
-    missing = [s for s in symbols if s not in out]
-    if missing:
-        try:
-            cutoff = int(time.time() * 1000) - EOD_FALLBACK_MAX_AGE_MS
-            for sym, row in (lq.read_cache(missing, ttl_ms=EOD_FALLBACK_MAX_AGE_MS) or {}).items():
-                if row.get("source") == "nse_eod" and row.get("price_paise") and (row.get("ts_ms") or 0) >= cutoff:
-                    out[sym] = int(row["price_paise"])
-        except Exception:
-            pass
+    # No end-of-day fallback here. A limit is only "touched" by a live price:
+    # matching against the exchange's previous close filled SME orders at
+    # yesterday's price (24 trades outside the day's real range, Oct 2026),
+    # and _fill_limit_order_core now refuses it anyway. Those stocks are
+    # matched by the end-of-day sweep against the day's real high/low.
     return out
 
-
-# A Friday close must still count on Monday afternoon, plus one holiday.
-EOD_FALLBACK_MAX_AGE_MS = 4 * 24 * 3600 * 1000
 
 _mf_static_cache = None
 
@@ -348,7 +335,7 @@ def run_match(force=False, dry=False, backfill=False):
     prices.update(equity_prices(eq_syms))
     prices.update(mf_prices(mf_syms))
 
-    filled, skipped, no_price, errors = [], 0, [], []
+    filled, skipped, no_price, errors, closed = [], 0, [], [], []
     for o in orders:
         px = prices.get(o["symbol"])
         if not px:
@@ -383,10 +370,18 @@ def run_match(force=False, dry=False, backfill=False):
             filled.append({"order_id": o["id"], "symbol": o["symbol"],
                            "side": side, "user_id": res.get("user_id"),
                            "fill_price": res.get("fill_price")})
+        elif ok2 and isinstance(res, dict) and res.get("reason"):
+            # Closed by the fill core itself (a queued SELL for shares the
+            # user no longer holds); the user got a notice.
+            closed.append({"order_id": o["id"], "symbol": o["symbol"], "reason": res.get("reason")})
         else:
             msg = str(res)
-            # 'already filled' just means another tick won the race.
-            if "already" not in msg:
+            # 'already filled' just means another tick won the race; 'no
+            # fresh price' means the quote went stale between the fetch and
+            # the fill: retry next tick like any other missing price.
+            if "no fresh price" in msg:
+                no_price.append(o["symbol"])
+            elif "already" not in msg:
                 errors.append({"order_id": o["id"], "symbol": o["symbol"], "error": msg[:160]})
 
     return {
@@ -400,6 +395,7 @@ def run_match(force=False, dry=False, backfill=False):
         "waiting": skipped,
         "no_price_symbols": sorted(set(no_price))[:40],
         "errors": errors[:20],
+        "closed": closed[:20],
         "fills": filled[:60],
         "elapsed_ms": int((time.time() - started) * 1000),
     }

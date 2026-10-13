@@ -257,6 +257,7 @@ export function mountRouter() {
     // a listener-only hook would miss the first page of every session — which
     // is the landing page, i.e. the most interesting one.
     track("page_view", trackablePath(), { name: r?.name || null });
+    window.ssGa?.page(trackablePath());
     const user = currentUser();
     const state = getState();
 
