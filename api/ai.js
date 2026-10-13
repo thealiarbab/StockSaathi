@@ -24,6 +24,7 @@
 // =============================================================================
 
 import { messagesEnabled, messagesFetch, toMessagesBody, textOf } from "./_messages.js";
+import { liveGeminiModel, isGemini3 } from "./_models.js";
 
 export const config = { runtime: "edge" };
 
@@ -159,15 +160,16 @@ async function callLlm({ messages, temperature = 0.4, max_tokens = 400, response
   // Leads every profile when configured; Gemini below is the fallback.
   if (messagesEnabled()) providers.push({ kind: "messages", label: "messages" });
 
-  // 2.5 = production GA, available in every Vertex region. 3.x = preview-only.
-  const geminiFastModel = env.GEMINI_FAST_MODEL || "gemini-2.5-flash";
-  const geminiProModel  = env.GEMINI_PRO_MODEL  || "gemini-2.5-pro";
-  const geminiChatModel = env.GEMINI_CHAT_MODEL || "gemini-2.5-flash-lite";
-  // JSON-profile model: 2.5 Flash Lite — GA, fast, and genuinely non-thinking
-  // in strict-JSON mode. Tested: 2.5 Flash spends ~1900 reasoning tokens on
-  // response_format:json_object calls, truncating the actual JSON. Lite
-  // completes the full schema in ~3s with 689 output tokens, no reasoning.
-  const geminiJsonModel = env.GEMINI_JSON_MODEL || "gemini-2.5-flash-lite";
+  // Gemini 2.5 retires on Vertex 20 Oct 2026; liveGeminiModel maps any 2.5
+  // ID (env overrides included) to its GA successor. See api/_models.js.
+  const geminiFastModel = liveGeminiModel(env.GEMINI_FAST_MODEL || "gemini-3.5-flash");
+  const geminiProModel  = liveGeminiModel(env.GEMINI_PRO_MODEL  || "gemini-3.1-pro-preview");
+  const geminiChatModel = liveGeminiModel(env.GEMINI_CHAT_MODEL || "gemini-3.1-flash-lite");
+  // JSON-profile model. It was 2.5 Flash-Lite because 2.5 Flash spent ~1900
+  // reasoning tokens on json_object calls and truncated the JSON under the
+  // old caps. max_tokens is now always the model ceiling (below), and the
+  // 3.x successor is asked for minimal thinking, so neither failure returns.
+  const geminiJsonModel = liveGeminiModel(env.GEMINI_JSON_MODEL || "gemini-3.1-flash-lite");
   const openaiModel = env.OPENAI_MODEL || "gpt-5.4";
   const groqModel = env.GROQ_MODEL || "llama-3.3-70b-versatile";
 
@@ -187,15 +189,15 @@ async function callLlm({ messages, temperature = 0.4, max_tokens = 400, response
   // the only acceptable provider, with OpenAI as a paid-upgrade fallback
   // for users who set OPENAI_API_KEY. No Llama anywhere.
   if (profile === "json") {
-    // JSON-returning ops: non-thinking 2.5 Flash first (reliably produces
-    // structured output), 2.5 Flash Lite second, 3.x Flash third, OpenAI last.
+    // JSON-returning ops: the json model (3.1 Flash-Lite, minimal thinking)
+    // first, then the chat and fast models, OpenAI last.
     if (env.GEMINI_API_KEY) providers.push({ url: geminiUrl, key: env.GEMINI_API_KEY, model: geminiJsonModel, label: "gemini_json" });
     if (env.GEMINI_API_KEY) providers.push({ url: geminiUrl, key: env.GEMINI_API_KEY, model: geminiChatModel, label: "gemini_chat" });
     if (env.GEMINI_API_KEY) providers.push({ url: geminiUrl, key: env.GEMINI_API_KEY, model: geminiFastModel, label: "gemini_fast" });
     if (env.OPENAI_API_KEY) providers.push({ url: "https://api.openai.com/v1/chat/completions", key: env.OPENAI_API_KEY, model: openaiModel, label: "openai" });
   } else if (profile === "chat") {
-    // Conversational chat: 2.5 Flash Lite first (fastest, non-thinking), then
-    // fast/pro/openai as escalation.
+    // Conversational chat: 3.1 Flash-Lite first (fastest, minimal thinking),
+    // then fast/pro/openai as escalation.
     if (env.GEMINI_API_KEY) providers.push({ url: geminiUrl, key: env.GEMINI_API_KEY, model: geminiChatModel, label: "gemini_chat" });
     if (env.GEMINI_API_KEY) providers.push({ url: geminiUrl, key: env.GEMINI_API_KEY, model: geminiFastModel, label: "gemini_fast" });
     if (env.GEMINI_API_KEY) providers.push({ url: geminiUrl, key: env.GEMINI_API_KEY, model: geminiProModel, label: "gemini_pro" });
@@ -250,13 +252,18 @@ async function callLlm({ messages, temperature = 0.4, max_tokens = 400, response
       // 65535 is the Gemini models' own ceiling.
       const body = { model: p.model, messages, temperature, max_tokens: 65535 };
       if (response_format) body.response_format = response_format;
+      // The json/chat lanes replaced non-thinking 2.5 Flash-Lite: keep them
+      // fast. Other lanes keep the model's default thinking.
+      if (isGemini3(p.model) && (p.label === "gemini_json" || p.label === "gemini_chat")) {
+        body.reasoning_effort = "minimal";
+      }
       // Vertex AI OpenAI-compat uses x-goog-api-key for API-key auth.
       // Everything else (OpenAI/Groq/AI Studio/Cerebras) takes Bearer.
       const isVertex = /aiplatform\.googleapis\.com/.test(p.url);
       const authHeaders = isVertex
         ? { "x-goog-api-key": p.key }
         : { "Authorization": `Bearer ${p.key}` };
-      // Vertex wants model as publisher/model (e.g. "google/gemini-2.5-flash").
+      // Vertex wants model as publisher/model (e.g. "google/gemini-3.5-flash").
       if (isVertex && body.model && !body.model.includes("/")) {
         body.model = `google/${body.model}`;
       }
@@ -269,11 +276,15 @@ async function callLlm({ messages, temperature = 0.4, max_tokens = 400, response
         },
         body: JSON.stringify(body),
       });
-      if (res.status === 429 || res.status >= 500) { lastErr = `http_${res.status}`; continue; }
-      if (!res.ok) { lastErr = `http_${res.status}`; continue; }
+      if (!res.ok) {
+        lastErr = `http_${res.status}`;
+        console.log(JSON.stringify({ evt: "ai_upstream", ok: false, upstream: p.label, model: p.model, profile, status: res.status, body: (await res.text().catch(() => "")).slice(0, 300) }));
+        continue;
+      }
       const data = await res.json();
       const text = data?.choices?.[0]?.message?.content;
       if (typeof text !== "string" || !text.trim()) { lastErr = "empty"; continue; }
+      console.log(JSON.stringify({ evt: "ai_upstream", ok: true, upstream: p.label, model: p.model, profile }));
       return text;
     } catch (e) {
       lastErr = e?.message || "fetch_failed";
@@ -457,7 +468,7 @@ async function opExplain(req, origin, url) {
     await cacheDelete("explain", key);
   }
   try {
-    // Route through the "json" profile (→ gemini-2.5-flash-lite, non-thinking)
+    // Route through the "json" profile (→ 3.1 Flash-Lite, minimal thinking)
     // even though we want plain text. The "fast" profile resolves to
     // gemini-2.5-flash which is a THINKING model — it spends ~95 of 120
     // max_tokens on internal reasoning and leaves only ~25 for the actual

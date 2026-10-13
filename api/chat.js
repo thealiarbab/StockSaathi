@@ -40,6 +40,7 @@
 // nothing else. Do not rely on this endpoint to sanitise them.
 // =============================================================================
 
+import { liveGeminiModel } from "./_models.js";
 import {
   messagesEnabled, messagesFetch, toMessagesBody, toChatCompletion, toChatSse, MESSAGES_MODEL,
 } from "./_messages.js";
@@ -89,13 +90,15 @@ export const MESSAGES_TIMEOUT_MS = Number(globalThis.process?.env?.MESSAGES_TIME
 //             call and how to read the result back. The facts come from the
 //             tools, so it does not need more than that, and this lane was
 //             never the one the user watches a cursor blink on.
-//   json      already on a non-thinking model; nothing to trim.
+//   json      "minimal": the 3.1 Flash-Lite successor of the old
+//             non-thinking 2.5 Flash-Lite lane (see GEMINI_JSON).
 //   reasoning / creative  deliberately left alone. These lanes exist to
 //             think, are not on the interactive path, and nobody is watching
 //             a cursor blink while they run.
 const REASONING_EFFORT = {
   chat: (globalThis.process?.env?.CHAT_REASONING_EFFORT) || "minimal",
   fast: (globalThis.process?.env?.FAST_REASONING_EFFORT) || "low",
+  json: (globalThis.process?.env?.JSON_REASONING_EFFORT) || "minimal",
 };
 
 const OPENAI_MODEL   = (globalThis.process?.env?.OPENAI_MODEL)    || "gpt-5.4";
@@ -103,8 +106,8 @@ const OPENAI_MODEL   = (globalThis.process?.env?.OPENAI_MODEL)    || "gpt-5.4";
 // Vertex region including asia-south1. 3.x family is still preview-only and
 // not deployed to all regions. Override via env vars if you want a specific
 // version or to test the 3.x preview.
-const GEMINI_FAST    = (globalThis.process?.env?.GEMINI_FAST_MODEL) || "gemini-3-flash-preview";
-const GEMINI_PRO     = (globalThis.process?.env?.GEMINI_PRO_MODEL)  || "gemini-3.1-pro-preview";
+const GEMINI_FAST    = liveGeminiModel((globalThis.process?.env?.GEMINI_FAST_MODEL) || "gemini-3-flash-preview");
+const GEMINI_PRO     = liveGeminiModel((globalThis.process?.env?.GEMINI_PRO_MODEL)  || "gemini-3.1-pro-preview");
 // Dedicated model for the live coach chat.
 //
 // This used to default to 2.5 Flash Lite, chosen because it is the fastest
@@ -136,23 +139,17 @@ const GEMINI_PRO     = (globalThis.process?.env?.GEMINI_PRO_MODEL)  || "gemini-3
 // var and no deploy: GEMINI_CHAT_MODEL=gemini-3.1-pro-preview. The chain
 // below degrades to OpenAI, so an unavailable model costs a fallback hop
 // rather than hanging the coach.
-const GEMINI_CHAT    = (globalThis.process?.env?.GEMINI_CHAT_MODEL) || "gemini-3-flash-preview";
+const GEMINI_CHAT    = liveGeminiModel((globalThis.process?.env?.GEMINI_CHAT_MODEL) || "gemini-3-flash-preview");
 // Dedicated model for JSON-returning ops (command palette, market-search,
 // report-card, crash-replay).
 //
-// DELIBERATELY STAYS ON FLASH LITE — this is the one lane where "smarter"
-// is actively worse, and it is not an oversight. 2.5 Flash Lite is the only
-// Gemini that is truly non-thinking in response_format:json_object mode.
-// 2.5 Flash spends ~1900 reasoning tokens on a strict-JSON request and blows
-// the caller's max_tokens with the JSON itself only ~70 tokens long, which
-// broke crash replay outright. Lite returns the full crash-replay schema in
-// ~3s with no reasoning overhead.
-//
-// These callers set their own max_tokens (unlike the coach, which no longer
-// sends one), so the failure mode is live for them. Do not "upgrade" this
-// to a thinking model without first removing those caps and re-testing
-// crash replay, the command palette and the report card end to end.
-const GEMINI_JSON    = (globalThis.process?.env?.GEMINI_JSON_MODEL) || "gemini-2.5-flash-lite";
+// Was 2.5 Flash-Lite, the only non-thinking Gemini in json_object mode: 2.5
+// Flash spent ~1900 reasoning tokens and blew the callers' max_tokens, which
+// broke crash replay. 2.5 retires on Vertex 20 Oct 2026. The cap that made
+// thinking fatal is gone (max_tokens is always MAX_OUTPUT_TOKENS below), so
+// the successor, 3.1 Flash-Lite, runs here with reasoning_effort "minimal"
+// (REASONING_EFFORT.json) to keep the latency of the old lane.
+const GEMINI_JSON    = liveGeminiModel((globalThis.process?.env?.GEMINI_JSON_MODEL) || "gemini-3.1-flash-lite");
 const CEREBRAS_MODEL = (globalThis.process?.env?.CEREBRAS_MODEL)  || "llama3.3-70b";
 const GROQ_MODEL     = (globalThis.process?.env?.GROQ_MODEL)      || "llama-3.3-70b-versatile";
 const PUBLIC_ORIGIN  = ((globalThis.process?.env?.PUBLIC_ORIGIN) || "").replace(/\/$/, "");
@@ -599,7 +596,7 @@ export default async function handler(req) {
         // this endpoint has ever existed — Vercel's runtime logs carry status
         // but no duration. One line here makes p50/p90 answerable from logs.
         console.log(JSON.stringify({
-          evt: "chat_upstream", profile, ok: true, upstream: desc.label,
+          evt: "chat_upstream", profile, ok: true, upstream: desc.label, model: desc.model,
           ttft_ms: r.ttftMs, stream: wantsStream,
           tools: Array.isArray(payload.tools) ? payload.tools.length : 0,
           attempts: trail(),
