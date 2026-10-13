@@ -16,11 +16,33 @@ import { aiLang } from "../features/aiLang.js";
 // — Nifty 50/100 stocks naturally land on top). No Featured/All split.
 // `mfBucket` and `mfPlan` are MF-tab-only filters — preserved across tab
 // switches so coming back to Mutual Funds keeps the user's last view.
-// Hotfix64b: default sort = name A→Z. User wanted "every stock arranged in
-// ALPHABETICAL ORDER" both in the all-sectors view and inside any category.
-// Power users can still flip to "Top by size" / Gainers / Losers via the
-// dropdown — sticky across pill clicks like before.
+// Hotfix64b: default sort = name A→Z for anyone who has traded ("every stock
+// arranged in ALPHABETICAL ORDER"). Users with no trades yet open on "Top
+// by size" (see _sortChosen below). The dropdown choice is sticky.
 let filter = { q: "", sector: "all", kind: "EQUITY", sort: "name", mfBucket: "all", mfPlan: "all" };
+// U8: A→Z put tickers that start with a digit (20MICRONS, 21STCENMGM,
+// 360ONE) at the very top, and new users mostly tapped those rows: they
+// became the most-traded stocks on the platform for no reason. Until a user
+// has made a trade, the list opens on "Top by size" instead. Picking a sort
+// in the dropdown always wins.
+let _sortChosen = false;
+
+// Index membership is a BITMASK (scripts/build-universe.mjs): Nifty 50 =
+// 1, Nifty 100 = 2, Nifty 500 = 4, Midcap 150 = 8, Smallcap 250 = 16. Sorting
+// the raw number ranked RELIANCE (7) below a smallcap like AADHARHFC (20),
+// so "Top by size" put Nifty 50 stocks behind small caps. Rank by tier.
+function idxTier(idx) {
+  const n = Number(idx) || 0;
+  if (n & 1) return 5;     // Nifty 50
+  if (n & 2) return 4;     // Nifty 100
+  if (n & 8) return 3;     // Midcap 150
+  if (n & 4) return 2;     // rest of Nifty 500
+  if (n & 16) return 1;    // Smallcap 250
+  return 0;
+}
+
+// "Popular" chip row: the largest Nifty 50 companies, as quick links.
+const POPULAR_SYMBOLS = ["RELIANCE", "HDFCBANK", "TCS", "BHARTIARTL", "ICICIBANK", "INFY", "SBIN", "ITC", "LT", "HINDUNILVR"];
 
 // Hotfix65a: view mode for /stocks grid. "tiles" (Groww-style compact
 // rows, default) or "cards" (the original detailed cards). Persisted in
@@ -155,6 +177,9 @@ const RISK_KEYWORDS = {
 
 export function renderStocks(main) {
   let cancelled = false;
+  if (!_sortChosen) {
+    filter.sort = (getState().transactions || []).length === 0 ? "marketCap" : "name";
+  }
   let pollUnsub = null;
   // One-shot flag — first batch of viewport-visible symbols triggers an
   // immediate getQuoteBatch so users see prices instantly. Subsequent
@@ -963,6 +988,12 @@ export function renderStocks(main) {
              Liquid / International) would need build-time enrichment that
              ships in a follow-up. -->
       ` : `
+        ${!filter.q ? `
+          <div class="popular-row" aria-label="Popular stocks">
+            <span class="popular-label">Popular</span>
+            ${POPULAR_SYMBOLS.map(sym => getInstrument(sym)).filter(Boolean).map(i =>
+              `<a class="popular-chip" href="/stocks/${encodeURIComponent(i.symbol)}" title="${escapeAttr(i.name || i.symbol)}">${escapeHtml(i.symbol)}</a>`).join("")}
+          </div>` : ""}
         <div class="filter-pills" style="margin-bottom: var(--sp-5); max-height: 88px; overflow-y: auto;">
           <button class="filter-pill ${filter.sector === "all" ? "active" : ""}" data-sector="all">All sectors${totalEquityForPills ? ` <span class="pill-count">${totalEquityForPills}</span>` : ""}</button>
           ${canonicalCats.map(c => `<button class="filter-pill ${filter.sector === c.name ? "active" : ""}" data-sector="${escapeAttr(c.name)}">${escapeHtml(c.name)} <span class="pill-count">${c.count}</span></button>`).join("")}
@@ -1021,7 +1052,7 @@ export function renderStocks(main) {
           { value: "losers",    label: "Top losers today" },
           { value: "name",      label: "Name A–Z" },
         ],
-        onChange: v => { filter.sort = v; visibleCount = PAGE_SIZE; render(); },
+        onChange: v => { filter.sort = v; _sortChosen = true; visibleCount = PAGE_SIZE; render(); },
       });
     });
     main.querySelectorAll("[data-sector]").forEach(btn => btn.addEventListener("click", () => { filter.sector = btn.dataset.sector; visibleCount = PAGE_SIZE; render(); }));
@@ -1782,20 +1813,19 @@ function buildAiSearchCandidates(query) {
   if (numHints.divMin != null) pool = pool.filter(i => i.divYield == null || i.divYield >= numHints.divMin);
   if (numHints.betaMax != null) pool = pool.filter(i => i.beta == null || i.beta <= numHints.betaMax);
 
-  // 3) Rank by index prominence (Nifty50 first, then 100, 500, midcap, smallcap, rest)
-  // Higher idx bits = more prominent; sort desc. Fall back to name-length
-  // as a tie-breaker so stable ordering.
+  // 3) Rank by index tier (Nifty 50 first, then 100, midcap, 500, smallcap,
+  // rest), symbol as the tie-breaker so ordering is stable.
   pool.sort((a, b) => {
-    const ai = a.idx || 0;
-    const bi = b.idx || 0;
-    if (ai !== bi) return bi - ai;   // reverse of bit-value — higher idx bits = more prominent
+    const ai = idxTier(a.idx);
+    const bi = idxTier(b.idx);
+    if (ai !== bi) return bi - ai;
     return (a.symbol || "").localeCompare(b.symbol || "");
   });
 
   // 4) Fallback to full if prefilter killed everything (query is purely
   // qualitative — "defensive dividend payers" with no sector word).
   if (pool.length < 20) {
-    pool = full.slice().sort((a, b) => (b.idx || 0) - (a.idx || 0));
+    pool = full.slice().sort((a, b) => idxTier(b.idx) - idxTier(a.idx));
   }
 
   const TOP = 150;
@@ -1980,10 +2010,10 @@ function applyFilters(all, f, state, quoteCache) {
       SILVERBEES: 65, SETFGOLD: 50,
     };
     list.sort((a, b) => {
-      let ai = a.idx || a.idx_tags || 0;
-      let bi = b.idx || b.idx_tags || 0;
-      if (a.kind === "ETF") ai = ETF_PROMINENCE[a.symbol] || ai;
-      if (b.kind === "ETF") bi = ETF_PROMINENCE[b.symbol] || bi;
+      let ai = idxTier(a.idx || a.idx_tags);
+      let bi = idxTier(b.idx || b.idx_tags);
+      if (a.kind === "ETF" && ETF_PROMINENCE[a.symbol]) ai = 5 + ETF_PROMINENCE[a.symbol] / 100;
+      if (b.kind === "ETF" && ETF_PROMINENCE[b.symbol]) bi = 5 + ETF_PROMINENCE[b.symbol] / 100;
       if (ai !== bi) return bi - ai;
       return (a.symbol || "").localeCompare(b.symbol || "");
     });

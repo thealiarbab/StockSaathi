@@ -1532,6 +1532,32 @@ table.compare { min-width: 560px; }
   color: white;
   border-color: var(--brand);
 }
+/* Markets "Popular" row: one line of quick links; scrolls sideways on phones. */
+.popular-row {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: var(--sp-3);
+  overflow-x: auto; scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.popular-row::-webkit-scrollbar { display: none; }
+.popular-label {
+  flex-shrink: 0;
+  font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--text-muted);
+}
+.popular-chip {
+  flex-shrink: 0;
+  padding: 6px 12px; min-height: 32px;
+  display: inline-flex; align-items: center;
+  border-radius: var(--r-full);
+  border: 1px solid color-mix(in srgb, var(--brand) 30%, var(--border));
+  background: var(--brand-soft);
+  color: var(--text-strong);
+  font-size: var(--text-sm); font-weight: 600;
+  text-decoration: none;
+  transition: transform var(--dur-1), border-color var(--dur-1);
+}
+.popular-chip:hover { border-color: var(--brand); transform: translateY(-1px); }
 .filter-pill:hover:not(.active) {
   color: var(--text-strong);
   border-color: var(--border-strong);
