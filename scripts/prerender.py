@@ -49,6 +49,15 @@ STATE = ROOT / "scripts" / "prerender-state.json"
 IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
 TODAY = dt.datetime.now(IST).date().isoformat()
 
+# <lastmod> follows what a crawler reads, not the asset tags every page shares:
+# adding an analytics script must not date every page to today.
+SCRIPT_TAG = re.compile(r'^[ \t]*<script(?: defer| async)* src="[^"]+"></script>\n', re.M)
+
+
+def content_digest(body):
+    text = SCRIPT_TAG.sub("", body.replace("\r\n", "\n"))
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+
 OG_IMAGE = SITE + "/images/og-image-v2.png"
 OG_ALT = ("StockSaathi: Invest virtually. Learn for real. A free stock market simulator for Indian teens, beside "
           "a chart of the COVID-19 crash replay: ₹1,00,000 held finished at ₹1,02,764, sold on day 3 at ₹97,295.")
@@ -1053,7 +1062,7 @@ def main():
         else:
             body = render(p, template)
             outputs[ROOT / p["file"]] = body
-        digest = hashlib.sha256(body.replace("\r\n", "\n").encode("utf-8")).hexdigest()[:16]
+        digest = content_digest(body)
         prev = state.get(p["path"], {})
         lastmod = prev.get("lastmod") if prev.get("hash") == digest else TODAY
         new_state[p["path"]] = {"hash": digest, "lastmod": lastmod or TODAY}
