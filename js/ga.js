@@ -5,9 +5,9 @@
 // sends each one with the path already redacted (trackablePath in router.js),
 // and GA's per-hit kill switch is on whenever the URL is under /a/. That also
 // stops GA's automatic history-change page views if they get switched on in
-// the GA admin. Google signals and ad personalisation stay off.
+// the GA admin.
 (function () {
-  var ID = ""; // GA4 measurement ID ("G-…"). Empty = analytics off.
+  var ID = "G-65CB0CZ1PX"; // GA4 measurement ID. Empty = analytics off.
 
   var noop = function () {};
   window.ssGa = { guard: noop, page: noop };
@@ -23,11 +23,7 @@
   window.gtag = gtag;
   guard();
   gtag("js", new Date());
-  gtag("config", ID, {
-    send_page_view: false,
-    allow_google_signals: false,
-    allow_ad_personalization_signals: false,
-  });
+  gtag("config", ID, { send_page_view: false });
 
   window.ssGa = {
     guard: guard,
