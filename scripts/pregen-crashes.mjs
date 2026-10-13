@@ -205,8 +205,14 @@ function flag(name, def = null) {
   return args[i + 1] ?? true;
 }
 const BASE = String(flag("base", "https://stocksaathi.co.in")).replace(/\/$/, "");
+// cache-put only accepts a signed-in user or the admin token.
+const ADMIN_TOKEN = String(process.env.ADMIN_TOKEN || "").trim();
 const ONLY = flag("only", null);
 const DRY  = flag("dry-run", false) === true || flag("dry-run", false) === "true";
+if (!DRY && !ADMIN_TOKEN) {
+  console.error("Set ADMIN_TOKEN (same value as on Vercel) to write the cache, or pass --dry-run.");
+  process.exit(1);
+}
 
 console.log(`Pre-generating crash replays against ${BASE} (version ${CURRENT_PROMPT_VERSION})`);
 if (DRY) console.log("DRY RUN — will not write to cache");
@@ -340,7 +346,7 @@ for (const ev of EVENTS) {
   try {
     const pr = await fetch(`${BASE}/api/ai?op=cache-put`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${ADMIN_TOKEN}` },
       body: JSON.stringify({
         bucket: "crash_replay",
         key: hash,

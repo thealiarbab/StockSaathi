@@ -329,12 +329,62 @@ async function opCacheGet(req, origin, url) {
   return j(200, { payload, hit: true }, origin, true, st);
 }
 
+// Only crash replays are written from outside the server; every other
+// bucket is filled by this file itself after its own quality gates.
+const CACHE_PUT_BUCKETS = new Set(["crash_replay"]);
+const CACHE_PUT_MAX_BYTES = 64 * 1024;
+
+// Valid Supabase session? One round trip to /auth/v1/user; 200 = real user.
+async function verifySupabaseUser(req) {
+  const env = globalThis.process?.env || {};
+  const url = env.SUPABASE_URL;
+  const anon = env.SUPABASE_ANON_KEY;
+  if (!url || !anon) return false;
+  const hdr = req.headers.get("Authorization") || "";
+  const token = hdr.startsWith("Bearer ") ? hdr.slice(7).trim() : "";
+  if (!token || token.split(".").length !== 3) return false;
+  try {
+    const res = await fetch(`${url.replace(/\/$/, "")}/auth/v1/user`, {
+      headers: { apikey: anon, Authorization: `Bearer ${token}` },
+    });
+    return res.ok;
+  } catch { return false; }
+}
+
+function crashReplayLooksValid(p) {
+  return !!p && typeof p === "object" && !Array.isArray(p)
+    && typeof p._promptVersion === "string" && p._promptVersion.length <= 40
+    && typeof p.id === "string" && p.id.length <= 120
+    && typeof p.title === "string" && p.title.length <= 80
+    && typeof p.description === "string" && p.description.length <= 2000
+    && Array.isArray(p.frames) && p.frames.length > 0 && p.frames.length <= 2000
+    && (p.narrations == null || Array.isArray(p.narrations));
+}
+
 async function opCachePut(req, origin) {
+  // Writes need a known caller: the admin token (scripts/pregen-crashes.mjs)
+  // or a signed-in user coming from our own origin. A missing Origin is a
+  // fail here, unlike reads.
+  const isAdmin = checkAdmin(req).ok;
+  if (!isAdmin) {
+    if (!allowed(origin)) return j(403, { error: "forbidden_origin" }, origin);
+    if (!(await verifySupabaseUser(req))) return j(401, { error: "sign_in_required" }, origin);
+  }
   let body;
   try { body = await req.json(); } catch { return j(400, { error: "bad_body" }, origin); }
   const bucket = normalizeKey(body.bucket);
-  const key = normalizeKey(body.key);
-  if (!bucket || !key || body.payload == null) return j(400, { error: "bad_params" }, origin);
+  const key = String(body.key || "");
+  if (!CACHE_PUT_BUCKETS.has(bucket)) return j(403, { error: "bucket_not_writable" }, origin);
+  if (!/^[a-f0-9]{12,64}$/.test(key)) return j(400, { error: "bad_key" }, origin);
+  if (!crashReplayLooksValid(body.payload)) return j(400, { error: "bad_payload" }, origin);
+  if (JSON.stringify(body.payload).length > CACHE_PUT_MAX_BYTES) return j(413, { error: "payload_too_large" }, origin);
+  // First good row wins: a row that already carries the same prompt
+  // version is never replaced. A row from an older version may be, since
+  // readers treat it as a miss anyway.
+  const existing = await cacheGet(bucket, key);
+  if (existing && existing._promptVersion === body.payload._promptVersion) {
+    return j(200, { ok: true, kept: true }, origin);
+  }
   // CRITICAL: must AWAIT the write. Vercel Edge runtime tears down the
   // function the moment the response is returned — fire-and-forget
   // supabaseReq() Promises get cancelled mid-flight. Pre-this-fix, every
@@ -1104,7 +1154,7 @@ export default async function handler(req) {
   if (req.method === "OPTIONS") {
     const h = cors(origin);
     h.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    h.set("Access-Control-Allow-Headers", "Content-Type");
+    h.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
     h.set("Access-Control-Max-Age", "600");
     return new Response(null, { status: 204, headers: h });
   }

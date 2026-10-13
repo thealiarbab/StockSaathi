@@ -555,7 +555,22 @@ async function cacheReplayGet(hash) {
     return payload;
   } catch { return null; }
 }
-function cacheReplayPut(hash, description, payload) {
+// Access token of the signed-in user, or null. The cross-user write is
+// refused without one, so a logged-out visitor just skips it.
+async function sessionToken() {
+  try {
+    const { sb } = await import("../db/supabase.js");
+    const client = await sb();
+    if (!client) return null;
+    const res = await Promise.race([
+      client.auth.getSession(),
+      new Promise((r) => setTimeout(() => r(null), 3000)),
+    ]);
+    return res?.data?.session?.access_token || null;
+  } catch { return null; }
+}
+
+async function cacheReplayPut(hash, description, payload) {
   try {
     // Stamp the version onto the payload BEFORE writing so the next reader
     // sees the version that produced it. Mutating in place is fine — caller
@@ -563,9 +578,11 @@ function cacheReplayPut(hash, description, payload) {
     if (payload && typeof payload === "object") {
       payload._promptVersion = CURRENT_PROMPT_VERSION;
     }
+    const token = await sessionToken();
+    if (!token) return;
     fetch("/api/ai?op=cache-put", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
       body: JSON.stringify({
         bucket: "crash_replay",
         key: hash,
