@@ -114,7 +114,7 @@ export async function loadAllFromDb() {
     // counterparty's username + display name come back even though the new
     // profiles RLS blocks anon cross-user reads. The Postgrest join approach
     // used previously silently returned empty profile objects under RLS.
-    const [pf, holdings, txns, wl, friendsRpc, transfersRpc, msgs, hist] = await Promise.all([
+    const [pf, holdings, txns, wl, friendsRpc, transfersRpc, msgs, hist, held] = await Promise.all([
       client.from("portfolios").select("*").eq("user_id", uid).maybeSingle(),
       client.from("holdings").select("*").eq("user_id", uid),
       client.from("transactions").select("*").eq("user_id", uid).order("created_at", { ascending: false }).limit(200),
@@ -135,13 +135,22 @@ export async function loadAllFromDb() {
         .eq("user_id", uid)
         .order("ts", { ascending: true })
         .limit(2000),
+      // Cash held for pending BUY orders. Without it every page except
+      // /portfolio (the only caller of setReservedCashPaise) showed the
+      // portfolio short by that amount until /portfolio was opened.
+      client.from("limit_orders")
+        .select("reserved_cash")
+        .eq("user_id", uid).eq("status", "pending").eq("side", "BUY"),
     ]);
     const friends = { data: friendsRpc.data || [], error: friendsRpc.error };
     const transfers = { data: transfersRpc.data || [], error: transfersRpc.error };
 
     const state = getState();
+    const reservedCashPaise = held?.error
+      ? (state.portfolio?.reservedCashPaise || 0)
+      : (held?.data || []).reduce((sum, o) => sum + (Number(o.reserved_cash) || 0), 0);
     const nextPortfolio = pf.data
-      ? { cashPaise: Number(pf.data.cash_paise), startingCashPaise: Number(pf.data.starting_cash_paise) }
+      ? { cashPaise: Number(pf.data.cash_paise), startingCashPaise: Number(pf.data.starting_cash_paise), reservedCashPaise }
       : state.portfolio;
 
     const nextHoldings = {};
