@@ -779,7 +779,8 @@ function render(inst, symbol) {
   // 21 hours of every day, with NaN limit price.
   // ===================================================================
   if (!ms.open && inst.kind !== "MF") {
-    if (ui.orderType !== "LIMIT") ui.orderType = "LIMIT";
+    // After hours both tabs work: Market = fill at the first live price
+    // after the open (AMO_MARKET), Limit = an AMO at the user's price.
     // Only pre-fill from a real live quote. Pre-fix: when liveQuote was
     // null at first render (typical for the first 1–10 s on cold load),
     // curPrice fell back to getPriceAt() → prices.js synthetic walk:
@@ -948,8 +949,10 @@ function render(inst, symbol) {
           ${inst.kind === "MF" ? renderMfInvestBox(inst, symbol, curPrice, holding) : `
           ${!ms.open ? `
             <div class="amo-banner" style="margin-bottom: var(--sp-3); padding: var(--sp-3); border-radius: var(--r-md); background: color-mix(in srgb, var(--brand) 7%, var(--bg-soft)); border: 1px solid color-mix(in srgb, var(--brand) 35%, var(--border)); font-size: var(--text-xs); line-height: 1.45;">
-              <div style="font-weight: 600; color: var(--text-strong); margin-bottom: 2px;">🕗 NSE Closed — AMO mode</div>
-              <div class="dim">Your order queues now and executes at <strong style="color: var(--text-strong);">${escapeHtml(ms.nextOpenLabel || "the next market open")}</strong> at the opening price. Market orders are unavailable after hours (same behaviour as Groww).</div>
+              <div style="font-weight: 600; color: var(--text-strong); margin-bottom: 2px;">🕗 Market closed: after-market order</div>
+              <div class="dim">${ui.orderType === "LIMIT"
+                ? `Your order queues now and fills from the open (<strong style="color: var(--text-strong);">${escapeHtml(openWhen(ms))}</strong>) once the price reaches your limit.`
+                : `Your order queues now and fills at the first live price after the open (<strong style="color: var(--text-strong);">${escapeHtml(openWhen(ms))}</strong>). ${ui.side === "BUY" ? "20% extra is held in case it opens higher; the rest comes back after the fill." : ""}`}</div>
             </div>
           ` : ""}
 
@@ -959,9 +962,8 @@ function render(inst, symbol) {
           </div>
 
           <div class="lb-tabs" style="margin-bottom: var(--sp-3); width: 100%;">
-            <button class="lb-tab ${ui.orderType === "MARKET" ? "active" : ""}" data-otype="MARKET" style="flex: 1;${!ms.open ? " opacity: 0.45; cursor: not-allowed;" : ""}"
-              ${!ms.open ? `disabled title="Market orders unavailable after hours — use Limit to queue an AMO."` : ""}>
-              Market${!ms.open ? " 🔒" : ""}
+            <button class="lb-tab ${ui.orderType === "MARKET" ? "active" : ""}" data-otype="MARKET" style="flex: 1;">
+              ${!ms.open ? "Market (at open)" : "Market"}
             </button>
             <button class="lb-tab ${ui.orderType === "LIMIT" ? "active" : ""}" data-otype="LIMIT" style="flex: 1;">${!ms.open ? "Limit (AMO)" : "Limit"}</button>
           </div>
@@ -974,7 +976,7 @@ function render(inst, symbol) {
                 value="${ui.limitPrice || (curPrice/100).toFixed(2)}" inputmode="decimal" />
               <div class="dim text-xs" style="margin-top: 4px;">
                 ${!ms.open
-                  ? `Fills at market open when the opening tick crosses ${ui.side === "BUY" ? "at or below" : "at or above"} this price. Pre-filled with the last close — edit if you want a stricter fill.`
+                  ? `Fills from the open once the price is ${ui.side === "BUY" ? "at or below" : "at or above"} this. Must be within 20% of the last price.`
                   : ui.side === "BUY"
                     ? "Fires when market price drops to this level or lower."
                     : "Fires when market price rises to this level or higher."}
@@ -996,12 +998,16 @@ function render(inst, symbol) {
             <div class="row"><span>Price</span><span class="num">${formatRupees(curPrice)}</span></div>
             <div class="row"><span>Qty</span><span class="num" id="os-qty">${formatQty(ui.qty, inst.kind)}</span></div>
             <div class="row total"><span>Estimated ${ui.side === "BUY" ? "cost" : "proceeds"}</span><span class="num" id="os-total">${formatRupees(Math.round(ui.qty * curPrice))}</span></div>
+            ${!ms.open && ui.orderType === "MARKET" && ui.side === "BUY" ? `
+              <div class="row"><span class="dim">Held until the fill (+20%)</span><span class="num dim" id="os-hold">${formatRupees(Math.round(ui.qty * curPrice * 1.2))}</span></div>` : ""}
           </div>
 
           <button class="btn btn-block ${ui.side === "BUY" ? "btn-buy" : "btn-sell"}" id="place-trade-btn"
             ${ui.side === "SELL" && !holding ? "disabled" : ""}>
             ${!ms.open
-              ? `Queue AMO ${ui.side === "BUY" ? "Buy" : "Sell"}`
+              ? (ui.orderType === "LIMIT"
+                  ? `Queue ${ui.side === "BUY" ? "buy" : "sell"} limit`
+                  : `Queue ${ui.side === "BUY" ? "buy" : "sell"} at open`)
               : ui.orderType === "LIMIT"
                 ? `Place ${ui.side === "BUY" ? "Buy" : "Sell"} limit`
                 : `Review ${ui.side === "BUY" ? "Buy" : "Sell"} order`}
@@ -1014,7 +1020,7 @@ function render(inst, symbol) {
           ` : `
             <div class="dim text-xs center" style="margin-top: var(--sp-3);">
               ${!ms.open
-                ? `Virtual money · Queues as AMO · Fills at ${escapeHtml(ms.nextOpenLabel || "next market open")}`
+                ? `Virtual money · After-market order · Market opens ${escapeHtml(openWhen(ms))}`
                 : "Virtual money · Reviewed on a confirmation step · Coach reflection follows every trade"}
             </div>
           `}
@@ -1082,6 +1088,8 @@ function render(inst, symbol) {
           const totalEl = main.querySelector("#os-total");
           if (qtyEl) qtyEl.textContent = formatQty(qty, inst.kind);
           if (totalEl) totalEl.textContent = formatRupees(Math.round(qty * curPrice));
+          const holdEl = main.querySelector("#os-hold");
+          if (holdEl) holdEl.textContent = formatRupees(Math.round(qty * curPrice * 1.2));
         },
       });
     }
@@ -1379,8 +1387,7 @@ function attachListeners(main, inst, symbol, curPrice, holding, chartOhlc, sessi
       const units = +(amount / navRupees).toFixed(4);
       ui.side = "BUY";
       ui.qty = units;
-      toast({ kind: "info", message: "Processing…", duration: 1500 });
-      await reviewTrade(inst, symbol, curPrice, holding);
+      await placeMfOrder(inst, "BUY", units, curPrice, Math.round(amount * 100));
     } catch (e) {
       console.error("[mf-invest]", e);
       toast({ kind: "error", message: e?.message || "Invest failed. Check console." });
@@ -1408,13 +1415,52 @@ function attachListeners(main, inst, symbol, curPrice, holding, chartOhlc, sessi
       }
       ui.side = "SELL";
       ui.qty = units;
-      toast({ kind: "info", message: "Processing…", duration: 1500 });
-      await reviewTrade(inst, symbol, curPrice, holding);
+      await placeMfOrder(inst, "SELL", units, curPrice, Math.round(units * curPrice));
     } catch (e) {
       console.error("[mf-redeem]", e);
       toast({ kind: "error", message: e?.message || "Redeem failed. Check console." });
     }
   });
+}
+
+// Fund buys and redemptions are orders at any hour: units are allotted at
+// the NAV for the day the order counts for (cut-off 15:00 IST, 13:30 for
+// liquid funds), like at a real AMC. They used to go through the share
+// path, where apply_trade has no fund price, so they only ever worked
+// after hours, and then as a price limit on the NAV.
+async function placeMfOrder(inst, side, units, navPaise, amountPaise) {
+  if (_tradeInFlight) return;
+  _tradeInFlight = true;
+  const btn = document.getElementById(side === "BUY" ? "mf-invest-btn" : "mf-redeem-btn");
+  const label = btn?.textContent;
+  if (btn) { btn.disabled = true; btn.textContent = "Placing…"; }
+  try {
+    const res = await withRequestTimeout(
+      () => placeLimitOrder({ symbol: inst.symbol, side, qty: units, limitPricePaise: navPaise, orderType: "MF" }),
+      { timeoutMs: 25_000, timeoutMessage: "The order timed out. Check your connection and try again." },
+    );
+    const navDay = res?.nav_from_date
+      ? new Date(`${res.nav_from_date}T12:00:00+05:30`).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "Asia/Kolkata" })
+      : null;
+    toast({
+      kind: "success",
+      message: side === "BUY"
+        ? `Order placed: ${formatRupees(amountPaise)} into ${inst.name}. Units are allotted at the ${navDay ? `${navDay} NAV` : "next NAV"} or the next one published after it.`
+        : `Redemption placed: ${formatQty(units, "MF")} units. Paid out at the ${navDay ? `${navDay} NAV` : "next NAV"} or the next one published after it.`,
+      duration: 7000,
+    });
+    try {
+      const { loadAllFromDb } = await import("../db/sync.js");
+      await loadAllFromDb();
+    } catch {}
+    go("/portfolio");
+  } catch (e) {
+    console.error("[mf-order]", e);
+    toast({ kind: "error", message: e?.message || "Couldn't place the fund order.", duration: 6000 });
+    if (btn) { btn.disabled = false; btn.textContent = label; }
+  } finally {
+    _tradeInFlight = false;
+  }
 }
 
 // One trade at a time, whichever button started it. reviewTrade disables
@@ -1423,6 +1469,11 @@ function attachListeners(main, inst, symbol, curPrice, holding, chartOhlc, sessi
 // double tap there placed two orders. Found 2026-09-27: two identical
 // Rs 10,000 liquid-fund orders from one user, created 50 ms apart.
 let _tradeInFlight = false;
+
+// "Opens Tue 9:15 AM" -> "Tue 9:15 AM", for use inside a sentence.
+function openWhen(ms) {
+  return (ms?.nextOpenLabel || "").replace(/^Opens\s+/i, "") || "the next open";
+}
 
 // The widest NSE price band. place_limit_order refuses limits outside it.
 const LIMIT_BAND = 0.2;
@@ -1500,8 +1551,11 @@ async function _reviewTrade(inst, symbol, curPrice, holding) {
   // This also sidesteps the apply_trade RPC hang that happens out-of-hours.
   const ms = marketStatus();
   if (!ms.open) {
+    // Market tab = fill at the first live price after the open; Limit tab =
+    // an AMO at the user's price.
+    const atOpen = ui.orderType !== "LIMIT";
     const fallbackRupees = curPrice / 100;
-    const limitRupees = Number.isFinite(parseFloat(ui.limitPrice)) && parseFloat(ui.limitPrice) > 0
+    const limitRupees = !atOpen && Number.isFinite(parseFloat(ui.limitPrice)) && parseFloat(ui.limitPrice) > 0
       ? parseFloat(ui.limitPrice)
       : fallbackRupees;
     const limitPaise = Math.round(limitRupees * 100);
@@ -1509,10 +1563,13 @@ async function _reviewTrade(inst, symbol, curPrice, holding) {
       toast({ kind: "error", message: "Couldn't read the AMO price. Edit the limit price field and try again." });
       return;
     }
-    const amoBand = inst.kind === "MF" ? null : limitBandError(limitPaise, curPrice);
+    const amoBand = inst.kind === "MF" || atOpen ? null : limitBandError(limitPaise, curPrice);
     if (amoBand) { toast({ kind: "error", message: amoBand, duration: 6000 }); return; }
-    if (ui.side === "BUY" && Math.round(qty * limitPaise) > (getState().portfolio?.cashPaise || 0)) {
-      toast({ kind: "error", message: "Not enough cash to reserve for this AMO." });
+    const holdPaise = Math.round(qty * limitPaise * (atOpen ? 1.2 : 1));
+    if (ui.side === "BUY" && holdPaise > (getState().portfolio?.cashPaise || 0)) {
+      toast({ kind: "error", message: atOpen
+        ? `Not enough cash: an order at the open holds 20% extra (${formatRupees(holdPaise)}) in case the price opens higher. Lower the quantity or use Limit.`
+        : "Not enough cash to reserve for this AMO.", duration: 6000 });
       return;
     }
     // Disable the button + show "Queuing…" so the user gets instant
@@ -1529,7 +1586,7 @@ async function _reviewTrade(inst, symbol, curPrice, holding) {
       // made successful AMOs look like failures. At 25 s anything
       // that hasn't come back is genuinely broken.
       const res = await withRequestTimeout(
-        () => placeLimitOrder({ symbol, side: ui.side, qty, limitPricePaise: limitPaise }),
+        () => placeLimitOrder({ symbol, side: ui.side, qty, limitPricePaise: limitPaise, orderType: atOpen ? "AMO_MARKET" : "LIMIT" }),
         {
           timeoutMs: 25_000,
           timeoutMessage: "AMO request timed out after 25s — Supabase may be unreachable. Open DevTools console for details.",
@@ -1538,7 +1595,9 @@ async function _reviewTrade(inst, symbol, curPrice, holding) {
       console.log("[AMO] placed", res);
       toast({
         kind: "success",
-        message: `AMO queued: ${ui.side} ${formatQty(qty, inst.kind)} ${symbol} @ ₹${limitRupees.toFixed(2)}. Fills at ${ms.nextOpenLabel || "next market open"}.`,
+        message: atOpen
+          ? `Queued: ${ui.side} ${formatQty(qty, inst.kind)} ${symbol} at the open (${openWhen(ms)}).`
+          : `AMO queued: ${ui.side} ${formatQty(qty, inst.kind)} ${symbol} @ ₹${limitRupees.toFixed(2)}. Fills from the open (${openWhen(ms)}) once the price gets there.`,
         duration: 5000,
       });
       // Refresh local state from DB so the user sees the cash reservation
@@ -2192,7 +2251,8 @@ function renderMfInvestBox(inst, symbol, curNavPaise, holding) {
   // Cutoff: liquid/overnight → 12:00 IST; everything else → 13:30 IST.
   const cat = (inst.category_bucket || inst.category || "").toLowerCase();
   const isLiquidLike = /liquid|overnight|money market/.test(cat);
-  const cutoffLabel = isLiquidLike ? "12:00 PM IST" : "1:30 PM IST";
+  // Same cut-offs as the server's _mf_nav_from_date.
+  const cutoffLabel = isLiquidLike ? "1:30 PM IST" : "3:00 PM IST";
   // Compute current IST hour:minute to pick same-day vs next-day NAV msg.
   let beforeCutoff = false;
   try {
@@ -2201,7 +2261,7 @@ function renderMfInvestBox(inst, symbol, curNavPaise, holding) {
     });
     const parts = fmt.formatToParts(new Date()).reduce((a, p) => (a[p.type] = p.value, a), {});
     const totalMin = parseInt(parts.hour, 10) * 60 + parseInt(parts.minute, 10);
-    const cutoffMin = isLiquidLike ? (12 * 60) : (13 * 60 + 30);
+    const cutoffMin = isLiquidLike ? (13 * 60 + 30) : (15 * 60);
     beforeCutoff = totalMin < cutoffMin;
   } catch (_) {}
   // Hotfix51e: corrected NAV declaration timing. SEBI mandates AMCs
@@ -2210,9 +2270,13 @@ function renderMfInvestBox(inst, symbol, curNavPaise, holding) {
   // deadline (and the messaging that's accurate for ALL scheme types)
   // is 11 PM. Previous text said '~9 PM' which understated the window
   // and confused users seeing late updates.
-  const navNote = beforeCutoff
-    ? `Order before <strong>${cutoffLabel}</strong> today gets <strong>today's NAV</strong> (declared by 11 PM IST per SEBI).`
-    : `After <strong>${cutoffLabel}</strong> cutoff — order will get <strong>tomorrow's NAV</strong>.`;
+  const istDow = new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata", weekday: "short" });
+  const nonBusinessDay = istDow === "Sat" || istDow === "Sun" || !!marketStatus().isHoliday;
+  const navNote = nonBusinessDay && !isLiquidLike
+    ? `Markets are shut today, so this order gets the <strong>next business day's NAV</strong> (declared by 11 PM IST per SEBI).`
+    : beforeCutoff
+      ? `Order before <strong>${cutoffLabel}</strong> today gets <strong>today's NAV</strong> (declared by 11 PM IST per SEBI).`
+      : `After the <strong>${cutoffLabel}</strong> cut-off, this order gets the <strong>next day's NAV</strong>.`;
 
   // Initial amount default: ₹5000 first investment, ₹1000 if user already holds
   // (typical "additional purchase" amount).

@@ -348,7 +348,14 @@ def run_match(force=False, dry=False, backfill=False):
             continue
         limit = int(o["limit_price_paise"])
         side = o["side"]
-        matches = (px <= limit) if side == "BUY" else (px >= limit)
+        otype = o.get("order_type") or "LIMIT"
+        if otype in ("AMO_MARKET", "MF"):
+            # No price condition: an order at the open takes the first live
+            # price, a fund order the next published NAV. The fill core
+            # checks freshness / NAV date and says "wait" otherwise.
+            matches = True
+        else:
+            matches = (px <= limit) if side == "BUY" else (px >= limit)
         if backfill:
             # Make good at the price the user was promised when they placed
             # the order, not at whatever the market has drifted to since.
@@ -379,7 +386,7 @@ def run_match(force=False, dry=False, backfill=False):
             # 'already filled' just means another tick won the race; 'no
             # fresh price' means the quote went stale between the fetch and
             # the fill: retry next tick like any other missing price.
-            if "no fresh price" in msg:
+            if "no fresh price" in msg or "nav not yet published" in msg:
                 no_price.append(o["symbol"])
             elif "already" not in msg:
                 errors.append({"order_id": o["id"], "symbol": o["symbol"], "error": msg[:160]})

@@ -47,7 +47,9 @@ Vanilla-JS SPA + Python serverless (Vercel) + Postgres (Supabase). Virtual-money
   When it goes live, privacy.html's processor list must be updated.
 - **LLM:** Google **Vertex AI** Gemini, proxied via `api/chat.js` (Edge). Project
   `gen-lang-client-0129344832`. Profiles: `chat`/`fast` -> `gemini-3-flash-preview`,
-  `reasoning` -> `gemini-3.1-pro-preview`, `json` -> `gemini-2.5-flash-lite`.
+  `reasoning` -> `gemini-3.1-pro-preview`, `json` -> `gemini-3.1-flash-lite`
+  (minimal reasoning). Gemini 2.5 retired on Vertex 2026-10-20; `api/_models.js`
+  maps any 2.5 ID, env overrides included, to its GA successor.
   **Groq is deliberately excluded** from the provider list (`api/chat.js:240`).
   The chains look 4-deep but only `GEMINI_API_KEY` is set, so every profile is
   effectively 2 Gemini models on ONE vendor - `OPENAI_API_KEY` and
@@ -67,7 +69,7 @@ Vanilla-JS SPA + Python serverless (Vercel) + Postgres (Supabase). Virtual-money
 Limit orders and AMOs are matched by `/api/match-orders` (`handlers/match-orders.py`)
 on a schedule. The user does **not** need the app open.
 
-- **PRIMARY tick:** Supabase `pg_cron` job `order-matcher` (`*/5 3-10 * * 1-5`)
+- **PRIMARY tick:** Supabase `pg_cron` job `order-matcher` (`* 3-10 * * 1-5`, every minute since 2026-10-14)
   → `pg_net` POST to `/api/match-orders`, bearer from Vault secret `cron_secret`
   (migration `2026-09-26b`). Responses: `net._http_response`; runs:
   `cron.job_run_details`. Same pattern ticks `portfolio-snapshot`.
@@ -91,6 +93,17 @@ on a schedule. The user does **not** need the app open.
   order row instead of `auth.uid()` and is revoked from `anon`/`authenticated`.
 - The client loop in `js/features/limitOrders.js` is a **latency optimisation
   only**. If it never ran again every order would still execute.
+- **Order types** (`limit_orders.order_type`, 2026-10-14): `LIMIT` (price or
+  better), `AMO_MARKET` (after hours: first live price after the open; BUY holds
+  20% headroom), `MF` (fund: allots at the NAV for `nav_from_date` or later,
+  cut-off 15:00 IST / 13:30 liquid; BUY is a rupee amount). Live fills need a
+  live quote (`_quote_not_live_reason`): never an `nse_eod` row, never a quote
+  from before today's open. `apply_nse_eod` then runs `admin_eod_sweep`, filling
+  LIMIT orders the session's real low/high reached, at the limit price.
+- **Expiry:** orders are valid 30 days (`expires_at`). pg_cron `order-expiry`
+  (`admin_expire_orders`, 02:00 IST) warns 3 days ahead and then cancels with a
+  refund; both steps write a `user_notices` row. A SELL for shares no longer
+  held is closed by the fill core with a notice (that is not a missing price).
 
 **History (2026-09-13):** execution used to run ONLY inside the user's browser
 tab, gated on `marketStatus().open`. For teenagers that window is the school

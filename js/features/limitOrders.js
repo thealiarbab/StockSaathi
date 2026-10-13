@@ -128,8 +128,12 @@ export async function listAllOrders(limit = 50) {
   return data || [];
 }
 
-export async function placeLimitOrder({ symbol, side, qty, limitPricePaise }) {
-  console.info("[limit] placeLimitOrder start", { symbol, side, qty, limitPricePaise });
+// orderType: "LIMIT" (fill at this price or better), "AMO_MARKET" (after
+// hours: fill at the first live price after the open; limitPricePaise is
+// only the reference shown) or "MF" (fund: allot at the next NAV). The
+// server forces "MF" for any fund symbol.
+export async function placeLimitOrder({ symbol, side, qty, limitPricePaise, orderType = "LIMIT" }) {
+  console.info("[limit] placeLimitOrder start", { symbol, side, qty, limitPricePaise, orderType });
   const client = await sb();
   if (!client) throw new Error("Backend not configured — log in first.");
   // Client-side input validation. The RPC validates too, but catching here
@@ -161,6 +165,7 @@ export async function placeLimitOrder({ symbol, side, qty, limitPricePaise }) {
       p_side: side,
       p_qty: qty,
       p_limit_price_paise: Math.round(limitPricePaise),
+      p_order_type: orderType,
     }),
     25_000,
     "place_limit_order"
@@ -279,7 +284,10 @@ async function matchOnce() {
       }
       const cur = q.pricePaise;
       const limit = Number(order.limit_price_paise);
-      const matches = order.side === "BUY" ? cur <= limit : cur >= limit;
+      // An order at the open has no price condition; the server checks
+      // that the price is live. (Fund orders never get here: no quote.)
+      const matches = order.order_type === "AMO_MARKET"
+        || (order.side === "BUY" ? cur <= limit : cur >= limit);
       if (matches) {
         const result = await fillOrderAt(order.id, cur);
         if (result?.ok) filled++;

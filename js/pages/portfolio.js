@@ -657,7 +657,7 @@ export function renderPortfolio(main) {
               <div class="card-head">
                 <h3>
                   <span style="color: var(--brand);">🕗</span>
-                  Queued AMOs &amp; Limit orders
+                  Queued orders
                   <span class="pill pill-brand" style="margin-left: 6px; font-size: 11px;">${pendingOrders.length}</span>
                 </h3>
               </div>
@@ -666,11 +666,23 @@ export function renderPortfolio(main) {
                   const inst = getInstrument(o.symbol) || { name: o.symbol };
                   const limitRupees = Number(o.limit_price_paise) / 100;
                   const reserveRupees = o.side === "BUY" ? (Number(o.reserved_cash || 0) / 100) : null;
+                  const otype = o.order_type || (String(o.symbol).startsWith("MF_") ? "MF" : "LIMIT");
+                  const typeLabel = otype === "MF" ? (o.side === "BUY" ? "INVEST" : "REDEEM")
+                    : otype === "AMO_MARKET" ? `${o.side} AT OPEN` : `${o.side} LIMIT`;
+                  const fmtDay = (d) => new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "Asia/Kolkata" });
+                  const what = otype === "MF"
+                    ? (o.side === "BUY"
+                        ? `₹${(reserveRupees || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })} · allotted at the ${o.nav_from_date ? `${fmtDay(`${o.nav_from_date}T12:00:00+05:30`)} NAV or later` : "next NAV"}`
+                        : `${o.qty} units · paid out at the ${o.nav_from_date ? `${fmtDay(`${o.nav_from_date}T12:00:00+05:30`)} NAV or later` : "next NAV"}`)
+                    : otype === "AMO_MARKET"
+                      ? `${o.qty} at the first live price (last ₹${limitRupees.toFixed(2)})${reserveRupees != null ? ` · ₹${reserveRupees.toFixed(2)} held` : ""}`
+                      : `${o.qty} × ₹${limitRupees.toFixed(2)}${reserveRupees != null ? ` · ₹${reserveRupees.toFixed(2)} reserved` : ""}`;
+                  const validTill = o.expires_at ? ` · valid till ${fmtDay(o.expires_at)}` : "";
                   return `
                     <div class="flex items-center justify-between" style="padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r); background: var(--surface);">
                       <div>
-                        <div class="text-md"><span class="pill ${o.side === "BUY" ? "pill-green" : "pill-red"}">${o.side} LIMIT</span> <strong>${escapeHtml(inst.name)}</strong></div>
-                        <div class="dim text-xs">${o.qty} × ₹${limitRupees.toFixed(2)} · queued ${timeSince(new Date(o.created_at))} ago${reserveRupees != null ? ` · ₹${reserveRupees.toFixed(2)} reserved` : ""}</div>
+                        <div class="text-md"><span class="pill ${o.side === "BUY" ? "pill-green" : "pill-red"}">${typeLabel}</span> <strong>${escapeHtml(inst.name)}</strong></div>
+                        <div class="dim text-xs">${what} · queued ${timeSince(new Date(o.created_at))} ago${validTill}</div>
                       </div>
                       <button class="btn btn-ghost btn-sm" data-cancel-order="${o.id}">Cancel</button>
                     </div>
