@@ -274,6 +274,38 @@ for (const [name, got, want] of LANG_CASES) {
   else failures.push(`  language: ${name}\n    got ${got}, want ${want}`);
 }
 
+// -----------------------------------------------------------------------------
+// O12: one trade-stats engine (js/data/tradeStats.js). yashraj's real ledger
+// (13 Oct): ABSLAMC +12.10, TATACAP +11.05, ANGELONE +5.70, 63MOONS sold in
+// two parts (+406.50, +78.20) = 4 winning round trips, realised +Rs 513.55.
+// -----------------------------------------------------------------------------
+const { computeTradeStats } = await import(new URL("../js/data/tradeStats.js", import.meta.url));
+const YASHRAJ = [{"ts":1791776710862,"symbol":"ABSLAMC","side":"BUY","qty":1,"pricePaise":100100},{"ts":1791776711547,"symbol":"TATACAP","side":"BUY","qty":1,"pricePaise":31800},{"ts":1791776718690,"symbol":"AAYUSHBULL","side":"BUY","qty":2,"pricePaise":128200},{"ts":1791779454835,"symbol":"ABSLAMC","side":"SELL","qty":1,"pricePaise":101310},{"ts":1791781226491,"symbol":"TATACAP","side":"SELL","qty":1,"pricePaise":32905},{"ts":1791784088910,"symbol":"TMPV","side":"BUY","qty":1,"pricePaise":27900},{"ts":1791792814727,"symbol":"ANGELONE","side":"BUY","qty":1,"pricePaise":30440},{"ts":1791863112643,"symbol":"63MOONS","side":"BUY","qty":6,"pricePaise":82370},{"ts":1791868945310,"symbol":"AAYUSHBULL","side":"BUY","qty":5,"pricePaise":129495},{"ts":1791869107310,"symbol":"AAYUSHBULL","side":"BUY","qty":3,"pricePaise":129495},{"ts":1791884401994,"symbol":"ANGELONE","side":"SELL","qty":1,"pricePaise":31010},{"ts":1791884712962,"symbol":"63MOONS","side":"SELL","qty":5,"pricePaise":90500},{"ts":1791885577946,"symbol":"63MOONS","side":"SELL","qty":1,"pricePaise":90190}];
+const y = computeTradeStats(YASHRAJ);
+const DAY = 86400000;
+const threeParts = computeTradeStats([
+  { ts: 0, symbol: "X", side: "BUY", qty: 3, pricePaise: 1000 },
+  { ts: 1 * DAY, symbol: "X", side: "SELL", qty: 1, pricePaise: 1100 },
+  { ts: 2 * DAY, symbol: "X", side: "SELL", qty: 1, pricePaise: 1100 },
+  { ts: 3 * DAY, symbol: "X", side: "SELL", qty: 1, pricePaise: 1100 },
+  { ts: 10 * DAY, symbol: "X", side: "BUY", qty: 1, pricePaise: 1000 },
+  { ts: 12 * DAY, symbol: "X", side: "SELL", qty: 1, pricePaise: 900 },
+]);
+const STAT_CASES = [
+  ["yashraj realised P&L = +513.55", y.realisedPaise, 51355],
+  ["yashraj: 4 winning round trips", y.wins, 4],
+  ["yashraj: 0 losing round trips", y.losses, 0],
+  ["yashraj: AAYUSHBULL and TMPV still open", Object.keys(y.openPositions).sort().join(","), "AAYUSHBULL,TMPV"],
+  ["one position sold in 3 parts = 1 win, not 3", threeParts.wins, 1],
+  ["reopened position is its own round trip (a loss)", threeParts.losses, 1],
+  ["hold days restart on reopen: (3 + 2) / 2", threeParts.avgHoldDays, 2.5],
+];
+let tPass = 0;
+for (const [name, got, want] of STAT_CASES) {
+  if (got === want) tPass++;
+  else failures.push(`  tradeStats: ${name}\n    got ${got}, want ${want}`);
+}
+
 const dossierResults = await dossierChecks();
 let dPass = 0;
 for (const [name, got, want] of dossierResults) {
@@ -286,6 +318,7 @@ console.log(`dossier:      ${dPass}/${dossierResults.length} passing`);
 console.log(`advice:       ${aPass}/${ADVICE_CASES.length} passing`);
 console.log(`scrub:        ${sPass}/${SCRUB_CASES.length} passing`);
 console.log(`language:     ${lPass}/${LANG_CASES.length} passing`);
+console.log(`tradeStats:   ${tPass}/${STAT_CASES.length} passing`);
 if (failures.length) {
   console.error("\nFAILURES:\n" + failures.join("\n"));
   process.exit(1);

@@ -508,6 +508,21 @@ function _bestKnownPxPaise(sym) {
   return Number.isFinite(px) ? px : null;
 }
 
+// Real price only: a cached live quote, or a fund's NAV. null when neither
+// exists. Never the seeded walk, so anything that JUDGES a user (coach bias
+// detectors, report card) can't be fed an invented number (D3).
+export function getRealPricePaise(sym) {
+  const cached = getCachedQuotes([sym])[sym];
+  if (cached && Number.isFinite(cached.pricePaise) && cached.pricePaise > 0 && cached.source !== "synthetic") {
+    return cached.pricePaise;
+  }
+  if (String(sym).startsWith("MF_")) {
+    const px = getPriceAt(sym, 0);
+    return Number.isFinite(px) && px > 0 ? px : null;
+  }
+  return null;
+}
+
 export function getHoldingsValue(state = getState()) {
   let total = 0;
   for (const [sym, h] of Object.entries(state.holdings)) {

@@ -11,7 +11,7 @@ import { buildAnalogContext } from "./historicalAnalog.js";
 import { resolveTemplate, makeTick } from "./templates.js";
 import { filterOutput, safeFallback } from "./outputFilter.js";
 import { getInstrument } from "../data/universe.js";
-import { getPriceAt } from "../data/prices.js";
+import { getRealPricePaise, getReservedCashPaise } from "../state.js";
 import { getState } from "../state.js";
 import { callExternalLlm } from "./llmBridge.js";
 import { primeRealCloses } from "../data/realCloses.js";
@@ -142,61 +142,60 @@ function buildContext(event, s) {
       qty: event.qty,
       pricePaise: event.pricePaise,
     };
-    const holdingBefore = s.holdings[event.symbol];
+    // coach() runs AFTER applyTrade: state already holds the trade. Adding it
+    // again (the old applyHypotheticalTrade call) counted every buy twice:
+    // 100 SAIL at Rs 174.50, really 17.4% of the portfolio, was reported as
+    // 90.3%. The caller passes the pre-trade holding; without it, undo the
+    // trade on a copy.
+    const holdingsAfter = s.holdings;
+    const holdingBefore = "holdingBefore" in event
+      ? event.holdingBefore
+      : undoTrade(s.holdings, ctx.trade)[event.symbol];
     ctx.holding = holdingBefore;
-    // holdingsAfter snapshot (for concentration etc.)
-    const holdingsAfter = applyHypotheticalTrade(s.holdings, ctx.trade, s.portfolio.cashPaise);
     ctx.detectorCtx = {
       trade: ctx.trade,
       holding: holdingBefore,
       holdingBefore,
       holdingsAfter,
-      portfolioValue: getPortfolioValueForCtx(s.portfolio.cashPaise, holdingsAfter),
+      portfolioValue: getPortfolioValueForCtx(s, holdingsAfter, ctx.trade),
       transactions: s.transactions,
     };
   } else {
     ctx.detectorCtx = {
       transactions: s.transactions,
       holdingsAfter: s.holdings,
-      portfolioValue: getPortfolioValueForCtx(s.portfolio.cashPaise, s.holdings),
+      portfolioValue: getPortfolioValueForCtx(s, s.holdings),
     };
   }
   return ctx;
 }
 
-function applyHypotheticalTrade(holdings, trade, cashPaise) {
+// Holdings as they were before `trade`, from holdings that already include it.
+function undoTrade(holdings, trade) {
   if (!trade) return holdings;
   const { symbol, side, qty, pricePaise } = trade;
   const cur = holdings[symbol];
   if (side === "BUY") {
-    const newQty = (cur?.qty || 0) + qty;
-    return {
-      ...holdings,
-      [symbol]: {
-        qty: newQty,
-        avgCostPaise: cur
-          ? Math.round((cur.avgCostPaise * cur.qty + qty * pricePaise) / newQty)
-          : pricePaise,
-        firstBoughtAt: cur?.firstBoughtAt || Date.now(),
-      },
-    };
-  } else {
-    if (!cur) return holdings;
-    const remaining = cur.qty - qty;
-    if (remaining <= 1e-9) {
+    const before = (cur?.qty || 0) - qty;
+    if (before <= 1e-9) {
       const { [symbol]: _, ...rest } = holdings;
       return rest;
     }
-    return { ...holdings, [symbol]: { ...cur, qty: remaining } };
+    return { ...holdings, [symbol]: { ...cur, qty: before } };
   }
+  return {
+    ...holdings,
+    [symbol]: { avgCostPaise: pricePaise, firstBoughtAt: Date.now(), ...(cur || {}), qty: (cur?.qty || 0) + qty },
+  };
 }
 
-function getPortfolioValueForCtx(cashPaise, holdings) {
-  // Use current price where available; fall back to avg cost.
-  let total = cashPaise;
+// Cash + held-for-orders cash + holdings at real prices (the traded symbol at
+// its fill price, anything unpriced at its average cost). Never the walk.
+function getPortfolioValueForCtx(s, holdings, trade = null) {
+  let total = (s.portfolio?.cashPaise || 0) + getReservedCashPaise(s);
   for (const [sym, h] of Object.entries(holdings)) {
-    const cur = getPriceAt(sym, 0);
-    total += Math.round(h.qty * (cur || h.avgCostPaise));
+    const px = (trade && sym === trade.symbol && trade.pricePaise) || getRealPricePaise(sym) || h.avgCostPaise;
+    total += Math.round(h.qty * px);
   }
   return total;
 }

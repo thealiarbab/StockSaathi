@@ -117,7 +117,7 @@ export async function loadAllFromDb() {
     const [pf, holdings, txns, wl, friendsRpc, transfersRpc, msgs, hist, held] = await Promise.all([
       client.from("portfolios").select("*").eq("user_id", uid).maybeSingle(),
       client.from("holdings").select("*").eq("user_id", uid),
-      client.from("transactions").select("*").eq("user_id", uid).order("created_at", { ascending: false }).limit(200),
+      fetchAllTransactions(client, uid),
       client.from("watchlist").select("symbol").eq("user_id", uid),
       client.rpc("list_my_friends"),
       client.rpc("list_my_transfers", { p_limit: 100 }),
@@ -327,6 +327,24 @@ export async function dbSendTransfer({ recipientHandle, amountPaise, note }) {
     throw new Error(prettifyErr(error.message));
   }
   return data;
+}
+
+// Every trade, newest first, 1,000 a page. The boot load used to stop at the
+// newest 200, so win/loss, realised P&L and hold times would quietly drop
+// older trades once a user passed 200 (O12). Same { data, error } shape as a
+// single query.
+async function fetchAllTransactions(client, uid) {
+  const PAGE = 1000;
+  const rows = [];
+  for (let from = 0; from < 20_000; from += PAGE) {
+    const { data, error } = await client.from("transactions").select("*")
+      .eq("user_id", uid).order("created_at", { ascending: false })
+      .range(from, from + PAGE - 1);
+    if (error) return rows.length ? { data: rows, error: null } : { data: null, error };
+    rows.push(...(data || []));
+    if (!data || data.length < PAGE) break;
+  }
+  return { data: rows, error: null };
 }
 
 /** Apply a trade via the apply_trade RPC (atomic) */

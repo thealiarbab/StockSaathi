@@ -9,7 +9,9 @@
 // Higher severity = more confident the pattern is present.
 // =============================================================================
 
-import { getPriceAt, pctChange } from "../data/prices.js";
+import { pctChange } from "../data/prices.js";
+import { getRealPricePaise } from "../state.js";
+import { computeTradeStats } from "../data/tradeStats.js";
 // Price-move detectors read REAL closes only (see realCloses.js); the
 // prices.js series is a seeded walk and once produced invented "drops".
 import { realCloses, real52w } from "../data/realCloses.js";
@@ -112,7 +114,7 @@ export function detectConcentration({ holdingsAfter, portfolioValue, trade }) {
   const sym = trade.symbol;
   const h = holdingsAfter[sym];
   if (!h) return null;
-  const curPx = getPriceAt(sym, 0);
+  const curPx = trade.pricePaise || getRealPricePaise(sym) || h.avgCostPaise;
   const holdValue = Math.round(h.qty * curPx);
   const frac = holdValue / portfolioValue;
   if (frac < 0.40) return null;
@@ -147,7 +149,7 @@ export function detectSectorBias({ holdingsAfter, portfolioValue }) {
     // MFs are inherently diversified within their bucket — concentration
     // warnings should fire on direct stock holdings only.
     if (inst.kind === "MF") continue;
-    const px = getPriceAt(sym, 0);
+    const px = getRealPricePaise(sym) || h.avgCostPaise;
     const v = Math.round(h.qty * px);
     const key = inst.sector || "Unknown";
     bySector[key] = (bySector[key] || 0) + v;
@@ -170,30 +172,28 @@ export function detectSectorBias({ holdingsAfter, portfolioValue }) {
 }
 
 // ---- DISPOSITION EFFECT ---------------------------------------------------
-// 30-day rolling: winners_sold_rate > 2 * losers_sold_rate.
-export function detectDisposition({ transactions }) {
+// Selling winners while holding losers. A SELL is a "winner" when it beat the
+// average cost at that moment (computeTradeStats), not, as before, when the
+// price happened to rise after the sale. Flags when, in the last 30 days, at
+// least 2 winners were sold, winners outnumber sold losers 2:1, and at least
+// one holding is still below its cost at a real price.
+export function detectDisposition({ transactions, holdingsAfter }) {
   const cutoff = Date.now() - 30 * 86400000;
-  const recent = transactions.filter(t => t.ts > cutoff);
-  if (recent.length < 6) return null;
-
-  let winnersSold = 0, losersSold = 0, winnersBought = 0, losersBought = 0;
-  for (const t of recent) {
-    // Use current price vs txn price as "was it a winner".
-    // For BUY we look at whether the stock is up since the buy.
-    const curPx = getPriceAt(t.symbol, 0);
-    if (!curPx) continue;
-    const wasUp = curPx > t.pricePaise;
-    if (t.side === "SELL") (wasUp ? winnersSold++ : losersSold++);
-    else (wasUp ? winnersBought++ : losersBought++);
+  const recent = computeTradeStats(transactions || []).sells.filter((s) => s.ts > cutoff);
+  const winnersSold = recent.filter((s) => s.plPaise > 0).length;
+  const losersSold = recent.filter((s) => s.plPaise < 0).length;
+  let losersHeld = 0;
+  for (const [sym, h] of Object.entries(holdingsAfter || {})) {
+    const px = getRealPricePaise(sym);
+    if (px && h.avgCostPaise > 0 && px < h.avgCostPaise) losersHeld++;
   }
-
-  if (winnersSold < 2 || losersSold + winnersSold < 4) return null;
+  if (winnersSold < 2 || losersHeld < 1) return null;
   const ratio = winnersSold / Math.max(1, losersSold);
   if (ratio < 2) return null;
   return {
     bias: "disposition",
-    severity: Math.min(1, (ratio - 2) / 3),
-    evidence: { winners_sold: winnersSold, losers_sold: losersSold, ratio: Math.round(ratio * 10) / 10 },
+    severity: Math.min(1, (ratio - 2) / 3 + 0.3),
+    evidence: { winners_sold: winnersSold, losers_sold: losersSold, losers_held: losersHeld, ratio: Math.round(ratio * 10) / 10 },
   };
 }
 

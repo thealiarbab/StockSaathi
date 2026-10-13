@@ -4,11 +4,11 @@
 // Assigns a letter grade. Awards badges.
 // =============================================================================
 
-import { getState, subscribe, getPortfolioReturnPct, getPortfolioValue } from "../state.js";
+import { getState, subscribe, getPortfolioReturnPct, getPortfolioValue, getRealPricePaise } from "../state.js";
 import { formatRupees, formatPct, deltaClass } from "../money.js";
 import { runDetectors, ALL_DETECTORS } from "../coach/biasDetectors.js";
 import { getInstrument, SECTORS } from "../data/universe.js";
-import { getPriceAt } from "../data/prices.js";
+import { computeTradeStats } from "../data/tradeStats.js";
 import { aiLang } from "../features/aiLang.js";
 
 let aiCard = null;           // { narrative, strengths, watchouts } | null
@@ -160,7 +160,7 @@ function analyzeBehavior(state) {
   for (const [sym, h] of Object.entries(state.holdings)) {
     const inst = getInstrument(sym);
     if (!inst) continue;
-    const px = getPriceAt(sym, 0);
+    const px = getRealPricePaise(sym) || h.avgCostPaise;
     const v = Math.round(h.qty * px);
     if (v > topValue) { topValue = v; topSym = inst.name; }
     bySector[inst.sector] = (bySector[inst.sector] || 0) + v;
@@ -294,30 +294,15 @@ async function maybeFetchAiCard(state) {
 
   // Build the stats payload. Compute win-rate + biggest win/loss + avg hold-days
   // from transactions. Bias flags come from runDetectors on each trade.
+  // Win/loss per ROUND TRIP (open -> fully closed), not per SELL: selling
+  // one position in three parts used to count as three wins. See
+  // js/data/tradeStats.js.
   const txs = state.transactions || [];
-  let wins = 0, losses = 0, biggestWin = 0, biggestLoss = 0;
-  let totalHoldDays = 0, closedCount = 0;
-  const avgByBuy = {};
-  for (const t of txs) {
-    if (t.side === "BUY") {
-      avgByBuy[t.symbol] = avgByBuy[t.symbol] || { qty: 0, cost: 0, firstAt: t.ts };
-      avgByBuy[t.symbol].qty += t.qty;
-      avgByBuy[t.symbol].cost += t.qty * t.pricePaise;
-    } else if (t.side === "SELL") {
-      const b = avgByBuy[t.symbol];
-      if (b?.qty) {
-        const avgCost = b.cost / b.qty;
-        const pl = (t.pricePaise - avgCost) * t.qty;
-        if (pl > 0) { wins++; if (pl > biggestWin) biggestWin = pl; }
-        else if (pl < 0) { losses++; if (-pl > biggestLoss) biggestLoss = -pl; }
-        b.qty -= t.qty;
-        b.cost -= avgCost * t.qty;
-        const holdDays = (t.ts - b.firstAt) / 86400000;
-        totalHoldDays += holdDays;
-        closedCount++;
-      }
-    }
-  }
+  const stats = computeTradeStats(txs);
+  const wins = stats.wins, losses = stats.losses;
+  const biggestWin = stats.biggestWinPaise, biggestLoss = stats.biggestLossPaise;
+  const closedCount = stats.roundTrips.length;
+  const totalHoldDays = stats.avgHoldDays * closedCount;
   const sectorCounts = {};
   for (const [sym] of Object.entries(state.holdings || {})) {
     const inst = getInstrument(sym);

@@ -1469,6 +1469,8 @@ async function placeMfOrder(inst, side, units, navPaise, amountPaise) {
 // double tap there placed two orders. Found 2026-09-27: two identical
 // Rs 10,000 liquid-fund orders from one user, created 50 ms apart.
 let _tradeInFlight = false;
+// Symbol whose panic-sell pause the user just chose to override.
+let _panicAckedFor = null;
 
 // "Opens Tue 9:15 AM" -> "Tue 9:15 AM", for use inside a sentence.
 function openWhen(ms) {
@@ -1542,6 +1544,28 @@ async function _reviewTrade(inst, symbol, curPrice, holding) {
       return;
     }
   }
+
+  // D3: the panic pause used to guard market sells only, so the same sell
+  // queued after hours or as a limit skipped it. Same detector, same modal;
+  // "proceed" re-enters this function with the pause acknowledged.
+  const queuedSell = ui.side === "SELL" && holding && inst.kind !== "MF"
+    && (!marketStatus().open || ui.orderType === "LIMIT");
+  if (queuedSell && _panicAckedFor !== symbol) {
+    await primeRealCloses(symbol);
+    const biasResult = detectPanicSell({ trade: { symbol, side: "SELL", qty, pricePaise: curPrice }, holding });
+    if (biasResult && biasResult.severity >= 0.35) {
+      const analog = buildAnalogContext(symbol, curPrice);
+      showInterventionModal(
+        { analog, biasResult, instrument: inst, trade: { qty, pricePaise: curPrice, holding } },
+        {
+          onProceed: () => { _panicAckedFor = symbol; reviewTrade(inst, symbol, curPrice, holding); },
+          onHold: () => toast({ kind: "info", message: "Held. Good choice to pause." }),
+        }
+      );
+      return;
+    }
+  }
+  _panicAckedFor = null;
 
   // ---- After-hours AMO path --------------------------------------------
   // Mirror Groww: when NSE is closed, we never call apply_trade — we queue
@@ -1893,6 +1917,8 @@ async function executeTrade(inst, side, qty, pricePaise, biasResult) {
       return;
     }
 
+    // The coach's detectors need the holding as it was BEFORE this trade.
+    const holdingBefore = getState().holdings[inst.symbol];
     const txn = await applyTrade({
       symbol: inst.symbol, side, qty, pricePaise: fillPrice, idempotencyKey,
       biasFlags: biasResult ? [biasResult] : [],
@@ -1909,7 +1935,7 @@ async function executeTrade(inst, side, qty, pricePaise, biasResult) {
 
     const state = getState();
     const isFirstTrade = state.transactions.length === 1;
-    const msg = await coach({ type: side, symbol: inst.symbol, qty, pricePaise: bookedPaise, txnId: txn?.id, isFirstTrade });
+    const msg = await coach({ type: side, symbol: inst.symbol, qty, pricePaise: bookedPaise, txnId: txn?.id, isFirstTrade, holdingBefore });
     recordCoachMessage(msg);
   } catch (e) {
     toast({ kind: "error", message: e.message || "Trade failed" });
