@@ -161,6 +161,37 @@ export function mountCoachPanel() {
   document.body.appendChild(fab);
 
   let wasOpenLastTick = false;
+  let wasDrawerLastTick = false;
+  // On phones and tablets the coach is a full-height drawer. Users couldn't
+  // find their way out of it (rajveer 11 Oct, ayaan_lt 13 Oct: "chat hat hi
+  // nahi rahi"): the only exit was a small ✕. Now the phone's Back button,
+  // Esc and a swipe to the right also close it. Opening pushes a history
+  // entry carrying ssCoach; Back pops it (navigation.js skips re-rendering
+  // a same-URL pop) and the popstate listener below closes the drawer.
+  const closeDrawer = () => setSetting("coachPanelOpen", false);
+  let closingByNav = false;
+  window.addEventListener("popstate", () => {
+    if (!history.state?.ssCoach && wasDrawerLastTick) closeDrawer();
+  });
+  window.addEventListener("ss:navigate", () => {
+    // A link inside the drawer moved the page underneath it: show the page.
+    if (wasDrawerLastTick && window.innerWidth < 768) { closingByNav = true; closeDrawer(); }
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && wasDrawerLastTick && !document.querySelector(".modal-overlay")) closeDrawer();
+  });
+  let touchX = null, touchY = null;
+  root.addEventListener("touchstart", (e) => {
+    const t = e.touches[0]; touchX = t.clientX; touchY = t.clientY;
+  }, { passive: true });
+  root.addEventListener("touchend", (e) => {
+    if (touchX == null || !wasDrawerLastTick) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchX, dy = Math.abs(t.clientY - touchY);
+    touchX = touchY = null;
+    if (dx > 80 && dy < 60) closeDrawer();
+  }, { passive: true });
+
   const applyVisibility = () => {
     const allowed = isCoachAllowed();
     const state = getState();
@@ -169,7 +200,9 @@ export function mountCoachPanel() {
       document.body.classList.remove("coach-docked");
       root.classList.remove("open");
       root.style.display = "none";
+      document.body.classList.remove("coach-drawer-open");
       wasOpenLastTick = false;
+      wasDrawerLastTick = false;
       return;
     }
     root.style.display = "";
@@ -191,6 +224,19 @@ export function mountCoachPanel() {
       root.querySelector("#coach-input")?.focus();
     }
     wasOpenLastTick = isOpenNow;
+
+    const drawerNow = shouldOpen;   // open and not docked
+    if (drawerNow && !wasDrawerLastTick) {
+      if (!history.state?.ssCoach) history.pushState({ ...(history.state || {}), ssCoach: 1 }, "", location.href);
+      document.body.classList.add("coach-drawer-open");
+    } else if (!drawerNow && wasDrawerLastTick) {
+      document.body.classList.remove("coach-drawer-open");
+      // Closed by ✕ / Esc / swipe: drop the entry we pushed, so Back then
+      // leaves the page as usual. Not after a navigation: that would undo it.
+      if (history.state?.ssCoach && !closingByNav) history.back();
+      closingByNav = false;
+    }
+    wasDrawerLastTick = drawerNow;
   };
   applyVisibility();
   window.addEventListener("resize", applyVisibility);
@@ -213,7 +259,7 @@ function render() {
           <div class="dim" style="font-size: 11px; font-weight: 400;">${usingLLM ? "Your key · finance only" : "Server LLM · finance only"}</div>
         </div>
       </div>
-      <button class="btn btn-ghost btn-icon" id="coach-close-btn" aria-label="Close coach">✕</button>
+      <button class="btn btn-ghost coach-close" id="coach-close-btn" aria-label="Close coach"><span aria-hidden="true">✕</span><span class="coach-close-label">Close</span></button>
     </div>
 
     <div class="coach-messages" id="coach-messages-scroll">

@@ -13,7 +13,14 @@
 
 export const NAV_EVENT = "ss:navigate";
 
+// URL of the last route announced. A popstate that lands on the same URL
+// only popped an overlay's history entry (the phone coach drawer pushes one
+// so the Back button closes it); re-rendering the page for it would rebuild
+// whatever was under the drawer.
+let _lastUrl = typeof location !== "undefined" ? location.pathname + location.search : "";
+
 function announce() {
+  _lastUrl = location.pathname + location.search;
   setTimeout(() => window.dispatchEvent(new Event(NAV_EVENT)), 0);
 }
 
@@ -90,7 +97,10 @@ export function installNavigation(isAppPath) {
   if (installed) return;
   installed = true;
 
-  window.addEventListener("popstate", announce);
+  window.addEventListener("popstate", () => {
+    if (location.pathname + location.search === _lastUrl) return;
+    announce();
+  });
 
   window.addEventListener("hashchange", () => {
     if (upgradeLegacyHash()) announce();
