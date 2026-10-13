@@ -1648,7 +1648,7 @@ function showConfirm(inst, symbol, curPrice, qty, biasResult) {
               <div class="flex items-center justify-between">
                 <span class="dim text-xs uppercase">${side === "BUY" ? "Total cost" : "Total proceeds"}</span>
                 <span class="font-mono font-bold" style="font-size: var(--text-xl); color: ${side === "BUY" ? "var(--negative)" : "var(--positive)"};">
-                  ${side === "BUY" ? "−" : "+"}${formatRupees(total)}
+                  ≈ ${side === "BUY" ? "−" : "+"}${formatRupees(total)}
                 </span>
               </div>
             </div>
@@ -1657,7 +1657,7 @@ function showConfirm(inst, symbol, curPrice, qty, biasResult) {
             <span class="pf-digest-label">Saathi</span>
             <span class="trade-nudge-body dim">looking at your portfolio…</span>
           </div>
-          <p class="text-xs dim" style="text-align: center;">Virtual money. Order executes at ${formatRupees(curPrice)}. Coach reflection follows.</p>
+          <p class="text-xs dim" style="text-align: center;">Virtual money. Executes at the live price when you confirm (about ${formatRupees(curPrice)}). Coach reflection follows.</p>
         </div>
         <div class="modal-foot">
           <button class="btn btn-outline" id="cancel-btn">Cancel</button>
@@ -1739,8 +1739,8 @@ async function fetchTradeNudge(modalRoot, inst, symbol, side, qty, curPricePaise
 }
 
 async function executeTrade(inst, side, qty, pricePaise, biasResult) {
-  // Simulate real-market execution: routing → match → fill, with small
-  // slippage (±0.08%) so prices feel like real fills, not simulator magic.
+  // Market order: the server books its own latest quote (apply_trade), so
+  // the toast and the coach use the price it returns, not the screen's.
   try {
     // Key is generated ONCE at call time — deterministic for this click
     // intent. If the RPC times out and any internal layer retries, the
@@ -1768,29 +1768,23 @@ async function executeTrade(inst, side, qty, pricePaise, biasResult) {
       return;
     }
 
-    // Realistic market slippage — BUY usually pays a hair above, SELL gets a
-    // hair below the mid. Max ±0.08% for liquid names.
-    const slipBps = (Math.random() * 8);
-    const slipFactor = side === "BUY" ? (1 + slipBps / 10000) : (1 - slipBps / 10000);
-    fillPrice = Math.round(fillPrice * slipFactor);
-
     const txn = await applyTrade({
       symbol: inst.symbol, side, qty, pricePaise: fillPrice, idempotencyKey,
       biasFlags: biasResult ? [biasResult] : [],
     });
-
-    const slipText = slipBps > 0
-      ? ` (slippage ${side === "BUY" ? "+" : "−"}${(slipBps).toFixed(1)}bps)`
+    const bookedPaise = Number(txn?.pricePaise) > 0 ? txn.pricePaise : fillPrice;
+    const movedText = txn?.priceAdjusted
+      ? ` (price moved from ${formatRupees(txn.shownPaise)})`
       : "";
     toast({
       kind: "success",
-      message: `Filled: ${side === "BUY" ? "Bought" : "Sold"} ${formatQty(qty, inst.kind)} ${inst.symbol} @ ${formatRupees(fillPrice)}${slipText}`,
+      message: `Filled: ${side === "BUY" ? "Bought" : "Sold"} ${formatQty(qty, inst.kind)} ${inst.symbol} @ ${formatRupees(bookedPaise)}${movedText}`,
       duration: 4500,
     });
 
     const state = getState();
     const isFirstTrade = state.transactions.length === 1;
-    const msg = await coach({ type: side, symbol: inst.symbol, qty, pricePaise: fillPrice, txnId: txn?.id, isFirstTrade });
+    const msg = await coach({ type: side, symbol: inst.symbol, qty, pricePaise: bookedPaise, txnId: txn?.id, isFirstTrade });
     recordCoachMessage(msg);
   } catch (e) {
     toast({ kind: "error", message: e.message || "Trade failed" });

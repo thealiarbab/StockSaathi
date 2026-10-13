@@ -372,10 +372,17 @@ export async function applyTrade({ symbol, side, qty, pricePaise, biasFlags = []
     }
 
     try {
-      await dbApplyTrade({ symbol, side, qty, pricePaise, idempotencyKey, biasFlags });
-      const txn = makeLocalTxn({ symbol, side, qty, pricePaise, valuePaise, biasFlags, idempotencyKey });
+      const res = await dbApplyTrade({ symbol, side, qty, pricePaise, idempotencyKey, biasFlags });
+      // apply_trade always books its own quote_cache price; pricePaise is only
+      // what the screen showed. Record what was actually booked so cash,
+      // average cost, the toast and the coach all match the ledger.
+      const bookedPaise = Number(res?.price_paise) > 0 ? Number(res.price_paise) : pricePaise;
+      const txn = makeLocalTxn({
+        symbol, side, qty, pricePaise: bookedPaise,
+        valuePaise: Math.round(qty * bookedPaise), biasFlags, idempotencyKey,
+      });
       applyLocalTradeEffect(txn);
-      return txn;
+      return { ...txn, priceAdjusted: bookedPaise !== pricePaise, shownPaise: pricePaise };
     } catch (e) {
       const msg = String(e?.message || "");
       if (msg === "trade_timeout") {

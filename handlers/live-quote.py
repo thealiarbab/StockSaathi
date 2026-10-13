@@ -40,6 +40,7 @@ from urllib.parse import urlparse, parse_qs, quote as url_quote
 import os as _os_yp, sys as _sys_yp
 _sys_yp.path.insert(0, _os_yp.path.dirname(_os_yp.path.abspath(__file__)))
 from _yahoo_price import pick_price  # noqa: E402
+from _prev_close import apply_eod_prev  # noqa: E402
 
 try:
     from zoneinfo import ZoneInfo  # py3.9+
@@ -423,8 +424,11 @@ class handler(BaseHTTPRequestHandler):
                 y = fetch_yahoo_batch(yahoo_targets)
                 fresh.update(y)
 
-        # 3. Write fresh rows back to cache (best-effort, no await)
+        # 3. Previous close from NSE's own EOD file, not Yahoo's bars (a
+        # null session bar made it two days old; see _prev_close.py). Then
+        # write fresh rows back to cache.
         if fresh:
+            apply_eod_prev(fresh)
             write_cache([_to_cache_row(q) for q in fresh.values()])
 
         # 3b. Last known REAL price for anything still missing. A symbol with

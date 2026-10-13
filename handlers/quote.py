@@ -14,6 +14,7 @@ from urllib.parse import urlparse, parse_qs, quote as url_quote
 import os as _os_yp, sys as _sys_yp
 _sys_yp.path.insert(0, _os_yp.path.dirname(_os_yp.path.abspath(__file__)))
 from _yahoo_price import pick_price  # noqa: E402
+from _prev_close import apply_eod_prev  # noqa: E402
 
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -124,6 +125,7 @@ class handler(BaseHTTPRequestHandler):
         if data.get("error"):
             self._json(502, {"ok": False, **data}, nocache=nocache)
             return
+        apply_eod_prev({symbol: data})
         self._json(200, {"ok": True, **data}, nocache=nocache)
 
     def do_OPTIONS(self):
