@@ -2603,7 +2603,9 @@ async function opAuthResolveUsername(req, origin) {
   if (!/^[a-z0-9_.-]{1,40}$/.test(username)) return j(400, { error: "bad_username" }, origin);
   try {
     const r = await sbAdminFetch(
-      `/rest/v1/profiles?select=email&username=ilike.${encodeURIComponent(username)}&limit=1`
+      // Escape "_" and "%": unescaped, "komal00__" also matched "komal00ab",
+      // so a username with underscores could resolve to another user's email.
+      `/rest/v1/profiles?select=email&username=ilike.${encodeURIComponent(username.replace(/[\\%_]/g, (m) => "\\" + m))}&limit=1`
     );
     if (!r.ok) return j(502, { error: "lookup_failed" }, origin);
     const rows = await r.json();
