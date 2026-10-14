@@ -162,8 +162,10 @@ export function renderRegister(main) {
         // at a red error that says "log in instead" with no link.
         if (err.code === "email_already_registered" || /already exists|already registered/i.test(err.message || "")) {
           errBox.innerHTML = `<div class="error-msg">
-            An account with <strong>${escapeHtml(email)}</strong> already exists.
-            <a href="/login?email=${encodeURIComponent(email)}" style="margin-left:6px;">Log in instead →</a>
+            An account with <strong>${escapeHtml(email)}</strong> is already registered.
+            <a href="/login?email=${encodeURIComponent(email)}" style="margin-left:6px;">Log in →</a>
+            <span class="dim" style="margin:0 4px;">or</span>
+            <a href="/reset-password-request">reset your password</a>
           </div>`;
           btn.disabled = false;
           btn.textContent = "Create account";

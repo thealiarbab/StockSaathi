@@ -73,7 +73,29 @@ function pickAvatarColor(username) {
 // Public API — detects mode at call time
 // =========================================================================
 
-export async function registerAccount({ username, email, password, displayName }) {
+// One sign-up call per email at a time (U2). A double tap, or a retry
+// after register.js's 15 s "taking too long" timeout while the first call
+// is still running, used to send two signUp requests; the second lost the
+// race on auth.users' unique email index and Supabase Auth answered 500
+// "duplicate key value violates unique constraint users_email_partial_key".
+const _signupInFlight = new Map();   // email -> Promise
+
+export function registerAccount(args) {
+  const key = String(args?.email || "").trim().toLowerCase();
+  const pending = _signupInFlight.get(key);
+  if (pending) return pending;
+  const p = _registerAccount(args).finally(() => _signupInFlight.delete(key));
+  _signupInFlight.set(key, p);
+  return p;
+}
+
+function emailTakenError() {
+  const err = new Error("An account with this email already exists. Please log in instead.");
+  err.code = "email_already_registered";
+  return err;
+}
+
+async function _registerAccount({ username, email, password, displayName }) {
   // Always normalize: email + username lowercase, trimmed. This is the ONLY
   // identity we ever write to the DB — keeps "Alice" and "alice" as one user.
   const emailN = String(email || "").trim().toLowerCase();
@@ -113,18 +135,17 @@ export async function registerAccount({ username, email, password, displayName }
         data: { username: usernameN, display_name: displayN, avatar_color },
       },
     });
-    if (error) throw new Error(prettifySbError(error.message));
+    if (error) {
+      if (EMAIL_TAKEN_RE.test(error.message || "")) throw emailTakenError();
+      throw new Error(prettifySbError(error.message));
+    }
     // Supabase's email-collision obfuscation: when the email is already
     // confirmed, signUp returns success with a DECOY user object but an
     // EMPTY identities array AND sends no email. Without this check the
     // UI would show "Check your email" forever while nothing arrives.
     // See: https://supabase.com/docs/reference/javascript/auth-signup
     const identities = data?.user?.identities;
-    if (Array.isArray(identities) && identities.length === 0) {
-      const err = new Error("An account with this email already exists. Please log in instead.");
-      err.code = "email_already_registered";
-      throw err;
-    }
+    if (Array.isArray(identities) && identities.length === 0) throw emailTakenError();
     const hasSession = !!data.session;
     return {
       id: data.user?.id,
@@ -633,9 +654,11 @@ export async function findAccountByHandle(handleOrEmail) {
   );
 }
 
+const EMAIL_TAKEN_RE = /already registered|user already|duplicate key|users_email_partial_key|email_exists/i;
+
 function prettifySbError(msg) {
   if (!msg) return "Something went wrong.";
-  if (/already registered/i.test(msg) || /user already/i.test(msg)) return "An account with this email already exists. Try logging in.";
+  if (EMAIL_TAKEN_RE.test(msg)) return "An account with this email already exists. Try logging in.";
   if (/invalid login/i.test(msg)) {
     // 2026-05-04: bare "Incorrect email or password." gives no hint why,
     // and on mobile the most common silent culprit is auto-capitalised
