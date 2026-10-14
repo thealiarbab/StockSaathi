@@ -25,6 +25,7 @@ import { mountQuantitySelector } from "../components/quantitySelector.js";
 import { toast as showToast } from "../components/toast.js";
 import { termHtml } from "../features/aiExplainer.js";
 import { go } from "../navigation.js";
+import { bootTitleFor } from "./staticPage.js";
 import { aiLang } from "../features/aiLang.js";
 
 // Timeframe → Yahoo range/interval. Granularity tuned to match Groww/
@@ -316,13 +317,24 @@ export function renderStockDetail(main, params) {
   // sector "Unknown", exchange unknown) on screen until something else
   // happens to re-render. Swap in the Tier-2 row as soon as it arrives.
   if (!symbol.startsWith("MF_") && inst._stub) {
-    ensureUniverseLoaded().then(() => {
+    ensureUniverseLoaded().then(async () => {
       if (myToken.cancelled) return;
       const fresh = getInstrument(symbol);
       if (fresh && !fresh._stub) {
         activeInst = fresh;
         render(activeInst, symbol);
+        return;
       }
+      // U6: still unknown with the whole universe loaded. A listing the
+      // universe has missed still has a quote, and a stock we have a page
+      // for (SECURKLOUD) keeps it; with neither there is no such stock, so
+      // say so instead of an empty trading page called "Unknown".
+      if (bootTitleFor(location.pathname.replace(/\/+$/, ""))) return;
+      const q = await freshTradeQuote(inst);
+      if (myToken.cancelled || q) return;
+      _notFoundSym = symbol;
+      render(activeInst, symbol);
+      onLeave();   // nothing to poll for a stock that does not exist
     }).catch(() => {});
   }
 
@@ -677,7 +689,31 @@ function startHistoryPoll(inst, symbol) {
   }, 30_000);
 }
 
+// Symbol shown as "no such stock" (U6); render() keeps showing that view
+// through the quote polls and subscriptions that would redraw the page.
+let _notFoundSym = null;
+
+function renderStockNotFound(main, symbol) {
+  const sym = escapeHtml(symbol);
+  main.innerHTML = `
+    <div class="empty-state" style="padding-top: var(--sp-12);">
+      <span class="emoji" aria-hidden="true">🔍</span>
+      <h1 style="font-size: var(--text-xl); margin: var(--sp-2) 0;">No stock called ${sym}</h1>
+      <p>We couldn't find <strong>${sym}</strong> on the NSE or BSE. It may be misspelt, renamed or delisted.</p>
+      <a href="/stocks" class="btn btn-primary">Search Markets</a>
+    </div>`;
+  document.title = `${symbol} not found | StockSaathi`;
+  let robots = document.querySelector('meta[name="robots"]');
+  if (!robots) { robots = document.createElement("meta"); robots.name = "robots"; document.head.appendChild(robots); }
+  robots.content = "noindex, follow";
+}
+
 function render(inst, symbol) {
+  if (_notFoundSym && _notFoundSym === symbol) {
+    const m = document.getElementById("main");
+    if (m) renderStockNotFound(m, symbol);
+    return;
+  }
   // Guard: external render triggers (state subscribe, quote polling,
   // fundamentals fetch) are no-ops while a zoom/pan gesture is in flight.
   // Re-rendering mid-gesture would replace main.innerHTML, destroying the
@@ -1352,6 +1388,7 @@ function attachListeners(main, inst, symbol, curPrice, holding, chartOhlc, sessi
       }
     }, 0);
   }
+  main.querySelector("#ob-toggle")?.addEventListener("click", () => { _obOpen = !_obOpen; render(inst, symbol); });
   main.querySelector("#chart-fs-btn")?.addEventListener("click", () => enterChartFs(() => render(inst, symbol), symbol));
   main.querySelector("#chart-fs-close")?.addEventListener("click", () => exitChartFs());
   // Candle/Line mode toggle — no refetch, just re-render with other mode.
@@ -2632,6 +2669,11 @@ function renderMfInvestBox(inst, symbol, curNavPaise, holding) {
   `;
 }
 
+// U10: on a phone (≤480px) the simulated order book and trades are long
+// tables below the buy box; they start folded behind a button. Module
+// level so the quote-tick re-renders keep the reader's choice.
+let _obOpen = false;
+
 function renderOrderBook(symbol, curPrice) {
   const ob = buildOrderBook(symbol, curPrice, 5);
   const trades = buildRecentTrades(symbol, curPrice, 8);
@@ -2641,12 +2683,16 @@ function renderOrderBook(symbol, curPrice) {
     const s = Math.max(1, Math.floor((Date.now() - ts) / 1000));
     return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m`;
   };
+  const narrow = typeof window !== "undefined" && window.innerWidth <= 480;
+  const open = !narrow || _obOpen;
   return `
     <div class="card" style="margin-top: var(--sp-4);">
       <div class="card-head">
         <h3>Order book <span class="pill pill-yellow" style="font-size:10px; margin-left:6px; vertical-align:middle;" title="Real NSE market depth requires a paid data feed (Dhan/TrueData). This book + trades are synthesised around the live LTP — useful for teaching the concept, not actual tradeable queue positions.">SIMULATED</span></h3>
         <span class="data-badge"><span class="dot"></span> Spread ${fmt(ob.spread)}</span>
       </div>
+      ${narrow ? `<button type="button" class="btn btn-ghost btn-sm btn-block" id="ob-toggle" aria-expanded="${open}" style="margin-top: var(--sp-2);">${open ? "Hide order book ▴" : "Show order book ▾"}</button>` : ""}
+      ${open ? `
       <div class="grid ob-grid" style="grid-template-columns: 1fr 1fr; gap: var(--sp-4);">
         <div>
           <div class="text-xs uppercase muted" style="margin-bottom: var(--sp-2); color: var(--positive);">Bids (buy)</div>
@@ -2695,6 +2741,7 @@ function renderOrderBook(symbol, curPrice) {
           </table>
         </div>
       </div>
+      ` : ""}
     </div>
   `;
 }

@@ -17,8 +17,11 @@ export function captureBootMain(main) {
     path: location.pathname.replace(/\/+$/, "") || "/",
     html: main.innerHTML,
     title: document.title,
-    // The app shell and 404 are noindex; only real pre-rendered pages count.
-    indexable: !document.querySelector('meta[name="robots"][content*="noindex"]'),
+    // A real pre-rendered page (its article is in <main>), as opposed to the
+    // app shell or the 404 page. noindex alone cannot tell them apart: a
+    // stock page held back from search (YESBANK, SECURKLOUD) is noindex too,
+    // and lost its title and article to the app once the JS ran (U5).
+    prerendered: /class="container static-page"|data-static-page=/.test(main.innerHTML),
   };
 }
 
@@ -30,7 +33,7 @@ function currentPath() {
 // router keeps it on that first render instead of guessing one before the
 // data it needs (e.g. the stock universe) has loaded.
 export function bootTitleFor(path) {
-  return boot && boot.indexable && boot.path === path && boot.title ? boot.title : null;
+  return boot && boot.prerendered && boot.path === path && boot.title ? boot.title : null;
 }
 
 export function renderStaticPage(main) {
@@ -78,7 +81,7 @@ const COMPANION_ID = "seo-companion";
 export function syncBootCompanion(main, keep) {
   const existing = document.getElementById(COMPANION_ID);
   const path = currentPath();
-  const want = keep && boot && boot.path === path && boot.indexable &&
+  const want = keep && boot && boot.path === path && boot.prerendered &&
     boot.html.includes('class="container static-page"');
   if (!want) { existing?.remove(); return; }
   if (existing && existing.dataset.path === path) return;

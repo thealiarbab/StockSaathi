@@ -45,9 +45,11 @@ const KINDS = new Set([
   "watchlist_remove", "coach_open", "order_ticket_open", "tab_focus",
   // O13: order attempts, how they ended, and the confirm box.
   "order_submit", "order_result", "trade_modal",
+  // U9: crash replay opened / finished / left (with how far they got).
+  "replay_start", "replay_finish", "replay_exit",
 ]);
 // Never collapsed: two attempts on one stock a second apart are two rows.
-const NO_DEDUPE = new Set(["order_submit", "order_result", "trade_modal"]);
+const NO_DEDUPE = new Set(["order_submit", "order_result", "trade_modal", "replay_start", "replay_finish", "replay_exit"]);
 
 let queue = [];
 let timer = null;

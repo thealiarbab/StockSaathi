@@ -11,6 +11,7 @@ import { coach } from "../coach/orchestrator.js";
 import { recordCoachMessage, setState, getState } from "../state.js";
 import { navigate } from "../router.js";
 import { generateCustomCrash, existingScenarioForQuery } from "../features/customCrash.js";
+import { track } from "../features/track.js";
 
 // Featured replays — canonical phrasings that scripts/pregen-crashes.mjs
 // has populated into the cross-user cache. Clicking any of these calls
@@ -815,6 +816,7 @@ function renderReplay(main, scenario) {
 
   function renderAt(idx) {
     currentIdx = Math.max(0, Math.min(frames.length - 1, idx));
+    if (currentIdx > _furthestIdx) _furthestIdx = currentIdx;
     const f = frames[currentIdx];
     const startHeld = frames[0].held;
     const startPanic = frames[0].panic;
@@ -916,6 +918,23 @@ function renderReplay(main, scenario) {
     }
   }
 
+  // U9: 42 replays started and 16 finished in a week (13 Oct), with no way
+  // to see where people stop. One row when a replay opens, one when it
+  // finishes, and one when the visitor leaves: how far they got (furthest
+  // point reached, %), whether they finished or jumped to the end, how long.
+  let _furthestIdx = 0, _skipped = false, _finished = false;
+  const _t0 = Date.now();
+  const _custom = !CRASHES.some((c) => c.id === scenario.id);
+  if (!scenario._partial) {
+    track("replay_start", scenario.id, { custom: _custom, frames: frames.length });
+    window.addEventListener("ss:navigate", () => {
+      track("replay_exit", scenario.id, {
+        furthest_pct: Math.round((_furthestIdx / Math.max(1, frames.length - 1)) * 100),
+        finished: _finished, skipped_to_end: _skipped, custom: _custom,
+        secs: Math.round((Date.now() - _t0) / 1000),
+      });
+    }, { once: true });
+  }
   renderAt(0);
 
   // The old playReplayIntroAnimation (typewriter / counters / stagger)
@@ -993,6 +1012,7 @@ function renderReplay(main, scenario) {
     stopPlayback();
     scrubber.value = scrubVal(scrubber, frames.length - 1);
     renderAt(frames.length - 1);
+    _skipped = true;
     fireEndMessage();
   });
   function startPlayback(durationMs, btnEl) {
@@ -1047,6 +1067,10 @@ function renderReplay(main, scenario) {
   function fireEndMessage() {
     if (endFired) return;
     endFired = true;
+    _finished = true;
+    track("replay_finish", scenario.id, {
+      skipped_to_end: _skipped, custom: _custom, secs: Math.round((Date.now() - _t0) / 1000),
+    });
     // Mark completed
     setState(s => ({
       ...s,

@@ -39,7 +39,11 @@ const DEFAULT_STATE = () => ({
 
 const GLOBAL_SETTINGS_KEY = "ss.settings.v1";
 const GLOBAL_SETTINGS_DEFAULTS = {
+  // U4: until someone picks Light or Dark (themeChosen), the theme follows
+  // the phone / computer setting. Every stored settings object already says
+  // theme: "light" (the old default), so that value alone cannot mean a choice.
   theme: "light",
+  themeChosen: false,
   hinglish: false,
   coachPanelOpen: false,  // Closed by default; user opens via FAB. Prevents
                           // mobile overlay from blocking signup/CTAs.
@@ -269,6 +273,13 @@ function applyFullPatch(full, prev) {
     writeUserState(_activeUserId, _userState);
   }
   emit(prev);
+}
+
+/** "light" | "dark": the picked theme, or the system's until one is picked (U4). */
+export function resolvedTheme(settings = _settings) {
+  if (settings?.themeChosen && (settings.theme === "light" || settings.theme === "dark")) return settings.theme;
+  try { return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"; }
+  catch { return "light"; }
 }
 
 export function setSetting(key, value) {

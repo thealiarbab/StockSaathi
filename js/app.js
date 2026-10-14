@@ -2,7 +2,7 @@
 // APP ENTRY — Theme bootstrap, nav, coach, router, service worker.
 // =============================================================================
 
-import { getState, subscribe, setSetting, switchUser } from "./state.js";
+import { getState, subscribe, setSetting, setSettings, switchUser, resolvedTheme } from "./state.js";
 import { mountNav } from "./components/nav.js";
 import { mountEventMarquee } from "./components/eventMarquee.js";
 import { mountCoachPanel } from "./components/coachPanel.js";
@@ -26,8 +26,14 @@ upgradeLegacyHash();
 
 // Theme ASAP to avoid flash
 (function applyTheme() {
-  const theme = getState().settings.theme || "light";
-  document.documentElement.setAttribute("data-theme", theme);
+  document.documentElement.setAttribute("data-theme", resolvedTheme(getState().settings));
+  // Follow the system switching (sunset, Control Centre) while nobody has
+  // picked a theme; setSettings({}) re-renders the toggles' icons too.
+  try {
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+      if (!getState().settings.themeChosen) setSettings({});
+    });
+  } catch {}
 })();
 
 // Load user-scoped state on boot (local immediately)
@@ -103,7 +109,7 @@ setTimeout(() => { showPendingNotices(); }, 1200);
 
 // Reactively sync theme
 subscribe((s) => {
-  document.documentElement.setAttribute("data-theme", s.settings.theme || "light");
+  document.documentElement.setAttribute("data-theme", resolvedTheme(s.settings));
 });
 
 // Service worker (offline) — auto-update so users aren't stuck on a

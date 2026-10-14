@@ -28,10 +28,11 @@ export function renderSettings(main) {
         <div class="card" style="margin-top: var(--sp-4);">
           <h3 style="margin-bottom: var(--sp-4);">Appearance</h3>
           <div class="settings-row">
-            <div class="label-wrap"><div class="title">Theme</div><div class="desc">Light for readability, dark for late-night sessions.</div></div>
+            <div class="label-wrap"><div class="title">Theme</div><div class="desc">System follows your phone or computer. Light for readability, dark for late-night sessions.</div></div>
             <div class="flex gap-2">
-              <button class="btn btn-ghost btn-sm ${state.settings.theme === "light" ? "btn-primary" : ""}" data-theme="light">Light</button>
-              <button class="btn btn-ghost btn-sm ${state.settings.theme === "dark" ? "btn-primary" : ""}" data-theme="dark">Dark</button>
+              <button class="btn btn-ghost btn-sm ${!state.settings.themeChosen ? "btn-primary" : ""}" data-theme="system">System</button>
+              <button class="btn btn-ghost btn-sm ${state.settings.themeChosen && state.settings.theme === "light" ? "btn-primary" : ""}" data-theme="light">Light</button>
+              <button class="btn btn-ghost btn-sm ${state.settings.themeChosen && state.settings.theme === "dark" ? "btn-primary" : ""}" data-theme="dark">Dark</button>
             </div>
           </div>
           <div class="settings-row" data-desktop-only>
@@ -86,8 +87,9 @@ export function renderSettings(main) {
     `;
 
     // Theme
-    main.querySelector("[data-theme='light']").addEventListener("click", () => { document.documentElement.setAttribute("data-theme", "light"); setSetting("theme", "light"); });
-    main.querySelector("[data-theme='dark']").addEventListener("click", () => { document.documentElement.setAttribute("data-theme", "dark"); setSetting("theme", "dark"); });
+    main.querySelector("[data-theme='system']").addEventListener("click", () => { setSettings({ themeChosen: false }); });
+    main.querySelector("[data-theme='light']").addEventListener("click", () => { setSettings({ theme: "light", themeChosen: true }); });
+    main.querySelector("[data-theme='dark']").addEventListener("click", () => { setSettings({ theme: "dark", themeChosen: true }); });
     // Desktop-only; safe-navigated because the row is display:none on mobile.
     main.querySelector("#toggle-coach")?.addEventListener("change", (e) => setSetting("coachPanelOpen", e.target.checked));
     main.querySelector("#toggle-hinglish").addEventListener("change", (e) => setSetting("hinglish", e.target.checked));

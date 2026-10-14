@@ -2,7 +2,7 @@
 // NAV — StockSaathi top navigation, auth-aware + mobile drawer.
 // =============================================================================
 
-import { getState, subscribe, setSetting } from "../state.js";
+import { getState, subscribe, setSetting, setSettings, resolvedTheme } from "../state.js";
 import { logoutAccount } from "../auth/accounts.js";
 import { formatRupees } from "../money.js";
 import { marketStatus } from "../data/prices.js";
@@ -62,6 +62,10 @@ export function mountNav() {
   function render() {
     const state = getState();
     const active = currentRoute().name;
+    // U3: tabs match on the first path segment. Matching the route NAME
+    // never lit Home (route "") and never lit Markets on /stocks/TCS
+    // ("stock-detail") or Replay on /crash-replay/COVID_2020.
+    const seg = (location.pathname || "/").replace(/^\/+/, "").split("/")[0];
     const allLinks = state.isAuthed ? LINKS_AUTH : LINKS_PUBLIC;
     const topLinks = state.isAuthed
       ? allLinks.filter(l => DESKTOP_TOP_AUTH.includes(l.route))
@@ -83,7 +87,7 @@ export function mountNav() {
     // as a button instead of an anchor). Authed users already have the
     // drawer's "More" entry + Settings page + Settings → Appearance, so we
     // don't add a 6th item to their bottom nav.
-    const themeIsDark = (state.settings.theme || "light") === "dark";
+    const themeIsDark = resolvedTheme(state.settings) === "dark";
     const themeIcon = themeIsDark ? "☀️" : "🌙";
     const themeLabel = themeIsDark ? "Light" : "Dark";
     const mobileNavItems = state.isAuthed
@@ -107,7 +111,7 @@ export function mountNav() {
     const mobileNavHtml = `
       <nav class="mobile-bottom-nav" aria-label="Primary">
         ${mobileNavItems.map(item => {
-          const isActive = item.route && active === item.route;
+          const isActive = item.route === seg;
           if (item.route === "__menu") {
             return `<button type="button" class="mbn-link" data-mobile-menu aria-label="Open menu">
               <span class="mbn-link-icon" aria-hidden="true">${item.icon}</span>
@@ -149,7 +153,7 @@ export function mountNav() {
 
         <nav class="nav-links" aria-label="Main navigation">
           ${topLinks.map(l => `
-            <a href="/${l.route}" class="nav-link ${active === l.route ? "active" : ""}">${l.label}</a>
+            <a href="/${l.route}" class="nav-link ${seg === l.route ? "active" : ""}">${l.label}</a>
           `).join("")}
         </nav>
 
@@ -159,7 +163,7 @@ export function mountNav() {
             <span class="nav-cmdk-label">Ask</span>
             <kbd class="nav-cmdk-kbd">⌘K</kbd>
           </button>
-          ${themeToggleHtml(state.settings.theme)}
+          ${themeToggleHtml(resolvedTheme(state.settings))}
           ${state.isAuthed ? `
             <div class="market-status" tabindex="0" aria-label="NSE market status" data-ms-state="${ms.state}">
               <span class="dot ${ms.open ? "" : ms.state === "pre-open" ? "preopen" : "closed"}"></span>
@@ -216,7 +220,7 @@ export function mountNav() {
     `;
 
     ensureDrawer();
-    renderDrawer(state, allLinks, active, pfValue, ms);
+    renderDrawer(state, allLinks, seg, pfValue, ms);
 
     const avatar = root.querySelector("#user-avatar");
     const dd = root.querySelector("#user-dd");
@@ -263,9 +267,8 @@ export function mountNav() {
 // in app.js, which flips the <html data-theme="…"> attribute, which all
 // CSS vars are keyed off.
 function toggleTheme() {
-  const cur = getState().settings.theme || "light";
-  const next = cur === "dark" ? "light" : "dark";
-  setSetting("theme", next);
+  const next = resolvedTheme(getState().settings) === "dark" ? "light" : "dark";
+  setSettings({ theme: next, themeChosen: true });
 }
 
 function themeToggleHtml(theme) {
@@ -332,7 +335,7 @@ function renderDrawer(state, allLinks, active, pfValue, ms) {
 
     <div class="drawer-divider"></div>
     <button class="drawer-link" id="drawer-theme-toggle" type="button" style="text-align: left;">
-      <span>${(state.settings.theme || "light") === "dark" ? "☀️ Light mode" : "🌙 Dark mode"}</span>
+      <span>${resolvedTheme(state.settings) === "dark" ? "☀️ Light mode" : "🌙 Dark mode"}</span>
       <span class="muted">↔</span>
     </button>
 
