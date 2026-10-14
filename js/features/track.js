@@ -43,7 +43,11 @@ const KINDS = new Set([
   "page_view", "stock_view", "news_click", "news_open", "chart_range",
   "chart_interact", "search", "market_browse", "watchlist_add",
   "watchlist_remove", "coach_open", "order_ticket_open", "tab_focus",
+  // O13: order attempts, how they ended, and the confirm box.
+  "order_submit", "order_result", "trade_modal",
 ]);
+// Never collapsed: two attempts on one stock a second apart are two rows.
+const NO_DEDUPE = new Set(["order_submit", "order_result", "trade_modal"]);
 
 let queue = [];
 let timer = null;
@@ -51,6 +55,7 @@ let lastSeen = new Map();   // `${kind}:${subject}` -> ts
 let flushing = false;
 
 function throttleMs(kind) {
+  if (NO_DEDUPE.has(kind)) return 0;
   if (kind === "stock_view") return STOCK_VIEW_MS;
   if (kind === "chart_interact" || kind === "chart_range") return CHART_MS;
   return DEDUPE_MS;

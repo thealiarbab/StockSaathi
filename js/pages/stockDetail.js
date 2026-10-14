@@ -22,7 +22,7 @@ import { buildAnalogContext, formatAnalog } from "../coach/historicalAnalog.js";
 import { primeRealCloses } from "../data/realCloses.js";
 import { showInterventionModal } from "../components/interventionModal.js";
 import { mountQuantitySelector } from "../components/quantitySelector.js";
-import { toast } from "../components/toast.js";
+import { toast as showToast } from "../components/toast.js";
 import { termHtml } from "../features/aiExplainer.js";
 import { go } from "../navigation.js";
 import { aiLang } from "../features/aiLang.js";
@@ -1460,6 +1460,7 @@ function attachListeners(main, inst, symbol, curPrice, holding, chartOhlc, sessi
   });
 
   main.querySelector("#place-trade-btn")?.addEventListener("click", async () => {
+    if (!getState().isAuthed) { promptSignupToTrade(symbol); return; }
     // Wrap in try/catch so any silent throw inside reviewTrade surfaces
     // as a visible toast instead of the button appearing "dead".
     try {
@@ -1496,9 +1497,11 @@ function attachListeners(main, inst, symbol, curPrice, holding, chartOhlc, sessi
   // MF Invest button — converts ₹ amount → unit count at current NAV,
   // then routes through the standard reviewTrade flow with that unit count.
   main.querySelector("#mf-invest-btn")?.addEventListener("click", async () => {
+    if (!getState().isAuthed) { promptSignupToTrade(symbol); return; }
     try {
       const amountInput = main.querySelector("#mf-amount-input");
       const amount = parseFloat(amountInput?.value || "0");
+      orderStart(symbol, { side: "BUY", path: "mf", amount_paise: Math.round((amount || 0) * 100), nav_paise: curPrice || null });
       if (!amount || amount <= 0) {
         toast({ kind: "error", message: "Enter a valid amount." });
         return;
@@ -1522,9 +1525,11 @@ function attachListeners(main, inst, symbol, curPrice, holding, chartOhlc, sessi
 
   // MF Redeem — same conversion, opposite side.
   main.querySelector("#mf-redeem-btn")?.addEventListener("click", async () => {
+    if (!getState().isAuthed) { promptSignupToTrade(symbol); return; }
     try {
       const redeemInput = main.querySelector("#mf-redeem-input");
       const amount = parseFloat(redeemInput?.value || "0");
+      orderStart(symbol, { side: "SELL", path: "mf", amount_paise: Math.round((amount || 0) * 100), nav_paise: curPrice || null });
       if (!amount || amount <= 0) {
         toast({ kind: "error", message: "Enter a valid redeem amount." });
         return;
@@ -1555,7 +1560,7 @@ function attachListeners(main, inst, symbol, curPrice, holding, chartOhlc, sessi
 // path, where apply_trade has no fund price, so they only ever worked
 // after hours, and then as a price limit on the NAV.
 async function placeMfOrder(inst, side, units, navPaise, amountPaise) {
-  if (_tradeInFlight) return;
+  if (_tradeInFlight) { orderEnd("ignored_in_flight"); return; }
   _tradeInFlight = true;
   const btn = document.getElementById(side === "BUY" ? "mf-invest-btn" : "mf-redeem-btn");
   const label = btn?.textContent;
@@ -1587,6 +1592,95 @@ async function placeMfOrder(inst, side, units, navPaise, amountPaise) {
   } finally {
     _tradeInFlight = false;
   }
+}
+
+// ── Order telemetry (O13) ─────────────────────────────────────────────
+// Every order attempt and how it ended, in user_events, so "I press review
+// buy and nothing happens" (dhanu0407, 13 Oct) or an order that never
+// reached the server (shlokmulay, 13 Oct) can be traced. Nearly every way
+// an attempt ends already shows a toast, so the module's toast() closes the
+// open attempt: an error toast as outcome "error" with the message the user
+// saw, a success toast as "ok". The rest (cancelled in the confirm box,
+// held at the panic pause, a tap ignored while another order was in
+// flight) are recorded where they happen.
+let _orderAttempt = null;   // { symbol, side, path, t0 }
+
+function orderPath(inst) {
+  if (inst?.kind === "MF") return "mf";
+  if (!marketStatus().open) return ui.orderType === "LIMIT" ? "amo_limit" : "amo_open";
+  return ui.orderType === "LIMIT" ? "limit" : "market";
+}
+
+function orderStart(symbol, props) {
+  if (_orderAttempt) orderEnd("superseded");
+  _orderAttempt = { symbol, side: props.side, path: props.path, t0: Date.now() };
+  track("order_submit", symbol, props);
+}
+
+function orderEnd(outcome, extra = {}) {
+  const a = _orderAttempt;
+  if (!a) return;
+  _orderAttempt = null;
+  track("order_result", a.symbol, {
+    outcome, ok: outcome === "ok", side: a.side, path: a.path, ms: Date.now() - a.t0, ...extra,
+  });
+}
+
+function toast(opts) {
+  if (_orderAttempt && opts?.kind === "error") orderEnd("error", { error: String(opts.message || "").slice(0, 200) });
+  else if (_orderAttempt && opts?.kind === "success") orderEnd("ok");
+  return showToast(opts);
+}
+
+// In-app choice box (O14). The native confirm() it replaces can be
+// dismissed by a mobile WebView with no input at all. Resolves "ok" for the
+// primary button, "cancel" for the other, "dismiss" for a tap outside / Esc.
+function askChoice({ title, body, okLabel, cancelLabel }) {
+  return new Promise((resolve) => {
+    const modalRoot = document.getElementById("modal-root");
+    if (!modalRoot) { resolve("dismiss"); return; }
+    modalRoot.innerHTML = `
+      <div class="modal-overlay" id="choice-overlay" role="dialog" aria-modal="true" aria-labelledby="choice-title">
+        <div class="modal" style="max-width: 420px;">
+          <div class="modal-head">
+            <div class="modal-icon warn" aria-hidden="true">!</div>
+            <div><h2 id="choice-title">${escapeHtml(title)}</h2></div>
+          </div>
+          <div class="modal-body"><p style="margin:0;">${escapeHtml(body)}</p></div>
+          <div class="modal-foot">
+            <button class="btn btn-outline" id="choice-cancel">${escapeHtml(cancelLabel)}</button>
+            <button class="btn btn-primary" id="choice-ok">${escapeHtml(okLabel)}</button>
+          </div>
+        </div>
+      </div>`;
+    const overlay = modalRoot.querySelector("#choice-overlay");
+    const done = (v) => {
+      document.removeEventListener("keydown", onKey);
+      modalRoot.innerHTML = "";
+      resolve(v);
+    };
+    const onKey = (e) => { if (e.key === "Escape") done("dismiss"); };
+    document.addEventListener("keydown", onKey);
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) done("dismiss"); });
+    modalRoot.querySelector("#choice-cancel").addEventListener("click", () => done("cancel"));
+    modalRoot.querySelector("#choice-ok").addEventListener("click", () => done("ok"));
+    setTimeout(() => modalRoot.querySelector("#choice-ok")?.focus(), 50);
+  });
+}
+
+// A visitor who is not signed in used to get "Your session expired, please
+// refresh the page and sign in again" from the order RPC, which reads as a
+// fault to someone who never had an account.
+async function promptSignupToTrade(symbol) {
+  track("order_result", symbol, { outcome: "signed_out", ok: false, path: orderPath(getInstrument(symbol)) });
+  const pick = await askChoice({
+    title: "Sign up to place orders",
+    body: "Trading here uses virtual money: a free account starts you with ₹1,00,000 to practise with. Sign up, or log in if you already have an account.",
+    okLabel: "Sign up free",
+    cancelLabel: "Log in",
+  });
+  if (pick === "ok") go("/register");
+  else if (pick === "cancel") go("/login");
 }
 
 // One trade at a time, whichever button started it. reviewTrade disables
@@ -1631,8 +1725,13 @@ async function queuedSellQty(symbol) {
 const _istDay = (ms) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date(ms));
 async function freshTradeQuote(inst) {
   const wire = inst.exchange === "BSE" && !inst.symbol.includes(".") ? `${inst.symbol}.BO` : inst.symbol;
+  // Bounded: while this awaits, _tradeInFlight is set and every further tap
+  // on Buy is ignored. 8 s, then the order goes on without a fresh quote
+  // (the server checks the price again either way).
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8000);
   try {
-    const r = await fetch(`/api/live-quote?symbols=${encodeURIComponent(wire)}&nocache=1&_=${Date.now()}`, { cache: "no-store" });
+    const r = await fetch(`/api/live-quote?symbols=${encodeURIComponent(wire)}&nocache=1&_=${Date.now()}`, { cache: "no-store", signal: ctrl.signal });
     const d = await r.json();
     const q = d?.quotes?.[wire];
     if (!q || !(q.price > 0)) return null;
@@ -1641,14 +1740,23 @@ async function freshTradeQuote(inst) {
       live: q.source !== "nse_eod" && !!q.ts_ms && _istDay(q.ts_ms) === _istDay(Date.now()),
     };
   } catch { return null; }
+  finally { clearTimeout(timer); }
 }
 
 async function reviewTrade(inst, symbol, curPrice, holding) {
   if (_tradeInFlight) {
     console.warn("[trade] ignored a second submit while one is in flight");
+    track("order_result", symbol, { outcome: "ignored_in_flight", ok: false, side: ui.side, path: orderPath(inst) });
     return;
   }
   _tradeInFlight = true;
+  orderStart(symbol, {
+    side: ui.side, path: orderPath(inst),
+    qty: qtySelectorHandle?.get?.() ?? ui.qty,
+    price_paise: curPrice || null,
+    limit_paise: ui.orderType === "LIMIT" && parseFloat(ui.limitPrice) > 0 ? Math.round(parseFloat(ui.limitPrice) * 100) : null,
+    market_open: !!marketStatus().open,
+  });
   try {
     return await _reviewTrade(inst, symbol, curPrice, holding);
   } finally {
@@ -1684,8 +1792,8 @@ async function _reviewTrade(inst, symbol, curPrice, holding) {
       showInterventionModal(
         { analog, biasResult, instrument: inst, trade: { qty, pricePaise: curPrice, holding } },
         {
-          onProceed: () => { _panicAckedFor = symbol; reviewTrade(inst, symbol, curPrice, holding); },
-          onHold: () => toast({ kind: "info", message: "Held. Good choice to pause." }),
+          onProceed: () => { _panicAckedFor = symbol; orderEnd("proceed_after_pause"); reviewTrade(inst, symbol, curPrice, holding); },
+          onHold: () => { orderEnd("held"); toast({ kind: "info", message: "Held. Good choice to pause." }); },
         }
       );
       return;
@@ -1793,15 +1901,18 @@ async function _reviewTrade(inst, symbol, curPrice, holding) {
       (ui.side === "BUY" && curPrice <= limitPaise) ||
       (ui.side === "SELL" && curPrice >= limitPaise);
     if (wouldFireNow) {
-      // Previously used the native confirm() dialog. Two problems: (a) a
-      // mobile WebView can silently auto-dismiss it with no user input,
-      // and (b) even on desktop, clicking Cancel returned without any
-      // toast so the user saw "Processing…" fade to nothing and thought
-      // the feature was broken. Replace with a confirm() call that still
-      // blocks the hot path BUT always toasts the outcome.
-      const ok = confirm(`Your limit is already ${ui.side === "BUY" ? "above" : "below"} the market (${formatRupees(curPrice)}). The order will fill immediately. Continue?`);
+      // An in-app box, not the native confirm() (O14): a mobile WebView can
+      // dismiss confirm() with no input at all, which read as a dead button.
+      const ok = "ok" === await askChoice({
+        title: "Limit is past the market price",
+        body: `Your ${ui.side === "BUY" ? "buy" : "sell"} limit of ₹${limitRupees.toFixed(2)} is already ${ui.side === "BUY" ? "above" : "below"} the market (${formatRupees(curPrice)}), so it will fill straight away at about the market price.`,
+        okLabel: "Place anyway",
+        cancelLabel: "Edit price",
+      });
       if (!ok) {
-        toast({ kind: "info", message: "Limit order cancelled." });
+        orderEnd("cancelled", { at: "limit_past_market" });
+        const input = document.getElementById("limit-price-input");
+        if (input) { input.focus(); input.select?.(); }
         return;
       }
     }
@@ -1866,6 +1977,7 @@ async function _reviewTrade(inst, symbol, curPrice, holding) {
         {
           onProceed: () => showConfirm(inst, symbol, curPrice, qty, biasResult),
           onHold: () => {
+            orderEnd("held");
             toast({ kind: "info", message: "Held. Good choice to pause." });
             recordCoachMessage({
               id: genId(), ts: Date.now(),
@@ -1944,9 +2056,16 @@ function showConfirm(inst, symbol, curPrice, qty, biasResult) {
 
   const overlay = modalRoot.querySelector("#confirm-overlay");
   const close = () => { modalRoot.innerHTML = ""; };
-  overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
-  modalRoot.querySelector("#cancel-btn").addEventListener("click", close);
+  track("trade_modal", symbol, { action: "open", side });
+  const dismiss = (how) => {
+    track("trade_modal", symbol, { action: how, side });
+    orderEnd("cancelled", { at: "confirm_" + how });
+    close();
+  };
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) dismiss("backdrop"); });
+  modalRoot.querySelector("#cancel-btn").addEventListener("click", () => dismiss("cancel"));
   modalRoot.querySelector("#confirm-btn").addEventListener("click", () => {
+    track("trade_modal", symbol, { action: "confirm", side });
     close();
     executeTrade(inst, side, qty, curPrice, biasResult);
   });
