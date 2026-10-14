@@ -185,14 +185,78 @@ function todaysMarketWindowMs() {
 // Must match the host's CSS height, clamp(260px, 44vh, 360px): the SVG is
 // drawn at this height, and a 360 px drawing in a 260 px host spilled over
 // the next card on short phones.
+// ── Full-screen chart (C3) ────────────────────────────────────────────
+// A flag, not chartEl.requestFullscreen(): render() rewrites #main on every
+// quote tick, which would throw a full-screened element (and with it the
+// browser's full screen) away. While _chartFs is set the chart block is
+// drawn as a fixed overlay; the browser's own full screen is asked for on
+// <html>, which is never replaced, and is best effort (iPhone Safari has
+// none, the overlay alone fills the view). Back, Esc and ✕ all close it.
+let _chartFs = false;
+let _chartFsRerender = null;   // () => render(inst, symbol) for the open page
+let _chartFsDims = null;       // measured { w, h } of the chart box, px
+let _chartFsResizeT = null;
+let _chartFsAnimate = false;  // fade in on the opening render only, not every quote tick
+
+function enterChartFs(rerender, symbol) {
+  if (_chartFs) return;
+  _chartFs = true;
+  _chartFsRerender = rerender;
+  _chartFsDims = null;
+  _chartFsAnimate = true;
+  document.body.classList.add("chart-fs-open");
+  if (!history.state?.ssChartFs) history.pushState({ ...(history.state || {}), ssChartFs: 1 }, "", location.href);
+  try {
+    const p = document.documentElement.requestFullscreen?.({ navigationUI: "hide" });
+    p?.then?.(() => screen.orientation?.lock?.("landscape"))?.catch?.(() => {});
+  } catch {}
+  track("chart_interact", symbol, { action: "fullscreen" });
+  rerender();
+}
+
+function exitChartFs({ fromHistory = false, rerender = true } = {}) {
+  if (!_chartFs) return;
+  _chartFs = false;
+  _chartFsDims = null;
+  document.body.classList.remove("chart-fs-open");
+  try { screen.orientation?.unlock?.(); } catch {}
+  if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+  // Closed by ✕ / Esc: drop the history entry we pushed so Back then
+  // leaves the page as usual (navigation.js ignores this same-URL pop).
+  if (!fromHistory && history.state?.ssChartFs) history.back();
+  const r = _chartFsRerender;
+  _chartFsRerender = null;
+  if (rerender) r?.();
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("popstate", () => {
+    if (_chartFs && !history.state?.ssChartFs) exitChartFs({ fromHistory: true });
+  });
+  // Esc inside the browser's full screen leaves it without a keydown.
+  document.addEventListener("fullscreenchange", () => {
+    if (_chartFs && !document.fullscreenElement) exitChartFs();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && _chartFs && !document.querySelector(".modal-overlay")) exitChartFs();
+  });
+  window.addEventListener("resize", () => {
+    if (!_chartFs) return;
+    clearTimeout(_chartFsResizeT);
+    _chartFsResizeT = setTimeout(() => { _chartFsDims = null; _chartFsRerender?.(); }, 150);
+  });
+}
+
 function computeChartHeight() {
   if (typeof window === "undefined") return 360;
+  if (_chartFs) return _chartFsDims?.h ?? Math.max(200, window.innerHeight - (window.innerWidth < 640 ? 200 : 150));
   return Math.round(Math.min(360, Math.max(260, window.innerHeight * 0.44)));
 }
 
 function computeChartWidth() {
   if (typeof window === "undefined") return 800;
   const iw = window.innerWidth;
+  if (_chartFs) return _chartFsDims?.w ?? Math.max(280, iw - 40);
   if (iw >= 640) return 800;
   // 48 px accounts for card padding + page gutters (≈ 2 × var(--sp-3)).
   return Math.max(280, Math.min(440, iw - 48));
@@ -227,7 +291,7 @@ export function renderStockDetail(main, params) {
   const myToken = _cancelToken;
 
   // Hotfix52a: on hard-reload of an MF detail URL, the mfFull.json
-  // bundle may not be loaded yet â€” getInstrument returns a bare stub
+  // bundle may not be loaded yet — getInstrument returns a bare stub
   // with no nav, no name, no AMC. The header price would fall through
   // to the synthetic walk-anchor (Rs.4,286 for MF_100033 etc.) and the
   // title would show the raw 'MF_100033' code. Kick the MF universe
@@ -322,6 +386,7 @@ export function renderStockDetail(main, params) {
     if (_historyAbortCtrl) { try { _historyAbortCtrl.abort(); } catch {} _historyAbortCtrl = null; }
     if (_zoomDetach) { _zoomDetach(); _zoomDetach = null; }
     _gestureActive = false;
+    exitChartFs({ fromHistory: true, rerender: false });
   };
   window.addEventListener("ss:navigate", onLeave, { once: true });
   // Fetch history
@@ -855,6 +920,17 @@ function render(inst, symbol) {
           `}
         </div>
 
+        <div class="chart-block${_chartFs ? " chart-fullscreen" : ""}${_chartFs && _chartFsAnimate ? " chart-fs-enter" : ""}"${_chartFs ? ` role="dialog" aria-modal="true" aria-label="${escapeHtml(inst.name || symbol)} chart, full screen"` : ""}>
+        ${_chartFs ? `
+          <div class="chart-fs-head">
+            <div class="chart-fs-title">
+              <strong>${escapeHtml(inst.name || symbol)}</strong>
+              <span class="tabular">${formatRupees(curPrice)}</span>
+              ${change == null ? "" : `<span class="${deltaClass(change)} tabular">${formatPct(change, { sign: true })}</span>`}
+            </div>
+            <button type="button" class="chart-fs-close" id="chart-fs-close" aria-label="Exit full screen">✕ Close</button>
+          </div>
+        ` : ""}
         <div class="tf-buttons" style="display:flex; align-items:center; gap:var(--sp-2); flex-wrap:wrap;">
           <div style="display:flex; gap:4px; flex-wrap: wrap;">
             ${TF_ORDER.map(tf => {
@@ -884,6 +960,11 @@ function render(inst, symbol) {
               </button>
             </div>
           ` : ""}
+          ${!noChart && !_chartFs ? `
+            <button type="button" class="chart-fs-btn" id="chart-fs-btn" aria-label="Full-screen chart" title="Full screen"${isTerminatedFund(inst).terminated ? ' style="margin-left:auto;"' : ""}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          ` : ""}
         </div>
 
         <div class="card" style="padding: var(--sp-3);">
@@ -895,13 +976,13 @@ function render(inst, symbol) {
           ` : inst.kind === "MF"
             ? (isTerminatedFund(inst).terminated
                 ? `<div style="height: 300px; display: grid; place-items: center; gap: var(--sp-2); padding: var(--sp-4); text-align: center;">
-                     <div style="font-size: 32px; opacity: 0.5;">â³</div>
+                     <div style="font-size: 32px; opacity: 0.5;" aria-hidden="true">⏳</div>
                      <h3 style="margin: 0; font-size: var(--text-base);">Scheme wound up</h3>
                      <div class="dim text-sm" style="max-width: 380px;">
                        AMFI hasn't published a NAV for this fund since
                        <strong>${escapeHtml(inst.nav_date || "the maturity date")}</strong>.
                        The chart isn't shown because there's no recent
-                       data â€” showing a flatline at â‚¹0 would be misleading.
+                       data — showing a flatline at ₹0 would be misleading.
                      </div>
                    </div>`
                 : _renderMfChartSafe(chartOhlc, ui, computeChartWidth(), chartXAxisRange))
@@ -927,6 +1008,7 @@ function render(inst, symbol) {
               <span class="dim">· NSE was closed today</span>
             </div>
           ` : ""}
+        </div>
         </div>
 
         <div class="card stock-why-card" id="stock-why-card" data-nosnippet style="margin-top: var(--sp-4);">
@@ -1247,6 +1329,31 @@ function attachListeners(main, inst, symbol, curPrice, holding, chartOhlc, sessi
       if (btn2) { btn2.disabled = false; btn2.textContent = "↻ Refresh"; }
     }
   });
+  // Full-screen chart (C3).
+  if (_chartFs) {
+    _chartFsRerender = () => render(inst, symbol);
+    // Fit the drawing to the box the overlay actually gives it: one
+    // measured redraw (the first frame uses an estimate). setTimeout, not
+    // requestAnimationFrame: reading clientHeight forces layout anyway, and
+    // rAF never fires in a hidden tab.
+    setTimeout(() => {
+      const fade = _chartFsAnimate;
+      _chartFsAnimate = false;
+      const host = main.querySelector(".chart-fullscreen #stock-chart-host");
+      if (!_chartFs || !host) return;
+      const w = Math.round(host.clientWidth), h = Math.round(host.clientHeight);
+      if (w < 200 || h < 150) return;
+      const prev = _chartFsDims || { w: computeChartWidth(), h: computeChartHeight() };
+      _chartFsDims = { w, h };
+      if (Math.abs(prev.w - w) > 6 || Math.abs(prev.h - h) > 6) {
+        _chartFsAnimate = fade;   // the fitted redraw keeps the opening fade
+        render(inst, symbol);
+        _chartFsAnimate = false;
+      }
+    }, 0);
+  }
+  main.querySelector("#chart-fs-btn")?.addEventListener("click", () => enterChartFs(() => render(inst, symbol), symbol));
+  main.querySelector("#chart-fs-close")?.addEventListener("click", () => exitChartFs());
   // Candle/Line mode toggle — no refetch, just re-render with other mode.
   main.querySelectorAll(".chart-mode-btn").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -1262,8 +1369,8 @@ function attachListeners(main, inst, symbol, curPrice, holding, chartOhlc, sessi
   // Hotfix49a: previously this was gated on `inst.kind !== "MF"`. After
   // Hotfix47c-d MFs render through stockChart (with synthesized day-over-
   // day OHLC for candle mode), so they have the same SVG structure stocks
-  // do â€” the hover crosshair + tooltip work identically. User-reported
-  // 'mfs have no cursors or are traversable' â€” this was the gate.
+  // do — the hover crosshair + tooltip work identically. User-reported
+  // 'mfs have no cursors or are traversable' — this was the gate.
   // For candle mode, pass the synthesized OHLC so the tooltip's o/h/l/c
   // values reflect what the rendered candle shows. For area mode, raw
   // OHLC works (h=l=c=NAV per day, tooltip shows the close).
@@ -2130,7 +2237,7 @@ function renderFundamentals(inst, live, hi52, lo52) {
 //     schemes runs daily for equity/debt/hybrid and at least quarterly
 //     for FOFs/closed-ended funds. A year of staleness is a strong
 //     termination signal. (5,000+ MFs in mfFull.json fall under this
-//     bucket â€” real graveyard.)
+//     bucket — real graveyard.)
 // Returns { terminated: bool, navDate: ISO string, ageDays: number }
 function isTerminatedFund(inst) {
   if (!inst || inst.kind !== "MF") return { terminated: false };
@@ -2150,7 +2257,7 @@ function isTerminatedFund(inst) {
 // Hotfix50a: MF chart render with try-catch fallback. Hotfix49a removed
 // the `inst.kind !== 'MF'` gate on attachStockChartHover, and Hotfix47c
 // routed MFs through stockChart with synthesized OHLC. Together those
-// changes broke MF page reload â€” user-reported 'Something broke on this
+// changes broke MF page reload — user-reported 'Something broke on this
 // page' on every reload of any MF detail page. Without a clean stack
 // trace from prod we can't pin the exact line, so this wrapper:
 //   1. Tries the candle/area stockChart path first (same as before)
@@ -2167,7 +2274,7 @@ function _renderMfChartSafe(chartOhlc, uiState, width, xAxisRange) {
     }
     return `<div id="stock-chart-host" style="height: clamp(260px, 44vh, 360px); width: 100%;">${stockChart(chartOhlc, { height: computeChartHeight(), mode: "area", width, xAxisRange })}</div>`;
   } catch (e) {
-    console.warn("[mf chart] candle/area render failed â€” falling back to lineChart:", e);
+    console.warn("[mf chart] candle/area render failed — falling back to lineChart:", e);
     const closes = (chartOhlc || []).map(k => k?.c).filter(c => Number.isFinite(c));
     return `<div id="stock-chart-host" style="height: 300px; width: 100%;">${lineChart(closes.map(c => c / 100), { height: 300, color: "var(--brand)", rupees: true })}</div>`;
   }
@@ -2235,7 +2342,7 @@ function _openCustomRangeModal({ initialFrom, initialTo, onSubmit }) {
 }
 
 // Hotfix47c: AMFI publishes one NAV per scheme per day, so the raw MF
-// OHLC array has o=h=l=c=NAV on every entry â€” candles render as flat
+// OHLC array has o=h=l=c=NAV on every entry — candles render as flat
 // dots, useless. Synthesize meaningful day-over-day candles where:
 //   open  = previous day's close
 //   close = today's NAV
@@ -2268,16 +2375,16 @@ function _synthMfDayOverDayOhlc(rawOhlc) {
 
 function renderMfInvestBox(inst, symbol, curNavPaise, holding) {
   // Hotfix46a: short-circuit the entire invest UI for terminated funds.
-  // The 'Invest' button on a wound-up scheme is a footgun â€” user can
+  // The 'Invest' button on a wound-up scheme is a footgun — user can
   // click, it'd queue an order, but no AMFI feed will ever process it.
   // Show a clear status banner instead. If the user already holds the
   // fund (legacy holding from before termination), let them redeem
-  // â€” redemption against frozen NAV is at least closeable, even if
+  // — redemption against frozen NAV is at least closeable, even if
   // economically degenerate.
   const term = isTerminatedFund(inst);
   if (term.terminated && !holding) {
     const navDate = term.navDate || "unknown date";
-    const ageNote = term.ageDays != null ? ` (last NAV update â‰ˆ ${term.ageDays} days ago)` : "";
+    const ageNote = term.ageDays != null ? ` (last NAV update ≈ ${term.ageDays} days ago)` : "";
     return `
       <div class="trade-head" style="margin-bottom: var(--sp-3);">
         <h3 style="font-size: var(--text-base); margin-bottom: 4px;">Scheme wound up</h3>
