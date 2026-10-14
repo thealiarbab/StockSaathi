@@ -254,6 +254,17 @@ export async function setNewPassword(newPassword) {
   return { ok: true };
 }
 
+// Local-only accounts exist for offline demos on localhost. On the live site
+// they never hold real users, so falling back to them only produces a
+// misleading "No account" error.
+function isProductionHost() {
+  const h = (typeof location !== "undefined" && location.hostname) || "";
+  return h !== "localhost" && h !== "127.0.0.1" && h !== "";
+}
+
+// Escape LIKE wildcards so "_" and "%" in a username match literally.
+function _likeExact(v) { return String(v).replace(/[\\%_]/g, (m) => "\\" + m); }
+
 function _EMAIL_RE() { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/; }
 
 export async function loginAccount({ emailOrUsername, password }) {
@@ -261,7 +272,14 @@ export async function loginAccount({ emailOrUsername, password }) {
   if (!q) throw new Error("Enter your email or username.");
   if (!password) throw new Error("Enter your password.");
 
-  const client = await sb();
+  // Retry once: a single dropped request while loading the SDK or config
+  // used to drop login into the local-only fallback below, which reported
+  // "No account with that email or username" for real accounts.
+  let client = await sb();
+  if (!client) client = await sb();
+  if (!client && isProductionHost()) {
+    throw new Error("Couldn't reach StockSaathi's servers. Check your connection, or open stocksaathi.co.in in Chrome instead of an in-app browser, then try again.");
+  }
   if (client) {
     // Resolve to email. If input contains '@', treat as email directly.
     // Otherwise use the server-side resolver (service_role) — anon RLS on
@@ -640,7 +658,7 @@ export async function findAccountByHandle(handleOrEmail) {
     // Try both username and email
     const { data } = await client.from("profiles")
       .select("id, username, display_name, email, avatar_color, school")
-      .or(`username.ilike.${q},email.ilike.${q}`)
+      .or(`username.ilike."${_likeExact(q).replace(/"/g, "")}",email.ilike."${_likeExact(q).replace(/"/g, "")}"`)
       .limit(1)
       .maybeSingle();
     if (!data) return null;

@@ -12,20 +12,38 @@ let _client = null;
 let _config = null;
 let _configPromise = null;
 
+// Two CDNs: esm.sh is blocked or flaky on some Indian mobile networks and in
+// in-app browsers (Instagram's webview). A failed load is never cached, so the
+// next sb() call retries instead of staying in local-only mode for the tab.
+const SDK_URLS = [
+  "https://esm.sh/@supabase/supabase-js@2.45.4?bundle",
+  "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm",
+];
 async function loadSdk() {
   if (_sbPromise) return _sbPromise;
-  _sbPromise = import("https://esm.sh/@supabase/supabase-js@2.45.4?bundle");
+  _sbPromise = (async () => {
+    let lastErr;
+    for (const url of SDK_URLS) {
+      try { return await import(url); } catch (e) { lastErr = e; }
+    }
+    throw lastErr || new Error("supabase_sdk_load_failed");
+  })();
+  _sbPromise.catch(() => { _sbPromise = null; });
   return _sbPromise;
 }
 
 async function loadConfig() {
   if (_config) return _config;
   if (_configPromise) return _configPromise;
+  // Only a config that actually has the keys is cached. A failed fetch used
+  // to cache {} for the life of the tab, pinning the app in local-only mode.
   _configPromise = fetch("/api/config", { cache: "no-store" })
     .then(r => r.ok ? r.json() : {})
     .catch(() => ({}));
-  _config = await _configPromise;
-  return _config;
+  const cfg = await _configPromise;
+  _configPromise = null;
+  if (cfg?.supabaseUrl && cfg?.supabaseAnonKey) _config = cfg;
+  return cfg;
 }
 
 /**
