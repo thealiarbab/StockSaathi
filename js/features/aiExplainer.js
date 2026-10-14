@@ -24,8 +24,10 @@ import { aiLang } from "./aiLang.js";
 
 const TOOLTIP_ID = "ai-term-tooltip";
 const HOVER_DELAY_MS = 250;  // avoid firing on accidental hover pass-through
-const memoryCache = new Map();   // term -> explanation
-const inflight = new Map();      // term -> Promise
+// Keyed by term AND language (C11): switching Hinglish on used to keep
+// serving the English tooltip already in memory, and the other way round.
+const memoryCache = new Map();   // `${lang}|${term}` -> explanation
+const inflight = new Map();      // `${lang}|${term}` -> Promise
 
 let hoverTimer = null;
 let currentTarget = null;
@@ -110,16 +112,18 @@ export function termHtml(term, display) {
 }
 
 async function fetchExplanation(term) {
-  if (memoryCache.has(term)) {
-    const cached = memoryCache.get(term);
+  const lang = aiLang();
+  const key = `${lang}|${term}`;
+  if (memoryCache.has(key)) {
+    const cached = memoryCache.get(key);
     if (explanationLooksGood(cached)) return cached;
     // In-memory poison — drop it so a fresh fetch can repopulate.
-    memoryCache.delete(term);
+    memoryCache.delete(key);
   }
-  if (inflight.has(term)) return inflight.get(term);
+  if (inflight.has(key)) return inflight.get(key);
   const p = (async () => {
     try {
-      const r = await fetch("/api/ai?op=explain&term=" + encodeURIComponent(term) + aiLang(), { cache: "default" });
+      const r = await fetch("/api/ai?op=explain&term=" + encodeURIComponent(term) + lang, { cache: "default" });
       if (!r.ok) throw new Error("http_" + r.status);
       const j = await r.json();
       const text = j?.explanation || "";
@@ -128,18 +132,18 @@ async function fetchExplanation(term) {
       // it here so the tooltip shows "No explanation available right
       // now." instead of garbage like "A 5".
       if (!explanationLooksGood(text)) {
-        memoryCache.delete(term);
+        memoryCache.delete(key);
         return "";
       }
-      memoryCache.set(term, text);
+      memoryCache.set(key, text);
       return text;
     } catch (e) {
       return "";   // silently degrade — no tooltip rather than a broken one
     } finally {
-      inflight.delete(term);
+      inflight.delete(key);
     }
   })();
-  inflight.set(term, p);
+  inflight.set(key, p);
   return p;
 }
 

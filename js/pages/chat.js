@@ -91,6 +91,10 @@ window.addEventListener("storage", (e) => {
   try {
     const fresh = JSON.parse(e.newValue);
     if (!fresh || !Array.isArray(fresh.sessions) || !fresh.sessions.length) return;
+    // Which chat is open is this tab's business: switching chats in another
+    // tab must not switch this one (C17).
+    const mineActive = sessionsData?.activeId;
+    if (mineActive && fresh.sessions.some((s) => s.id === mineActive)) fresh.activeId = mineActive;
     sessionsData = fresh;
     chatLog = getActiveSession(sessionsData).messages;
     // Only re-render if the chat page is currently mounted. renderChat

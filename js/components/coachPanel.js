@@ -58,6 +58,19 @@ window.addEventListener("ss:coach-sync", () => {
   } catch (e) { console.warn("[coach-panel] ss:coach-sync failed:", e); }
 });
 function saveChat() {
+  // Merge what another tab stored first (C17): the tab that saved last used
+  // to erase the other's turns. Same match as /chat: role + timestamp.
+  try {
+    const stored = loadChat();
+    if (Array.isArray(stored) && stored.length) {
+      const have = new Set(chatHistory.map((m) => `${m?.role}:${m?.ts}`));
+      let added = false;
+      for (const m of stored) {
+        if (m && !have.has(`${m.role}:${m.ts}`)) { chatHistory.push(m); added = true; }
+      }
+      if (added) chatHistory.sort((a, b) => (a?.ts || 0) - (b?.ts || 0));
+    }
+  } catch {}
   // Cap to the last 80 messages. On QuotaExceededError, progressively halve
   // until the write succeeds — losing old chat history is better than
   // silently failing to persist new messages.

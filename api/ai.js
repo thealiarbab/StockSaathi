@@ -25,6 +25,7 @@
 
 import { messagesEnabled, messagesFetch, toMessagesBody, textOf } from "./_messages.js";
 import { liveGeminiModel, isGemini3 } from "./_models.js";
+import { lastSessionIst } from "./_session.js";
 
 export const config = { runtime: "edge" };
 
@@ -573,7 +574,11 @@ async function opPortfolioDigest(req, origin) {
 }
 
 // --- Why is X moving today? --------------------------------------------------
-const SYSTEM_STOCK_WHY = `You are Saathi. Write a 50-80 word paragraph explaining why a stock is moving today. Open with the numbers (ticker + price + today's %). Tie the move to the provided headlines when possible; if nothing explains it, say sector rotation / macro / profit-booking plainly. End with one thing to watch. No predictions or buy/sell advice, Indian retail context. Return strict JSON: { "explanation": "..." }.`;
+// C9: the old prompt said "if nothing explains it, say sector rotation /
+// macro / profit-booking", so the card invented causes: TCS +6.8% became
+// "driven by ... optimism surrounding the ongoing AI-led tech boom" in the
+// same paragraph that admitted no headline mentioned TCS.
+const SYSTEM_STOCK_WHY = `You are Saathi. Write a 40-70 word paragraph on a stock's move in the session named in the data. Open with the numbers (ticker + price + the session's %), and call the session what the data calls it ("today" only if it says today; otherwise its day, e.g. "on Friday"). State a cause ONLY if one of the provided headlines names it, and say which outlet reported it. If no headline explains the move, say plainly that there is no clear news reason in today's headlines, and do not guess one: no sector rotation, macro mood, profit-booking, theme or "optimism" unless a headline says so. You may add one neutral thing a learner could look at (the company's next results date, its sector's move in the data). No predictions or buy/sell advice. Return strict JSON: { "explanation": "..." }.`;
 
 async function opStockWhy(req, origin) {
   let body; try { body = await req.json(); } catch { return j(400, { error: "bad_body" }, origin); }
@@ -581,7 +586,9 @@ async function opStockWhy(req, origin) {
   if (!sym) return j(400, { error: "missing_symbol" }, origin);
   const changePct = Number(body.changePct) || 0;
   const dir = changePct >= 0 ? "up" : "down";
-  const key = `${sym.toLowerCase()}_${dir}_${istDayKey()}` + (hinglishOf(req) ? "_hi" : "");
+  const session = lastSessionIst();
+  // v2: entries written under the old prompt guessed causes (C9).
+  const key = `v2_${sym.toLowerCase()}_${dir}_${session.ymd}` + (hinglishOf(req) ? "_hi" : "");
   const hit = await cacheGet("stock_why", key);
   if (hit?.explanation) return j(200, { explanation: hit.explanation, source: "cache" }, origin);
 
@@ -591,8 +598,9 @@ async function opStockWhy(req, origin) {
     body.name ? `Name: ${body.name}` : null,
     body.sector ? `Sector: ${body.sector}` : null,
     body.pricePaise != null ? `Price: ₹${(body.pricePaise / 100).toFixed(2)}` : null,
-    `Today's move: ${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)}%`,
-    news.length ? `\nRecent related headlines:\n${news.map(n => `- [${n.source || "?"}] ${n.headline}`).join("\n")}` : "No specific headlines on this ticker found today.",
+    `Session: ${session.isToday ? "today" : `${session.label} (the market is closed now; call it "${session.label.split(/[ ,]/)[0]}", not "today")`}`,
+    `Move in that session: ${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)}%`,
+    news.length ? `\nRecent related headlines:\n${news.map(n => `- [${n.source || "?"}] ${n.headline}`).join("\n")}` : "No headlines about this company were found. Say there is no clear news reason; do not guess one.",
   ].filter(Boolean).join("\n");
 
   try {
@@ -668,6 +676,7 @@ const SYSTEM_MOOD = [
   "Write ONE plain-prose paragraph, 50–70 words, no emojis, no markdown, no predictions, no advice.",
   "Mention 2–3 sector moves by name (sectors come from the data block).",
   "STRICT RULE: the ONLY individual company tickers or names you may reference are the ones listed in the `top up` / `top down` fields of the data block — and you must quote their percentage exactly as shown. Do NOT invent stocks. Do NOT mention any company that isn't in the topUp/topDown lists below.",
+  "Name the session the way the data block does: say \"today\" only if it says today; otherwise use its day (\"on Friday\"), because the market is shut and these are that session's moves.",
   "End with a one-word overall temperature: hot (≥1% broad rally), warm (mild green), mild (flat), cold (broad red).",
   'Return strict JSON: { "narrative": "...", "temperature": "hot"|"warm"|"mild"|"cold" }.',
 ].join(" ");
@@ -677,7 +686,11 @@ async function opMarketMood(req, origin) {
   const sectors = Array.isArray(body.sectors) ? body.sectors.slice(0, 12) : [];
   if (!sectors.length) return j(400, { error: "no_sectors" }, origin);
   const sig = sectors.slice(0, 6).map(s => `${String(s.name).toLowerCase().slice(0, 10)}:${(Number(s.avgPct) || 0).toFixed(1)}`).join("|");
-  const key = `${istDayKey()}_${sig}` + (hinglishOf(req) ? "_hi" : "");
+  // C10: on a Saturday this said "today" about Thursday's moves. The key
+  // carries the session and whether it is still today, so Friday's
+  // narrative is not served as "today" on Saturday.
+  const session = lastSessionIst();
+  const key = `${session.ymd}_${session.isToday ? "t" : "p"}_${sig}` + (hinglishOf(req) ? "_hi" : "");
   const hit = await cacheGet("market_mood", key);
   if (hit?.narrative) return j(200, { ...hit, source: "cache" }, origin);
 
@@ -694,7 +707,9 @@ async function opMarketMood(req, origin) {
   }
 
   const userMsg = [
-    `Today (${istDayKey()}) Indian market sector moves:`,
+    session.isToday
+      ? `Today (${session.ymd}) Indian market sector moves:`
+      : `Sector moves in the last session, ${session.label} (${session.ymd}). The market is closed now: call it "on ${session.label.split(/[ ,]/)[0]}", never "today".`,
     ...sectors.map(s => `  ${s.name}: avg ${s.avgPct >= 0 ? "+" : ""}${Number(s.avgPct).toFixed(2)}% across ${s.count} names (top up: ${s.topUp || "-"}, top down: ${s.topDown || "-"})`),
     "",
     `Allowed individual tickers to mention (and ONLY these): ${[...allowedTickers].join(", ") || "(none)"}`,

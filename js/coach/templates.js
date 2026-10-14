@@ -205,8 +205,11 @@ const STOCK_INTRO = [
     // week to 2026-10-13 read "P/E is 10.146366722686368, which means
     // investors are paying ₹10.146366722686368 ...". One decimal is plenty.
     const peShown = hasPe ? pe.toLocaleString("en-IN", { maximumFractionDigits: pe >= 100 ? 0 : 1 }) : "";
+    // Dated (C12): the card is kept, the P/E moves. "P/E is 32" read as
+    // today's figure weeks later.
+    const peDay = new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
     const peClause = hasPe
-      ? ` P/E is ${peShown}, which means investors are paying ₹${peShown} for every ₹1 of annual earnings. A P/E of 25 is average for Indian large-caps; >50 usually implies investors expect fast growth.`
+      ? ` On ${peDay} its P/E was ${peShown}: investors were paying ₹${peShown} for every ₹1 of annual earnings. A P/E of 25 is average for Indian large-caps; >50 usually implies investors expect fast growth.`
       : ` We don't have a P/E on file for it right now — that usually means the company isn't profitable, or the data hasn't landed yet. Either way, valuation is worth checking before the price is.`;
     return {
       reflection: `${name}${sectorClause}${peClause}`,

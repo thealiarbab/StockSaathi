@@ -15,6 +15,8 @@ export function cachedDigest(userId) {
     const obj = JSON.parse(raw);
     if (!obj || obj.userId !== userId) return null;
     if (obj.dayKey !== dayKey()) return null;
+    // C11: written in the other language (Hinglish switched since).
+    if ((obj.lang ?? "") !== aiLang()) return null;
     return obj.data;
   } catch { return null; }
 }
@@ -22,7 +24,7 @@ export function cachedDigest(userId) {
 function writeCache(userId, data) {
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify({
-      userId, dayKey: dayKey(), data, savedAt: Date.now(),
+      userId, dayKey: dayKey(), lang: aiLang(), data, savedAt: Date.now(),
     }));
   } catch {}
 }
@@ -51,7 +53,8 @@ export async function fetchDigest(userId, payload) {
     const raw = localStorage.getItem(CACHE_KEY);
     if (raw) {
       const obj = JSON.parse(raw);
-      if (obj && obj.userId === userId && obj.dayKey === dayKey() && obj.signature === signatureOf(payload)) {
+      if (obj && obj.userId === userId && obj.dayKey === dayKey() && obj.signature === signatureOf(payload)
+          && (obj.lang ?? "") === aiLang()) {
         return obj.data;
       }
     }
@@ -68,7 +71,7 @@ export async function fetchDigest(userId, payload) {
 
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify({
-      userId, dayKey: dayKey(), signature: signatureOf(payload), data, savedAt: Date.now(),
+      userId, dayKey: dayKey(), signature: signatureOf(payload), lang: aiLang(), data, savedAt: Date.now(),
     }));
   } catch {}
   return data;

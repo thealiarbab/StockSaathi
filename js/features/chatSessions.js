@@ -85,7 +85,60 @@ export function loadSessions() {
   return data;
 }
 
+// Two tabs used to overwrite each other (C17): each holds its own copy and
+// wrote the whole envelope back, so the tab that saved last erased the
+// other tab's new messages. Every save now merges what is stored first, IN
+// PLACE (chat.js holds references to session objects and message arrays
+// while a reply streams). Messages match on role + timestamp: the text of
+// a streaming reply grows, its ts does not. Deleted sessions and cleared
+// chats leave tombstones so a merge cannot bring them back.
+const msgKey = (m) => `${m?.role}:${m?.ts}`;
+
+function mergeStored(data) {
+  let stored;
+  try { stored = JSON.parse(localStorage.getItem(SESSIONS_KEY) || "null"); } catch { return; }
+  if (!stored || !Array.isArray(stored.sessions)) return;
+  const deleted = new Set([...(data.deleted || []), ...(stored.deleted || [])]);
+  data.deleted = [...deleted].slice(-100);
+  for (let i = data.sessions.length - 1; i >= 0; i--) {
+    if (deleted.has(data.sessions[i]?.id)) data.sessions.splice(i, 1);
+  }
+  const mine = new Map(data.sessions.map((s) => [s.id, s]));
+  for (const other of stored.sessions) {
+    if (!other?.id || !Array.isArray(other.messages) || deleted.has(other.id)) continue;
+    const s = mine.get(other.id);
+    if (!s) { data.sessions.push(other); continue; }        // a chat started in another tab
+    const clearedAt = Math.max(s.clearedAt || 0, other.clearedAt || 0);
+    if (clearedAt) {
+      s.clearedAt = clearedAt;
+      for (let i = s.messages.length - 1; i >= 0; i--) {
+        if ((s.messages[i]?.ts || 0) <= clearedAt) s.messages.splice(i, 1);
+      }
+    }
+    const have = new Set(s.messages.map(msgKey));
+    let added = false;
+    for (const m of other.messages) {
+      if (!m || (m.ts || 0) <= clearedAt || have.has(msgKey(m))) continue;
+      s.messages.push(m);
+      added = true;
+    }
+    if (added) {
+      s.messages.sort((a, b) => (a?.ts || 0) - (b?.ts || 0));
+      if (!s.title || s.title === "New chat") s.title = deriveTitle(s.messages);
+    }
+    s.updatedAt = Math.max(s.updatedAt || 0, other.updatedAt || 0);
+  }
+  if (!data.sessions.length) {
+    const blank = createBlank();
+    data.sessions.push(blank);
+    data.activeId = blank.id;
+  } else if (!data.sessions.some((s) => s.id === data.activeId)) {
+    data.activeId = data.sessions[0].id;
+  }
+}
+
 export function saveSessions(data) {
+  mergeStored(data);
   try { localStorage.setItem(SESSIONS_KEY, JSON.stringify(data)); } catch {}
   // v142: no DB push here. Each chat turn is written per-row to
   // coach_messages via logChatTurn → dbAddCoachMessage at send time,
@@ -122,6 +175,7 @@ export function deleteSessionById(data, id) {
   if (idx === -1) return;
   const wasActive = data.activeId === id;
   data.sessions.splice(idx, 1);
+  data.deleted = [...(data.deleted || []), id].slice(-100);   // tombstone, see mergeStored
   if (!data.sessions.length) {
     const blank = createBlank();
     data.sessions = [blank];
@@ -160,6 +214,7 @@ export function clearActiveMessages(data) {
   s.messages = [];
   s.title = "New chat";
   s.updatedAt = Date.now();
+  s.clearedAt = s.updatedAt;   // tombstone, see mergeStored
   saveSessions(data);
 }
 
