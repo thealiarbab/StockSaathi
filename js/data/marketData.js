@@ -248,13 +248,16 @@ export function getIntradaySparkline(symbol, fallbackCloses) {
   return fallbackCloses;
 }
 
+// One formatter (U13: building one per call cost 131 ms of a /stocks load).
+const _NSE_OPEN_FMT = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", weekday: "short",
+  hour12: false,
+});
+
 function _isNseOpen(nowMs) {
   // Cheap + correct: use Intl for Asia/Kolkata, mirror prices.js marketStatus.
   try {
-    const parts = new Intl.DateTimeFormat("en-GB", {
-      timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", weekday: "short",
-      hour12: false,
-    }).formatToParts(new Date(nowMs)).reduce((a, p) => (a[p.type] = p.value, a), {});
+    const parts = _NSE_OPEN_FMT.formatToParts(new Date(nowMs)).reduce((a, p) => (a[p.type] = p.value, a), {});
     const mins = parseInt(parts.hour, 10) * 60 + parseInt(parts.minute, 10);
     const weekday = (parts.weekday || "").toLowerCase();
     if (["sat", "sun"].includes(weekday)) return false;

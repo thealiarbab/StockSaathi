@@ -314,9 +314,17 @@ export function mountCoachPanel() {
   subscribe(applyVisibility);
 }
 
+// U13: render() is subscribed to every state change (quote ticks
+// included) and rebuilt the whole chat, Markdown and all, on every page
+// while the panel sat closed: ~530 ms of a throttled /stocks load. Closed,
+// it only notes that it is stale; the change that opens it renders it.
+let _staleWhileClosed = false;
+
 function render() {
   if (!root) return;
   const state = getState();
+  if (!state.settings.coachPanelOpen && !pending) { _staleWhileClosed = true; return; }
+  _staleWhileClosed = false;
   const messages = renderMessagesHtml(state);
   const usingLLM = !!state.settings.llmApiKey;
 

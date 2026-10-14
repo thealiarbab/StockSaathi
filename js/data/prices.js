@@ -299,14 +299,23 @@ const OPEN_MIN = 9 * 60 + 15;
 const CLOSE_MIN = 15 * 60 + 30;
 const PREOPEN_MIN = 9 * 60;
 
+// U13: istParts was the top JavaScript cost on /stocks (387 ms of a
+// throttled load): it built a new Intl.DateTimeFormat on every call, and
+// marketStatus() runs for every tile. One formatter, and the answer kept
+// per minute (nothing here changes inside a minute).
+const _IST_FMT = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Asia/Kolkata",
+  hour: "2-digit", minute: "2-digit", hour12: false,
+  weekday: "short", year: "numeric", month: "2-digit", day: "2-digit",
+});
+const _istMemo = new Map();   // minute number -> parts
+
 function istParts(date) {
-  const fmt = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Asia/Kolkata",
-    hour: "2-digit", minute: "2-digit", hour12: false,
-    weekday: "short", year: "numeric", month: "2-digit", day: "2-digit",
-  });
-  const p = fmt.formatToParts(date).reduce((a, x) => (a[x.type] = x.value, a), {});
-  return {
+  const ms = +date;
+  const minute = Number.isFinite(ms) ? Math.floor(ms / 60000) : null;
+  if (minute != null && _istMemo.has(minute)) return _istMemo.get(minute);
+  const p = _IST_FMT.formatToParts(date).reduce((a, x) => (a[x.type] = x.value, a), {});
+  const out = {
     y: p.year,
     m: p.month,
     d: p.day,
@@ -316,6 +325,11 @@ function istParts(date) {
     min: parseInt(p.minute, 10),
     minutes: parseInt(p.hour, 10) * 60 + parseInt(p.minute, 10),
   };
+  if (minute != null) {
+    if (_istMemo.size > 256) _istMemo.clear();
+    _istMemo.set(minute, out);
+  }
+  return out;
 }
 
 function isTradingDay(parts) {

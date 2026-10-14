@@ -23,6 +23,7 @@ export { ONBOARDING_PORTFOLIOS, FEATURED_SYMBOLS, FEATURED_MF_CODES, LEGACY_MF_A
 let _fullBySymbol = null;          // populated after ensureUniverseLoaded resolves
 let _mfBySymbol = null;            // populated after AMFI mfFull.json lands
 let _mergedBySymbol = null;        // lazy: full ∪ MF placeholders ∪ AMFI MFs
+let _mergedList = null;            // Object.values(_mergedBySymbol), built once (U13)
 let _sectorsCache = null;          // lazy: union of sectors
 let _categoriesCache = null;       // lazy: MF category bucket list
 let _loadPromise = null;           // de-dupes concurrent ensureUniverseLoaded calls
@@ -150,7 +151,7 @@ export function ensureUniverseLoaded() {
         };
       }
       _fullBySymbol = byS;
-      _mergedBySymbol = null;
+      _mergedBySymbol = null; _mergedList = null;
       _sectorsCache = null;
 
       // Upgrade the boot-stub exports in place — live bindings means importers
@@ -222,7 +223,7 @@ export function ensureMfUniverseLoaded() {
         };
       }
       _mfBySymbol = byS;
-      _mergedBySymbol = null;       // invalidate so getAllInstruments rebuilds
+      _mergedBySymbol = null; _mergedList = null;       // invalidate so getAllInstruments rebuilds
       _categoriesCache = null;
       try {
         window.dispatchEvent(new CustomEvent("ss:mf-universe-loaded", { detail: { count: rows.length } }));
@@ -238,7 +239,9 @@ export function ensureMfUniverseLoaded() {
 // ── Full merged view (Tier-2 + AMFI MFs + featured-fund stubs) ────────────
 export function getAllInstruments() {
   if (!_fullBySymbol && !_mfBySymbol) return INSTRUMENTS;
-  if (_mergedBySymbol) return Object.values(_mergedBySymbol);
+  // Callers copy before sorting (.slice / .filter), so one shared array is
+  // safe; rebuilding ~12,000 entries per call cost 213 ms of a /stocks load.
+  if (_mergedBySymbol) return _mergedList || (_mergedList = Object.values(_mergedBySymbol));
   // Featured-fund stubs first, so the real catalogue rows override them.
   // (The old hand-typed placeholder funds were spread LAST and overrode real
   // AMFI data with unpriceable records; they are gone now, see curated.js.)
@@ -248,7 +251,8 @@ export function getAllInstruments() {
     ...(_mfBySymbol || {}),
   };
   _mergedBySymbol = merged;
-  return Object.values(merged);
+  _mergedList = Object.values(merged);
+  return _mergedList;
 }
 
 // Full sector list — sorted, deduped, ETF rows excluded so the sector-pill
