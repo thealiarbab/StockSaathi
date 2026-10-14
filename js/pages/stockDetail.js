@@ -8,7 +8,7 @@ import { track } from "../features/track.js";
 import { getQuote, getHistory, getMfHistory, subscribeToQuotes, quoteAge, getFundamentals, getFreshCachedQuote } from "../data/marketData.js";
 import { placeLimitOrder, listPendingOrders } from "../features/limitOrders.js";
 import { buildOrderBook, buildRecentTrades } from "../data/orderBook.js";
-import { getSeries, getCloses, getPriceAt, getTodayChange, get52wRange, marketStatus } from "../data/prices.js";
+import { getSeries, getCloses, getPriceAt, getTodayChange, marketStatus } from "../data/prices.js";
 import { candleChart, lineChart, stockChart, attachStockChartHover } from "../components/charts.js";
 import { attachChartZoom, intervalForScale } from "../components/chartZoom.js";
 import { formatRupees, formatPct, deltaClass, formatQty } from "../money.js";
@@ -634,7 +634,7 @@ function render(inst, symbol) {
   const priceLoading = inst.kind !== "MF" && !liveQuote;
   const curPrice = liveQuote?.pricePaise ?? getPriceAt(symbol, 0);
   const change = liveQuote?.changePct ?? getTodayChange(symbol);
-  const dayChangeVal = Math.round(curPrice * change);
+  const dayChangeVal = change == null ? null : Math.round(curPrice * change);
 
   const tfSpec = TF_MAP[ui.timeframe] || TF_MAP["1M"];
   // Pre-Hotfix5: historyLoading was forced to false for MFs because there
@@ -643,7 +643,10 @@ function render(inst, symbol) {
   // from /api/mf-history, MFs need the same skeleton-until-resolved
   // behaviour as equities.
   const historyLoading = !liveHistory;
-  const history = liveHistory?.ohlc?.length ? liveHistory.ohlc : getSeries(symbol).slice(-tfSpec.days);
+  // Real bars only. The seeded walk is never drawn as a price chart (D2).
+  const history = liveHistory?.ohlc?.length ? liveHistory.ohlc : [];
+  const noChart = !historyLoading && inst.kind !== "MF" && (liveHistory?.ohlc?.length || 0) < 2;
+  const eodOnly = liveHistory?.source === "nse_eod";
 
   // Merge liveQuote into the last candle so the chart's newest tick matches
   // the header price. Previously the header updated every 12 s from
@@ -755,7 +758,9 @@ function render(inst, symbol) {
     }
   }
 
-  const { hi, lo } = get52wRange(symbol);
+  // 52-week high/low come only from live fundamentals (renderFundamentals);
+  // the seeded walk's range is invented and is never shown (D1).
+  const hi = null, lo = null;
   const isWatched = state.watchlist.includes(symbol);
 
   const dataSource = liveQuote?.source === "yahoo" || liveQuote?.source === "finnhub"
@@ -900,7 +905,21 @@ function render(inst, symbol) {
                      </div>
                    </div>`
                 : _renderMfChartSafe(chartOhlc, ui, computeChartWidth(), chartXAxisRange))
-            : `<div id="stock-chart-host" style="height: clamp(260px, 44vh, 360px); width: 100%;">${stockChart(chartOhlc, { height: computeChartHeight(), mode: ui.chartMode, width: computeChartWidth(), xAxisRange: chartXAxisRange })}</div>`}
+            : noChart
+              ? `<div id="stock-chart-host" style="height: clamp(200px, 30vh, 260px); width: 100%; display: grid; place-items: center; text-align: center; padding: var(--sp-4);">
+                   <div>
+                     <div style="font-size: 28px; opacity: .5;" aria-hidden="true">📉</div>
+                     <div class="font-semi" style="color: var(--text-strong);">Chart not available for this stock yet</div>
+                     <div class="dim text-sm" style="max-width: 360px; margin-top: 4px;">Our price-history source doesn't cover it. The price above is real; a chart appears once enough daily closes are recorded.</div>
+                   </div>
+                 </div>`
+              : `<div id="stock-chart-host" style="height: clamp(260px, 44vh, 360px); width: 100%;">${stockChart(chartOhlc, { height: computeChartHeight(), mode: ui.chartMode, width: computeChartWidth(), xAxisRange: chartXAxisRange })}</div>`}
+          ${eodOnly && !noChart ? `
+            <div class="dim text-xs" style="margin-top: 6px; padding: 4px 8px; background: var(--bg-soft); border-radius: var(--r-sm); display: inline-flex; align-items: center; gap: 6px;">
+              <span aria-hidden="true">📅</span>
+              Last ${liveHistory.ohlc.length} trading days · NSE closing prices (no fuller history for this stock)
+            </div>
+          ` : ""}
           ${liveHistory?._fallbackLabel && ui.timeframe === "1D" ? `
             <div class="dim text-xs" style="margin-top: 6px; padding: 4px 8px; background: var(--bg-soft); border-radius: var(--r-sm); display: inline-flex; align-items: center; gap: 6px;">
               <span aria-hidden="true">📅</span>
@@ -2012,10 +2031,10 @@ function renderFundamentals(inst, live, hi52, lo52) {
     : "—";
   const hi = _num(live?.fifty_two_week_high)
     ? `₹${live.fifty_two_week_high.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`
-    : formatRupees(hi52);
+    : "—";
   const lo = _num(live?.fifty_two_week_low)
     ? `₹${live.fifty_two_week_low.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`
-    : formatRupees(lo52);
+    : "—";
   const eps = _num(live?.eps) ? `₹${live.eps.toFixed(2)}` : null;
   const fma = _num(live?.fifty_day_average) ? `₹${live.fifty_day_average.toFixed(2)}` : null;
   const tma = _num(live?.two_hundred_day_average) ? `₹${live.two_hundred_day_average.toFixed(2)}` : null;

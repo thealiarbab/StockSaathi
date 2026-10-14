@@ -240,13 +240,13 @@ export function pctChange(from, to) {
  * that haven't populated mfHistoryCache yet, instead of showing a
  * fictional ±0.6% drift.
  */
+// Fallback "today %" for when no live quote exists. It used to compute this
+// from the SEEDED synthetic walk, so cards showed an invented move until
+// the first quote landed (D7). Unknown is null now: formatPct shows "—" and
+// deltaClass stays neutral. Funds keep 0 (their NAV moves once a day).
 export function getTodayChange(symbol) {
   if (symbol && symbol.startsWith("MF_")) return 0;
-  const s = getSeries(symbol);
-  if (s.length < 2) return 0;
-  const today = s[s.length - 1].c;
-  const yesterday = s[s.length - 2].c;
-  return pctChange(yesterday, today);
+  return null;
 }
 
 /**

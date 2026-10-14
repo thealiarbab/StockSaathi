@@ -479,6 +479,7 @@ export async function getHistory(symbol, range = "1y", interval = "1d", opts = {
   }
 
   let h = null;
+  let serverAnswered = false;
   if (inst.kind === "EQUITY" || inst.kind === "ETF") {
     // Preferred: dedicated /api/history endpoint (reliable, returns paise).
     // Falls through to legacy fetchYahooHistory → synthHistory on failure.
@@ -492,7 +493,7 @@ export async function getHistory(symbol, range = "1y", interval = "1d", opts = {
       const wireHist = _wireSym(symbol);
       const res = await fetchJsonWithTimeout(
         `/api/history?symbol=${encodeURIComponent(wireHist)}&range=${range}&interval=${interval}${customQs}`,
-        { signal: sig }
+        { signal: sig, errorBody: true }
       );
       if (sig?.aborted) {
         const err = new Error("aborted"); err.name = "AbortError"; throw err;
@@ -500,10 +501,15 @@ export async function getHistory(symbol, range = "1y", interval = "1d", opts = {
       if (res?.ok && Array.isArray(res.ohlc) && res.ohlc.length) {
         h = { ohlc: res.ohlc, source: "yahoo", host: res.host };
       }
+      // Our server answered, it just has no Yahoo data for this symbol
+      // (e.g. {"ok":false,"error":"yahoo_unreachable"} for RNFI). The
+      // browser-side Yahoo + public-proxy chain below would ask the same
+      // source again, 7 s a hop, before the NSE closes could show.
+      if (!h && res && typeof res === "object") serverAnswered = true;
     } catch (e) {
       if (e?.name === "AbortError") throw e;
     }
-    if (!h) {
+    if (!h && !serverAnswered) {
       h = await fetchYahooHistory(symbol, range, interval, { signal: sig }).catch((e) => {
         if (e?.name === "AbortError") throw e;
         return null;
@@ -513,9 +519,33 @@ export async function getHistory(symbol, range = "1y", interval = "1d", opts = {
       }
     }
   }
-  if (!h) h = synthHistory(symbol);
+  // Never the synthetic walk (D2: /stocks/RNFI drew a Rs 4-5k year ending at
+  // the real Rs 303). Last resort is the exchange's own daily closes, which
+  // the page labels as such; with none, an empty series ("chart not
+  // available") rather than an invented one.
+  if (!h) h = await eodHistory(symbol);
   _historyCache.set(key, { data: h, ts: Date.now() });
   return h;
+}
+
+// The last ~2 weeks of NSE end-of-day bars from nse_eod_prices (public).
+// Daily bars stamped 15:30 IST.
+async function eodHistory(symbol) {
+  try {
+    const { sb } = await import("../db/supabase.js");
+    const client = await sb();
+    if (!client) return { ohlc: [], source: "none" };
+    const { data, error } = await client.from("nse_eod_prices")
+      .select("trade_date,open_paise,high_paise,low_paise,close_paise,volume")
+      .eq("symbol", symbol).order("trade_date", { ascending: true }).limit(60);
+    if (error || !data?.length) return { ohlc: [], source: "none" };
+    const ohlc = data.filter(r => r.close_paise > 0).map(r => ({
+      t: new Date(`${r.trade_date}T15:30:00+05:30`).getTime(),
+      o: r.open_paise || r.close_paise, h: r.high_paise || r.close_paise,
+      l: r.low_paise || r.close_paise, c: r.close_paise, v: r.volume || 0,
+    }));
+    return ohlc.length ? { ohlc, source: "nse_eod" } : { ohlc: [], source: "none" };
+  } catch { return { ohlc: [], source: "none" }; }
 }
 
 // ---------- MF NAV history (mfapi.in via /api/mf-history) ------------------
@@ -871,12 +901,15 @@ function fetchJsonWithTimeout(url, options = {}) {
     // Build a fetch-safe options bag: drop our `signal` key so we control it.
     const fetchOpts = { ...options };
     delete fetchOpts.signal;
+    delete fetchOpts.errorBody;
     fetch(url, { ...fetchOpts, signal: ctrl.signal, cache: "no-store" })
       .then(r => {
         clearTimeout(t);
         if (external) external.removeEventListener("abort", onExternalAbort);
         if (externalAborted) return;
-        if (!r.ok) { resolve(null); return; }
+        // errorBody: callers that need to tell "server said no" from
+        // "server unreachable" get the JSON body of a non-2xx reply too.
+        if (!r.ok) { return options.errorBody ? r.json().catch(() => null) : null; }
         return r.json();
       })
       .then(j => { if (!externalAborted) resolve(j || null); })

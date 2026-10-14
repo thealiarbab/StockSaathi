@@ -3,7 +3,8 @@
 // =============================================================================
 
 import { STOCKS, MUTUAL_FUNDS, SECTORS, INSTRUMENTS, getAllInstruments, getAllSectors, getInstrument, ensureUniverseLoaded, ensureMfUniverseLoaded, getMfCategoryBuckets, getCanonicalCategory, getCanonicalCategoryCounts } from "../data/universe.js";
-import { getTodayChange, getCloses, marketStatus, get52wRange } from "../data/prices.js";
+import { getTodayChange, marketStatus } from "../data/prices.js";
+import { get52wReal, request52w, on52wLoaded } from "../data/range52w.js";
 import { getQuoteBatch, getDataSource, subscribeToQuotes, getCachedQuotes, getFreshCachedQuotes, getIntradaySparkline } from "../data/marketData.js";
 import { sparkline } from "../components/charts.js";
 import { formatRupees, formatPct, deltaClass } from "../money.js";
@@ -701,7 +702,7 @@ export function renderStocks(main) {
       }
       const sparkEl = card.querySelector(".stock-sparkline");
       if (sparkEl) {
-        const seededCloses = getCloses(sym, SPARKLINE_SEED_LENGTH);
+        const seededCloses = [] /* real ticks only (D7) */;
         const closes = getIntradaySparkline(sym, seededCloses);
         if (closes && closes.length > 1) {
           // Fingerprint-guarded write: cheap length+last-value check skips
@@ -748,7 +749,7 @@ export function renderStocks(main) {
       if (!card) continue;
       const inst = getInstrument(sym);
       if (!inst) continue;
-      const seededCloses = getCloses(sym, SPARKLINE_SEED_LENGTH);
+      const seededCloses = [] /* real ticks only (D7) */;
       const closes = getIntradaySparkline(sym, seededCloses);
       const quote = quoteCache[sym];
       const hasLive = quote?.pricePaise != null;
@@ -1304,7 +1305,7 @@ export function renderStocks(main) {
               if (inst.kind !== KIND_MF && _q?.pricePaise == null) {
                 continue;
               }
-              const seededCloses = getCloses(sym, SPARKLINE_SEED_LENGTH);
+              const seededCloses = [] /* real ticks only (D7) */;
               const closes = getIntradaySparkline(sym, seededCloses);
               const quote = _q;
               const hasLive = quote?.pricePaise != null;
@@ -1907,7 +1908,7 @@ async function fetchMarketMood() {
 function changeFor(sym, quoteCache) {
   const q = quoteCache?.[sym];
   if (q && Number.isFinite(q.changePct)) return q.changePct;
-  return getTodayChange(sym);
+  return getTodayChange(sym) ?? 0;   // unknown sorts as flat
 }
 
 // Former company name or ticker -> current NSE symbol(s), for the Markets
@@ -2076,7 +2077,7 @@ function renderStockCard(inst, state, wlSet) {
   // overlays once subscribeToQuotes lands a tick. Drops the previous
   // `inst.price != null` gate that left ALL Tier-2 cards with empty
   // sparklines forever (the gate was a vestige of the hand-typed era).
-  const seededCloses = getCloses(inst.symbol, SPARKLINE_SEED_LENGTH);
+  const seededCloses = [] /* real ticks only (D7) */;
   const closes = getIntradaySparkline(inst.symbol, seededCloses);
   const quote = quoteCache[inst.symbol];
   const hasLive = quote?.pricePaise != null;
@@ -2179,7 +2180,7 @@ function renderStockCardBody(inst, state, wlSet, opts = null) {
   if (opts) {
     ({ closes, hasLive, price, change, isWatched, liveBadge } = opts);
   } else {
-    const seededCloses = getCloses(inst.symbol, SPARKLINE_SEED_LENGTH);
+    const seededCloses = [] /* real ticks only (D7) */;
     closes = getIntradaySparkline(inst.symbol, seededCloses);
     const quote = (typeof window !== "undefined" && window.__ssQuoteCache) ? window.__ssQuoteCache[inst.symbol] : null;
     hasLive = quote?.pricePaise != null;
@@ -2284,26 +2285,33 @@ function _compactRupees(rupees) {
   return "₹" + Math.round(rupees);
 }
 
-// 52W performance bar — "L ──●── H" with current price as a marker.
-// Returns "" when range or price are unavailable. Pass currentPaise
-// from the price var (paise); range is rupees from get52wRange.
-function _render52wBar(currentPaise) {
-  let r = null;
-  try { r = get52wRange(arguments[1] || "") || null; } catch {}
-  if (!r || !Number.isFinite(r.hi) || !Number.isFinite(r.lo) || r.hi <= r.lo || currentPaise == null) {
-    return `<div class="tile-52w tile-52w-empty"><span class="dim">—</span></div>`;
-  }
-  const cur = currentPaise / 100;
+// 52W performance bar — "L ──●── H" with the current price as a marker.
+// Real range only (fundamentals_cache via range52w.js, rupees); price in
+// paise. Until the range has loaded, or when there is none, a dash.
+const _EMPTY_52W = `<div class="tile-52w tile-52w-empty"><span class="dim">—</span></div>`;
+function _bar52Html(symbol, pricePaise) {
+  const r = get52wReal(symbol);
+  if (r === undefined) { request52w([symbol]); return _EMPTY_52W; }
+  if (!r || pricePaise == null || !Number.isFinite(pricePaise)) return _EMPTY_52W;
+  const cur = pricePaise / 100;
   const clamped = Math.max(r.lo, Math.min(r.hi, cur));
   const pct = ((clamped - r.lo) / (r.hi - r.lo)) * 100;
-  return `
-    <div class="tile-52w" title="52W range ₹${r.lo.toFixed(2)} – ₹${r.hi.toFixed(2)} · now ₹${cur.toFixed(2)}">
-      <span class="tile-52w-end">L</span>
-      <div class="tile-52w-track"><div class="tile-52w-marker" style="left: ${pct.toFixed(1)}%"></div></div>
-      <span class="tile-52w-end">H</span>
-    </div>
-  `;
+  return `<div class="tile-52w" title="52W range ${_compactRupees(r.lo)} – ${_compactRupees(r.hi)} · now ${_compactRupees(cur)}">
+        <span class="tile-52w-end">L</span>
+        <div class="tile-52w-track"><div class="tile-52w-marker" style="left: ${pct.toFixed(1)}%"></div></div>
+        <span class="tile-52w-end">H</span>
+      </div>`;
 }
+
+// When a batch of ranges lands, redraw just those tiles' bars.
+on52wLoaded((symbols) => {
+  for (const sym of symbols) {
+    const cell = document.querySelector(`.stock-card[data-sym="${CSS.escape(sym)}"] .tile-52w`);
+    if (!cell) continue;
+    const px = quoteCache?.[sym]?.pricePaise;
+    cell.outerHTML = _bar52Html(sym, Number.isFinite(px) ? px : null);
+  }
+});
 
 function renderStubTile(inst) {
   return `<div class="stock-card stock-card-stub stock-tile" data-sym="${inst.symbol}" data-stub="1" role="button" tabindex="0" aria-label="${escapeAttr(inst.name)}">
@@ -2338,7 +2346,7 @@ function renderStockTileBody(inst, state, wlSet, opts = null) {
     ({ closes, hasLive, price, change, isWatched, liveBadge } = opts);
     quote = (typeof window !== "undefined" && window.__ssQuoteCache) ? window.__ssQuoteCache[inst.symbol] : null;
   } else {
-    const seededCloses = getCloses(inst.symbol, SPARKLINE_SEED_LENGTH);
+    const seededCloses = [] /* real ticks only (D7) */;
     closes = getIntradaySparkline(inst.symbol, seededCloses);
     quote = (typeof window !== "undefined" && window.__ssQuoteCache) ? window.__ssQuoteCache[inst.symbol] : null;
     hasLive = quote?.pricePaise != null;
@@ -2373,25 +2381,8 @@ function renderStockTileBody(inst, state, wlSet, opts = null) {
   }
   // Volume — from quote when present.
   const volStr = quote && Number.isFinite(quote.volume) ? _compactVol(quote.volume) : "—";
-  // 52W bar — uses prices.js seeded series. Best-effort; non-blocking.
-  let bar52 = "";
-  try {
-    const r = get52wRange(inst.symbol);
-    if (r && Number.isFinite(r.hi) && Number.isFinite(r.lo) && r.hi > r.lo && price != null) {
-      const cur = price / 100;
-      const clamped = Math.max(r.lo, Math.min(r.hi, cur));
-      const pct = ((clamped - r.lo) / (r.hi - r.lo)) * 100;
-      bar52 = `<div class="tile-52w" title="52W range ${_compactRupees(r.lo)} – ${_compactRupees(r.hi)} · now ${_compactRupees(cur)}">
-        <span class="tile-52w-end">L</span>
-        <div class="tile-52w-track"><div class="tile-52w-marker" style="left: ${pct.toFixed(1)}%"></div></div>
-        <span class="tile-52w-end">H</span>
-      </div>`;
-    } else {
-      bar52 = `<div class="tile-52w tile-52w-empty"><span class="dim">—</span></div>`;
-    }
-  } catch {
-    bar52 = `<div class="tile-52w tile-52w-empty"><span class="dim">—</span></div>`;
-  }
+  // 52W bar — real range from fundamentals_cache (D1).
+  const bar52 = _bar52Html(inst.symbol, price);
   const changeFpAttr = opts?.changeFp ? ` data-change-fp="${escapeAttr(opts.changeFp)}"` : "";
   return `
     <div class="tile-head">
