@@ -1894,6 +1894,12 @@
     <priority>0.5</priority>
   </url>
   <url>
+    <loc>https://stocksaathi.co.in/stocks/PNB</loc>
+    <lastmod>2026-10-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
     <loc>https://stocksaathi.co.in/stocks/PVRINOX</loc>
     <lastmod>2026-10-14</lastmod>
     <changefreq>monthly</changefreq>
@@ -2495,6 +2501,12 @@
   </url>
   <url>
     <loc>https://stocksaathi.co.in/stocks/WOCKPHARMA</loc>
+    <lastmod>2026-10-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://stocksaathi.co.in/stocks/YESBANK</loc>
     <lastmod>2026-10-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
