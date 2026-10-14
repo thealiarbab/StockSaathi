@@ -35,6 +35,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Remember the last good run
+        run: cp scripts/dip-quality.json /tmp/dip-quality.prev.json
+
       - name: Build dip statistics
         run: python3 scripts/build_dip_stats.py
 
@@ -43,13 +46,21 @@ jobs:
           python3 - <<'PY'
           import json, sys
           q = json.load(open("scripts/dip-quality.json"))
+          prev = json.load(open("/tmp/dip-quality.prev.json"))
           ok = q["counts"].get("ok", 0)
+          was = prev["counts"].get("ok", 0)
+          print("quality gate counts:", q["counts"], "| previous ok:", was)
           # 1,727 passed on 2026-10-01. A collapse means Yahoo throttled or
           # failed the runner, not that a thousand stocks broke at once.
           if ok < 1200:
               print(f"::error::only {ok} stocks passed the quality gate; refusing to commit")
               sys.exit(1)
-          print("quality gate counts:", q["counts"])
+          # E3: a throttled run could quietly take hundreds of pages out of
+          # the sitemap in one commit. More than 5% fewer than last time
+          # stops here; the last good data stays live until a clean run.
+          if was and ok < was * 0.95:
+              print(f"::error::{ok} stocks passed, {was} last time (more than 5% fewer); refusing to commit")
+              sys.exit(1)
           PY
 
       - name: Regenerate pre-rendered pages

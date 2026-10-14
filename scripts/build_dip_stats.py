@@ -63,6 +63,17 @@ FRESH_DAYS = 14
 MAX_FLAT = 0.25
 MAX_ZERO_VOL = 0.20
 MAX_JUMP = 0.45
+# E2: one-day moves beyond MAX_JUMP that really happened. The jump gate is
+# right about nearly everything it catches (split days, a Diwali muhurat
+# glitch, a relisting, the VEDL demerger), so real moves are listed, each
+# checked against what the market did that day, rather than the gate
+# loosened.
+VERIFIED_MOVES = {
+    ("YESBANK", "2020-03-06"),   # RBI moratorium: -56%
+    ("YESBANK", "2020-03-16"),   # SBI-led rescue: +45%
+    ("YESBANK", "2020-03-17"),   # rescue rally: +58%
+    ("PNB", "2017-10-25"),       # government recapitalisation of PSU banks: +46%
+}
 MIN_RECOVERED = 3
 WORKERS = 6
 
@@ -146,7 +157,7 @@ def stats(rows):
     return out, now
 
 
-def quality(rows):
+def quality(rows, sym=""):
     """None if the series is usable, else the first reason it is not."""
     if len(rows) < MIN_CLOSES:
         return "short_history"
@@ -160,9 +171,9 @@ def quality(rows):
         return "frozen"
     if sum(1 for _, _, v in year if not v) / len(year) >= MAX_ZERO_VOL:
         return "illiquid"
-    allc = [c for _, c, _ in rows]
-    if any(abs(b / a - 1) > MAX_JUMP for a, b in zip(allc, allc[1:]) if a):
-        return "bad_jump"
+    for (_, a, _), (day, b, _) in zip(rows, rows[1:]):
+        if a and abs(b / a - 1) > MAX_JUMP and (sym, day) not in VERIFIED_MOVES:
+            return "bad_jump"
     return None
 
 
@@ -179,7 +190,7 @@ def main():
     with cf.ThreadPoolExecutor(WORKERS) as pool:
         for n, (r, rows) in enumerate(pool.map(work, equities), 1):
             sym = r["symbol"]
-            why = "no_data" if not rows else quality(rows)
+            why = "no_data" if not rows else quality(rows, sym)
             if not why:
                 data[sym], now[sym] = stats(rows)
                 since[sym] = rows[0][0]
