@@ -195,13 +195,11 @@ def create_app(title: str = "StockSaathi API") -> FastAPI:
     async def _dispatch(request: Request) -> Response:
         stem, diag = resolve_stem(request)
         if stem is None:
-            # Deliberately verbose: this is the one failure mode that cannot be
-            # reasoned about ahead of a real deployment.
-            return JSONResponse(
-                status_code=404,
-                content={"ok": False, "error": "no_route", "saw": diag,
-                         "known": sorted(set(ROUTES.values()))},
-            )
+            # The diagnosis goes to the function log (Vercel runtime logs), not
+            # the reply: the reply used to list every route, the admin ones
+            # included, to anyone who asked for /api/x (S2).
+            print("[shim] no_route", diag, flush=True)
+            return JSONResponse(status_code=404, content={"ok": False, "error": "no_route"})
 
         handler_cls = _load(stem).handler
         body = await request.body()

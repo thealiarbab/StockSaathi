@@ -5,7 +5,7 @@
 // Bump this on every deploy so old cached JS/HTML isn't served forever. The
 // activate step below deletes any cache whose name doesn't match. Include a
 // date so it is obvious in DevTools which build is live.
-const CACHE_NAME = "stocksaathi-v331-20261014o";
+const CACHE_NAME = "stocksaathi-v332-20261014p";
 const STATIC = [
   "./",
   "./app-shell",
@@ -95,6 +95,21 @@ const STATIC = [
   "./js/pages/grievance.js",
 ];
 
+// Pages visited (navigations) live in their own cache, capped (S3): every
+// stock page ever opened used to stay in the main cache for good, ~2,000
+// of them available, with no limit. Deleted with the build like the rest.
+const PAGES_CACHE = CACHE_NAME + "-pages";
+const MAX_PAGES = 50;
+async function putPage(request, response) {
+  try {
+    const cache = await caches.open(PAGES_CACHE);
+    await cache.delete(request);          // re-put = most recent (keys keep insertion order)
+    await cache.put(request, response);
+    const keys = await cache.keys();
+    for (let i = 0; i < keys.length - MAX_PAGES; i++) await cache.delete(keys[i]);
+  } catch {}
+}
+
 self.addEventListener("install", (event) => {
   // Use cache.add per-entry inside allSettled so a single 404 (e.g. a path
   // that was renamed since the last deploy) doesn't reject the whole install
@@ -115,7 +130,7 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+      Promise.all(keys.filter(k => k !== CACHE_NAME && k !== PAGES_CACHE).map(k => caches.delete(k)))
     ).then(() => self.clients.claim())
   );
 });
@@ -162,10 +177,7 @@ self.addEventListener("fetch", (event) => {
   if (isHTML) {
     event.respondWith(
       fetch(event.request).then(res => {
-        if (res.ok) {
-          const clone = res.clone();
-          caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
-        }
+        if (res.ok) event.waitUntil(putPage(event.request, res.clone()));
         return res;
       }).catch(() => caches.match(event.request)
         .then(c => c || caches.match("./app-shell"))      // offline deep link: SPA shell renders the route

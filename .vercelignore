@@ -23,6 +23,9 @@ _headers
 # and took the app's Supabase modules off the deployment.
 /docs/
 *.md
+# Dotfiles at the root were served as-is (S2: /.gitignore was public).
+/.gitignore
+/.vercelignore
 /db/
 /scripts/
 /partials/
