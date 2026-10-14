@@ -124,14 +124,18 @@ def stats(rows):
     """Per bucket [median, recovered, fastest, slowest, openDays] plus a NOW row.
 
     median/fastest/slowest are null when no dip of that size ever recovered.
-    openDays = trading days since the still-open dip began (0 if none).
+    openDays = trading days the still-open dip has lasted, counting the day it
+    began (so 1 if it began on the last close), or 0 if there is none. It was
+    "days since it began", which is 0 for a fall that began on the last close:
+    the same value as "none", so that fall vanished (D4: five indexable pages
+    read "20% falls: all recovered" beside an open fall).
     NOW = [highest close, its date, last close, last date, date the open 10% dip began or ""].
     """
     closes = [c for _, c, _ in rows]
     out, open10 = {}, ""
     for pct in BUCKETS:
         done, start = dips(closes, pct)
-        open_days = len(closes) - 1 - start if start is not None else 0
+        open_days = len(closes) - start if start is not None else 0
         if pct == 10 and start is not None:
             open10 = rows[start][0]
         if done or start is not None:

@@ -40,6 +40,11 @@ export function buildAnalogContext(symbol, pricePaise) {
   if (drawdown > -0.05) return null;                 // not meaningfully down
   const stat = lookupDip(symbol, drawdown * 100);
   if (!stat) return null;
+  // The record is rebuilt weekly. If it has no open fall this deep but the
+  // live price is already this far below the recorded peak, today's fall
+  // began after the record was made and is in none of its counts. Without
+  // this the pause said "climbed back 4 of 4" in the middle of a fifth (D5).
+  const liveFall = stat.source === "symbol" && !stat.openDays;
   return {
     symbol,
     instrument: inst,
@@ -47,8 +52,9 @@ export function buildAnalogContext(symbol, pricePaise) {
     bucket: stat.bucket,
     recoveryDays: stat.recoveryDays,
     sampleSize: stat.sampleSize,
-    falls: stat.falls,
+    falls: stat.falls + (liveFall ? 1 : 0),
     openDays: stat.openDays,
+    liveFall,
     minRecoveryDays: stat.minRecoveryDays,
     maxRecoveryDays: stat.maxRecoveryDays,
     source: stat.source,
@@ -65,7 +71,7 @@ export function buildAnalogContext(symbol, pricePaise) {
  */
 export function formatAnalog(analog) {
   if (!analog) return null;
-  const { instrument, bucket, recoveryDays, sampleSize, falls, openDays, source, maxRecoveryDays, sinceYear } = analog;
+  const { instrument, bucket, recoveryDays, sampleSize, falls, openDays, source, maxRecoveryDays, sinceYear, liveFall } = analog;
   const label = source === "nifty" ? "the Nifty 50 index" : instrument.name;
   const since = sinceYear ? ` since ${sinceYear}` : "";
   const intro = source === "nifty"
@@ -76,7 +82,8 @@ export function formatAnalog(analog) {
     ? ` and climbed back ${sampleSize} of those times (median ${recoveryDays} trading days, slowest ${maxRecoveryDays})`
     : `, and has not yet climbed back from any of them`;
   const open = openDays && sampleSize
-    ? `. The latest fall has not recovered after ${openDays} trading days`
-    : openDays ? ` (the current one is ${openDays} trading days old)` : "";
+    ? `. The latest fall has not recovered after ${openDays} trading day${openDays === 1 ? "" : "s"}`
+    : openDays ? ` (the current one is ${openDays} trading day${openDays === 1 ? "" : "s"} old)`
+    : liveFall ? `. The current fall is one of them, and it is still going` : "";
   return `${intro}${fell}${back}${open}.`;
 }

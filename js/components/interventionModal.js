@@ -156,16 +156,21 @@ function fmtDay(iso) {
 function analogBlock(a, instName) {
   const n = (v) => escapeHtml(String(v));
   const who = a.source === "nifty" ? "the Nifty 50 index" : instName;
+  // "since <year>": the record starts in 2011 (or at listing), so the peak
+  // is the highest close since then, not ever (D6: SUZLON read 53.4% below
+  // its highest close; it is 90.5% below its 2008 high).
   const where = a.source === "symbol" && a.peak
-    ? `<p>${instName} is <strong>${n(a.drawdownPct)}% below its highest close</strong>
+    ? `<p>${instName} is <strong>${n(a.drawdownPct)}% below its highest close${a.sinceYear ? ` since ${n(a.sinceYear)}` : ""}</strong>
          (₹${n(Number(a.peak).toLocaleString("en-IN"))} on ${n(fmtDay(a.peakDate))}).</p>`
     : `<p>We don't have reliable long-term prices for ${instName}. For reference, here is ${who}.</p>`;
   const back = a.sampleSize
     ? `It climbed back ${n(a.sampleSize)} of those times: median <strong>${n(a.recoveryDays)} trading days</strong>, slowest ${n(a.maxRecoveryDays)}.`
     : `It has not climbed back from any of them yet.`;
   const open = a.openDays
-    ? ` The current fall has lasted ${n(a.openDays)} trading days so far${a.asOf ? ` (to ${n(fmtDay(a.asOf))})` : ""}.`
-    : "";
+    ? ` The current fall has lasted ${n(a.openDays)} trading day${a.openDays === 1 ? "" : "s"} so far${a.asOf ? ` (to ${n(fmtDay(a.asOf))})` : ""}.`
+    : a.liveFall
+      ? ` That count includes this fall, which began${a.asOf ? ` after ${n(fmtDay(a.asOf))}` : " recently"} and has not recovered.`
+      : "";
   return `
             ${where}
             <div class="intervention-data">
