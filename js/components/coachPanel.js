@@ -11,7 +11,7 @@ import { getNews } from "../data/news.js";
 import { formatRupees, formatPct } from "../money.js";
 import { SYSTEM_PROMPT, matchTemplate, isOffTopic, offTopicRedirect, STARTER_QUESTIONS, runtimeFacts, NO_TOOLS_NOTE } from "../coach/persona.js";
 import { marketStatus } from "../data/prices.js";
-import { runAgent, streamChat, needsLiveData, logChatTurn, isToolCallOnly, looksLikeLookupOffer, looksLikeFetchPromise, looksLikePricelessList, scrubAdvice, looksHinglish, replyLanguageMismatch } from "../coach/agent.js";
+import { runAgent, streamChat, needsLiveData, logChatTurn, isToolCallOnly, looksLikeLookupOffer, looksLikeFetchPromise, looksLikePricelessList, scrubAdvice, looksHinglish, replyLanguageMismatch, prefetchNewsBlock, unsourcedFigures, figureSources, dropFigureSentences } from "../coach/agent.js";
 import { getFreshCachedQuote } from "../data/marketData.js";
 import { buildDossier } from "../coach/dossier.js";
 
@@ -130,6 +130,11 @@ function turnLanguage(userText) {
     : "";
 }
 
+const FIGURE_RETRY_NOTE = `
+
+# THIS TURN
+Your earlier draft stated prices, moves or events that were not looked up. Call the tool for every figure you give (get_stock_price for a price or today's move, get_market_news for news), or leave the figure out.`;
+
 const LANG_RETRY_NOTE = "\n\n# THIS TURN\nYour last draft was in English. The user wrote in Hinglish: answer again in Hinglish (Roman script).";
 
 // Same last step as /chat: one bounded language retry, then remove any
@@ -159,7 +164,9 @@ async function callLlmAgent(apiKey, history, state, extraSystem = "") {
   const newsContext = newsSnap.slice(0, 5).map(n => `- ${n.headline} (${n.source}) [${n.sentiment}]`).join("\n");
   const screen = currentScreen();
   const lastUser = [...history].reverse().find((m) => m.role === "user")?.text || "";
-  const system = `${SAATHI_SYSTEM}\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# RUNTIME CONTEXT\n${screen ? screen + "\n" : ""}## Latest market headlines\n${newsContext || "(none loaded)"}\n\n# TONE\nKeep replies short by default (1–3 sentences). Go longer only when asked for depth.` + turnLanguage(lastUser) + extraSystem;
+  // News-shaped question: fresh headlines fetched by the app (C5).
+  const newsBlock = await prefetchNewsBlock(lastUser);
+  const system = `${SAATHI_SYSTEM}\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# RUNTIME CONTEXT\n${screen ? screen + "\n" : ""}## Latest market headlines\n${newsContext || "(none loaded)"}\n\n# TONE\nKeep replies short by default (1–3 sentences). Go longer only when asked for depth.` + newsBlock + turnLanguage(lastUser) + extraSystem;
 
   const messages = history.slice(-12).map(m => ({
     role: m.role === "user" ? "user" : "assistant",
@@ -411,6 +418,7 @@ function render() {
         });
       } catch (e) { console.warn("coach stream error:", e); }
       const entry = chatHistory[placeholderIdx];
+      let fromStream = true;   // see the figure check below
       if (entry) {
         entry.streaming = false;
         // Reconcile against the fully-cleaned text. Tokens are painted as
@@ -435,7 +443,7 @@ function render() {
           // instruments with no prices, which the offer detector cannot see
           // because it caps at 400 chars. See coach/agent.js.
           const retry = await callLlmAgent(s.settings.llmApiKey || null, chatHistory, s).catch(() => null);
-          if (retry && retry.trim()) entry.text = retry.trim();
+          if (retry && retry.trim()) { entry.text = retry.trim(); fromStream = false; }
         } else if (!entry.text.trim() && isToolCallOnly(result?.raw)) {
           // The model answered with nothing but a tool call — it decided it
           // needed live data on the path that has no tools wired. It was
@@ -445,10 +453,25 @@ function render() {
           entry.text = (retry && retry.trim())
             ? retry
             : "Let me pull that up — ask me once more?";
+          fromStream = false;
         } else if (!entry.text.trim()) {
           entry.text = result?.text && result.text.trim()
             ? result.text
             : "Hmm, I went quiet there. Ask me once more?";
+        }
+        // C6: no tools on this path, so a price, "% today" or $/₹ event
+        // figure here was made up. Redo the turn on the tool path; failing
+        // that, drop those sentences.
+        if (fromStream && !result?.aborted && entry.text && !entry.text.startsWith("Hmm")) {
+          const figs = unsourcedFigures(entry.text, figureSources(system, messages));
+          if (figs.length) {
+            const redo = await Promise.race([
+              callLlmAgent(s.settings.llmApiKey || null, chatHistory.filter((m) => m !== entry), s, FIGURE_RETRY_NOTE).catch(() => null),
+              new Promise((r) => setTimeout(() => r(null), 12_000)),
+            ]);
+            if (redo && redo.trim()) entry.text = redo.trim();
+            else entry.text = dropFigureSentences(entry.text, figs) || entry.text;
+          }
         }
         if (!result?.aborted && entry.text && !entry.text.startsWith("Hmm")) {
           entry.text = await finishPanelReply(entry.text, text,

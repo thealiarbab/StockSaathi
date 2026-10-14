@@ -12,6 +12,7 @@ import { getQuote, getQuoteBatch, getFundamentals } from "../data/marketData.js"
 import { listPendingOrders, listAllOrders } from "../features/limitOrders.js";
 import { getNews } from "../data/news.js";
 import { getState, getPortfolioValue } from "../state.js";
+import { SYSTEM_PROMPT, NO_TOOLS_NOTE } from "./persona.js";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const BACKEND_URL = "/api/chat";
@@ -832,6 +833,8 @@ export async function runAgent({ apiKey, system, messages, onStep, profile = "fa
   // the results in hand and is only writing the answer, so it needs no
   // thinking budget — see the note in callLLM.
   let lastTurnRanTools = false;
+  // One "look it up or leave it out" pass per reply (see unsourcedFigures).
+  let figureNudged = false;
 
   while (loops < MAX_TOOL_LOOPS) {
     loops++;
@@ -915,6 +918,22 @@ export async function runAgent({ apiKey, system, messages, onStep, profile = "fa
     let text = stripToolCallScaffolding(String(msg.content || "")).trim();
     // Hit the output ceiling? Never show a sentence that stops mid-word.
     if (choice.finish_reason === "length") text = trimToSentence(text);
+    // A price, a "% today" or a $/₹ event figure that no tool returned
+    // and nobody said: send the draft back once to be looked up, and drop
+    // what still is not backed after that.
+    const bad = text ? unsourcedFigures(text, figureSources(system, conv)) : [];
+    if (bad.length) {
+      if (!figureNudged && loops < MAX_TOOL_LOOPS - 1) {
+        figureNudged = true;
+        onStep?.({ stepIndex: loops, action: "figure_check", figures: bad });
+        conv.push({ role: "assistant", content: text });
+        conv.push({ role: "user", content: FIGURE_NUDGE(bad) });
+        lastTurnRanTools = false;
+        continue;
+      }
+      const trimmed = dropFigureSentences(text, bad);
+      if (trimmed) text = trimmed;
+    }
     return text || null;
   }
 
@@ -1201,6 +1220,14 @@ const SELF_DATA_RE = new RegExp([
 // Route to the tool path so the runtime market-status block is in scope.
 const MARKET_STATUS_RE = /\b(market|nse|bse|exchange|trading)\b.*\b(open|close|closed|closing|band|khula|khulega|chalu|hours|timing|today|aaj|holiday|chuti|chhutti)\b|\b(band|khula|khulega)\b.*\b(market|nse|bse)\b/i;
 
+// News-shaped questions (C5). "news" alone already reached the tool path,
+// and the model still answered from memory without calling get_market_news:
+// "What is the latest news regarding oil prices and iran us war?" (6 Oct)
+// came back with "Brent crude jumped back toward $80 a barrel last week".
+// These are routed to tools AND the app fetches the headlines itself
+// (prefetchNewsBlock) so the model never has to decide to look.
+const NEWS_RE = /\b(news|khabar|khabre|khabren|khabrein|samachar|headlines?|latest|kya hua|kya chal raha|what happened|what'?s happening|war|iran|israel|ukraine|russia|tariffs?|budget|rbi|repo rate|fed|crude|brent|election|elections)\b|\bwhy\b.*\b(up|down|fall|falling|fell|drop|dropped|dropping|rise|rising|rose|crash|crashed|crashing|rally|rallying|jump|jumped)\b|\b(kyu|kyun|kyon)\b.*\b(gir|gira|giri|gire|girna|badh|badha|badhi|chadh|chadha|upar|neeche|niche)\b/i;
+
 // Explicit market-data nouns.
 const DATA_NOUN_RE = /\b(price|prices|quote|rate|ltp|cmp|news|headline|headlines|market cap|marketcap|market capitalisation|market capitalization|p\/?e|pe ratio|p\/?b|valuation|movers|gainers|losers|top performers|52 week|52-week|day high|day low|profit|profits|revenue|earnings|eps|roe|debt|dividend|dividends|munafa|kamai|fundamentals)\b/i;
 
@@ -1255,6 +1282,7 @@ export function needsLiveData(text, history) {
   // The user's own account always needs get_user_portfolio.
   if (SELF_DATA_RE.test(t)) return true;
   if (MARKET_STATUS_RE.test(t)) return true;
+  if (NEWS_RE.test(t)) return true;
 
   // "my <anything>" in a very short message — covers typos like "my
   // orotfdilio" that no keyword list will ever match.
@@ -1389,6 +1417,172 @@ const OFFER_RE = new RegExp([
 // Raising MAX_TOKENS makes this rare; this makes it survivable. Ending one
 // sentence early reads as brevity. Ending mid-word reads as broken.
 // -----------------------------------------------------------------------------
+/** True for a news-shaped question (see NEWS_RE). */
+export function isNewsQuestion(text) {
+  return NEWS_RE.test(String(text || "").toLowerCase());
+}
+
+/**
+ * For a news-shaped question, fetch the headlines before the model is asked
+ * and return a system-prompt block carrying them, with the rule that the
+ * news part of the answer comes from these and nothing else. "" otherwise.
+ * Bounded: a slow feed costs at most `timeoutMs`, then the block says the
+ * lookup failed (which also forbids describing events from memory).
+ */
+export async function prefetchNewsBlock(text, { limit = 8, timeoutMs = 4000 } = {}) {
+  if (!isNewsQuestion(text)) return "";
+  let res = null;
+  try {
+    res = await Promise.race([
+      execGetMarketNews({ limit }),
+      new Promise((r) => setTimeout(() => r(null), timeoutMs)),
+    ]);
+  } catch { res = null; }
+  const rule = "Answer the news part ONLY from these headlines and name the source. If they do not cover what the user asked about, say so plainly. Never add events, prices, percentages or \"last week\" stories that are not in them.";
+  if (!res?.ok) {
+    return "\n\n# NEWS (looked up just now)\nThe news lookup failed this turn. Say you could not load today's headlines. Do not describe any current event, price move or recent story from memory.";
+  }
+  if (!res.headlines?.length) {
+    return "\n\n# NEWS (looked up just now)\nThe news feed returned no headlines. Say so. Do not describe any current event, price move or recent story from memory.";
+  }
+  const lines = res.headlines.map((h) => {
+    const age = Number.isFinite(h.hours_ago) ? `${h.hours_ago < 1 ? "<1" : Math.round(h.hours_ago)}h ago` : "recent";
+    return `- ${h.headline} (${h.source || "source unknown"}, ${age}${h.sentiment ? `, ${h.sentiment}` : ""})`;
+  }).join("\n");
+  return `\n\n# NEWS (fetched by the app just now with get_market_news)\n${lines}\n\n${rule}`;
+}
+
+// -----------------------------------------------------------------------------
+// Figures nobody looked up (C5/C6). The prompt has said "never invent a
+// price" for months and the model still did, on both paths. Production:
+//   "ADANIGREEN is currently at ₹1,845.20, down 0.45% today." (real ~₹1,313;
+//      no price lookup ran)
+//   "you've set HDFCBANK to buy at ₹700, but it usually trades much higher
+//      (around ₹1,600-₹1,700 lately)." (it was ₹707; only the orders tool ran)
+//   "Brent crude jumped back toward $80 a barrel last week" (no news lookup)
+// "Did any tool run?" misses the HDFC case, so this compares numbers: a
+// money figure, or a %-move with a time word, in a sentence about a stock or
+// the market must match a number the model was actually given (system
+// prompt + dossier, tool results, the conversation). Returns the offending
+// figures as written. Pure, so scripts/test-coach-guards.mjs can run it.
+// -----------------------------------------------------------------------------
+const FIG_MONEY_RE = /(?:₹|\brs\.?|\binr|\$)\s?(\d[\d,]*(?:\.\d+)?)\s*(k|l|lakhs?|lacs?|cr|crores?)?\b/gi;
+const FIG_PCT_RE = /([+-]?\d+(?:\.\d+)?)\s?%/g;
+const FIG_TIME_RE = /\b(today|today's|todays|aaj|yesterday|kal|this week|last week|is hafte|pichle hafte|this month|last month|lately|recently|right now|currently|abhi|filhaal|so far|session)\b/i;
+const FIG_MARKET_NOUN_RE = /\b(nifty|sensex|bank ?nifty|crude|brent|oil|gold|silver|bitcoin|btc|ethereum|eth|rupee|dollar|index)\b/i;
+// All-caps words that are not instruments.
+const FIG_NOT_TICKER = new Set(["SIP", "SIPS", "ETF", "ETFS", "NAV", "IPO", "IPOS", "RBI", "SEBI", "NSE", "BSE", "EMI", "GDP", "USD", "INR", "AMC", "PE", "PB", "EPS", "ROE", "ROI", "CAGR", "MF", "MFS", "FD", "FDS", "PPF", "ELSS", "LTCG", "STCG", "GST", "OK", "AI", "AMO", "AMOS", "LIMIT", "MARKET", "US", "UK", "IT", "FMCG", "PSU", "PSUS", "OMC", "OMCS", "CPI", "WPI", "YOY", "QOQ", "TTM", "EBITDA", "KYC", "UPI", "ATM", "CEO", "CFO", "NRI", "FII", "DII", "FIIS", "DIIS", "NPA", "NIM", "NOT", "AND", "THE", "BUY", "SELL", "HOLD", "NEVER", "ALWAYS", "NO", "YES", "TL", "DR", "FAQ", "PS", "NB", "IST", "AM", "PM", "LTP", "CMP", "OHLC", "DCA", "P", "E"]);
+const FIG_TICKER_RE = /\b[A-Z][A-Z0-9&-]{1,14}\b/g;
+// "It is trading at ₹4,064" after a sentence that named HAL; "closed at ₹…".
+const FIG_PRONOUN_RE = /^(?:it|its|it's|this|that|the stock|the share|the shares|shares|the company|iska|iski|iske|ye|yeh|woh|wo)\b/i;
+const FIG_PRICE_VERB_RE = /\b(trad(?:es|ing|ed) (?:at|around|near)|priced at|share price|closed at|opened at|quoting at|is at|was at)\b/i;
+// A conditional worked example, not a claim about the market. ("For example,"
+// is not one: production used it to introduce the real HDFC limit.)
+const FIG_HYPOTHETICAL_RE = /\b(if|suppose|supposing|say you|let'?s say|imagine|agar|maan lo|maano|jaise ki)\b/i;
+
+function _figValue(numStr, unit) {
+  let v = parseFloat(String(numStr).replace(/,/g, ""));
+  if (!Number.isFinite(v)) return null;
+  const u = String(unit || "").toLowerCase();
+  if (u === "k") v *= 1e3;
+  else if (u === "l" || u.startsWith("lakh") || u.startsWith("lac")) v *= 1e5;
+  else if (u === "cr" || u.startsWith("crore")) v *= 1e7;
+  return v;
+}
+
+export function unsourcedFigures(reply, sources) {
+  const text = String(reply || "");
+  if (!text.trim()) return [];
+  const known = [];
+  const src = String(sources || "");
+  for (const m of src.matchAll(/(\d[\d,]*(?:\.\d+)?)\s*(k|l|lakhs?|lacs?|cr|crores?)?\b/gi)) {
+    const plain = parseFloat(m[1].replace(/,/g, ""));
+    if (!Number.isFinite(plain)) continue;
+    known.push(plain, plain / 100, plain * 100);         // rupees, paise, fraction-as-%
+    const withUnit = _figValue(m[1], m[2]);
+    if (withUnit != null && withUnit !== plain) known.push(withUnit);
+  }
+  // Percentages are only "known" when they were given as percentages: a
+  // number written with %, or a value under a pct / percent / change key
+  // (as a fraction or in points). Any bare number would do otherwise: the
+  // prompt's "1-3 sentences" alone vouched for an invented "up 3% today".
+  const knownPct = [];
+  for (const m of src.matchAll(/([+-]?\d+(?:\.\d+)?)\s?%/g)) knownPct.push(Math.abs(+m[1]));
+  for (const m of src.matchAll(/[a-z_]*(?:pct|percent|change)[a-z_]*"?\s*[:=]\s*(-?\d+(?:\.\d+)?)/gi)) {
+    const v = Math.abs(+m[1]);
+    knownPct.push(v, v * 100);
+  }
+  const nearMoney = (v) => known.some((k) => Math.abs(k - v) <= Math.max(0.015 * Math.abs(k), 0.5));
+  // Rounding allowance follows the precision written: "0.45%" must match to
+  // ±0.005, "3%" to ±0.5.
+  const nearPct = (v, decimals) => {
+    const tol = 0.5 * 10 ** -decimals + 1e-9;
+    return knownPct.some((k) => Math.abs(k - v) <= Math.max(tol, 0.01 * k));
+  };
+  const bad = [];
+  const sentences = text.replace(/\*\*/g, "").split(/(?<=[.!?])\s+|\n+/);
+  let prevNamed = false;
+  for (const s of sentences) {
+    const tickers = (s.match(FIG_TICKER_RE) || []).filter((w) => !FIG_NOT_TICKER.has(w.replace(/[&-]/g, "")));
+    const named = tickers.length > 0 || FIG_MARKET_NOUN_RE.test(s);
+    const about = named || (prevNamed && FIG_PRONOUN_RE.test(s.trim())) || FIG_PRICE_VERB_RE.test(s);
+    prevNamed = named || (prevNamed && FIG_PRONOUN_RE.test(s.trim()));
+    if (FIG_HYPOTHETICAL_RE.test(s)) continue;
+    const timed = FIG_TIME_RE.test(s);
+    if (!about && !timed) continue;
+    // Counts in the sentence ("10 shares"), so a total worked out from a
+    // looked-up price (10 × ₹2,269.30 = ₹22,693) is not taken for an invention.
+    const counts = [...s.replace(FIG_MONEY_RE, " ").matchAll(/\b(\d{1,4})\b/g)].map((m) => +m[1]).filter((n) => n > 1);
+    for (const m of (about ? s.matchAll(FIG_MONEY_RE) : [])) {
+      const v = _figValue(m[1], m[2]);
+      if (v == null || v < 1 || nearMoney(v)) continue;
+      // "₹8,23,000 crore" against the tool's market_cap_crore_inr: 823000.
+      if (m[2] && nearMoney(parseFloat(m[1].replace(/,/g, "")))) continue;
+      if (counts.some((n) => nearMoney(v / n))) continue;
+      bad.push(m[0].trim());
+    }
+    // A %-move with a time word ("down 1.45% during today's session") is a
+    // claim about the market even when the sentence only says "This".
+    if (timed) {
+      for (const m of s.matchAll(FIG_PCT_RE)) {
+        const v = Math.abs(parseFloat(m[1]));
+        const decimals = (m[1].split(".")[1] || "").length;
+        if (Number.isFinite(v) && v > 0 && !nearPct(v, decimals)) bad.push(m[0].trim());
+      }
+    }
+  }
+  return [...new Set(bad)].slice(0, 6);
+}
+
+/** Remove every sentence that contains one of `figures`; keeps the rest. */
+export function dropFigureSentences(text, figures) {
+  if (!figures?.length) return text;
+  const hit = (p) => figures.some((f) => p.replace(/\*\*/g, "").includes(f));
+  return String(text || "").split("\n").map((line) => {
+    if (!hit(line)) return line;
+    return line.split(/(?<=[.!?।])\s+/).filter((p) => !hit(p)).join(" ");
+  }).join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+/**
+ * Everything the model was given this turn, as one string for
+ * unsourcedFigures. The fixed persona and no-tools note are cut out: their
+ * numbers are teaching examples, not facts ("pays 2.5% annual interest"
+ * would otherwise vouch for an invented "up 3% today").
+ */
+export function figureSources(system, messages) {
+  let sys = String(system || "");
+  for (const fixed of [SYSTEM_PROMPT, NO_TOOLS_NOTE]) if (fixed) sys = sys.split(fixed).join("\n");
+  const parts = [sys];
+  for (const m of messages || []) {
+    const c = m?.content ?? m?.text;
+    parts.push(typeof c === "string" ? c : JSON.stringify(c ?? ""));
+  }
+  return parts.join("\n");
+}
+
+const FIGURE_NUDGE = (figs) => `[check] Your draft states ${figs.join(", ")}, and nothing you were given this turn contains ${figs.length > 1 ? "those figures" : "that figure"}. Call the tool that gives it (get_stock_price for a price or today's move, get_market_news for news and events), then write your whole answer again. Leave out any figure you cannot look up. Do not mention this check.`;
+
 export function trimToSentence(text) {
   const s = String(text || "").trim();
   if (!s) return s;

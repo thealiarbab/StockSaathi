@@ -8,7 +8,7 @@ import { getState } from "../state.js";
 import { getInstrument } from "../data/universe.js";
 import { SYSTEM_PROMPT, matchTemplate, isOffTopic, offTopicRedirect, STARTER_QUESTIONS, runtimeFacts, NO_TOOLS_NOTE } from "../coach/persona.js";
 import { marketStatus } from "../data/prices.js";
-import { runAgent, streamChat, needsLiveData, logChatTurn, stripToolCallScaffolding, isToolCallOnly, looksLikeLookupOffer, looksLikeFetchPromise, looksLikePricelessList, isDiscoveryQuery, scrubAdvice, looksHinglish, replyLanguageMismatch } from "../coach/agent.js";
+import { runAgent, streamChat, needsLiveData, logChatTurn, stripToolCallScaffolding, isToolCallOnly, looksLikeLookupOffer, looksLikeFetchPromise, looksLikePricelessList, isDiscoveryQuery, scrubAdvice, looksHinglish, replyLanguageMismatch, prefetchNewsBlock, unsourcedFigures, figureSources, dropFigureSentences } from "../coach/agent.js";
 import { buildDossier } from "../coach/dossier.js";
 import {
   loadSessions, saveSessions, getActiveSession, setActiveSession,
@@ -719,7 +719,11 @@ The user wrote in Hinglish (Hindi in Roman script). Reply in Hinglish, the way t
 # THIS TURN
 This is a discovery question. Search for the instruments AND call get_stock_price for every symbol you plan to name - in parallel, in ONE turn - then reply with the names and their prices together. A list of names with no prices is not an acceptable answer, and do not ask whether the user wants the prices.`
       : "";
-    const system = `${SYSTEM_PROMPT}\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# TOOL USE\nYou have tools for live data: get_stock_price, get_crypto_price, search_stocks, get_market_news, get_user_portfolio, get_trade_history, get_watchlist, get_limit_orders, get_fundamentals. USE them whenever the user asks about any specific stock, crypto, market state, company fundamentals (profit, EPS, ROE, P/E, debt, market cap), or their portfolio. Never guess numbers — always call the tool.\n\nCRITICAL: Call tools via the STRUCTURED tool_calls API only. NEVER write literal text like 'CALL search_stocks(...)' or '[Tool call: ...]' or fenced ` + "```tool_calls```" + ` JSON in your visible response. Those are internal scaffolding the user must never see. If you want to call a tool, emit the tool_call JSON block and let the system handle it. Your visible reply either (a) answers the user's question with real data you just received from a tool, or (b) says you'll look it up — never describes the mechanics of looking it up.\n\n# TONE\nKeep replies conversational and short by default (1–3 sentences). Only go longer when the user asks for explanation or depth.` + discoveryNudge + turnLang;
+    // News-shaped question: the app fetches the headlines itself (C5). The
+    // model answered "latest news on oil and Iran" from memory on 6 Oct
+    // with the news tool right there.
+    const newsBlock = await prefetchNewsBlock(userText);
+    const system = `${SYSTEM_PROMPT}\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# TOOL USE\nYou have tools for live data: get_stock_price, get_crypto_price, search_stocks, get_market_news, get_user_portfolio, get_trade_history, get_watchlist, get_limit_orders, get_fundamentals. USE them whenever the user asks about any specific stock, crypto, market state, company fundamentals (profit, EPS, ROE, P/E, debt, market cap), or their portfolio. Never guess numbers — always call the tool.\n\nCRITICAL: Call tools via the STRUCTURED tool_calls API only. NEVER write literal text like 'CALL search_stocks(...)' or '[Tool call: ...]' or fenced ` + "```tool_calls```" + ` JSON in your visible response. Those are internal scaffolding the user must never see. If you want to call a tool, emit the tool_call JSON block and let the system handle it. Your visible reply either (a) answers the user's question with real data you just received from a tool, or (b) says you'll look it up — never describes the mechanics of looking it up.\n\n# TONE\nKeep replies conversational and short by default (1–3 sentences). Only go longer when the user asks for explanation or depth.` + newsBlock + discoveryNudge + turnLang;
     try {
       replyText = await runAgent({
         apiKey: state.settings.llmApiKey || null,
@@ -901,6 +905,9 @@ Answer only the latest message. Do not restate prices or facts from earlier turn
   m_pending = false;
   m_abortController = null;
   const entry = ownerMessages[placeholderIdx];
+  // True while the bubble still holds the stream's own text (no retry ran),
+  // which is what the figure check below applies to.
+  let fromStream = true;
   // Everything below runs in a try/finally so the composer is re-enabled no
   // matter what happens in here. A thrown retry used to leave the input
   // disabled and the Stop button inert — the user could not send anything
@@ -947,7 +954,7 @@ The user asked for data. Call the tools and answer with real numbers. Do NOT ask
         system: sysT, messages, profile: "fast",
       }), 12_000);
       const cleanEsc = stripScaffolding(esc);
-      if (cleanEsc && cleanEsc.trim()) entry.text = cleanEsc.trim();
+      if (cleanEsc && cleanEsc.trim()) { entry.text = cleanEsc.trim(); fromStream = false; }
     } else if (!entry.text.trim() && isToolCallOnly(result?.raw)) {
       // Reply was nothing but a tool call: the model decided it needed live
       // data while on the streaming path, which has no tools wired. It was
@@ -966,8 +973,32 @@ Keep replies conversational and short by default (1–3 sentences).`;
       entry.text = (retry && stripScaffolding(retry).trim())
         ? stripScaffolding(retry).trim()
         : "Let me pull that up — ask me once more?";
+      fromStream = false;
     } else if (!entry.text.trim()) {
       entry.text = "Hmm, I went quiet there. Ask me once more?";
+    }
+    // C6: the no-tools path has no prices, so any price, "% today" or $/₹
+    // event figure in it was made up (ADANIGREEN "₹1,845.20", real ~₹1,313).
+    // Re-run the turn on the tool path; failing that, drop those sentences.
+    if (fromStream && !result?.aborted && entry.text && !entry.text.startsWith("Hmm")) {
+      const figs = unsourcedFigures(entry.text, figureSources(streamSystem, messages));
+      if (figs.length) {
+        const toolSys = `${SYSTEM_PROMPT}
+
+${runtimeFacts(marketStatus())}
+
+${dossier}` + (await prefetchNewsBlock(userText)) + `
+
+# THIS TURN
+Your earlier draft stated prices, moves or events that were not looked up. Call the tool for every figure you give (get_stock_price for a price or today's move, get_market_news for news), or leave the figure out.` + turnLang;
+        const redo = await withDeadline(runAgent({
+          apiKey: getState().settings.llmApiKey || null,
+          system: toolSys, messages, profile: "fast",
+        }), 12_000).catch(() => null);
+        const cleanRedo = stripScaffolding(redo);
+        if (cleanRedo && cleanRedo.trim()) entry.text = cleanRedo.trim();
+        else entry.text = dropFigureSentences(entry.text, figs) || entry.text;
+      }
     }
     if (!result?.aborted && entry.text && !entry.text.startsWith("Hmm")) {
       entry.text = await finishReply(entry.text, userText, streamSystem, messages);

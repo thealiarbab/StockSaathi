@@ -306,6 +306,65 @@ for (const [name, got, want] of STAT_CASES) {
   else failures.push(`  tradeStats: ${name}\n    got ${got}, want ${want}`);
 }
 
+// -----------------------------------------------------------------------------
+// C5/C6: figures nobody looked up. Replies are VERBATIM from production
+// (mr.ancient 6 Oct 21:29 and 21:32, 10 Oct 17:06). Sources go through
+// figureSources as in production, with the real persona text in the system
+// prompt: it must be cut out, or its teaching numbers ("2.5% annual
+// interest") quietly vouch for invented ones ("up 3% today").
+// -----------------------------------------------------------------------------
+const PERSONA_SRC = fs.readFileSync(path.join(ROOT, "js/coach/persona.js"), "utf8");
+const figBox = new Function("SYSTEM_PROMPT", "NO_TOOLS_NOTE", `
+  const NEWS_RE = ${extractRe("NEWS_RE")};
+  ${SRC.slice(SRC.indexOf("const FIG_MONEY_RE"), SRC.indexOf("const FIGURE_NUDGE")).replace(/^export\s+/gm, "")}
+  return { NEWS_RE, unsourcedFigures, dropFigureSentences, figureSources };
+`)(PERSONA_SRC, "");
+const OIL_WAR = "The market is currently on edge because of the escalating tensions in the Middle East. While there isn't a full-blown \"US-Iran war\" right now, the conflict between Israel and Iran-backed groups has caused oil prices to spike recently. Brent crude jumped back toward $80 a barrel last week on fears that Iranian oil facilities might be targeted.\n\nFor India, this is a double whammy. We import over 80% of our oil, so high prices lead to a weaker Rupee and higher inflation. In the stock market, you'll see \"OMCs\" (Oil Marketing Companies) like **BPCL**, **HPCL**, and **IOC** taking a hit because they can't always pass the high crude costs to customers at the petrol pump.\n\nOn the flip side, **HAL** (Hindustan Aeronautics) is up 3% today, partly due to increased focus on indigenous defence production. When global tensions rise, defence stocks often get a boost. Are you looking at this as a reason to sell your current holdings or to find a new \"war-proof\" entry?";
+const ADANI = "Nobody is \"sure\" in the markets—anyone who says they are is lying. Right now, oil is volatile because of geopolitics. If a ceasefire is reached, oil could crash back down instantly. If a refinery gets hit, it could skyrocket. You can't predict the war, so don't try to time the trade perfectly.\n\nAlso, a quick correction: there is no \"Adani Green Energy ETF.\" You can buy **ADANIGREEN** as a single stock, or you can buy a **Nifty Next 50 ETF** which usually includes it. \n\nADANIGREEN is currently at ₹1,845.20, down 0.45% today. It’s a high-growth stock but very \"expensive\" (high P/E), meaning investors expect massive things from it. If oil prices drop, the \"emergency\" rush to green energy might cool off, and this stock could see a sharp correction.\n\nInstead of going all-in because of a news headline, have you thought about a **SIP** (Systematic Investment Plan) where you buy a little bit every month regardless of the oil price?";
+const HDFC_LIMIT = "It's too early to call it a \"good\" or \"bad\" move because none of your orders have filled yet—you still have all your cash and zero holdings.\n\nThe move you *did* make was setting \"Limit\" prices. For example, you've set HDFCBANK to buy at ₹700, but it usually trades much higher (around ₹1,600-₹1,700 lately). Unless there’s a massive crash, that order might never fill. \n\nA \"Market\" order buys at the current price immediately, while a \"Limit\" order is you being picky about the price. Do you want me to check the current price for HDFCBANK so you can see how far off your ₹700 limit is?";
+const HDFC_TOOL = '{"ok":true,"orders":[{"symbol":"AAATECH","side":"BUY","qty":10,"limit_price_inr":107.92},{"symbol":"HDFCBANK","side":"BUY","qty":4,"limit_price_inr":700},{"symbol":"3BBLACKBIO","side":"BUY","qty":1,"limit_price_inr":1500}]}';
+const src = (...extra) => figBox.figureSources(PERSONA_SRC + "\n\n# MARKET\nNSE is closed.", extra.map((content) => ({ role: "user", content })));
+const sameSet = (a, b) => a.length === b.length && a.every((x) => b.includes(x));
+const FIG_CASES = [
+  // --- must flag ---------------------------------------------------------------
+  ["oil/Iran answer: $80 Brent and HAL +3% today, no lookup", figBox.unsourcedFigures(OIL_WAR, src("What is the latest news regarding oil prices and iran us war?")), ["$80", "3%"]],
+  ["ADANIGREEN ₹1,845.20 and -0.45% today, no price lookup", figBox.unsourcedFigures(ADANI, src("I was planning to invest in adani green energy etf today")), ["₹1,845.20", "0.45%"]],
+  ["HDFC range invented; the ₹700 limit came from the orders tool", figBox.unsourcedFigures(HDFC_LIMIT, src("Did i made good move or bad move", HDFC_TOOL)), ["₹1,600", "₹1,700"]],
+  ["no-tools stream about HAL: price, then 'This represents … 1.45% … today'", figBox.unsourcedFigures("Hindustan Aeronautics Limited (HAL) is currently trading at approximately ₹4,064.00 per share on the Indian stock exchanges. This represents a downward movement of about 1.45% during today's trading session.", src("What's HAL trading at today?")), ["₹4,064.00", "1.45%"]],
+  ["'It is trading at' after the name", figBox.unsourcedFigures("Adani Green is a renewable power company. It is trading at ₹1,845.20.", src()), ["₹1,845.20"]],
+  // --- must NOT flag -----------------------------------------------------------
+  ["worked example with today/tomorrow", figBox.unsourcedFigures("If a stock falls 10% today and rises 10% tomorrow, you are still down 1%.", src()), []],
+  ["Hinglish worked example", figBox.unsourcedFigures("Agar TCS aaj 5% gire aur kal 5% badhe, tab bhi tum loss me ho.", src()), []],
+  ["price + today's move from get_stock_price", figBox.unsourcedFigures("**TCS** is at ₹2,269.30, up 6.79% today.", src('{"symbol":"TCS","price_inr":2269.3,"change_pct":6.79}')), []],
+  ["price given in paise by the tool", figBox.unsourcedFigures("RELIANCE closed at ₹1,412.50.", src('{"pricePaise":141250}')), []],
+  ["total worked out from a looked-up price", figBox.unsourcedFigures("10 shares of TCS at ₹2,269.30 would cost about ₹22,693.", src('{"symbol":"TCS","price_inr":2269.3}')), []],
+  ["concept answer with rupee example, no instrument", figBox.unsourcedFigures("A ₹500 monthly SIP at 12% a year grows to about ₹1.16 lakh in 10 years.", src()), []],
+  ["holding value from the dossier, in lakh", figBox.unsourcedFigures("Your NIFTYBEES holding is worth ₹1.02L right now.", src("NIFTYBEES qty 360 value ₹1,02,345.60")), []],
+  ["the user's own number", figBox.unsourcedFigures("Your INFY limit at ₹1,350 will wait in Queued orders.", src("place a limit for INFY at 1350")), []],
+  ["market cap in crore, as the tool gives it", figBox.unsourcedFigures("RELIANCE has a market cap of about ₹19,10,000 crore (₹19.1 lakh crore).", src('{"symbol":"RELIANCE","market_cap_crore_inr":1910432}')), []],
+  ["share of imports, no time word", figBox.unsourcedFigures("We import over 80% of our oil.", src()), []],
+];
+let fPass = 0;
+for (const [name, got, want] of FIG_CASES) {
+  if (sameSet(got, want)) fPass++;
+  else failures.push(`  figures: ${name}\n    got ${JSON.stringify(got)}, want ${JSON.stringify(want)}`);
+}
+const dropped = figBox.dropFigureSentences(ADANI, ["₹1,845.20", "0.45%"]);
+if (!dropped.includes("₹1,845.20") && dropped.includes("Nobody is") && dropped.includes("high-growth stock") && /\n\n/.test(dropped)) fPass++;
+else failures.push(`  figures: dropFigureSentences keeps the rest\n    got ${JSON.stringify(dropped).slice(0, 300)}`);
+const NEWS_Q = [
+  ["What is the latest news regarding oil prices and iran us war?", true],
+  ["aaj market kyu gira", true],
+  ["why is HDFC bank falling", true],
+  ["what is a P/E ratio", false],
+  ["how do I start a SIP", false],
+];
+for (const [q, want] of NEWS_Q) {
+  if (figBox.NEWS_RE.test(q.toLowerCase()) === want) fPass++;
+  else failures.push(`  figures: NEWS_RE ${JSON.stringify(q)} want ${want}`);
+}
+const FIG_TOTAL = FIG_CASES.length + 1 + NEWS_Q.length;
+
 const dossierResults = await dossierChecks();
 let dPass = 0;
 for (const [name, got, want] of dossierResults) {
@@ -319,6 +378,7 @@ console.log(`advice:       ${aPass}/${ADVICE_CASES.length} passing`);
 console.log(`scrub:        ${sPass}/${SCRUB_CASES.length} passing`);
 console.log(`language:     ${lPass}/${LANG_CASES.length} passing`);
 console.log(`tradeStats:   ${tPass}/${STAT_CASES.length} passing`);
+console.log(`figures:      ${fPass}/${FIG_TOTAL} passing`);
 if (failures.length) {
   console.error("\nFAILURES:\n" + failures.join("\n"));
   process.exit(1);
