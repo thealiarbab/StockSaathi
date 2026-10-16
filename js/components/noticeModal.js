@@ -15,6 +15,7 @@
 // =============================================================================
 
 import { sb } from "../db/supabase.js";
+import { presentWhatsNew } from "./whatsNew.js";
 
 // Guard state.
 //
@@ -117,6 +118,8 @@ function rowsHtml(list, startIndex = 0) {
 }
 
 function presentOne(client, notice, index = 0, total = 1) {
+  // Release cards have their own look (the term explainer's card).
+  if (notice.kind === "whats_new") return presentWhatsNew(client, notice);
   return new Promise((resolve) => {
     const modalRoot = document.getElementById("modal-root");
     if (!modalRoot) return resolve();
