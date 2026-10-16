@@ -1037,8 +1037,9 @@
   text-underline-offset: 3px;
   text-decoration-color: var(--text-muted);
   text-decoration-thickness: 1px;
-  cursor: help;
+  cursor: pointer;
   font-style: normal;
+  -webkit-tap-highlight-color: transparent;
 }
 .ai-term:hover, .ai-term:focus-visible {
   text-decoration-color: var(--brand);
@@ -1046,17 +1047,19 @@
   outline: none;
 }
 .ai-term-tooltip {
-  position: absolute;
+  /* fixed: lives in the viewport, never stretches the page (it used to be
+     absolute at scrollY + top, which made stock pages scroll). */
+  position: fixed;
   z-index: 999;
   /* Width bounds. min-width gives us room for a full sentence even while
      the explanation is still loading ("…" placeholder). max-width caps
      growth so a chatty LLM can't blow past the card grid. */
   min-width: 240px;
-  max-width: 320px;
+  max-width: min(320px, calc(100vw - 16px));
   background: var(--surface-elev, var(--surface));
   color: var(--text);
   border: 1px solid var(--border-strong, var(--border));
-  border-radius: var(--r);
+  border-radius: 14px;
   padding: 10px 12px;
   font-size: var(--text-sm);
   line-height: 1.45;
@@ -1092,6 +1095,121 @@
 @keyframes ai-tip-in {
   from { opacity: 0; transform: translateY(-4px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+.ai-term-tooltip-hint {
+  margin-top: 6px;
+  font-size: 10.5px;
+  color: var(--text-faint, var(--text-dim));
+}
+
+/* ---- Term card: tap / click on any .ai-term --------------------------------
+   Centred card, every corner rounded, page dimmed + blurred behind it, page
+   scroll locked until it is dismissed (tap outside, ✕, Got it, Esc, Back). */
+html.term-pop-open,
+html.term-pop-open body {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+html.term-pop-open body { padding-right: var(--term-pop-gutter, 0); }
+.term-pop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+  background: rgba(6, 8, 14, 0.62);
+  -webkit-backdrop-filter: blur(10px) saturate(120%);
+  backdrop-filter: blur(10px) saturate(120%);
+  animation: termPopFade 200ms ease-out both;
+  touch-action: none;
+}
+.term-pop {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  padding: 28px 22px 20px;
+  border-radius: 26px;
+  background:
+    radial-gradient(120% 70% at 50% 0%, var(--brand-soft, rgba(16,185,129,.14)) 0%, transparent 62%),
+    var(--surface-elev, var(--surface));
+  border: 1px solid var(--border-strong, var(--border));
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45), 0 2px 0 rgba(255,255,255,0.04) inset;
+  text-align: center;
+  animation: termPopIn 420ms cubic-bezier(.2, 1.2, .35, 1) both;
+}
+.term-pop-x {
+  position: absolute;
+  top: 12px; right: 12px;
+  width: 36px; height: 36px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted, var(--text));
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: grid; place-items: center;
+}
+.term-pop-x:hover { color: var(--text-strong); border-color: var(--border-strong, var(--border)); }
+.term-pop-badge {
+  width: 52px; height: 52px;
+  margin: 0 auto 12px;
+  border-radius: 999px;
+  display: grid; place-items: center;
+  font-size: 24px; font-weight: 800;
+  color: #fff;
+  background: linear-gradient(140deg, var(--brand) 0%, color-mix(in srgb, var(--brand) 55%, #2563eb) 100%);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--brand) 40%, transparent);
+}
+.term-pop-kicker {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--brand);
+}
+.term-pop-title {
+  margin: 4px 0 12px;
+  font-size: 22px;
+  line-height: 1.2;
+  color: var(--text-strong);
+}
+.term-pop-text {
+  margin: 0 0 20px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text);
+  text-align: left;
+}
+.term-pop-text.dim { color: var(--text-dim); text-align: center; }
+.term-pop-ok { width: 100%; min-height: 46px; border-radius: 999px; }
+.term-pop-skel { display: grid; gap: 9px; margin: 4px 0 22px; }
+.term-pop-skel span {
+  height: 12px; border-radius: 999px;
+  background: linear-gradient(90deg, var(--border) 0%, var(--border-strong, var(--border)) 50%, var(--border) 100%);
+  background-size: 200% 100%;
+  animation: termPopShimmer 1.1s linear infinite;
+}
+.term-pop-skel span:nth-child(2) { width: 92%; }
+.term-pop-skel span:nth-child(3) { width: 64%; }
+.term-pop-overlay.leaving { animation: termPopFadeOut 180ms ease-in forwards; }
+.term-pop-overlay.leaving .term-pop { animation: termPopOut 180ms ease-in forwards; }
+@keyframes termPopFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes termPopFadeOut { to { opacity: 0; } }
+@keyframes termPopIn {
+  from { opacity: 0; transform: translateY(18px) scale(0.92); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes termPopOut { to { opacity: 0; transform: translateY(8px) scale(0.96); } }
+@keyframes termPopShimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .term-pop-overlay, .term-pop, .term-pop-skel span { animation: none !important; }
 }
 
 /* Hover cursor: single vertical guide line + breathing price-dot. The
@@ -2040,6 +2158,10 @@ table.compare { min-width: 560px; }
     min-width: 0 !important;
     width: auto !important;
     z-index: 9999 !important;
+    border-radius: 24px !important;
+    padding: 18px 18px calc(18px + env(safe-area-inset-bottom)) !important;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45) !important;
+    transition: opacity 200ms, transform 320ms cubic-bezier(.2, 1.2, .35, 1), visibility 200ms !important;
     transform: translateY(20px) !important;
     opacity: 0 !important;
     visibility: hidden !important;
@@ -2055,9 +2177,11 @@ table.compare { min-width: 560px; }
     content: "";
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.55);
+    background: rgba(6, 8, 14, 0.62);
+    -webkit-backdrop-filter: blur(10px) saturate(120%);
+    backdrop-filter: blur(10px) saturate(120%);
     z-index: 9998;
-    animation: cmdk-fade 150ms ease-out;
+    animation: cmdk-fade 200ms ease-out;
   }
 }
 .market-status:hover .market-status-pop,

@@ -311,7 +311,14 @@ export function stockChart(ohlc, {
   const min = minArg != null ? minArg : dataMin - pad;
   const max = maxArg != null ? maxArg : dataMax + pad;
 
-  const paddingLeft = 60, paddingRight = 56, paddingTop = 16, paddingBottom = 30;
+  const fmtAxis = axisFormat === "span" ? makeAxisFormatter(min / 100, max / 100) : formatAxisNumber;
+  const yTickVals = [0, 1, 2, 3, 4].map(i => max - (i / 4) * (max - min));
+  const yTickText = yTickVals.map(v => "₹" + fmtAxis(v / 100));
+  // The label gutter fits the longest label (11px mono ≈ 6.8px a glyph).
+  // It was a fixed 60px, which cut the first digit off "₹1,00,255".
+  const longestY = Math.max(...yTickText.map(t => t.length));
+  const paddingLeft = Math.round(Math.min(width * 0.3, Math.max(60, longestY * 6.8 + 14)));
+  const paddingRight = 56, paddingTop = 16, paddingBottom = 30;
   const plotW = width - paddingLeft - paddingRight;
   const plotH = height - paddingTop - paddingBottom;
   // Two coordinate-mapping functions:
@@ -327,13 +334,11 @@ export function stockChart(ohlc, {
   const toY = (v) => paddingTop + plotH - ((v - min) / (max - min)) * plotH;
 
   // Y gridlines + labels
-  const fmtAxis = axisFormat === "span" ? makeAxisFormatter(min / 100, max / 100) : formatAxisNumber;
   let grid = "", yLabels = "";
   for (let i = 0; i <= 4; i++) {
     const y = paddingTop + (i / 4) * plotH;
-    const v = max - (i / 4) * (max - min);
     grid += `<line x1="${paddingLeft}" x2="${width - paddingRight}" y1="${y}" y2="${y}" />`;
-    yLabels += `<text class="chart-axis-label" x="${paddingLeft - 8}" y="${y + 4}" text-anchor="end">₹${fmtAxis(v / 100)}</text>`;
+    yLabels += `<text class="chart-axis-label" x="${paddingLeft - 8}" y="${y + 4}" text-anchor="end">${yTickText[i]}</text>`;
   }
 
   // X-axis ticks.
@@ -870,13 +875,24 @@ export function areaChart(values, opts = {}) {
  */
 function makeAxisFormatter(min, max) {
   const span = Math.abs(max - min) || Math.abs(max) || 1;
+  const step = span / 4;
+  // Ticks under ₹1,000 apart: plain Indian-grouped rupees ("1,00,255").
+  // The old rule picked the unit from the SPAN, so a ₹1L portfolio moving
+  // ₹500 read "100255" and a ₹5,000 move read "100.3k".
+  if (step < 1000) {
+    const d = step >= 1 ? 0 : 2;
+    return (v) => v.toLocaleString("en-IN", { minimumFractionDigits: d, maximumFractionDigits: d });
+  }
+  // Otherwise the unit follows the size of the numbers, with just enough
+  // decimals that neighbouring ticks differ.
+  const mag = Math.max(Math.abs(max), Math.abs(min));
   let div = 1, suffix = "";
-  if (span >= 1e7)      { div = 1e7; suffix = "Cr"; }
-  else if (span >= 1e5) { div = 1e5; suffix = "L"; }
-  else if (span >= 1e3) { div = 1e3; suffix = "k"; }
-  const step = span / 4 / div;
-  const decimals = step >= 10 ? 0 : step >= 1 ? 1 : step >= 0.1 ? 2 : 3;
-  return (v) => (v / div).toFixed(decimals) + suffix;
+  if (mag >= 1e7)      { div = 1e7; suffix = "Cr"; }
+  else if (mag >= 1e5) { div = 1e5; suffix = "L"; }
+  else if (mag >= 1e3) { div = 1e3; suffix = "k"; }
+  const stepU = step / div;
+  const decimals = Math.max(0, Math.min(3, Math.ceil(-Math.log10(stepU))));
+  return (v) => (v / div).toLocaleString("en-IN", { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) + suffix;
 }
 
 function formatAxisNumber(v) {
