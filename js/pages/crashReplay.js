@@ -754,7 +754,7 @@ function renderReplay(main, scenario) {
       </div>
     </details>
 
-    <div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--sp-4); margin-top: var(--sp-6);">
+    <div class="grid two-col" style="gap: var(--sp-4); margin-top: var(--sp-6);">
       <div class="card">
         <h3 class="replay-note-title">How this replay works</h3>
         <ul style="margin-top: var(--sp-3); color: var(--text); line-height: 1.7; font-size: var(--text-sm); padding-left: 18px;">

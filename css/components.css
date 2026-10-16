@@ -5111,3 +5111,20 @@ body.chart-fs-open #main { animation: none; transform: none; }
   .nav-cash { display: none; }
   .nav-inner kbd { display: none; }
 }
+
+/* Phones, signed in (17 Oct): the NSE pill was meant to hide below 820px,
+   but the later `.market-status { display: inline-flex }` won on equal
+   specificity, so the top bar ran to ~460px and pushed the menu button off
+   a 390px screen. Stock pages carry their own market pill. */
+@media (max-width: 1279px) {
+  .nav-inner .market-status { display: none; }
+}
+/* A large portfolio total (or a long percentage) can't widen the hero past
+   the screen: grid items default to min-width:auto. */
+.portfolio-hero > * { min-width: 0; }
+.pf-value, .pf-delta { overflow-wrap: anywhere; }
+/* Side-by-side prose cards (report card, replay notes) stack on phones:
+   1fr 1fr squeezed the second card to ~90px on a 390px screen. */
+.two-col { grid-template-columns: 1fr 1fr; }
+.two-col > * { min-width: 0; }
+@media (max-width: 640px) { .two-col { grid-template-columns: 1fr; } }

@@ -63,7 +63,7 @@ export function renderReportCard(main) {
         </div>
       </div>
 
-      <div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--sp-6);">
+      <div class="grid two-col" style="gap: var(--sp-6);">
         <div class="card">
           <h3 style="margin-bottom: var(--sp-4);">Behavior patterns</h3>
           <div class="behavior-list">
