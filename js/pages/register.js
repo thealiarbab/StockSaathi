@@ -63,7 +63,7 @@ export function renderRegister(main) {
                 <span class="px">@</span>
                 <input id="r-username" name="username" type="text" required autocomplete="username" placeholder="yourhandle" />
               </div>
-              <div class="muted text-xs" style="margin-top: 4px;">3-24 chars. Letters, numbers, underscores, dots. Friends will use this to send you money.</div>
+              <div class="muted text-xs" style="margin-top: 4px;">3-24 chars. Letters, numbers, underscores, dots.</div>
             </div>
             <div class="field">
               <label class="label" for="r-email">Email</label>
