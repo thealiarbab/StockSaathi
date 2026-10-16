@@ -5,6 +5,27 @@
 import { loginAccount } from "../auth/accounts.js";
 import { switchUser } from "../state.js";
 import { navigate } from "../router.js";
+import { googleButtonHtml, wireGoogleButton } from "../components/googleButton.js";
+
+// Shared by password login, Google sign-in (which returns to /login with the
+// session in the URL fragment) and the signup page.
+export async function finishSignIn() {
+  const { refreshCurrentUser } = await import("../auth/accounts.js");
+  await refreshCurrentUser();
+  const { bootSync, loadAllFromDb } = await import("../db/sync.js");
+  await bootSync();
+  await loadAllFromDb();
+  switchUser();
+  // Deliver any personal notice waiting for this user. Login navigates
+  // through the router and never reloads, so app.js's boot-time call already
+  // ran (while logged out, finding nothing) and will not run again.
+  import("../components/noticeModal.js")
+    .then(m => m.showPendingNotices())
+    .catch(() => {});
+  const state = (await import("../state.js")).getState();
+  if (!state.user.onboarded) navigate("/onboarding");
+  else navigate("/portfolio");
+}
 
 export function renderLogin(main) {
   // Prefill email from ?email= query param — used when register detects
@@ -18,6 +39,7 @@ export function renderLogin(main) {
       <div class="auth-card">
         <h1>Welcome back</h1>
         <p class="sub">Log in to continue where you left off.</p>
+        ${googleButtonHtml()}
 
         <form class="auth-form" id="login-form" autocomplete="on">
           <div class="field">
@@ -57,6 +79,24 @@ export function renderLogin(main) {
   // Show / hide password toggle. Critical on mobile where users can't
   // see what swipe-input / autocorrect actually typed.
   wirePasswordToggle(main, "#l-pw", "#l-pw-toggle");
+  wireGoogleButton(main, (msg) => { errBox.innerHTML = `<div class="error-msg">${escapeHtml(msg)}</div>`; });
+
+  // Back from Google: supabase-js reads the session from the URL fragment
+  // when the client starts. Finish the sign-in instead of showing the form.
+  if (/access_token=|error_description=/.test(location.hash)) {
+    (async () => {
+      try {
+        const { sb } = await import("../db/supabase.js");
+        const client = await sb();
+        const { data } = client ? await client.auth.getSession() : { data: null };
+        if (data?.session?.user) { await finishSignIn(); return; }
+        const why = new URLSearchParams(location.hash.slice(1)).get("error_description");
+        if (why) errBox.innerHTML = `<div class="error-msg">Google sign-in didn't finish: ${escapeHtml(why)}. Try again.</div>`;
+      } catch (e) {
+        console.warn("google return failed:", e);
+      }
+    })();
+  }
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -89,25 +129,22 @@ export function renderLogin(main) {
         }
       }
       if (lastErr) throw lastErr;
-      // Refresh Supabase user cache, then trigger store reload
-      const { refreshCurrentUser } = await import("../auth/accounts.js");
-      await refreshCurrentUser();
-      const { bootSync, loadAllFromDb } = await import("../db/sync.js");
-      await bootSync();
-      await loadAllFromDb();
-      switchUser();
-      // Deliver any personal notice waiting for this user. Login navigates
-      // through the hash router and never reloads, so app.js's boot-time
-      // call already ran (while logged out, finding nothing) and will not
-      // run again. Without this the stuck-order apology was only reachable
-      // by hard-reloading after signing in.
-      import("../components/noticeModal.js")
-        .then(m => m.showPendingNotices())
-        .catch(() => {});
-      const state = (await import("../state.js")).getState();
-      if (!state.user.onboarded) navigate("/onboarding");
-      else navigate("/portfolio");
+      await finishSignIn();
     } catch (err) {
+      if (err.code === "email_not_confirmed" && err.email) {
+        // A quarter of signups never found their code (spam, Promotions).
+        // Hand the address to the signup page, which sends a fresh one. It
+        // goes through sessionStorage, not the URL, so it never reaches
+        // analytics.
+        try { sessionStorage.setItem("ss.verifyEmail", err.email); } catch {}
+        errBox.innerHTML = `<div class="error-msg">
+          You haven't confirmed <strong>${escapeHtml(err.email)}</strong> yet.
+          <a href="/register?verify=1" style="margin-left:6px;">Send me a new code →</a>
+        </div>`;
+        btn.disabled = false;
+        btn.textContent = "Log in";
+        return;
+      }
       errBox.innerHTML = `<div class="error-msg">${escapeHtml(err.message)}</div>`;
       btn.disabled = false;
       btn.textContent = "Log in";

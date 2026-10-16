@@ -5128,3 +5128,37 @@ body.chart-fs-open #main { animation: none; transform: none; }
 .two-col { grid-template-columns: 1fr 1fr; }
 .two-col > * { min-width: 0; }
 @media (max-width: 640px) { .two-col { grid-template-columns: 1fr; } }
+
+/* Signup (17 Oct): Google button, "Did you mean …?" and the spam tip. */
+.auth-google { margin-bottom: var(--sp-4); }
+.auth-google-btn {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  background: var(--surface); color: var(--text-strong);
+  border: 1.5px solid var(--border-strong); font-weight: 600;
+}
+.auth-google-btn:hover { border-color: var(--text-muted); }
+.auth-or {
+  display: flex; align-items: center; gap: var(--sp-3);
+  margin-top: var(--sp-4); color: var(--text-dim); font-size: var(--text-xs);
+}
+.auth-or::before, .auth-or::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+.email-hint {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
+  margin-top: 8px; padding: 10px 12px; border-radius: 12px;
+  background: var(--bg-soft); border: 1px solid var(--border);
+  font-size: var(--text-sm); color: var(--text);
+}
+.email-hint-urgent {
+  border-color: var(--warning, #F5A623);
+  background: color-mix(in srgb, var(--warning, #F5A623) 12%, var(--surface));
+}
+.email-hint-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.otp-spam-tip {
+  margin: 0 0 var(--sp-4); padding: 12px 14px; border-radius: 14px;
+  background: color-mix(in srgb, var(--warning, #F5A623) 10%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--warning, #F5A623) 40%, transparent);
+  font-size: var(--text-sm); line-height: 1.55;
+}
+.otp-spam-tip p { margin: 0 0 6px; }
+.otp-spam-tip .dim { font-size: var(--text-xs); }
+.otp-inbox-btn { margin-top: 6px; }

@@ -201,6 +201,39 @@ export async function verifySignupOtp({ email, code }) {
 }
 
 /**
+ * Is "Continue with Google" switched on for this project? Read from the
+ * public auth settings, so the button appears the moment the provider is
+ * enabled in Supabase and never shows while it would fail.
+ */
+let _googleEnabled = null;
+export async function googleSignInEnabled() {
+  if (_googleEnabled !== null) return _googleEnabled;
+  try {
+    const client = await sb();
+    if (!client?.supabaseUrl || !client?.supabaseKey) return (_googleEnabled = false);
+    const r = await fetch(`${client.supabaseUrl}/auth/v1/settings`, { headers: { apikey: client.supabaseKey } });
+    const s = r.ok ? await r.json() : null;
+    _googleEnabled = !!s?.external?.google;
+  } catch { _googleEnabled = false; }
+  return _googleEnabled;
+}
+
+/**
+ * Sign in or sign up with Google. No password, no confirmation email, no
+ * typo'd address. Google returns to /login, where the session in the URL
+ * fragment is picked up (the fragment never reaches analytics).
+ */
+export async function signInWithGoogle() {
+  const client = await sb();
+  if (!client) throw new Error("Couldn't reach StockSaathi's servers. Check your connection and try again.");
+  const { error } = await client.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: `${location.origin}/login`, queryParams: { prompt: "select_account" } },
+  });
+  if (error) throw new Error(prettifySbError(error.message));
+}
+
+/**
  * Resend the signup OTP. Useful if the first email got lost.
  */
 export async function resendSignupOtp(email) {
@@ -306,7 +339,17 @@ export async function loginAccount({ emailOrUsername, password }) {
       }
     }
     const { data, error } = await client.auth.signInWithPassword({ email, password });
-    if (error) throw new Error(prettifySbError(error.message));
+    if (error) {
+      // Never confirmed: the login page offers a fresh code for this email
+      // instead of a dead end.
+      if (/not confirmed/i.test(error.message || "") || error.code === "email_not_confirmed") {
+        const err = new Error("You haven't confirmed this email yet.");
+        err.code = "email_not_confirmed";
+        err.email = email;
+        throw err;
+      }
+      throw new Error(prettifySbError(error.message));
+    }
     return { id: data.user?.id, email };
   }
 
@@ -686,8 +729,8 @@ function prettifySbError(msg) {
   }
   if (/invalid email/i.test(msg)) return "That email doesn't look valid.";
   if (/password should be/i.test(msg)) return "Password must be at least 6 characters.";
-  if (/rate limit/i.test(msg) || /too many requests/i.test(msg)) return "Too many signups from this address. Wait a few minutes and try again — or turn off email confirmation in Supabase (Authentication → Providers → Email).";
-  if (/email.*disabled/i.test(msg)) return "Email signups are disabled in your Supabase project. Enable them in Authentication → Providers → Email.";
+  if (/rate limit/i.test(msg) || /too many requests/i.test(msg)) return "Too many attempts. Wait a minute and try again.";
+  if (/email.*disabled/i.test(msg)) return "Email sign-up is paused right now. Try again later.";
   return msg;
 }
 
