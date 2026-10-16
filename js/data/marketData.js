@@ -527,8 +527,28 @@ export async function getHistory(symbol, range = "1y", interval = "1d", opts = {
   // the page labels as such; with none, an empty series ("chart not
   // available") rather than an invented one.
   if (!h) h = await eodHistory(symbol);
+  if (h?.source === "yahoo" && h.ohlc?.length) h = { ...h, ohlc: dropNoTradeBars(h.ohlc) };
   _historyCache.set(key, { data: h, ts: Date.now() });
   return h;
+}
+
+// Yahoo pads days (and months) with no trade using the last price at zero
+// volume: TCS's MAX began with 14 flat months before it listed in Aug 2004,
+// and a suspended SME stock sat at its old price for 42 days. Groww shows no
+// bar where nothing traded, so neither do we. Only when the series reports
+// volume at all (most bars > 0), and the newest bar always stays. Daily and
+// slower bars only: the 09:15 opening-auction minute also reports zero volume
+// and is a real price.
+function dropNoTradeBars(ohlc) {
+  const steps = [];
+  for (let i = 1; i < ohlc.length; i++) steps.push(ohlc[i].t - ohlc[i - 1].t);
+  steps.sort((a, b) => a - b);
+  if (!(steps[Math.floor(steps.length / 2)] >= 20 * 3600 * 1000)) return ohlc;
+  const withVol = ohlc.filter(k => k.v > 0).length;
+  if (withVol < ohlc.length * 0.5) return ohlc;
+  const last = ohlc.length - 1;
+  const out = ohlc.filter((k, i) => i === last || k.v > 0 || !(k.o === k.c && k.h === k.c && k.l === k.c));
+  return out.length >= 2 ? out : ohlc;
 }
 
 // The last ~2 weeks of NSE end-of-day bars from nse_eod_prices (public).
