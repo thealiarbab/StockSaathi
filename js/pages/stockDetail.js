@@ -907,6 +907,15 @@ function render(inst, symbol) {
       if (chartView.length < 2) chartView = chartOhlc.slice(-2);
     }
   }
+  // 1D candles of a thinly traded stock: many minutes have no trade, so a
+  // 1-minute chart is a scatter of dashes and gaps (20MICRONS had 200 of 375
+  // minutes). Groww draws its 1D candles from 5-minute bars for the same
+  // data. We pick the smallest bar that fills most of its slots on screen,
+  // so TCS keeps 1-minute candles and 20MICRONS gets 5-minute ones. The line
+  // view keeps every minute.
+  if (inst.kind !== "MF" && ui.timeframe === "1D" && ui.chartMode === "candle") {
+    chartView = adaptiveIntradayBars(chartView, chartXAxisRange);
+  }
 
   // 52-week high/low come only from live fundamentals (renderFundamentals);
   // the seeded walk's range is invented and is never shown (D1).
@@ -1037,7 +1046,7 @@ function render(inst, symbol) {
             }).join("")}
           </div>
           ${ui.zoom.scale > 1 ? `
-            <button class="btn btn-ghost btn-sm" id="zoom-reset-btn" title="Reset chart zoom" style="font-size: 11px; padding: 4px 10px;">↻ Reset zoom (${ui.zoom.scale.toFixed(1)}×${ui.interval ? ` · ${ui.interval}` : ""})</button>
+            <button class="btn btn-ghost btn-sm" id="zoom-reset-btn" title="Reset chart zoom" style="font-size: 11px; padding: 4px 10px;">↻ Reset zoom (${ui.zoom.scale.toFixed(1)}×${chartView.barMinutes ? ` · ${chartView.barMinutes}m` : ui.interval ? ` · ${ui.interval}` : ""})</button>
           ` : ""}
           ${!isTerminatedFund(inst).terminated ? `
             <div class="chart-mode-toggle" style="margin-left:auto; display:flex; gap:2px; background:var(--bg-soft); border:1px solid var(--border); border-radius:var(--r-sm); padding:2px;">
@@ -2318,6 +2327,46 @@ function renderPriceFreshness(quote) {
       <button class="btn btn-ghost btn-sm" id="price-refresh-btn" title="Force a fresh upstream fetch (bypasses our cache)" style="padding: 2px 8px; font-size: 11px; min-height: 0;">↻ Refresh</button>
     </div>
   `;
+}
+
+// Regroup 1-minute bars into the smallest of 1/2/3/5/10/15-minute bars whose
+// slots are at least 85% filled within the visible window. Buckets line up
+// with the 09:15 IST open (03:45 UTC = minute 225 of the UTC day).
+const BAR_STEPS_MIN = [1, 2, 3, 5, 10, 15];
+function adaptiveIntradayBars(ohlc, range) {
+  if (!Array.isArray(ohlc) || ohlc.length < 3) return ohlc;
+  const steps = [];
+  for (let i = 1; i < ohlc.length; i++) steps.push(ohlc[i].t - ohlc[i - 1].t);
+  steps.sort((a, b) => a - b);
+  if (steps[Math.floor(steps.length / 2)] > 70000) return ohlc;   // not 1-minute data
+  const inView = range ? ohlc.filter(k => k.t >= range.fromMs && k.t <= range.toMs) : ohlc;
+  if (inView.length < 3) return ohlc;
+  const bucketOf = (t, m) => Math.floor((Math.floor(t / 60000) - 225) / m);
+  let pick = BAR_STEPS_MIN[BAR_STEPS_MIN.length - 1];
+  for (const m of BAR_STEPS_MIN) {
+    const first = bucketOf(inView[0].t, m), last = bucketOf(inView[inView.length - 1].t, m);
+    const filled = new Set(inView.map(k => bucketOf(k.t, m))).size;
+    if (filled / (last - first + 1) >= 0.85) { pick = m; break; }
+  }
+  if (pick === 1) return ohlc;
+  const out = [];
+  let cur = null, curB = null;
+  for (const k of ohlc) {
+    const b = bucketOf(k.t, pick);
+    if (b !== curB) {
+      if (cur) out.push(cur);
+      curB = b;
+      cur = { ...k, t: (b * pick + 225) * 60000, h: k.h ?? k.c, l: k.l ?? k.c, o: k.o ?? k.c, v: k.v || 0 };
+    } else {
+      cur.h = Math.max(cur.h, k.h ?? k.c);
+      cur.l = Math.min(cur.l, k.l ?? k.c);
+      cur.c = k.c;
+      cur.v += k.v || 0;
+    }
+  }
+  if (cur) out.push(cur);
+  out.barMinutes = pick;
+  return out;
 }
 
 // The IST calendar day of a history bar, as YYYY-MM-DD for fmtNavDate.
