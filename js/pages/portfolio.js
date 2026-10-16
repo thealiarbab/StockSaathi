@@ -67,8 +67,22 @@ let pfHoverDetach = null;
 let pfZoomDetach = null;
 let pfGestureActive = false;
 
+// The chart is drawn at the size of the box it sits in. It used to be drawn
+// 800 x 300 and stretched (width:100%, height:auto) into a box with a fixed
+// clamp(240px, 38vh, 300px) height: on a 1,080px-wide card that is 405px of
+// SVG in a 240px box, so the chart and its dates spilled over Holdings.
+// First paint uses the estimate below; one measured redraw fits it exactly.
+let pfChartDims = null;   // { w } measured from #pf-chart-host
+let pfResizeT = null;
+
+function pfChartHeight() {
+  if (typeof window === "undefined") return 300;
+  return window.innerWidth < 640 ? 240 : 300;
+}
+
 function pfChartWidth() {
   if (typeof window === "undefined") return 800;
+  if (pfChartDims?.w) return pfChartDims.w;
   const iw = window.innerWidth;
   if (iw >= 900) return 800;
   if (iw >= 640) return 640;
@@ -328,8 +342,20 @@ export function renderPortfolio(main) {
     // no longer mounted).
     window.removeEventListener("ss:universe-loaded", onUniLoaded);
     window.removeEventListener("ss:mf-universe-loaded", onMfLoaded);
+    window.removeEventListener("resize", onResize);
+    clearTimeout(pfResizeT);
   };
   window.addEventListener("ss:navigate", onLeave, { once: true });
+  window.addEventListener("resize", onResize);
+  function onResize() {
+    clearTimeout(pfResizeT);
+    pfResizeT = setTimeout(() => {
+      if (cancelled) return;
+      const host = main.querySelector("#pf-chart-host");
+      const w = host ? Math.round(host.clientWidth) : 0;
+      if (w >= 200 && Math.abs(w - (pfChartDims?.w || 0)) > 4) { pfChartDims = { w }; render(); }
+    }, 150);
+  }
 
   async function refreshData() {
     const state = getState();
@@ -604,10 +630,10 @@ export function renderPortfolio(main) {
                   <button class="btn btn-ghost btn-sm" id="pf-zoom-reset" title="Reset chart zoom" style="font-size:11px; padding:4px 10px;">↻ Reset zoom (${pfChart.zoom.scale.toFixed(1)}×)</button>
                 ` : ""}
               </div>` : ""}
-            <div id="pf-chart-host" style="height: clamp(240px, 38vh, 300px); position: relative;">
+            <div id="pf-chart-host" style="${hasRealHistory ? "" : "height: clamp(240px, 38vh, 300px); "}position: relative; overflow: hidden;">
               ${hasRealHistory
                 ? stockChart(pfOhlc, {
-                    height: 300,
+                    height: pfChartHeight(),
                     width: pfChartWidth(),
                     mode: "area",
                     xAxisRange: pfXr,
@@ -735,6 +761,18 @@ export function renderPortfolio(main) {
     // wholesale (state change, 15s quote poll, universe load...).
     if (pfHoverDetach) { try { pfHoverDetach(); } catch {} pfHoverDetach = null; }
     const chartHost = main.querySelector("#pf-chart-host");
+    // Fit the drawing to the real box (see pfChartDims). setTimeout, not
+    // requestAnimationFrame, so it also runs in a background tab.
+    if (chartHost && hasRealHistory) {
+      const drawnW = pfChartWidth();
+      setTimeout(() => {
+        if (cancelled || !chartHost.isConnected) return;
+        const w = Math.round(chartHost.clientWidth);
+        if (w < 200 || Math.abs(w - drawnW) <= 4) return;
+        pfChartDims = { w };
+        render();
+      }, 0);
+    }
     if (chartHost && pfOhlc.length > 1) {
       pfHoverDetach = attachStockChartHover(chartHost, pfOhlc, {
         mode: "area",

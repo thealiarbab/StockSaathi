@@ -28,6 +28,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 UPSTREAM = "https://stocksaathi.co.in"
+# Windows' own curl.exe (Schannel TLS) gets Vercel's "Security Checkpoint"
+# page (403) for every /api call; Git's OpenSSL curl does not. Prefer it.
+import os, shutil
+_GIT_CURL = r"C:\Program Files\Git\mingw64\bin\curl.exe"
+CURL = os.environ.get("CURL") or (_GIT_CURL if os.path.exists(_GIT_CURL) else shutil.which("curl") or "curl")
 CONFIG = json.loads((ROOT / "vercel.json").read_text(encoding="utf-8"))
 
 mimetypes.add_type("text/javascript", ".js")
@@ -200,7 +205,7 @@ class Handler(BaseHTTPRequestHandler):
         body = b""
         if self.command == "POST":
             body = self.rfile.read(int(self.headers.get("Content-Length") or 0))
-        cmd = ["curl", "-s", "-i", "--max-time", "25", "-X", self.command, UPSTREAM + path_qs]
+        cmd = [CURL, "-s", "-i", "--max-time", "25", "-X", self.command, UPSTREAM + path_qs]
         for h in ("Content-Type", "Authorization", "Accept"):
             if self.headers.get(h):
                 cmd += ["-H", "%s: %s" % (h, self.headers[h])]

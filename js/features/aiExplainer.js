@@ -11,8 +11,8 @@
 //   mountAiExplainer();
 //
 // The wrapper returns an <abbr class="ai-term" data-term="..."> element that
-// looks subtle (dotted-underline) and pops a tooltip on hover/focus. The
-// tooltip fetches /api/ai?op=explain lazily — first hover triggers the API
+// looks subtle (dotted-underline). Mouse hover shows a small preview; a tap,
+// click or Enter opens a centred card over a dimmed page. Both fetch /api/ai?op=explain lazily — first hover triggers the API
 // call, subsequent hovers on any instance of the same term anywhere on the
 // page are instant from the in-memory cache. The backend also caches across
 // users in Supabase (table public.ai_response_cache, bucket="explain") so
@@ -108,7 +108,7 @@ function escapeAttr(s) {
 //   termHtml("drawdown", "drawdowns")     -> "<abbr …>drawdowns</abbr>"
 export function termHtml(term, display) {
   const d = display ?? term;
-  return `<abbr class="ai-term" data-term="${escapeAttr(term)}" tabindex="0" aria-label="Hover for explanation of ${escapeAttr(term)}">${escapeHtml(d)}</abbr>`;
+  return `<abbr class="ai-term" data-term="${escapeAttr(term)}" tabindex="0" role="button" aria-haspopup="dialog" aria-label="What is ${escapeAttr(term)}?">${escapeHtml(d)}</abbr>`;
 }
 
 async function fetchExplanation(term) {
@@ -147,28 +147,33 @@ async function fetchExplanation(term) {
   return p;
 }
 
+// Hover preview (mouse only). position:fixed, so it lives in the viewport
+// and can never add height or width to the page. The old one was absolute
+// at scrollY + top and, near the bottom of a stock page, stretched the
+// document so the page scrolled while it was up.
 function positionTooltip(tip, target) {
   const r = target.getBoundingClientRect();
   const vw = window.innerWidth;
   const vh = window.innerHeight;
-  // Measure first by showing invisible
   tip.style.visibility = "hidden";
   tip.style.display = "block";
-  const tw = tip.offsetWidth;
+  const tw = Math.min(tip.offsetWidth, vw - 16);
   const th = tip.offsetHeight;
-  // Prefer above the term, centred horizontally
   let top = r.top - th - 10;
   let left = r.left + r.width / 2 - tw / 2;
-  // Flip below if no room above
   if (top < 8) top = r.bottom + 10;
-  // Clamp horizontally
   if (left < 8) left = 8;
   if (left + tw > vw - 8) left = vw - tw - 8;
-  // Clamp vertically
-  if (top + th > vh - 8) top = vh - th - 8;
-  tip.style.top = (top + window.scrollY) + "px";
-  tip.style.left = (left + window.scrollX) + "px";
+  if (top + th > vh - 8) top = Math.max(8, vh - th - 8);
+  tip.style.top = top + "px";
+  tip.style.left = left + "px";
   tip.style.visibility = "visible";
+}
+
+function bodyHtml(text) {
+  if (text === null) return `<div class="term-pop-skel"><span></span><span></span><span></span></div>`;
+  if (!text) return `<p class="term-pop-text dim">No explanation available right now. Try again in a minute.</p>`;
+  return `<p class="term-pop-text">${escapeHtml(text)}</p>`;
 }
 
 async function showFor(target) {
@@ -179,12 +184,11 @@ async function showFor(target) {
   tip.innerHTML = `<div class="ai-term-tooltip-head">${escapeHtml(term)}</div><div class="ai-term-tooltip-body muted">…</div>`;
   positionTooltip(tip, target);
   const text = await fetchExplanation(term);
-  // Guard: cursor may have moved off during the fetch
   if (tip.dataset.term !== term) return;
   if (!text) {
     tip.innerHTML = `<div class="ai-term-tooltip-head">${escapeHtml(term)}</div><div class="ai-term-tooltip-body dim">No explanation available right now.</div>`;
   } else {
-    tip.innerHTML = `<div class="ai-term-tooltip-head">${escapeHtml(term)}</div><div class="ai-term-tooltip-body">${escapeHtml(text)}</div>`;
+    tip.innerHTML = `<div class="ai-term-tooltip-head">${escapeHtml(term)}</div><div class="ai-term-tooltip-body">${escapeHtml(text)}</div><div class="ai-term-tooltip-hint">Click to keep it open</div>`;
   }
   positionTooltip(tip, target);
 }
@@ -199,7 +203,79 @@ function hide() {
   if (hoverTimer) { clearTimeout(hoverTimer); hoverTimer = null; }
 }
 
+// ---- Tap / click: centred card over a dimmed page ------------------------
+let popEl = null;
+let popReturnFocus = null;
+
+function closePop() {
+  const el = popEl;
+  if (!el) return;
+  popEl = null;
+  document.documentElement.classList.remove("term-pop-open");
+  document.documentElement.style.removeProperty("--term-pop-gutter");
+  document.removeEventListener("keydown", onPopKey, true);
+  const done = () => el.remove();
+  if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) done();
+  else {
+    el.classList.add("leaving");
+    el.addEventListener("animationend", done, { once: true });
+    setTimeout(done, 300);
+  }
+  try { popReturnFocus?.focus?.({ preventScroll: true }); } catch {}
+  popReturnFocus = null;
+}
+
+function onPopKey(e) {
+  if (!popEl) return;
+  if (e.key === "Escape") { e.preventDefault(); closePop(); return; }
+  if (e.key === "Tab") {
+    // Two buttons; keep focus inside the card.
+    const f = [...popEl.querySelectorAll("button")];
+    if (!f.length) return;
+    const i = f.indexOf(document.activeElement);
+    e.preventDefault();
+    f[(i + (e.shiftKey ? -1 : 1) + f.length) % f.length].focus();
+  }
+}
+
+async function openPop(target) {
+  const term = target.dataset.term;
+  if (!term) return;
+  hide();
+  if (popEl) popEl.remove();
+  popReturnFocus = target;
+  const el = document.createElement("div");
+  el.className = "term-pop-overlay";
+  el.innerHTML = `
+    <div class="term-pop" role="dialog" aria-modal="true" aria-labelledby="term-pop-title">
+      <button type="button" class="term-pop-x" aria-label="Close">✕</button>
+      <div class="term-pop-badge" aria-hidden="true">?</div>
+      <div class="term-pop-kicker">What it means</div>
+      <h2 class="term-pop-title" id="term-pop-title">${escapeHtml(term)}</h2>
+      <div class="term-pop-body" aria-live="polite">${bodyHtml(null)}</div>
+      <button type="button" class="btn btn-primary term-pop-ok">Got it</button>
+    </div>`;
+  el.addEventListener("click", (e) => {
+    if (e.target === el || e.target.closest(".term-pop-x, .term-pop-ok")) closePop();
+  });
+  // No scrolling the page underneath; keep the layout from shifting when a
+  // desktop scrollbar disappears.
+  const gutter = window.innerWidth - document.documentElement.clientWidth;
+  if (gutter > 0) document.documentElement.style.setProperty("--term-pop-gutter", gutter + "px");
+  document.documentElement.classList.add("term-pop-open");
+  document.body.appendChild(el);
+  popEl = el;
+  document.addEventListener("keydown", onPopKey, true);
+  el.querySelector(".term-pop-ok").focus({ preventScroll: true });
+  const text = await fetchExplanation(term);
+  if (popEl !== el) return;
+  el.querySelector(".term-pop-body").innerHTML = bodyHtml(text);
+}
+
+const canHover = () => !!window.matchMedia?.("(hover: hover) and (pointer: fine)").matches;
+
 function onEnter(e) {
+  if (!canHover() || popEl) return;
   const t = e.target?.closest?.(".ai-term");
   if (!t) return;
   currentTarget = t;
@@ -215,9 +291,13 @@ function onLeave(e) {
   hide();
 }
 
+// Keyboard focus shows the small preview; Enter/Space opens the card.
 function onFocus(e) {
   const t = e.target?.closest?.(".ai-term");
-  if (!t) return;
+  if (!t || popEl) return;
+  let kb = false;
+  try { kb = t.matches(":focus-visible"); } catch {}
+  if (!kb) return;
   currentTarget = t;
   showFor(t);
 }
@@ -228,13 +308,20 @@ function onBlur(e) {
   hide();
 }
 
-function onTouchStart(e) {
+function onClick(e) {
   const t = e.target?.closest?.(".ai-term");
   if (!t) return;
   e.preventDefault();
-  if (currentTarget === t) { hide(); return; }
-  currentTarget = t;
-  showFor(t);
+  e.stopPropagation();
+  openPop(t);
+}
+
+function onKey(e) {
+  if (e.key !== "Enter" && e.key !== " ") return;
+  const t = e.target?.closest?.(".ai-term");
+  if (!t) return;
+  e.preventDefault();
+  openPop(t);
 }
 
 let mounted = false;
@@ -247,7 +334,9 @@ export function mountAiExplainer() {
   document.addEventListener("mouseout", onLeave, true);
   document.addEventListener("focusin", onFocus, true);
   document.addEventListener("focusout", onBlur, true);
-  document.addEventListener("touchstart", onTouchStart, { passive: false });
-  document.addEventListener("scroll", hide, { passive: true });
-  window.addEventListener("ss:navigate", hide);
+  document.addEventListener("click", onClick, true);
+  document.addEventListener("keydown", onKey, true);
+  document.addEventListener("scroll", hide, { passive: true, capture: true });
+  window.addEventListener("ss:navigate", () => { hide(); closePop(); });
+  window.addEventListener("popstate", closePop);
 }
