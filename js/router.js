@@ -19,7 +19,6 @@ import { renderLogin } from "./pages/login.js";
 import { renderRegister } from "./pages/register.js";
 import { renderResetPasswordRequest } from "./pages/resetPasswordRequest.js";
 import { renderResetPassword } from "./pages/resetPassword.js";
-import { renderFriends } from "./pages/friends.js";
 import { renderNews } from "./pages/news.js";
 import { renderChat } from "./pages/chat.js";
 import { renderAdmin, renderAdminClean } from "./pages/admin.js";
@@ -42,7 +41,6 @@ const APP_TITLES = {
   onboarding: "Welcome | StockSaathi",
   portfolio: "Portfolio | StockSaathi",
   "report-card": "Report card | StockSaathi",
-  friends: "Friends | StockSaathi",
   settings: "Settings | StockSaathi",
   privacy: "Privacy Policy | StockSaathi",
   terms: "Terms of Use | StockSaathi",
@@ -106,7 +104,8 @@ const ROUTES = [
   { name: "crash-replay",  match: /^\/crash-replay\/?$/,                   render: renderCrashReplay, public: true },
   { name: "crash-replay-scenario", match: /^\/crash-replay\/([A-Za-z0-9_]+)\/?$/, render: renderCrashReplay, param: "scenario", public: true },
   { name: "report-card",   match: /^\/report-card\/?$/,                    render: renderReportCard, needsAuth: true, needsOnboarded: true },
-  { name: "friends",       match: /^\/friends\/?$/,                        render: renderFriends, needsAuth: true, needsOnboarded: true },
+  // Send / receive money was removed (16 Oct 2026). Old links land on the portfolio.
+  { name: "friends",       match: /^\/friends\/?$/,                        render: () => go("/portfolio", { replace: true }), public: true },
   { name: "news",          match: /^\/news\/?$/,                           render: renderNews, public: true },
   { name: "chat",          match: /^\/chat\/?$/,                           render: renderChat, public: true },
   { name: "settings",      match: /^\/settings\/?$/,                       render: renderSettings, needsAuth: true },
@@ -184,7 +183,6 @@ function showLoadingShell(routeName) {
   const COPY = {
     portfolio:    "Loading your portfolio…",
     "report-card": "Loading your report card…",
-    friends:      "Loading your friends…",
     onboarding:   "Setting up onboarding…",
     settings:     "Loading settings…",
   };

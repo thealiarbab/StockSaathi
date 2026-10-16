@@ -15,7 +15,6 @@ const LINKS_AUTH = [
   { route: "news",      label: "News",      icon: "📰" },
   { route: "chat",      label: "Coach Chat", icon: "💬" },
   { route: "crash-replay", label: "Time Travel", icon: "⏱" },
-  { route: "friends",   label: "Friends",   icon: "👥" },
   { route: "report-card", label: "Report Card", icon: "📋" },
 ];
 
@@ -26,7 +25,7 @@ const LINKS_PUBLIC = [
 ];
 
 // Top bar on desktop. Leaderboard removed Apr 24 2026 — see router.js
-// for the full reasoning. Friends, Report card, Settings live in the
+// for the full reasoning. Report card and Settings live in the
 // avatar dropdown since they're less frequently accessed.
 const DESKTOP_TOP_AUTH = ["portfolio", "stocks", "news", "chat", "crash-replay"];
 
@@ -200,7 +199,6 @@ export function mountNav() {
                 </div>
                 <div class="dropdown-divider"></div>
                 <a class="dropdown-item" href="/report-card">📋 Report card</a>
-                <a class="dropdown-item" href="/friends">👥 Friends & transfers</a>
                 <a class="dropdown-item" href="/settings">⚙️ Settings</a>
                 <div class="dropdown-divider"></div>
                 <button class="dropdown-item danger" id="logout-btn">Log out</button>

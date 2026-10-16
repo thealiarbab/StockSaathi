@@ -25,7 +25,7 @@ Audit date: 2026-09-30. Numbers below were counted from the repo on that date.
 | `/privacy`, `/terms`, `/grievance` | public | Static HTML files. |
 | `/login`, `/register`, `/reset-password-request`, `/reset-password` | public, not indexed | Email + password; signup confirmed by emailed OTP. |
 | `/onboarding` | login | Age (13+), optional school + class code, investing style. |
-| `/portfolio`, `/report-card`, `/friends`, `/settings` | login | Private. |
+| `/portfolio`, `/report-card`, `/settings` | login | Private. |
 | `/orders` | — | Redirects to `/portfolio`. |
 | `/a/<slug>` | hidden | Admin console. Slug checked server-side against `ADMIN_PATH`; a wrong slug gets the same 404 shape as any unknown route. |
 
@@ -47,7 +47,6 @@ Audit date: 2026-09-30. Numbers below were counted from the repo on that date.
   - Featured (AI-written narration over Yahoo price data, cached cross-user): Harshad Mehta 1992, Dot-com 2000, GFC 2008, Satyam 2009, IL&FS 2018, DHFL 2019, YES Bank 2020, COVID 2020, Paytm IPO 2021, Adani–Hindenburg 2023.
   - Plus a free-text "replay any event" generator.
 - **Report card** (`js/pages/reportCard.js`): letter grade A+ → D recomputed after every decision (not monthly), self-override rate, 8 badges, AI-written narrative. Score adds up to +10 for positive returns, but is driven mainly by behaviour.
-- **Friends:** send virtual cash by @username, or share a redeem code.
 - **No leaderboard.** Removed on purpose (Apr 2026).
 - **PWA:** installable, service-worker cached; light / dark theme.
 - **No payment code anywhere** (no Razorpay / Stripe / subscriptions).
@@ -102,7 +101,7 @@ Audit date: 2026-09-30. Numbers below were counted from the repo on that date.
 | Behaviour | panic selling, FOMO investing, why beginners lose money, AI stock market tutor | `/`, `/chat` |
 | Crash history | covid crash 2020 nifty, 2008 crash sensex, demonetisation stock market, harshad mehta scam replay, crash simulator | `/crash-replay`, `/crash-replay/COVID_2020`, `/crash-replay/GFC_2008`, `/crash-replay/DEMO_2016` |
 | Stock pages | practice trading <company>, <symbol> share simulator | `/stocks/<symbol>` — Nifty 500 indexed, the rest `noindex` (thin-content guard) |
-| Not indexed | — | login, register, reset-*, onboarding, portfolio, report-card, friends, settings, `/a/*`, `/news` (third-party headlines → `noindex, follow`) |
+| Not indexed | — | login, register, reset-*, onboarding, portfolio, report-card, settings, `/a/*`, `/news` (third-party headlines → `noindex, follow`) |
 | Redirect | /market, /markets | 308 → `/stocks` |
 
 ## 6. Architecture decisions

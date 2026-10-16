@@ -598,7 +598,6 @@ export function renderPortfolio(main) {
         </div>
         <div class="flex gap-2 wrap">
           <a href="/stocks" class="btn btn-primary">+ Invest</a>
-          <a href="/friends" class="btn btn-ghost">Send money</a>
           <a href="/report-card" class="btn btn-ghost">Report card</a>
         </div>
       </div>
@@ -743,15 +742,6 @@ export function renderPortfolio(main) {
             }
           </div>
 
-          <div class="card">
-            <div class="card-head"><h3>Quick actions</h3></div>
-            <div class="flex-col gap-2">
-              <a href="/stocks" class="btn btn-ghost">📈 Browse markets</a>
-              <a href="/news" class="btn btn-ghost">📰 Market news</a>
-              <a href="/crash-replay" class="btn btn-ghost">⏱ Time travel</a>
-              <a href="/friends" class="btn btn-ghost">💸 Send money</a>
-            </div>
-          </div>
         </div>
       </div>
     `;
@@ -999,9 +989,8 @@ function renderEmptyHoldings() {
 
 function renderActivity(state) {
   const txns = state.transactions.slice().reverse().slice(0, 5);
-  const transfers = state.transfers.slice().reverse().slice(0, 3);
-  if (!txns.length && !transfers.length) {
-    return `<p class="muted text-sm" style="text-align: center; padding: var(--sp-4);">No activity yet. Your trades and transfers will show here.</p>`;
+  if (!txns.length) {
+    return `<p class="muted text-sm" style="text-align: center; padding: var(--sp-4);">No activity yet. Your trades will show here.</p>`;
   }
   const rows = [];
   for (const t of txns) {
@@ -1013,16 +1002,6 @@ function renderActivity(state) {
       right: `${formatQty(t.qty, inst?.kind)} @ ${formatRupees(t.pricePaise)}`,
       amount: (t.side === "BUY" ? "−" : "+") + formatRupees(t.valuePaise, { compact: true }),
       ac: t.side === "BUY" ? "down" : "up",
-    });
-  }
-  for (const t of transfers) {
-    rows.push({
-      type: "transfer",
-      ts: t.ts,
-      left: `<span class="pill ${t.direction === "in" ? "pill-green" : "pill-red"}">${t.direction === "in" ? "RECEIVED" : "SENT"}</span> ${escapeHtml(t.counterpartyName || "Transfer")}`,
-      right: escapeHtml(t.note || ""),
-      amount: (t.direction === "in" ? "+" : "−") + formatRupees(t.amountPaise, { compact: true }),
-      ac: t.direction === "in" ? "up" : "down",
     });
   }
   rows.sort((a, b) => b.ts - a.ts);

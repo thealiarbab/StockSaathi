@@ -13,8 +13,8 @@ export function renderTerms(main) {
       <div class="card" style="margin-bottom: var(--sp-4); background: var(--bg-soft);">
         <p class="text-sm" style="line-height: 1.75;">
           <strong>Read this first.</strong> StockSaathi is an <strong>educational
-          paper-trading simulator</strong>. Every number, portfolio,
-          transfer and balance you see on the service is simulated. No real securities
+          paper-trading simulator</strong>. Every number, portfolio
+          and balance you see on the service is simulated. No real securities
           are bought, sold, or held. No real money is ever debited, credited, or held
           on your behalf. StockSaathi is <strong>not a SEBI-registered broker, investment
           adviser, research analyst, or portfolio manager</strong>, and is not affiliated
@@ -69,10 +69,11 @@ export function renderTerms(main) {
       </div>
 
       <div class="card" style="margin-bottom: var(--sp-4);">
-        <h3 style="margin-bottom: var(--sp-3);">5. Virtual currency and transfers</h3>
+        <h3 style="margin-bottom: var(--sp-3);">5. Virtual currency</h3>
         <p class="text-sm" style="line-height: 1.75;">
-          The &ldquo;cash&rdquo; shown in your account is a fictional in-app balance. Transfers
-          between users are entries in our database and have no real-world monetary value.
+          The &ldquo;cash&rdquo; shown in your account is a fictional in-app balance. It is
+          an entry in our database and has no real-world monetary value. Virtual cash cannot
+          be sent to or received from other users.
           You cannot withdraw virtual cash or convert it into anything of value. No
           gambling, wagering, or prize scheme is operated on the service.
         </p>

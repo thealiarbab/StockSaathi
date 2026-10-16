@@ -340,10 +340,8 @@ export async function buildDossier() {
   if (activity) L.push(activity);
 
   const wl = Array.isArray(s.watchlist) ? s.watchlist.length : 0;
-  const tf = Array.isArray(s.transfers) ? s.transfers.length : 0;
   const bits = [];
   if (wl) bits.push(`Watchlist ${wl}`);
-  if (tf) bits.push(`Transfers ${tf}`);
   if (bits.length) L.push(bits.join(" · ") + ".");
 
   return L.join("\n");

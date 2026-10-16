@@ -781,7 +781,13 @@ function render(inst, symbol) {
   // tick on a month-scale view is invisible, and on a heavy zoom the
   // same tick would show on 1D too (fundamental zoom behaviour).
   let chartOhlc = history;
-  if (liveQuote?.pricePaise && history.length && inst.kind !== "MF") {
+  // Only fold the live price into a bar from the SAME IST trading day. A bar
+  // from an earlier session stretched to today's price draws a candle that
+  // never traded.
+  const _istDay = (ms) => new Date(ms + 19800000).toISOString().slice(0, 10);
+  const _lastBar = history[history.length - 1];
+  const _sameDay = !!(_lastBar && liveQuote?.ts && _istDay(_lastBar.t) === _istDay(Number(liveQuote.ts) || Date.parse(liveQuote.ts)));
+  if (liveQuote?.pricePaise && history.length && inst.kind !== "MF" && _sameDay) {
     const last = history[history.length - 1];
     const lp = liveQuote.pricePaise;
     chartOhlc = history.slice(0, -1).concat([{
@@ -866,6 +872,29 @@ function render(inst, symbol) {
         if (vTo > sessionWindow.toMs)     { vFrom -= (vTo - sessionWindow.toMs); vTo = sessionWindow.toMs; }
         chartXAxisRange = { fromMs: vFrom, toMs: vTo };
       }
+    }
+  }
+
+  // Multi-day charts zoom in TRADING time: the zoom window is measured in
+  // bars and the visible bars are drawn side by side. Zooming used to switch
+  // to a clock-time axis, so on 1M (30-minute bars, market open 6h15m a day)
+  // ~75% of the zoomed chart was empty nights, weekends and holidays, with
+  // the candles squeezed into islands between them. 1D keeps its clock axis
+  // (one session, 09:15 to 15:30, no gaps to hide).
+  let chartView = chartOhlc;
+  const barZoom = !(inst.kind !== "MF" && ui.timeframe === "1D") && chartOhlc.length >= 2;
+  if (barZoom) {
+    const n = chartOhlc.length;
+    sessionWindow = { fromMs: 0, toMs: n - 1 };      // bar units for chartZoom
+    chartXAxisRange = null;
+    if (ui.zoom.scale > 1) {
+      const span = (n - 1) / ui.zoom.scale;
+      let c = Number.isFinite(ui.zoom.centerMs) && ui.zoom.centerMs <= n ? ui.zoom.centerMs : (n - 1) / 2;
+      let a = c - span / 2, b = c + span / 2;
+      if (a < 0) { b -= a; a = 0; }
+      if (b > n - 1) { a -= b - (n - 1); b = n - 1; }
+      chartView = chartOhlc.slice(Math.max(0, Math.floor(a)), Math.min(n, Math.ceil(b) + 1));
+      if (chartView.length < 2) chartView = chartOhlc.slice(-2);
     }
   }
 
@@ -1037,7 +1066,7 @@ function render(inst, symbol) {
                        data — showing a flatline at ₹0 would be misleading.
                      </div>
                    </div>`
-                : _renderMfChartSafe(chartOhlc, ui, computeChartWidth(), chartXAxisRange))
+                : _renderMfChartSafe(chartView, ui, computeChartWidth(), chartXAxisRange))
             : noChart
               ? `<div id="stock-chart-host" style="height: clamp(200px, 30vh, 260px); width: 100%; display: grid; place-items: center; text-align: center; padding: var(--sp-4);">
                    <div>
@@ -1046,7 +1075,7 @@ function render(inst, symbol) {
                      <div class="dim text-sm" style="max-width: 360px; margin-top: 4px;">Our price-history source doesn't cover it. The price above is real; a chart appears once enough daily closes are recorded.</div>
                    </div>
                  </div>`
-              : `<div id="stock-chart-host" style="height: clamp(260px, 44vh, 360px); width: 100%;">${stockChart(chartOhlc, { height: computeChartHeight(), mode: ui.chartMode, width: computeChartWidth(), xAxisRange: chartXAxisRange })}</div>`}
+              : `<div id="stock-chart-host" style="height: clamp(260px, 44vh, 360px); width: 100%;">${stockChart(chartView, { height: computeChartHeight(), mode: ui.chartMode, width: computeChartWidth(), xAxisRange: chartXAxisRange })}</div>`}
           ${eodOnly && !noChart ? `
             <div class="dim text-xs" style="margin-top: 6px; padding: 4px 8px; background: var(--bg-soft); border-radius: var(--r-sm); display: inline-flex; align-items: center; gap: 6px;">
               <span aria-hidden="true">📅</span>
@@ -1220,7 +1249,7 @@ function render(inst, symbol) {
   // never get a click listener and the button appeared dead (user would
   // only see the browser's default :active press animation and nothing
   // else). Reordering makes the core trade action bulletproof.
-  attachListeners(main, inst, symbol, curPrice, holding, chartOhlc, sessionWindow);
+  attachListeners(main, inst, symbol, curPrice, holding, chartView, sessionWindow);
 
   // Mount quantity selector (wrapped in try/catch so a crash here can
   // never silently kill the trade buttons).

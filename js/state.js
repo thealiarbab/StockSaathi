@@ -21,11 +21,8 @@ const DEFAULT_STATE = () => ({
   portfolio: { cashPaise: STARTING_CASH_PAISE, startingCashPaise: STARTING_CASH_PAISE },
   holdings: {},
   transactions: [],
-  transfers: [],
-  inbox: [],
   coachMessages: [],
   watchlist: [],
-  friends: [],
   badges: [],
   // v275: portfolio-value snapshots, {ts, valuePaise}[], ascending by ts.
   // Populated from public.portfolio_history by sync.js:loadAllFromDb.
@@ -109,7 +106,7 @@ function writeUserState(userId, st) {
     localStorage.setItem(keyFor(userId), JSON.stringify(stamped));
   } catch (e) {
     // Quota handling: large coach histories can blow the 5 MB cap. Trim the
-    // heaviest arrays (coachMessages + transactions + transfers) and retry
+    // heaviest arrays (coachMessages + transactions) and retry
     // once — losing old chat history is better than losing new trades.
     const isQuota = e && (e.name === "QuotaExceededError"
                           || (e.code && (e.code === 22 || e.code === 1014)));
@@ -119,8 +116,6 @@ function writeUserState(userId, st) {
         ...stamped,
         coachMessages: (stamped.coachMessages || []).slice(-50),
         transactions: (stamped.transactions || []).slice(-500),
-        transfers: (stamped.transfers || []).slice(-200),
-        inbox: (stamped.inbox || []).slice(-100),
         portfolioHistory: (stamped.portfolioHistory || []).slice(-500),
       };
       localStorage.setItem(keyFor(userId), JSON.stringify(trimmed));
@@ -207,11 +202,8 @@ export function getState() {
     portfolio: us.portfolio,
     holdings: us.holdings,
     transactions: us.transactions,
-    transfers: us.transfers,
-    inbox: us.inbox,
     coachMessages: us.coachMessages,
     watchlist: us.watchlist,
-    friends: us.friends,
     badges: us.badges,
     // v275 BUGFIX: this projection is an allowlist, not a spread — any key
     // missing from BOTH this literal and applyFullPatch's literal below is
@@ -254,11 +246,8 @@ function applyFullPatch(full, prev) {
       portfolio: full.portfolio ?? _userState.portfolio,
       holdings: full.holdings ?? _userState.holdings,
       transactions: full.transactions ?? _userState.transactions,
-      transfers: full.transfers ?? _userState.transfers,
-      inbox: full.inbox ?? _userState.inbox,
       coachMessages: full.coachMessages ?? _userState.coachMessages,
       watchlist: full.watchlist ?? _userState.watchlist,
-      friends: full.friends ?? _userState.friends,
       badges: full.badges ?? _userState.badges,
       portfolioHistory: full.portfolioHistory ?? _userState.portfolioHistory ?? [],
       profile: {
@@ -610,7 +599,7 @@ export function resetCurrentPortfolio() {
   setState(s => ({
     ...s,
     portfolio: { cashPaise: STARTING_CASH_PAISE, startingCashPaise: STARTING_CASH_PAISE },
-    holdings: {}, transactions: [], transfers: [], inbox: [],
+    holdings: {}, transactions: [],
     coachMessages: [],
     demo: { crashReplayCompleted: [], firstTradeDone: false },
   }));

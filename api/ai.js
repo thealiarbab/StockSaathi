@@ -1148,7 +1148,7 @@ const SYSTEM_COMMAND = `You are Saathi's command router on StockSaathi. A user t
   { "action": "search",   "query": "<the search intent>", "response": "<short ack>" }
   { "action": "trade",    "side": "BUY" | "SELL", "symbol": "<NSE ticker>", "qty": <int>, "response": "<short ack>" }
 
-Navigation targets: /portfolio /stocks /news /chat /crash-replay /friends /report-card /settings /stocks/<TICKER>
+Navigation targets: /portfolio /stocks /news /chat /crash-replay /report-card /settings /stocks/<TICKER>
 Rules: educational → answer (Saathi voice, Indian teen audience, no emojis, no buy/sell advice). Go somewhere → navigate. Filter stocks → search. Place trade → trade (qty ≥ 1). Garbage/off-scope → answer + brief redirect. Return ONLY the JSON.`;
 
 async function opCommand(req, origin) {
@@ -1224,7 +1224,6 @@ export default async function handler(req) {
       case "admin-profile-patch": return await opAdminProfilePatch(req, origin);
       case "admin-order-cancel":  return await opAdminOrderCancel(req, origin);
       case "admin-trade-delete":  return await opAdminTradeDelete(req, origin);
-      case "admin-transfer-void": return await opAdminTransferVoid(req, origin);
       case "admin-coach-delete":  return await opAdminCoachDelete(req, origin);
       case "admin-cache-invalidate": return await opAdminCacheInvalidate(req, origin);
       case "admin-backfill-history": return await opAdminBackfillHistory(req, origin);
@@ -1396,7 +1395,7 @@ async function opAdminOverview(req, origin) {
     // Raised caps: users 500→5000, trades 5000→50000, coach 10000→50000.
     const [
       profilesRes, portsRes, txsRes, coachRes,
-      holdRes, friendRes, xferRes, wlRes, orderRes,
+      holdRes, wlRes, orderRes,
       aiCacheCountRes, quoteCacheCountRes, dhanCountRes, auditCountRes,
       histCountRes,
     ] = await Promise.all([
@@ -1405,8 +1404,6 @@ async function opAdminOverview(req, origin) {
       sbAdminFetch(`/rest/v1/transactions?select=id,user_id,symbol,side,qty,price_paise,value_paise,bias_flags,created_at&order=created_at.desc&limit=50000`),
       sbAdminFetch(`/rest/v1/coach_messages?select=id,user_id,event_type,trigger_symbol,model,created_at&limit=50000`),
       sbAdminFetch(`/rest/v1/holdings?select=user_id,symbol,qty,avg_cost_paise&limit=20000`),
-      sbAdminFetch(`/rest/v1/friends?select=user_id,friend_id,created_at&limit=20000`),
-      sbAdminFetch(`/rest/v1/transfers?select=id,sender_id,recipient_id,amount_paise,status,created_at&limit=20000`),
       sbAdminFetch(`/rest/v1/watchlist?select=user_id,symbol,added_at&limit=20000`),
       sbAdminFetch(`/rest/v1/limit_orders?select=id,user_id,status,created_at&limit=20000`),
       // Count-only probes for big / rarely-inspected tables
@@ -1422,8 +1419,6 @@ async function opAdminOverview(req, origin) {
     const txs = txsRes.ok ? await txsRes.json() : [];
     const coachMessages = coachRes.ok ? await coachRes.json() : [];
     const holdings = holdRes.ok ? await holdRes.json() : [];
-    const friends = friendRes.ok ? await friendRes.json() : [];
-    const transfers = xferRes.ok ? await xferRes.json() : [];
     const watchlist = wlRes.ok ? await wlRes.json() : [];
     const orders = orderRes.ok ? await orderRes.json() : [];
 
@@ -1450,14 +1445,6 @@ async function opAdminOverview(req, origin) {
       holdingCountByUser[h.user_id] = (holdingCountByUser[h.user_id] || 0) + 1;
       // unrealized uses cost-basis sum as a proxy; actual mark-to-market needs live prices
       unrealizedByUser[h.user_id] = (unrealizedByUser[h.user_id] || 0) + (Number(h.qty) * Number(h.avg_cost_paise) || 0);
-    }
-    const friendCountByUser = {};
-    for (const f of friends) friendCountByUser[f.user_id] = (friendCountByUser[f.user_id] || 0) + 1;
-    const transferInByUser = {};
-    const transferOutByUser = {};
-    for (const tf of transfers) {
-      if (tf.recipient_id) transferInByUser[tf.recipient_id] = (transferInByUser[tf.recipient_id] || 0) + 1;
-      if (tf.sender_id) transferOutByUser[tf.sender_id] = (transferOutByUser[tf.sender_id] || 0) + 1;
     }
     const watchlistCountByUser = {};
     for (const w of watchlist) watchlistCountByUser[w.user_id] = (watchlistCountByUser[w.user_id] || 0) + 1;
@@ -1507,9 +1494,6 @@ async function opAdminOverview(req, origin) {
         totalTradedValueRupees: Math.round((totalTradedValueByUser[p.id] || 0) / 100),
         coachMsgCount: coachCountByUser[p.id] || 0,
         holdingCount: holdingCountByUser[p.id] || 0,
-        friendCount: friendCountByUser[p.id] || 0,
-        transferInCount: transferInByUser[p.id] || 0,
-        transferOutCount: transferOutByUser[p.id] || 0,
         watchlistCount: watchlistCountByUser[p.id] || 0,
         limitOrderCount: orderCountByUser[p.id] || 0,
         biasFlagCount: biasFlagCountByUser[p.id] || 0,
@@ -1531,7 +1515,6 @@ async function opAdminOverview(req, origin) {
       mostCoached:       [...users].sort((a, b) => b.coachMsgCount - a.coachMsgCount).slice(0, 10).map(u => ({ id: u.id, username: u.username, value: u.coachMsgCount })),
       biggestLosers:     [...users].filter(u => u.unrealizedPLPct < 0).sort((a, b) => a.unrealizedPLPct - b.unrealizedPLPct).slice(0, 10).map(u => ({ id: u.id, username: u.username, value: u.unrealizedPLPct })),
       biggestGainers:    [...users].filter(u => u.unrealizedPLPct > 0).sort((a, b) => b.unrealizedPLPct - a.unrealizedPLPct).slice(0, 10).map(u => ({ id: u.id, username: u.username, value: u.unrealizedPLPct })),
-      mostSocial:        [...users].sort((a, b) => b.friendCount - a.friendCount).slice(0, 10).map(u => ({ id: u.id, username: u.username, value: u.friendCount })),
       mostBiased:        [...users].sort((a, b) => b.biasFlagCount - a.biasFlagCount).slice(0, 10).map(u => ({ id: u.id, username: u.username, value: u.biasFlagCount })),
     };
 
@@ -1548,8 +1531,6 @@ async function opAdminOverview(req, origin) {
         totalTrades: txs.length,
         totalCoachMessages: coachMessages.length,
         totalHoldings: holdings.length,
-        totalFriendships: friends.length,
-        totalTransfers: transfers.length,
         totalWatchlistEntries: watchlist.length,
         totalLimitOrders: orders.length,
       },
@@ -1559,8 +1540,6 @@ async function opAdminOverview(req, origin) {
         transactions: txs.length,
         coach_messages: coachMessages.length,
         holdings: holdings.length,
-        friends: friends.length,
-        transfers: transfers.length,
         watchlist: watchlist.length,
         limit_orders: orders.length,
         ai_response_cache: aiCacheCountRes,
@@ -1588,7 +1567,7 @@ async function opAdminUser(req, origin, url) {
   try {
     const [
       profRes, portRes, holdRes, txRes, coachRes, histRes,
-      watchRes, friendRes, xferRes, orderRes, auditRes,
+      watchRes, orderRes, auditRes,
     ] = await Promise.all([
       sbAdminFetch(`/rest/v1/profiles?select=*&id=eq.${encodeURIComponent(userId)}&limit=1`),
       sbAdminFetch(`/rest/v1/portfolios?select=*&user_id=eq.${encodeURIComponent(userId)}&limit=1`),
@@ -1597,8 +1576,6 @@ async function opAdminUser(req, origin, url) {
       sbAdminFetch(`/rest/v1/coach_messages?select=*&user_id=eq.${encodeURIComponent(userId)}&order=created_at.desc&limit=500`),
       sbAdminFetch(`/rest/v1/portfolio_history?select=ts,total_value_paise,cash_paise,holdings_value_paise,source&user_id=eq.${encodeURIComponent(userId)}&order=ts.asc&limit=2000`),
       sbAdminFetch(`/rest/v1/watchlist?select=symbol,added_at&user_id=eq.${encodeURIComponent(userId)}&order=added_at.desc&limit=200`),
-      sbAdminFetch(`/rest/v1/friends?select=friend_id,created_at&user_id=eq.${encodeURIComponent(userId)}&limit=500`),
-      sbAdminFetch(`/rest/v1/transfers?select=*&or=(sender_id.eq.${encodeURIComponent(userId)},recipient_id.eq.${encodeURIComponent(userId)})&order=created_at.desc&limit=500`),
       sbAdminFetch(`/rest/v1/limit_orders?select=*&user_id=eq.${encodeURIComponent(userId)}&order=created_at.desc&limit=500`),
       sbAdminFetch(`/rest/v1/admin_audit_log?select=*&target_user_id=eq.${encodeURIComponent(userId)}&order=ts.desc&limit=200`),
     ]);
@@ -1611,8 +1588,6 @@ async function opAdminUser(req, origin, url) {
     const coachMessages = coachRes.ok ? await coachRes.json() : [];
     const portfolioHistory = histRes.ok ? await histRes.json() : [];
     const watchlist = watchRes.ok ? await watchRes.json() : [];
-    const friends = friendRes.ok ? await friendRes.json() : [];
-    const transfers = xferRes.ok ? await xferRes.json() : [];
     const limitOrders = orderRes.ok ? await orderRes.json() : [];
     const adminActionHistory = auditRes.ok ? await auditRes.json() : [];
 
@@ -1644,7 +1619,7 @@ async function opAdminUser(req, origin, url) {
 
     return j(200, {
       profile, portfolio, holdings, transactions, coachMessages,
-      portfolioHistory, watchlist, friends, transfers, limitOrders,
+      portfolioHistory, watchlist, limitOrders,
       adminActionHistory, reportCard, authMeta,
     }, origin);
   } catch (e) {
@@ -1699,7 +1674,7 @@ function computeReportCardServerSide({ transactions, coachMessages }) {
 
 // -----------------------------------------------------------------------------
 // op: admin-activity-feed — unified event stream
-// GET /api/ai?op=admin-activity-feed&limit=200&before=<ts>&filter=<trades|coach|transfers|orders|signups>
+// GET /api/ai?op=admin-activity-feed&limit=200&before=<ts>&filter=<trades|coach|orders|signups>
 // -----------------------------------------------------------------------------
 async function opAdminActivityFeed(req, origin, url) {
   const gate = checkAdmin(req);
@@ -1713,27 +1688,23 @@ async function opAdminActivityFeed(req, origin, url) {
     const wants = {
       trades:    filter === "all" || filter === "trades",
       coach:     filter === "all" || filter === "coach",
-      transfers: filter === "all" || filter === "transfers",
       orders:    filter === "all" || filter === "orders",
       signups:   filter === "all" || filter === "signups",
     };
-    const [txRes, coachRes, xferRes, orderRes, signupRes] = await Promise.all([
+    const [txRes, coachRes, orderRes, signupRes] = await Promise.all([
       wants.trades    ? sbAdminFetch(`/rest/v1/transactions?select=id,user_id,symbol,side,qty,price_paise,value_paise,created_at&order=created_at.desc&limit=${limit}${beforeQ}`) : { ok: true, json: async () => [] },
       wants.coach     ? sbAdminFetch(`/rest/v1/coach_messages?select=id,user_id,event_type,trigger_symbol,model,created_at&order=created_at.desc&limit=${limit}${beforeQ}`) : { ok: true, json: async () => [] },
-      wants.transfers ? sbAdminFetch(`/rest/v1/transfers?select=id,sender_id,recipient_id,amount_paise,status,created_at&order=created_at.desc&limit=${limit}${beforeQ}`) : { ok: true, json: async () => [] },
       wants.orders    ? sbAdminFetch(`/rest/v1/limit_orders?select=id,user_id,symbol,side,qty,status,created_at&order=created_at.desc&limit=${limit}${beforeQ}`) : { ok: true, json: async () => [] },
       wants.signups   ? sbAdminFetch(`/rest/v1/profiles?select=id,username,display_name,created_at&order=created_at.desc&limit=${limit}${beforeQ}`) : { ok: true, json: async () => [] },
     ]);
     const trades    = txRes.ok ? await txRes.json() : [];
     const coach     = coachRes.ok ? await coachRes.json() : [];
-    const transfers = xferRes.ok ? await xferRes.json() : [];
     const orders    = orderRes.ok ? await orderRes.json() : [];
     const signups   = signupRes.ok ? await signupRes.json() : [];
 
     const events = [
       ...trades.map(t => ({ kind: "trade", ts: t.created_at, userId: t.user_id, payload: t })),
       ...coach.map(c => ({ kind: "coach", ts: c.created_at, userId: c.user_id, payload: c })),
-      ...transfers.map(x => ({ kind: "transfer", ts: x.created_at, userId: x.sender_id || x.recipient_id, payload: x })),
       ...orders.map(o => ({ kind: "order", ts: o.created_at, userId: o.user_id, payload: o })),
       ...signups.map(s => ({ kind: "signup", ts: s.created_at, userId: s.id, payload: s })),
     ].sort((a, b) => (a.ts < b.ts ? 1 : -1)).slice(0, limit);
@@ -2060,31 +2031,6 @@ async function opAdminTradeDelete(req, origin) {
     return { beforeState: before, afterState: rpcBody, ok: rpc.ok };
   });
   if (!result.ok) return j(502, { error: "reverse_failed" }, origin);
-  return j(200, { ok: true, result: result.afterState }, origin);
-}
-
-async function opAdminTransferVoid(req, origin) {
-  const gate = checkAdmin(req);
-  if (!gate.ok) return j(401, { error: gate.reason }, origin);
-  const parsed = await parseWriteBody(req);
-  if (parsed.err) return j(400, { error: parsed.err }, origin);
-  const { body, reason } = parsed;
-  const transferId = String(body?.transferId || "").trim();
-  if (!transferId) return j(400, { error: "missing_transferId" }, origin);
-
-  const result = await auditWrap(req, {
-    action: "transfer_void", targetKind: "transfer", targetId: transferId, reason,
-  }, async () => {
-    const before = await sbFetchOne(`/rest/v1/transfers?select=*&id=eq.${encodeURIComponent(transferId)}`);
-    if (!before) return { beforeState: null, afterState: null, ok: false };
-    const rpc = await sbAdminFetch(`/rest/v1/rpc/admin_refund_transfer`, {
-      method: "POST",
-      body: JSON.stringify({ p_transfer_id: transferId }),
-    });
-    const rpcBody = rpc.ok ? await rpc.json() : null;
-    return { beforeState: before, afterState: rpcBody, ok: rpc.ok };
-  });
-  if (!result.ok) return j(502, { error: "refund_failed" }, origin);
   return j(200, { ok: true, result: result.afterState }, origin);
 }
 
@@ -3082,7 +3028,7 @@ async function opAdminGhWorkflowTrigger(req, origin) {
 }
 
 // =============================================================================
-// SSE LIVE TAIL — unified event stream of trades / coach / transfers / orders
+// SSE LIVE TAIL — unified event stream of trades / coach / orders
 // / signups / admin-actions, emitted as Server-Sent Events.
 //
 // Why poll-based, not Supabase-realtime-proxied:
@@ -3133,7 +3079,6 @@ async function opAdminTail(req, origin) {
       const tables = [
         { name: "transactions",   kind: "trade",   timeCol: "created_at" },
         { name: "coach_messages", kind: "coach",   timeCol: "created_at" },
-        { name: "transfers",      kind: "transfer",timeCol: "created_at" },
         { name: "limit_orders",   kind: "order",   timeCol: "created_at" },
         { name: "profiles",       kind: "signup",  timeCol: "created_at" },
         { name: "admin_audit_log",kind: "admin",   timeCol: "ts" },

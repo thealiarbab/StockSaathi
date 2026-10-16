@@ -31,7 +31,6 @@ const QUICK_ACTIONS = [
   { label: "📰 News", hash: "/news" },
   { label: "⏱ Time travel", hash: "/crash-replay" },
   { label: "📋 Report card", hash: "/report-card" },
-  { label: "👥 Friends", hash: "/friends" },
 ];
 
 function ensureRoot() {
