@@ -381,11 +381,15 @@ export function stockChart(ohlc, {
     // Original: 5 evenly-spaced labels keyed off the data array.
     // Phone-width charts get 3 labels: five "03 Sept" labels overlap at ~280 px.
     const nTicks = Math.min(width < 480 ? 3 : 5, ohlc.length);
-    const spanMs = ohlc[ohlc.length - 1].t - ohlc[0].t;
-    const isIntraday = spanMs > 0 && spanMs < 3 * 86400000;
+    // Decide by trading days on screen, not calendar span: a zoomed 1M view
+    // of three sessions can cross a weekend and a holiday (30 Sept → 05 Oct)
+    // and would otherwise fall back to date-only labels that repeat.
+    const days = new Set(ohlc.map(k => fmtDate(k.t)));
+    const isIntraday = ohlc.length > days.size && days.size <= 5;
     // Intraday bars spread over more than one session (a zoomed 1W/1M chart)
     // need the day as well, or "09:45 am" could be any of three days.
-    const multiDay = isIntraday && fmtDate(ohlc[0].t) !== fmtDate(ohlc[ohlc.length - 1].t);
+    const multiDay = isIntraday && days.size > 1;
+    let prevLabel = "";
     for (let i = 0; i < nTicks; i++) {
       const idx = Math.round(i * (ohlc.length - 1) / (nTicks - 1 || 1));
       const x = toXi(idx);
@@ -393,6 +397,8 @@ export function stockChart(ohlc, {
       const label = !isIntraday ? fmtDate(k.t)
         : multiDay ? `${fmtDate(k.t)} ${fmtTime(k.t)}`
         : fmtTime(k.t);
+      if (label === prevLabel) continue;
+      prevLabel = label;
       xLabels += `<text class="chart-axis-label" x="${x}" y="${height - 10}" text-anchor="middle">${label}</text>`;
     }
   }
