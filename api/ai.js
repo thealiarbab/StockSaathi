@@ -587,13 +587,21 @@ async function opStockWhy(req, origin) {
   const changePct = Number(body.changePct) || 0;
   const dir = changePct >= 0 ? "up" : "down";
   const session = lastSessionIst();
+  const isFund = body.kind === "MF";
   // v2: entries written under the old prompt guessed causes (C9).
-  const key = `v2_${sym.toLowerCase()}_${dir}_${session.ymd}` + (hinglishOf(req) ? "_hi" : "");
+  // mf1: fund entries before this were written with a 0% move and the code.
+  const key = `${isFund ? "mf1" : "v2"}_${sym.toLowerCase()}_${dir}_${session.ymd}` + (hinglishOf(req) ? "_hi" : "");
   const hit = await cacheGet("stock_why", key);
   if (hit?.explanation) return j(200, { explanation: hit.explanation, source: "cache" }, origin);
 
   const news = Array.isArray(body.newsItems) ? body.newsItems.slice(0, 8) : [];
-  const userMsg = [
+  const userMsg = isFund ? [
+    `This is a mutual fund, not a stock. Call it by its name; never write the scheme code ${sym}.`,
+    body.name ? `Fund: ${body.name}` : null,
+    body.pricePaise != null ? `NAV: ₹${(body.pricePaise / 100).toFixed(2)}${body.navDate ? ` (published for ${String(body.navDate).slice(0, 40)})` : ""}` : null,
+    `Change since the previous NAV: ${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)}%. Describe it as the change since the previous NAV, not as a closing price.`,
+    news.length ? `\nRecent market headlines:\n${news.map(n => `- [${n.source || "?"}] ${n.headline}`).join("\n")}` : "No relevant headlines were found. Say there is no clear news reason; do not guess one.",
+  ].filter(Boolean).join("\n") : [
     `Ticker: ${sym}`,
     body.name ? `Name: ${body.name}` : null,
     body.sector ? `Sector: ${body.sector}` : null,

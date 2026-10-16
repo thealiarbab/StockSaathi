@@ -753,7 +753,9 @@ function render(inst, symbol) {
   // Funds: the move since the previous NAV. There is no intraday feed, so
   // the old "₹0 (0.00%) today" was a placeholder, not a fact.
   let mfPrev = null;
-  if (inst.kind === "MF" && history.length >= 2) {
+  // curPrice is null until the NAV loads; null minus the previous NAV read
+  // as a 100% fall (and the coach card said so).
+  if (inst.kind === "MF" && history.length >= 2 && curPrice > 0) {
     const lastBar = history[history.length - 1];
     mfPrev = Math.abs(lastBar.c - curPrice) < 1 ? history[history.length - 2].c : lastBar.c;
   }
@@ -1000,7 +1002,7 @@ function render(inst, symbol) {
               ${mfChange == null ? "" : `<div class="change ${deltaClass(mfChange)} tabular">
                 ${formatRupees(mfDelta, { sign: true })} (${formatPct(mfChange, { sign: true })}) since the previous NAV
               </div>`}
-              <div class="dim text-xs" style="margin-top: 4px;">NAV for ${escapeHtml(fmtNavDate(inst.nav_date))} · AMFI, published after the day ends</div>
+              <div class="dim text-xs" style="margin-top: 4px;">NAV for ${escapeHtml(fmtNavDate(inst.nav_date || (history.length ? navDayKey(history[history.length - 1].t) : null)))} · AMFI, published after the day ends</div>
             ` : `
             <div class="change ${deltaClass(change)} tabular">
               ${formatRupees(dayChangeVal, { sign: true })} (${formatPct(change, { sign: true })}) today
@@ -1238,13 +1240,16 @@ function render(inst, symbol) {
       // ai_response_cache table keyed on (sym, dir, day). Gating
       // prevents the bad answer from being generated in the first
       // place.
-      const haveRealPrice = inst.kind === "MF" || liveQuote != null;
+      // Funds wait for the NAV history: without it the change is unknown
+      // and the card read "MF_120716 closed at +0.00%".
+      const haveRealPrice = inst.kind === "MF" ? mfChange != null : liveQuote != null;
       if (haveRealPrice) {
         const dk = nowIstDayKey();
         const key = `${symbol}_${dk}`;
         if (_stockWhyKey !== key) {
           _stockWhyKey = key;
-          fetchStockWhy(main, symbol, inst, curPrice, liveQuote?.changePct ?? 0);
+          fetchStockWhy(main, symbol, inst, curPrice, inst.kind === "MF" ? mfChange : (liveQuote?.changePct ?? 0),
+            inst.kind === "MF" ? fmtNavDate(inst.nav_date || (history.length ? navDayKey(history[history.length - 1].t) : null)) : null);
         }
       }
     }
@@ -1295,7 +1300,7 @@ function nowIstDayKey() {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
-async function fetchStockWhy(main, symbol, inst, curPricePaise, changePct) {
+async function fetchStockWhy(main, symbol, inst, curPricePaise, changePct, navDate = null) {
   // Abort-controller timeout so a slow Gemini response doesn't leave
   // the card stuck on "Reading today's news + price action…" forever.
   const ctrl = new AbortController();
@@ -1315,6 +1320,8 @@ async function fetchStockWhy(main, symbol, inst, curPricePaise, changePct) {
       symbol,
       name: inst?.name || symbol,
       sector: inst?.sector || "",
+      kind: inst?.kind === "MF" ? "MF" : "EQUITY",
+      navDate,
       pricePaise: curPricePaise,
       changePct: (changePct || 0) * 100,
       newsItems: (newsItems || []).slice(0, 8).map(n => ({ headline: n.headline, source: n.source })),
@@ -2311,6 +2318,11 @@ function renderPriceFreshness(quote) {
       <button class="btn btn-ghost btn-sm" id="price-refresh-btn" title="Force a fresh upstream fetch (bypasses our cache)" style="padding: 2px 8px; font-size: 11px; min-height: 0;">↻ Refresh</button>
     </div>
   `;
+}
+
+// The IST calendar day of a history bar, as YYYY-MM-DD for fmtNavDate.
+function navDayKey(t) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(t));
 }
 
 function fmtNavDate(d) {
