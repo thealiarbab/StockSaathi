@@ -342,7 +342,8 @@ export function renderStockDetail(main, params) {
     side: "BUY",
     qty: inst.kind === "MF" ? 0.5 : 1,
     timeframe: "1M",
-    chartMode: "candle",
+    // One NAV a day: a fund's "candle" is a flat tick, so funds open on Line.
+    chartMode: inst.kind === "MF" ? "area" : "candle",
     orderType: "MARKET", limitPrice: 0,
     zoom: { scale: 1, centerMs: null, manualPan: false },
     interval: null,
@@ -748,6 +749,15 @@ function render(inst, symbol) {
   const history = liveHistory?.ohlc?.length ? liveHistory.ohlc : [];
   const noChart = !historyLoading && inst.kind !== "MF" && (liveHistory?.ohlc?.length || 0) < 2;
   const eodOnly = liveHistory?.source === "nse_eod";
+  // Funds: the move since the previous NAV. There is no intraday feed, so
+  // the old "₹0 (0.00%) today" was a placeholder, not a fact.
+  let mfPrev = null;
+  if (inst.kind === "MF" && history.length >= 2) {
+    const lastBar = history[history.length - 1];
+    mfPrev = Math.abs(lastBar.c - curPrice) < 1 ? history[history.length - 2].c : lastBar.c;
+  }
+  const mfDelta = mfPrev ? curPrice - mfPrev : null;
+  const mfChange = mfPrev ? mfDelta / mfPrev : null;
 
   // Merge liveQuote into the last candle so the chart's newest tick matches
   // the header price. Previously the header updated every 12 s from
@@ -906,7 +916,7 @@ function render(inst, symbol) {
       <div class="flex items-center gap-2">
         <a href="/stocks" class="btn btn-ghost btn-sm">← Markets</a>
         <span class="dim">/</span>
-        <span class="dim text-sm">${escapeHtml(inst.sector || "—")}</span>
+        <span class="dim text-sm">${escapeHtml(inst.sector || (inst.kind === "MF" ? "Mutual funds" : "Stocks"))}</span>
       </div>
     </div>
 
@@ -918,8 +928,8 @@ function render(inst, symbol) {
             <div>
               <h1 style="font-size: var(--text-2xl); margin-bottom: 2px;">${escapeHtml(inst.name || symbol)}</h1>
               <div class="dim text-xs">
-                ${symbol} · ${inst.kind === "MF" ? "Mutual Fund" : inst.exchange === "BSE" ? "BSE" : inst.exchange === "NSE_SME" ? "NSE SME" : "NSE"} · ${escapeHtml(inst.sector || "—")}
-                <span class="data-badge market-status" tabindex="0" style="margin-left: 8px; position: relative;" data-ms-state="${ms.state}">
+                ${[symbol, inst.kind === "MF" ? "Mutual Fund" : inst.exchange === "BSE" ? "BSE" : inst.exchange === "NSE_SME" ? "NSE SME" : "NSE", inst.kind === "MF" ? (inst.category_bucket || inst.category || "") : (inst.sector || "")].filter(Boolean).map(escapeHtml).join(" · ")}
+                ${inst.kind === "MF" ? "" : `<span class="data-badge market-status" tabindex="0" style="margin-left: 8px; position: relative;" data-ms-state="${ms.state}">
                   <span class="dot ${ms.open ? "" : ms.state === "pre-open" ? "preopen" : "closed"}"></span>
                   NSE · ${ms.state === "open" ? "Live" : ms.state === "pre-open" ? "Pre-open" : "Closed"}${ms.state !== "open" ? " · " + escapeHtml(ms.istTime) : ""}
                   <div class="market-status-pop" role="tooltip">
@@ -936,7 +946,7 @@ function render(inst, symbol) {
                     <div class="ms-pop-row"><span class="ms-pop-key">Hours</span><span>Mon–Fri · 9:15 AM – 3:30 PM IST</span></div>
                     <div class="ms-pop-foot">Clock is server-trusted. Changing your system time won't move it.</div>
                   </div>
-                </span>
+                </span>`}
               </div>
             </div>
           </div>
@@ -949,10 +959,16 @@ function render(inst, symbol) {
             <div class="skeleton" style="width: 200px; height: 18px;" aria-label="Loading change"></div>
           ` : `
             <div class="price tabular">${formatRupees(curPrice)}</div>
+            ${inst.kind === "MF" ? `
+              ${mfChange == null ? "" : `<div class="change ${deltaClass(mfChange)} tabular">
+                ${formatRupees(mfDelta, { sign: true })} (${formatPct(mfChange, { sign: true })}) since the previous NAV
+              </div>`}
+              <div class="dim text-xs" style="margin-top: 4px;">NAV for ${escapeHtml(fmtNavDate(inst.nav_date))} · AMFI, published after the day ends</div>
+            ` : `
             <div class="change ${deltaClass(change)} tabular">
               ${formatRupees(dayChangeVal, { sign: true })} (${formatPct(change, { sign: true })}) today
             </div>
-            ${renderPriceFreshness(liveQuote)}
+            ${renderPriceFreshness(liveQuote)}`}
           `}
         </div>
 
@@ -2257,6 +2273,14 @@ function renderPriceFreshness(quote) {
       <button class="btn btn-ghost btn-sm" id="price-refresh-btn" title="Force a fresh upstream fetch (bypasses our cache)" style="padding: 2px 8px; font-size: 11px; min-height: 0;">↻ Refresh</button>
     </div>
   `;
+}
+
+function fmtNavDate(d) {
+  if (!d) return "the latest day";
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d));
+  if (!m) return String(d);
+  const dt = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+  return dt.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
 function fundRow(l, v, html = false) {

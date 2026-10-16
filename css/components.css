@@ -5090,3 +5090,29 @@ body.chart-fs-open #main { animation: none; transform: none; }
 }
 @keyframes chart-fs-in { from { opacity: 0; transform: scale(.985); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .chart-block.chart-fs-enter { animation: none; } }
+
+/* ---- Phone polish (16 Oct) ---------------------------------------------
+   Timeframe buttons: one sideways-scrolling row instead of two wrapped
+   rows (the stock chart started ~620px down a 812px phone). Footer links
+   and order-type tabs: 40px+ tap targets. */
+@media (max-width: 520px) {
+  /* A no-wrap row is as wide as its buttons; without min-width:0 on the
+     grid column and the row, it widened the whole page. */
+  .stock-detail-grid > *, .portfolio-grid > *, .chart-block, .tf-buttons { min-width: 0; }
+  .tf-buttons { width: 100%; max-width: 100%; box-sizing: border-box; }  /* base rule's fit-content comes later and won */
+  .tf-buttons > div:first-child {
+    flex: 1 1 100%;
+    min-width: 0;
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+    margin: 0 -2px;
+    padding: 0 2px;
+  }
+  .tf-buttons > div:first-child::-webkit-scrollbar { display: none; }
+  .tf-buttons .tf-btn { flex: 0 0 auto; }
+  .disclaimer-nav a { display: inline-block; padding: 9px 2px; }
+  .lb-tab { min-height: 40px; }
+}
