@@ -582,6 +582,16 @@ const _MF_TF_REMAP = { "1D": "1M", "1W": "1M", "YTD": "5Y", "MAX": "ALL" };
 // instead of the past 12 months. Stock equivalent: /api/history's native
 // `range=ytd` already does this server-side; mfapi.in doesn't support
 // YTD so we slice client-side from a wider series.
+// 1W (and 1D, which funds don't offer) reuse the 1M fetch, trimmed to the
+// last seven calendar days: about five NAVs. Showing the whole month under
+// "1W" made 1D, 1W and 1M identical.
+function _sliceLastDays(ohlc, days) {
+  if (!Array.isArray(ohlc) || ohlc.length === 0) return ohlc;
+  const from = ohlc[ohlc.length - 1].t - days * 86400000;
+  const out = ohlc.filter(k => k && typeof k.t === "number" && k.t >= from);
+  return out.length >= 2 ? out : ohlc.slice(-2);
+}
+
 function _sliceYtd(ohlc) {
   if (!Array.isArray(ohlc) || ohlc.length === 0) return ohlc;
   const yearStart = new Date(new Date().getFullYear(), 0, 1).getTime();
@@ -590,7 +600,9 @@ function _sliceYtd(ohlc) {
 
 export async function getMfHistory(symbol, tf = "1Y") {
   const mappedTf = _MF_TF_REMAP[tf] || tf;
-  const key = `${symbol}|${mappedTf}`;
+  // Keyed by the requested tf, not the fetched one: YTD and 5Y both fetch 5Y,
+  // and sharing a key meant whichever loaded first answered for the other.
+  const key = `${symbol}|${tf}`;
 
   const cached = _mfHistoryCache.get(key);
   if (cached && Date.now() - cached.ts < MF_HISTORY_TTL_MS) return cached.data;
@@ -627,6 +639,8 @@ export async function getMfHistory(symbol, tf = "1Y") {
   // but the YTD-specific cache key gets a sliced ohlc array.
   if (tf === "YTD" && result.ohlc?.length) {
     result = { ...result, ohlc: _sliceYtd(result.ohlc) };
+  } else if ((tf === "1W" || tf === "1D") && result.ohlc?.length) {
+    result = { ...result, ohlc: _sliceLastDays(result.ohlc, 7) };
   }
   _mfHistoryCache.set(key, { data: result, ts: Date.now() });
   return result;

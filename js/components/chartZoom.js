@@ -85,6 +85,9 @@ export function attachChartZoom(container, opts) {
   const onCommit = opts.onCommit || (() => {});
   const onReset = opts.onReset || (() => {});
   const setGestureActive = opts.onGestureActive || (() => {});
+  // Callers can lower the ceiling: a bar-unit chart of 24 daily NAVs at 8×
+  // would show three points.
+  const maxScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, opts.maxScale ?? MAX_SCALE));
 
   // viewBox width (logical, from stockChart's `width` prop). All pixel math
   // goes through this so we stay correct under CSS stretching / high-DPI.
@@ -129,7 +132,7 @@ export function attachChartZoom(container, opts) {
   // slides past 9:15 or 15:30.
   function clampState(scale, centerMs) {
     const { fromMs, toMs } = getState();
-    const s = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale));
+    const s = Math.max(MIN_SCALE, Math.min(maxScale, scale));
     const totalSpan = toMs - fromMs;
     const span = totalSpan / s;
     let c = centerMs ?? (fromMs + totalSpan / 2);
@@ -251,7 +254,7 @@ export function attachChartZoom(container, opts) {
     // New center shifts so cursorMs stays at vbX after the zoom. This
     // creates the TradingView-style "zoom toward cursor" feel.
     const totalSpan = s.toMs - s.fromMs;
-    const newSpan = totalSpan / Math.max(MIN_SCALE, Math.min(MAX_SCALE, targetScale));
+    const newSpan = totalSpan / Math.max(MIN_SCALE, Math.min(maxScale, targetScale));
     const newCenter = cursorMs - (vbX - PL - plotW / 2) * (newSpan / plotW);
     applyPreview(targetScale, newCenter);
     if (wheelCommitTimer) clearTimeout(wheelCommitTimer);
@@ -321,7 +324,7 @@ export function attachChartZoom(container, opts) {
         // Keep the midpoint's time pinned in place as scale changes.
         const s = getState();
         const totalSpan = s.toMs - s.fromMs;
-        const newSpan = totalSpan / Math.max(MIN_SCALE, Math.min(MAX_SCALE, targetScale));
+        const newSpan = totalSpan / Math.max(MIN_SCALE, Math.min(maxScale, targetScale));
         const midVbX = clientToVbX(midpoint(a, b).x);
         const targetCenter = pinchStart.midpointMs - (midVbX - PL - plotW / 2) * (newSpan / plotW);
         applyPreview(targetScale, targetCenter);
