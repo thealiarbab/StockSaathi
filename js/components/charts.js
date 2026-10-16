@@ -428,7 +428,23 @@ export function stockChart(ohlc, {
   let body = "";
   if (mode === "area") {
     let d = "";
+    // Intraday on a clock axis: a minute with no trade has no bar, and a
+    // straight join to the next trade drew a steady slope that never traded
+    // (20MICRONS 1D had 175 of 375 minutes empty). The last traded price holds
+    // until the next trade, so the line steps: flat, then the move. Daily
+    // and slower series (and the portfolio's snapshots) are left as they are.
+    let holdStep = 0;
+    if (useTimeAxis && ohlc.length > 2) {
+      const gaps = [];
+      for (let i = 1; i < ohlc.length; i++) gaps.push(ohlc[i].t - ohlc[i - 1].t);
+      gaps.sort((a, b) => a - b);
+      const med = gaps[Math.floor(gaps.length / 2)];
+      if (med > 0 && med <= 15 * 60 * 1000) holdStep = med;
+    }
     for (let i = 0; i < ohlc.length; i++) {
+      if (holdStep && i > 0 && ohlc[i].t - ohlc[i - 1].t > holdStep * 1.5) {
+        d += "L" + toXt(ohlc[i].t - holdStep).toFixed(2) + "," + toY(ohlc[i - 1].c).toFixed(2) + " ";
+      }
       // Plot each bucket's CLOSE at the bucket's stamp. This is the
       // convention every Indian broker uses (Groww, Zerodha, Google
       // Finance) — at 9:15 their chart reads the CLOSE of the [9:15,
