@@ -308,12 +308,20 @@ export function stockChart(ohlc, {
   // in when the visible candles are perfectly flat (range = 0) â€”
   // unchanged.
   const pad = (dataMax - dataMin) * 0.03 || dataMax * 0.01;
-  const min = minArg != null ? minArg : dataMin - pad;
+  // Prices can't go below zero, so the padding mustn't push the axis there
+  // (a fund's MAX view from ₹7 to ₹350 read "₹-3.64" at the bottom).
+  const min = minArg != null ? minArg : (dataMin >= 0 ? Math.max(0, dataMin - pad) : dataMin - pad);
   const max = maxArg != null ? maxArg : dataMax + pad;
 
   const fmtAxis = axisFormat === "span" ? makeAxisFormatter(min / 100, max / 100) : formatAxisNumber;
   const yTickVals = [0, 1, 2, 3, 4].map(i => max - (i / 4) * (max - min));
-  const yTickText = yTickVals.map(v => "₹" + fmtAxis(v / 100));
+  let yTickText = yTickVals.map(v => "₹" + fmtAxis(v / 100));
+  // A narrow range (₹157.9 to ₹160.2) rounds to "₹160, ₹160, ₹159, ₹158, ₹158"
+  // per value; fall back to decimals that follow the tick step.
+  if (new Set(yTickText).size < yTickText.length) {
+    const f = makeAxisFormatter(min / 100, max / 100);
+    yTickText = yTickVals.map(v => "₹" + f(v / 100));
+  }
   // The label gutter fits the longest label (11px mono ≈ 6.8px a glyph).
   // It was a fixed 60px, which cut the first digit off "₹1,00,255".
   const longestY = Math.max(...yTickText.map(t => t.length));
@@ -356,13 +364,16 @@ export function stockChart(ohlc, {
     if (isFullDayWindow) {
       const day = new Date(open);
       day.setMinutes(0, 0, 0);
-      const tickTimes = [
+      // The fixed offsets assume a whole session; a zoomed 1D window
+      // (8× ≈ 47 min) put three of the five ticks off the chart, so short
+      // windows get evenly spaced ticks instead.
+      const tickTimes = (close - open) >= 5 * 60 * 60 * 1000 ? [
         open,
         open + 2 * 60 * 60 * 1000,        // +2h ≈ 11:15 from 09:15
         open + 3 * 60 * 60 * 1000 + 15 * 60 * 1000, // +3h15 ≈ 12:30
         close - 60 * 60 * 1000,           // -1h ≈ 14:30
         close,
-      ];
+      ] : [0, 1, 2, 3, 4].map(i => open + (i / 4) * (close - open));
       // Phones: open, midday, close only.
       const shown = width < 480 ? [tickTimes[0], tickTimes[2], tickTimes[4]] : tickTimes;
       for (const t of shown) {
@@ -389,12 +400,22 @@ export function stockChart(ohlc, {
     // Intraday bars spread over more than one session (a zoomed 1W/1M chart)
     // need the day as well, or "09:45 am" could be any of three days.
     const multiDay = isIntraday && days.size > 1;
+    // Long ranges need the year: 1Y read "15 Oct … 15 Oct" and MAX showed
+    // "01 May" twice. A year or more shows "Oct 2025"; a shorter view that
+    // crosses New Year adds the short year ("18 Dec '25").
+    const first = ohlc[0].t, last = ohlc[ohlc.length - 1].t;
+    const yearOf = (t) => new Date(t).toLocaleDateString("en-IN", { year: "numeric", timeZone: "Asia/Kolkata" });
+    const longSpan = last - first >= 300 * 86400000;
+    const crossYear = yearOf(first) !== yearOf(last);
+    const dayLabel = (t) => longSpan
+      ? new Date(t).toLocaleDateString("en-IN", { month: "short", year: "numeric", timeZone: "Asia/Kolkata" })
+      : crossYear ? `${fmtDate(t)} '${yearOf(t).slice(-2)}` : fmtDate(t);
     let prevLabel = "";
     for (let i = 0; i < nTicks; i++) {
       const idx = Math.round(i * (ohlc.length - 1) / (nTicks - 1 || 1));
       const x = toXi(idx);
       const k = ohlc[idx];
-      const label = !isIntraday ? fmtDate(k.t)
+      const label = !isIntraday ? dayLabel(k.t)
         : multiDay ? `${fmtDate(k.t)} ${fmtTime(k.t)}`
         : fmtTime(k.t);
       if (label === prevLabel) continue;

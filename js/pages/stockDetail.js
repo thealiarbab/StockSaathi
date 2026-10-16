@@ -636,7 +636,8 @@ async function applyZoomCommit(inst, symbol, next) {
   // stays at TF_MAP[timeframe].interval; zoom just narrows the visible
   // window over the existing candles, with Y-axis auto-fit doing the
   // heavy lifting for visible-price-range refinement.
-  if (ui.timeframe === "1D") {
+  // Funds have one NAV a day, so there is no finer interval to fetch.
+  if (ui.timeframe === "1D" && inst.kind !== "MF") {
     const newInterval = intervalForScale(newScale);
     const curInterval = ui.interval ?? (TF_MAP["1D"]?.interval ?? "1m");
     const intervalChanged = newInterval !== curInterval;
@@ -835,7 +836,10 @@ function render(inst, symbol) {
     // 1D fallback to last trading session — sessionWindow comes from the
     // actual data range so zoom + crosshair still operate against real
     // candle timestamps. _fallbackLabel is set inside loadHistoryWithFallback.
-    if (!sessionWindow && liveHistory?._fallbackLabel && chartOhlc.length >= 2) {
+    // Outside market hours range=1d usually still returns the last session
+    // (no fallback label), and requiring the label left 1D unzoomable on
+    // weekends and evenings.
+    if (!sessionWindow && chartOhlc.length >= 2) {
       sessionWindow = {
         fromMs: chartOhlc[0].t,
         toMs: chartOhlc[chartOhlc.length - 1].t,
@@ -887,8 +891,12 @@ function render(inst, symbol) {
     const n = chartOhlc.length;
     sessionWindow = { fromMs: 0, toMs: n - 1 };      // bar units for chartZoom
     chartXAxisRange = null;
-    if (ui.zoom.scale > 1) {
-      const span = (n - 1) / ui.zoom.scale;
+    // Never zoom past ~12 bars: 8× of a 24-point fund month left three.
+    const barMaxScale = Math.max(1, Math.min(8, (n - 1) / 11));
+    sessionWindow.maxScale = barMaxScale;
+    const scale = Math.min(ui.zoom.scale, barMaxScale);
+    if (scale > 1) {
+      const span = (n - 1) / scale;
       let c = Number.isFinite(ui.zoom.centerMs) && ui.zoom.centerMs <= n ? ui.zoom.centerMs : (n - 1) / 2;
       let a = c - span / 2, b = c + span / 2;
       if (a < 0) { b -= a; a = 0; }
@@ -1014,7 +1022,7 @@ function render(inst, symbol) {
         ` : ""}
         <div class="tf-buttons" style="display:flex; align-items:center; gap:var(--sp-2); flex-wrap:wrap;">
           <div style="display:flex; gap:4px; flex-wrap: wrap;">
-            ${TF_ORDER.map(tf => {
+            ${TF_ORDER.filter(tf => !(inst.kind === "MF" && tf === "1D")).map(tf => {
               // Hotfix48b: render the CUSTOM button with a different
               // label so it reads as a control, not a preset window.
               // Click opens the date-range picker (handled below).
@@ -1490,6 +1498,7 @@ function attachListeners(main, inst, symbol, curPrice, holding, chartOhlc, sessi
           onCommit: (next) => applyZoomCommit(inst, symbol, next),
           onReset: () => resetZoom(inst, symbol),
           onGestureActive: (active) => { _gestureActive = active; },
+          maxScale: sessionWindow.maxScale,
         });
       }
     }
