@@ -5162,3 +5162,26 @@ body.chart-fs-open #main { animation: none; transform: none; }
 .otp-spam-tip p { margin: 0 0 6px; }
 .otp-spam-tip .dim { font-size: var(--text-xs); }
 .otp-inbox-btn { margin-top: 6px; }
+
+/* What's new card (17 Oct): the term explainer's card (.term-pop) with a
+   screenshot, four highlights, an expandable full list and buttons pinned to
+   the bottom while that list scrolls. */
+.term-pop.wn { max-width: 460px; max-height: 92vh; overflow: auto; }
+.term-pop.wn .term-pop-badge { font-size: 26px; }
+.wn-shot { display: block; width: 100%; height: auto; border-radius: 14px; margin: 4px 0 14px; border: 1px solid var(--border); }
+.wn-list { list-style: none; margin: 0 0 14px; padding: 0; text-align: left; display: grid; gap: 10px; }
+.wn-list li { display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: start; font-size: 15px; line-height: 1.45; }
+.wn-ico { width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; font-size: 15px;
+          background: color-mix(in srgb, var(--brand) 16%, transparent); }
+.wn-list strong { color: var(--text-strong); }
+.wn-more { text-align: left; margin: 0 0 16px; border-top: 1px solid var(--border); padding-top: 10px; }
+.wn-more summary { cursor: pointer; font-weight: 600; color: var(--brand); font-size: 14px; list-style: none; padding: 4px 0; }
+.wn-more summary::-webkit-details-marker { display: none; }
+.wn-more-body { max-height: 34vh; overflow: auto; padding-right: 4px; }
+.wn-more h4 { margin: 12px 0 4px; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted); }
+.wn-more ul { margin: 0; padding-left: 18px; font-size: 14px; line-height: 1.5; display: grid; gap: 4px; }
+.term-pop.wn:has(.wn-more[open]) .wn-shot { display: none; }
+.wn-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; position: sticky; bottom: -20px;
+              margin: 0 -22px -20px; padding: 12px 22px 20px;
+              background: linear-gradient(to bottom, transparent, var(--surface-elev, var(--surface)) 14px); }
+.wn-actions .btn { width: 100%; }
