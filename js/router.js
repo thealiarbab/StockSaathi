@@ -220,9 +220,16 @@ export function isAppPath(pathname) {
 }
 
 // Admin slugs are secrets. Never let one reach telemetry.
+// Query values that identify a person or carry a credential never reach
+// analytics: /login?email= sent full addresses to GA.
+const PRIVATE_PARAMS = ["email", "code", "token", "token_hash", "access_token", "refresh_token"];
 function trackablePath() {
   const p = location.pathname || "/";
-  return p.startsWith("/a/") ? "/a/[redacted]" : p + location.search;
+  if (p.startsWith("/a/")) return "/a/[redacted]";
+  const q = new URLSearchParams(location.search);
+  for (const k of PRIVATE_PARAMS) if (q.has(k)) q.set(k, "[redacted]");
+  const qs = q.toString().replace(/%5Bredacted%5D/g, "[redacted]");
+  return p + (qs ? `?${qs}` : "");
 }
 
 // Strong sync signal that the user IS authed even if refreshCurrentUser

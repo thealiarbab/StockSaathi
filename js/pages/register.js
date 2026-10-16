@@ -8,7 +8,9 @@ import {
 } from "../auth/accounts.js";
 import { switchUser } from "../state.js";
 import { navigate } from "../router.js";
-import { wirePasswordToggle } from "./login.js";
+import { wirePasswordToggle, finishSignIn } from "./login.js";
+import { suggestEmail, checkEmailDomain, inboxLinkFor } from "../auth/emailCheck.js";
+import { googleButtonHtml, wireGoogleButton } from "../components/googleButton.js";
 
 export function renderRegister(main) {
   let stage = "form";    // "form" → "otp" → done
@@ -16,6 +18,25 @@ export function renderRegister(main) {
   let pendingName = "";
   let resendCountdown = 0;
   let resendTimer = null;
+  // What was typed, so "Change email" goes back to a filled-in form.
+  const typed = { name: "", username: "", email: "" };
+  // Addresses the user said are right despite a suggestion.
+  const keptAsTyped = new Set();
+
+  // From the login page: an account that never confirmed. Send a fresh code
+  // and go straight to the code screen. (The address comes via
+  // sessionStorage, never the URL, so analytics never sees it.)
+  if (new URLSearchParams(location.search).get("verify")) {
+    let email = "";
+    try { email = sessionStorage.getItem("ss.verifyEmail") || ""; sessionStorage.removeItem("ss.verifyEmail"); } catch {}
+    if (email) {
+      pendingEmail = email;
+      typed.email = email;
+      stage = "otp";
+      resendSignupOtp(email).catch(() => {});
+      startResendTimer();
+    }
+  }
 
   // If the user already has a session (e.g. they clicked the confirmation
   // link in a new tab + Supabase SDK picked up the URL hash + wrote the
@@ -51,6 +72,7 @@ export function renderRegister(main) {
         <div class="auth-card">
           <h1>Create your StockSaathi account</h1>
           <p class="sub">Your ₹1,00,000 virtual portfolio is one minute away.</p>
+          ${googleButtonHtml("Sign up with Google")}
 
           <form class="auth-form" id="reg-form" autocomplete="on">
             <div class="field">
@@ -67,7 +89,8 @@ export function renderRegister(main) {
             </div>
             <div class="field">
               <label class="label" for="r-email">Email</label>
-              <input class="input" id="r-email" name="email" type="email" required autocomplete="email" placeholder="you@example.com" />
+              <input class="input" id="r-email" name="email" type="email" required autocomplete="email" placeholder="you@gmail.com" autocapitalize="off" spellcheck="false" />
+              <div class="email-hint" id="r-email-hint" role="status" aria-live="polite" hidden></div>
             </div>
             <div class="field">
               <label class="label" for="r-pw">Password</label>
@@ -105,9 +128,50 @@ export function renderRegister(main) {
     const form = main.querySelector("#reg-form");
     const errBox = main.querySelector("#reg-error");
     const btn = main.querySelector("#reg-btn");
+    const emailInput = main.querySelector("#r-email");
+    const hint = main.querySelector("#r-email-hint");
     // Show / hide password toggle. Critical on mobile where users can't
     // see what swipe-input / autocorrect actually typed.
     wirePasswordToggle(main, "#r-pw", "#r-pw-toggle");
+    wireGoogleButton(main, (msg) => showErr(msg));
+
+    main.querySelector("#r-name").value = typed.name;
+    main.querySelector("#r-username").value = typed.username;
+    emailInput.value = typed.email;
+
+    // "Did you mean ananya@gmail.com?" One tap fixes it; "No" keeps it.
+    function showSuggestion(fromSubmit) {
+      const email = emailInput.value.trim();
+      const s = keptAsTyped.has(email.toLowerCase()) ? null : suggestEmail(email);
+      if (!s) { hint.hidden = true; hint.innerHTML = ""; return false; }
+      const at = s.lastIndexOf("@");
+      hint.innerHTML = `
+        <span>Did you mean <strong>${escapeHtml(s.slice(0, at))}@<u>${escapeHtml(s.slice(at + 1))}</u></strong>?</span>
+        <span class="email-hint-actions">
+          <button type="button" class="btn btn-primary btn-sm" data-hint="use">Yes, fix it</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-hint="keep">No, mine is right</button>
+        </span>`;
+      hint.classList.toggle("email-hint-urgent", !!fromSubmit);
+      hint.hidden = false;
+      hint.querySelector('[data-hint="use"]').addEventListener("click", () => {
+        emailInput.value = s;
+        hint.hidden = true;
+        if (fromSubmit) form.requestSubmit(); else emailInput.focus();
+      });
+      hint.querySelector('[data-hint="keep"]').addEventListener("click", () => {
+        keptAsTyped.add(email.toLowerCase());
+        hint.hidden = true;
+        if (fromSubmit) form.requestSubmit();
+      });
+      return true;
+    }
+    let hintTimer = null;
+    emailInput.addEventListener("input", () => {
+      clearTimeout(hintTimer);
+      // Wait for a pause, and only once there's something after the @.
+      hintTimer = setTimeout(() => { if (/@[^@]+\.[^@]{2,}$/.test(emailInput.value.trim())) showSuggestion(false); else hint.hidden = true; }, 700);
+    });
+    emailInput.addEventListener("blur", () => { clearTimeout(hintTimer); showSuggestion(false); });
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -115,18 +179,33 @@ export function renderRegister(main) {
 
       const name = main.querySelector("#r-name").value.trim();
       const username = main.querySelector("#r-username").value.trim();
-      const email = main.querySelector("#r-email").value.trim();
+      const email = emailInput.value.trim().replace(/\s+/g, "");
+      typed.name = name; typed.username = username; typed.email = email;
       // Trim password too — mobile autofill / swipe-input frequently leaves
       // trailing spaces that the user can't see.
       const pw = main.querySelector("#r-pw").value.trim();
 
       if (!name || name.length < 2) return showErr("Please enter your full name.");
       const uerr = validateUsername(username); if (uerr) return showErr(uerr);
+      // A likely typo stops the submit once; the user picks the fix or keeps it.
+      if (showSuggestion(true)) { hint.scrollIntoView({ block: "center", behavior: "smooth" }); return; }
       if (!validateEmail(email)) return showErr("Enter a valid email address.");
       const perr = validatePassword(pw); if (perr) return showErr(perr);
 
       btn.disabled = true;
       btn.textContent = "Creating account…";
+      // A domain that doesn't exist can never receive the code (and every
+      // bounce hurts delivery for everyone else). Unknown = let it through.
+      const domainState = await checkEmailDomain(email);
+      if (domainState === "nodomain" || (domainState === "nomx" && !keptAsTyped.has(email.toLowerCase()))) {
+        btn.disabled = false;
+        btn.textContent = "Create account";
+        const domain = email.split("@")[1] || "";
+        if (domainState === "nomx") keptAsTyped.add(email.toLowerCase());   // second press goes through
+        return showErr(domainState === "nodomain"
+          ? `"${domain}" isn't a real email domain, so your code could never arrive. Check the part after the @.`
+          : `"${domain}" doesn't seem to accept email. Check the part after the @, or press Create account again if you're sure.`);
+      }
       try {
         // Race against a 15s timeout — Supabase signUp occasionally hangs
         // silently on free tier, leaving the button stuck forever. If we
@@ -149,13 +228,7 @@ export function renderRegister(main) {
         }
 
         // Already signed in (email confirmation off)
-        const { refreshCurrentUser } = await import("../auth/accounts.js");
-        await refreshCurrentUser();
-        const { bootSync, loadAllFromDb } = await import("../db/sync.js");
-        await bootSync();
-        await loadAllFromDb();
-        switchUser();
-        navigate("/onboarding");
+        await finishSignIn();
       } catch (err) {
         // Email-already-registered is a super common case — send them to
         // /login with the email prefilled instead of leaving them staring
@@ -181,6 +254,7 @@ export function renderRegister(main) {
   }
 
   function renderOtp() {
+    const inbox = inboxLinkFor(pendingEmail);
     // OTP-first UX: the 6-digit code input is primary. The link in the same
     // email also works (onAuthStateChange picks up the session) — we list it
     // quietly as a fallback. Requires the Supabase "Confirm signup" template
@@ -192,6 +266,12 @@ export function renderRegister(main) {
             <div style="font-size: 48px; margin-bottom: var(--sp-2);">📬</div>
             <h1>Check your email</h1>
             <p class="sub">We sent a verification code to <strong>${escapeHtml(pendingEmail)}</strong>. Enter it below to activate your account.</p>
+          </div>
+
+          <div class="otp-spam-tip">
+            <p><strong>Not in your inbox?</strong> Look in <strong>Spam</strong> and <strong>Promotions</strong>. It's from <strong>StockSaathi</strong> (accounts@stocksaathi.co.in) and usually arrives within a minute.</p>
+            <p class="dim">Found it in Spam? Mark it "Not spam" so future emails reach your inbox.</p>
+            ${inbox ? `<a class="btn btn-ghost btn-sm otp-inbox-btn" href="${inbox.href}" target="_blank" rel="noopener">${inbox.label} ↗</a>` : ""}
           </div>
 
           <form class="auth-form" id="otp-form" autocomplete="off">
@@ -220,16 +300,16 @@ export function renderRegister(main) {
           </div>
 
           <details id="otp-trouble" class="dim text-xs" style="margin-top: var(--sp-3); text-align: left;">
-            <summary style="cursor:pointer; text-align:center;">No email or no code inside?</summary>
+            <summary style="cursor:pointer; text-align:center;">Still nothing?</summary>
             <div style="padding: var(--sp-3); line-height: 1.6;">
-              <p style="margin: 0 0 8px 0;"><strong>1. Check spam / promotions folder.</strong> Supabase's default email host is easy to filter out.</p>
-              <p style="margin: 0 0 8px 0;"><strong>2. Email has only a link, no code?</strong> The Supabase project's "Confirm signup" template needs <code>{{ .Token }}</code>. Click the link instead — we'll sign you in automatically.</p>
-              <p style="margin: 0;"><strong>3. Still nothing after 2 minutes?</strong> Try a different email provider — some strict corporate inboxes drop auth emails silently.</p>
+              <p style="margin: 0 0 8px 0;"><strong>Check the address above.</strong> One wrong letter and the code goes nowhere. Tap "Change email" to fix it.</p>
+              <p style="margin: 0 0 8px 0;"><strong>Email has a button but no code?</strong> Tap the button in the email instead; we'll sign you in here automatically.</p>
+              <p style="margin: 0;"><strong>School or office address?</strong> Some of those block outside email. A personal Gmail works best.</p>
             </div>
           </details>
 
           <div class="auth-switch">
-            Wrong email? <a href="#" id="back-to-form">Start over</a>
+            Wrong email? <a href="#" id="back-to-form">Change email</a>
           </div>
         </div>
       </div>
@@ -264,15 +344,9 @@ export function renderRegister(main) {
     async function onSignedIn() {
       if (stage !== "otp") return;
       try {
-        const { refreshCurrentUser } = await import("../auth/accounts.js");
-        await refreshCurrentUser();
-        const { bootSync, loadAllFromDb } = await import("../db/sync.js");
-        await bootSync();
-        await loadAllFromDb();
-        switchUser();
         if (resendTimer) clearInterval(resendTimer);
         authUnsub?.();
-        navigate("/onboarding");
+        await finishSignIn();
       } catch (e) {
         console.warn("post-confirm flow failed:", e);
       }
