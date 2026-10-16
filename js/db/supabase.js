@@ -12,10 +12,14 @@ let _client = null;
 let _config = null;
 let _configPromise = null;
 
-// Two CDNs: esm.sh is blocked or flaky on some Indian mobile networks and in
-// in-app browsers (Instagram's webview). A failed load is never cached, so the
-// next sb() call retries instead of staying in local-only mode for the tab.
+// Our own pinned copy first (C18): loading the SDK from esm.sh meant an
+// outside rebuild or outage could break sign-in, trades and chats with no
+// change on our side. The two CDNs stay as fallbacks (esm.sh is also blocked
+// or flaky on some Indian mobile networks and in Instagram's webview). A
+// failed load is never cached, so the next sb() call retries instead of
+// staying in local-only mode for the tab.
 const SDK_URLS = [
+  "/js/vendor/supabase-js-2.45.4.js",
   "https://esm.sh/@supabase/supabase-js@2.45.4?bundle",
   "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm",
 ];
