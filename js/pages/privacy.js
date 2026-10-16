@@ -45,7 +45,7 @@ export function renderPrivacy(main) {
         </p>
         <p class="text-sm" style="line-height: 1.75; margin-top: var(--sp-2);">
           <strong>Simulation data:</strong> virtual trades, virtual portfolio holdings, virtual
-          cash balance, virtual watchlist, virtual transfers between users. <em>None of this
+          cash balance, virtual watchlist. <em>None of this
           reflects real securities, real money, or a real brokerage account.</em>
         </p>
         <p class="text-sm" style="line-height: 1.75; margin-top: var(--sp-2);">
@@ -78,7 +78,6 @@ export function renderPrivacy(main) {
           <li>To create and maintain your account on the simulator.</li>
           <li>To show your simulated portfolio and watchlist.</li>
           <li>To provide the AI coach&rsquo;s behavioural reflection and educational prompts.</li>
-          <li>To let you transfer virtual money between your friends on the platform.</li>
           <li>To debug the service and prevent abuse (rate limits, spam signup blocks).</li>
           <li>To show ads (served by Google AdSense) that help keep StockSaathi free.</li>
           <li>To comply with legal obligations that apply to us as a data fiduciary.</li>
@@ -89,8 +88,8 @@ export function renderPrivacy(main) {
         <h3 style="margin-bottom: var(--sp-3);">4. Legal basis for processing</h3>
         <p class="text-sm" style="line-height: 1.75;">
           We process your personal data on the basis of your consent, given when you
-          tick the acknowledgement at signup and each time you use features (coach,
-          friends) that clearly require that data. You can withdraw consent
+          tick the acknowledgement at signup and each time you use features (such as
+          the coach) that clearly require that data. You can withdraw consent
           at any time by deleting your account (Settings &rarr; Danger Zone &rarr; Delete account).
         </p>
       </div>

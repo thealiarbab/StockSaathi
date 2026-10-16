@@ -5116,3 +5116,25 @@ body.chart-fs-open #main { animation: none; transform: none; }
   .disclaimer-nav a { display: inline-block; padding: 9px 2px; }
   .lb-tab { min-height: 40px; }
 }
+
+/* ---- Browser zoom / narrow desktops (16 Oct) ---------------------------
+   110-125% zoom on a 1366px laptop is a 1,093-1,240px page. Grid columns
+   default to min-width:auto, so the wide holdings table forced the left
+   column wider than its 2fr and pushed the right column off the screen.
+   Columns may now shrink (tables scroll inside .table-wrap), and the
+   portfolio sidebar only sits beside the main column from 1200px. */
+.portfolio-grid > *, .stock-detail-grid > * { min-width: 0; }
+@media (min-width: 1024px) and (max-width: 1199px) {
+  .portfolio-grid { grid-template-columns: 1fr; }
+}
+/* Top bar: links never wrap to two lines; the NSE pill, cash pill and the
+   shortcut hint step aside first. */
+.nav-link { white-space: nowrap; }
+@media (min-width: 821px) and (max-width: 1279px) {
+  .nav-inner .market-status { display: none; }
+  .nav-link { padding: 8px 10px; }
+}
+@media (min-width: 821px) and (max-width: 1099px) {
+  .nav-cash { display: none; }
+  .nav-inner kbd { display: none; }
+}

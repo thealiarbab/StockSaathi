@@ -48,7 +48,7 @@ export function renderSettings(main) {
         <div class="card" style="margin-top: var(--sp-4);">
           <h3 style="margin-bottom: var(--sp-3);">Danger zone</h3>
           <div class="settings-row">
-            <div class="label-wrap"><div class="title">Reset portfolio</div><div class="desc">Clear your trades, cash, coach history, transfers. You keep your account and friends.</div></div>
+            <div class="label-wrap"><div class="title">Reset portfolio</div><div class="desc">Clear your trades, cash and coach history. You keep your account.</div></div>
             <button class="btn btn-outline" id="reset-pf-btn" style="color: var(--warning); border-color: var(--warning);">Reset portfolio</button>
           </div>
           <div class="settings-row">
@@ -62,7 +62,7 @@ export function renderSettings(main) {
           <p class="text-sm" style="line-height: 1.7;"><strong>StockSaathi</strong> — an AI-coached investment simulator for Indian teens. Real stock data, virtual money, behavioural coach. Zero setup — just sign up and start.</p>
           <p class="dim text-xs" style="line-height: 1.7; margin-top: var(--sp-3);">
             <strong style="color: var(--text-muted);">Educational paper-trading simulator · Virtual money only.</strong>
-            All trades, portfolios and transfers are simulated — no real securities
+            All trades and portfolios are simulated — no real securities
             are bought, sold, or held. StockSaathi is
             <strong style="color: var(--text-muted);">not a SEBI-registered broker, investment
             adviser, research analyst, or portfolio manager</strong>, and is not affiliated with
@@ -95,7 +95,7 @@ export function renderSettings(main) {
     main.querySelector("#toggle-hinglish").addEventListener("change", (e) => setSetting("hinglish", e.target.checked));
 
     main.querySelector("#reset-pf-btn").addEventListener("click", async () => {
-      if (!confirm("Reset your portfolio, trades, coach messages, and transfers? Your account stays.")) return;
+      if (!confirm("Reset your portfolio, trades and coach messages? Your account stays.")) return;
       const btn = main.querySelector("#reset-pf-btn");
       btn.disabled = true;
       btn.textContent = "Resetting…";

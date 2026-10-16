@@ -35,7 +35,7 @@ const state = {
   overviewLoading: false,
   overviewError: null,
   activity: [],
-  activityFilter: "all",     // trades | coach | transfers | orders | signups | all
+  activityFilter: "all",     // trades | coach | orders | signups | all
   activityPaused: false,
   tail: null,                // EventSource instance
   tailConnected: false,
@@ -467,12 +467,9 @@ function renderUsersTable(list) {
     ["tradeCount", "Trades"],
     ["coachMsgCount", "Coach"],
     ["holdingCount", "Hold"],
-    ["friendCount", "Friends"],
     ["watchlistCount", "WL"],
     ["limitOrderCount", "LO"],
     ["biasFlagCount", "Biases"],
-    ["transferInCount", "In"],
-    ["transferOutCount", "Out"],
     ["cashRupees", "Cash"],
     ["totalPortfolioRupees", "Portfolio"],
     ["unrealizedPLPct", "P/L%"],
@@ -498,12 +495,9 @@ function renderUsersRowsHtml(list) {
       <td class="tabular">${u.tradeCount}</td>
       <td class="tabular">${u.coachMsgCount}</td>
       <td class="tabular">${u.holdingCount}</td>
-      <td class="tabular">${u.friendCount}</td>
       <td class="tabular">${u.watchlistCount}</td>
       <td class="tabular">${u.limitOrderCount}</td>
       <td class="tabular">${u.biasFlagCount}</td>
-      <td class="tabular">${u.transferInCount}</td>
-      <td class="tabular">${u.transferOutCount}</td>
       <td class="tabular">${u.cashRupees != null ? formatRupees(u.cashRupees * 100, { compact: true }) : "—"}</td>
       <td class="tabular">${u.totalPortfolioRupees ? formatRupees(u.totalPortfolioRupees * 100, { compact: true }) : "—"}</td>
       <td class="tabular ${u.unrealizedPLPct >= 0 ? "positive" : "negative"}">${u.unrealizedPLPct >= 0 ? "+" : ""}${u.unrealizedPLPct.toFixed(1)}%</td>
@@ -636,7 +630,7 @@ function paintUserModal() {
   if (!body || !head) return;
   const d = state.userDetail;
   if (d?.error) { body.innerHTML = `<div style="color:var(--negative);">${escapeHtml(d.error)}</div>`; head.textContent = "Error"; return; }
-  const { profile, portfolio, holdings, transactions, coachMessages, portfolioHistory, watchlist, friends, transfers, limitOrders, adminActionHistory, reportCard, authMeta } = d;
+  const { profile, portfolio, holdings, transactions, coachMessages, portfolioHistory, watchlist, limitOrders, adminActionHistory, reportCard, authMeta } = d;
   head.innerHTML = `${escapeHtml(profile.display_name || profile.username)} <span class="dim text-sm">@${escapeHtml(profile.username)}</span>`;
 
   const histValues = (portfolioHistory || []).map(h => (h.total_value_paise || 0) / 100);
@@ -650,7 +644,7 @@ function paintUserModal() {
 
   body.innerHTML = `
     <div class="admin-drill-nav">
-      ${["identity","money","history","holdings","transactions","orders","watchlist","friends","transfers","coach","report","auth","audit","raw"].map(s => `<button type="button" class="drill-jump" data-drill-target="sec-${s}">${s}</button>`).join("")}
+      ${["identity","money","history","holdings","transactions","orders","watchlist","coach","report","auth","audit","raw"].map(s => `<button type="button" class="drill-jump" data-drill-target="sec-${s}">${s}</button>`).join("")}
     </div>
 
     <div id="sec-identity"><div class="admin-user-section-label">1. Identity</div>
@@ -716,20 +710,6 @@ function paintUserModal() {
 
     <div id="sec-watchlist"><div class="admin-user-section-label">7. Watchlist (${watchlist?.length || 0})</div>
       ${watchlist?.length ? `<div class="flex gap-1 wrap">${watchlist.map(w => `<span class="pill">${escapeHtml(w.symbol)}</span>`).join("")}</div>` : `<div class="muted text-sm">Empty.</div>`}</div>
-
-    <div id="sec-friends"><div class="admin-user-section-label">8. Friends (${friends?.length || 0})</div>
-      ${friends?.length ? `<div class="dim text-sm">${friends.length} friend(s) — IDs: ${friends.map(f => escapeHtml((f.friend_id || "").slice(0, 8))).join(", ")}</div>` : `<div class="muted text-sm">No friends yet.</div>`}</div>
-
-    <div id="sec-transfers"><div class="admin-user-section-label">9. Transfers (${transfers?.length || 0})</div>
-      ${transfers?.length ? `<table class="admin-table"><thead><tr><th>When</th><th>Dir</th><th>Amount</th><th>Status</th><th>Act</th></tr></thead><tbody>
-        ${transfers.map(tf => `<tr>
-          <td class="dim text-xs">${formatDateShort(tf.created_at)}</td>
-          <td>${tf.sender_id === profile.id ? "OUT" : "IN"}</td>
-          <td class="tabular">${formatRupees(tf.amount_paise || 0)}</td>
-          <td>${tf.status}</td>
-          <td><button class="btn btn-ghost btn-sm" data-void-transfer="${escapeAttr(tf.id)}">void</button></td>
-        </tr>`).join("")}
-      </tbody></table>` : `<div class="muted text-sm">No transfers.</div>`}</div>
 
     ${renderCoachSection(coachMessages)}
 
@@ -811,10 +791,6 @@ function wireModalActions(profile) {
     const reason = prompt("Reason for cancelling (≥ 8 chars):"); if (!reason || reason.trim().length < 8) return;
     try { await adminPost("/api/ai?op=admin-order-cancel", { orderId: b.dataset.cancelOrder, reason }); toast({ kind: "success", message: "Cancelled." }); openUserModal(profile.id); } catch (e) { toast({ kind: "error", message: e.message }); }
   }));
-  host.querySelectorAll("[data-void-transfer]").forEach(b => b.addEventListener("click", async () => {
-    const reason = prompt("Reason for voiding (≥ 8 chars):"); if (!reason || reason.trim().length < 8) return;
-    try { await adminPost("/api/ai?op=admin-transfer-void", { transferId: b.dataset.voidTransfer, reason }); toast({ kind: "success", message: "Voided." }); openUserModal(profile.id); } catch (e) { toast({ kind: "error", message: e.message }); }
-  }));
   host.querySelectorAll("[data-delete-coach]").forEach(b => b.addEventListener("click", async () => {
     const reason = prompt("Reason (≥ 8 chars):"); if (!reason || reason.trim().length < 8) return;
     try { await adminPost("/api/ai?op=admin-coach-delete", { messageId: b.dataset.deleteCoach, reason }); toast({ kind: "success", message: "Deleted." }); openUserModal(profile.id); } catch (e) { toast({ kind: "error", message: e.message }); }
@@ -880,7 +856,6 @@ function renderActivityTab(host, main) {
       { value: "all", label: "All events" },
       { value: "trades", label: "🟢 Trades" },
       { value: "coach", label: "💬 Coach" },
-      { value: "transfers", label: "💸 Transfers" },
       { value: "orders", label: "📊 Orders" },
       { value: "signups", label: "✨ Signups" },
     ],
@@ -911,18 +886,16 @@ function repaintActivity() {
 function matchesFilter(kind, filter) {
   if (filter === "trades")    return kind === "trade";
   if (filter === "coach")     return kind === "coach";
-  if (filter === "transfers") return kind === "transfer";
   if (filter === "orders")    return kind === "order";
   if (filter === "signups")   return kind === "signup";
   return true;
 }
 function renderEventRow(ev) {
-  const icon = ({ trade: "🟢", coach: "💬", transfer: "💸", order: "📊", signup: "✨", admin: "🛠" })[ev.kind] || "•";
+  const icon = ({ trade: "🟢", coach: "💬", order: "📊", signup: "✨", admin: "🛠" })[ev.kind] || "•";
   const payload = ev.payload?.row || ev.payload || {};
   let summary = "";
   if (ev.kind === "trade")    summary = `${payload.side} ${payload.qty} ${payload.symbol} @ ${formatRupees(payload.price_paise || 0, { compact: true })}`;
   else if (ev.kind === "coach") summary = `${payload.event_type || ""} ${payload.trigger_symbol || ""}`;
-  else if (ev.kind === "transfer") summary = `${formatRupees(payload.amount_paise || 0, { compact: true })} (${payload.status})`;
   else if (ev.kind === "order")    summary = `${payload.side} ${payload.qty} ${payload.symbol} — ${payload.status}`;
   else if (ev.kind === "signup")   summary = `@${payload.username || (payload.id || "").slice(0, 8)}`;
   else if (ev.kind === "admin")    summary = `${payload.action} · ${payload.reason || ""}`;
@@ -938,7 +911,7 @@ function openTail(main) {
   state.tail = es;
   es.addEventListener("open", () => { state.tailConnected = true; updateTailBadge(main); });
   es.addEventListener("error", () => { state.tailConnected = false; updateTailBadge(main); });
-  ["trade", "coach", "transfer", "order", "signup", "admin"].forEach(kind => {
+  ["trade", "coach", "order", "signup", "admin"].forEach(kind => {
     es.addEventListener(kind, (e) => {
       try {
         const ev = JSON.parse(e.data);
@@ -1338,7 +1311,7 @@ async function renderAuthTab(host, main) {
       toast({ kind: "error", message: "Couldn't resolve profile for this auth user — they may have a row in auth.users but no profile row. Cannot delete safely via this flow." });
       return;
     }
-    const confirm = prompt(`DESTRUCTIVE: this cascades through profile + holdings + transactions + coach_messages + transfers + watchlist + limit_orders.\n\nType the username (${username}) to confirm:`);
+    const confirm = prompt(`DESTRUCTIVE: this cascades through profile + holdings + transactions + coach_messages + watchlist + limit_orders.\n\nType the username (${username}) to confirm:`);
     if (confirm !== username) return;
     const reason = prompt("Reason (≥ 8 chars, logged to audit):"); if (!reason || reason.trim().length < 8) return;
     try {

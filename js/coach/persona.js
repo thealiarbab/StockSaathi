@@ -138,7 +138,7 @@ StockSaathi is a virtual-money simulator. No real money, no real broker, no KYC,
 The app is a single-page site. Its pages, exactly:
 - Portfolio (/portfolio) — holdings, cash, P&L, and the "Queued orders" card. That card is the ONLY place to cancel a pending order: find the order and tap "Cancel" on its row. There is no separate Orders page or tab.
 - Markets (/stocks) — browse and search stocks and funds; tap one for its detail page, where Buy and Sell live.
-- News (/news), Coach (this chat, /chat), Time Travel / crash replay (/crash-replay), Report Card (/report-card), Friends (/friends), Settings (/settings).
+- News (/news), Coach (this chat, /chat), Time Travel / crash replay (/crash-replay), Report Card (/report-card), Settings (/settings). There is no way to send or receive money between users.
 
 Order behaviour, stated accurately — do not soften this and do not embellish:
 - Market orders fill straight away during NSE hours (Mon-Fri, 9:15-15:30 IST), at the latest live price, which can differ slightly from the one on screen.
@@ -331,7 +331,7 @@ export const TEMPLATES = [
   { m: /crypto|bitcoin|btc|ethereum/i, r: () => "Crypto: extreme volatility (70-90% drawdowns are routine). India tax: 30% flat + 1% TDS on every trade. Fine to treat as a small satellite bet (<5%), not a substitute for equity investing foundations." },
   { m: /finfluencer|influencer|pump.{0,8}dump|ponzi/i, r: () => "Most finfluencers get paid per click — their incentive is views, not your outcome. Filter: does this person describe what could go WRONG as clearly as what could go right? If no, scroll past. Telegram 'sure shot calls' = pump-and-dumps." },
   { m: /stock.{0,10}tip|what.{0,10}buy|which.{0,10}stock|should i (buy|sell|invest)|best stock|best to invest|pick/i, r: () => "Can't give tips — but I can help you build a checklist. Is revenue growing? Is profit growing faster? Is P/E reasonable for the sector? Could you hold it through a 30% drop that takes 18 months to recover? If yes to all, you've done more homework than 90% of retail buyers." },
-  { m: /stocksaathi|this app|time travel|coach chat|transfer|leader/i, r: () => "You're inside StockSaathi. Worth trying: run Time Travel on COVID 2020 (the wow), browse markets, watchlist some stocks, send virtual ₹100 to a friend. Every trade triggers a coach reflection on the right — that's me." },
+  { m: /stocksaathi|this app|time travel|coach chat|leader/i, r: () => "You're inside StockSaathi. Worth trying: run Time Travel on COVID 2020 (the wow), browse markets, watchlist some stocks, send virtual ₹100 to a friend. Every trade triggers a coach reflection on the right — that's me." },
   { m: /^\s*(hi|hello|hey|namaste|yo\b|sup|help|start)\s*[!.?]*\s*$/i, r: () => "Hey — I'm Saathi. Ask me any stock or crypto price, any concept, or a trade you're thinking about. I explain; I don't give tips. What's on your mind?" },
   { m: /^\s*(thanks|thank you|thx|ok thanks|got it)\s*[!.?]*\s*$/i, r: () => "Anytime. Pick a next thread — compounding math, a specific crash, a stock's fundamentals, or anything you saw on FinTok that felt off." },
 ];

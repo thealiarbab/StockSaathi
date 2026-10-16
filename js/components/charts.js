@@ -383,11 +383,17 @@ export function stockChart(ohlc, {
     const nTicks = Math.min(width < 480 ? 3 : 5, ohlc.length);
     const spanMs = ohlc[ohlc.length - 1].t - ohlc[0].t;
     const isIntraday = spanMs > 0 && spanMs < 3 * 86400000;
+    // Intraday bars spread over more than one session (a zoomed 1W/1M chart)
+    // need the day as well, or "09:45 am" could be any of three days.
+    const multiDay = isIntraday && fmtDate(ohlc[0].t) !== fmtDate(ohlc[ohlc.length - 1].t);
     for (let i = 0; i < nTicks; i++) {
       const idx = Math.round(i * (ohlc.length - 1) / (nTicks - 1 || 1));
       const x = toXi(idx);
       const k = ohlc[idx];
-      xLabels += `<text class="chart-axis-label" x="${x}" y="${height - 10}" text-anchor="middle">${isIntraday ? fmtTime(k.t) : fmtDate(k.t)}</text>`;
+      const label = !isIntraday ? fmtDate(k.t)
+        : multiDay ? `${fmtDate(k.t)} ${fmtTime(k.t)}`
+        : fmtTime(k.t);
+      xLabels += `<text class="chart-axis-label" x="${x}" y="${height - 10}" text-anchor="middle">${label}</text>`;
     }
   }
 
