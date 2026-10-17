@@ -2,7 +2,7 @@
 // LOGIN — Email/username + password.
 // =============================================================================
 
-import { loginAccount } from "../auth/accounts.js";
+import { loginAccount, readEmailLinkParams, verifyEmailLink } from "../auth/accounts.js";
 import { switchUser } from "../state.js";
 import { navigate } from "../router.js";
 import { googleButtonHtml, wireGoogleButton } from "../components/googleButton.js";
@@ -79,7 +79,29 @@ export function renderLogin(main) {
   // Show / hide password toggle. Critical on mobile where users can't
   // see what swipe-input / autocorrect actually typed.
   wirePasswordToggle(main, "#l-pw", "#l-pw-toggle");
-  wireGoogleButton(main, (msg) => { errBox.innerHTML = `<div class="error-msg">${escapeHtml(msg)}</div>`; });
+  wireGoogleButton(main, (msg) => { errBox.innerHTML = `<div class="error-msg">${escapeHtml(msg)}</div>`; }, finishSignIn);
+
+  // Sign-in, invite and email-change links from our emails land here with
+  // ?token_hash=&type= (read and cleared from the address bar at once).
+  const emailLink = readEmailLinkParams();
+  if (emailLink) {
+    if (emailLink.type === "recovery") {
+      navigate(`/reset-password?token_hash=${encodeURIComponent(emailLink.tokenHash)}&type=recovery`);
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = "Signing you in…";
+    (async () => {
+      try {
+        await verifyEmailLink(emailLink);
+        await finishSignIn();
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = "Log in";
+        errBox.innerHTML = `<div class="error-msg">${escapeHtml(err.message || "That link didn't work. Log in below.")}</div>`;
+      }
+    })();
+  }
 
   // Back from Google: supabase-js reads the session from the URL fragment
   // when the client starts. Finish the sign-in instead of showing the form.

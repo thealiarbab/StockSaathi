@@ -1,12 +1,13 @@
 // =============================================================================
 // RESET PASSWORD — Step 2 of 2. Set the new password.
-// This is where Supabase's "reset password" email lands. The URL arrives
-// with ?type=recovery + hash tokens; Supabase-js detectSessionInUrl sets
-// a PASSWORD_RECOVERY session. We then call auth.updateUser({ password })
+// This is where the "reset password" email lands. Current emails link here
+// with ?token_hash=&type=recovery, exchanged by verifyEmailLink. Older emails
+// came through Supabase's /verify with hash tokens; Supabase-js
+// detectSessionInUrl sets a PASSWORD_RECOVERY session for those. We then call auth.updateUser({ password })
 // to persist the new password and redirect to /portfolio.
 // =============================================================================
 
-import { setNewPassword, validatePassword } from "../auth/accounts.js";
+import { setNewPassword, validatePassword, readEmailLinkParams, verifyEmailLink } from "../auth/accounts.js";
 import { switchUser } from "../state.js";
 import { navigate } from "../router.js";
 import { wirePasswordToggle } from "./login.js";
@@ -70,10 +71,24 @@ export function renderResetPassword(main) {
   // fires, show the expired-link state.
   let gotRecovery = false;
   let authUnsub = null;
+  // Links from our reset email: /reset-password?token_hash=…&type=recovery.
+  // Read and cleared from the address bar before anything else runs.
+  const emailLink = readEmailLinkParams();
   (async () => {
     const { sb } = await import("../db/supabase.js");
     const client = await sb();
     if (!client) { showExpired(); return; }
+
+    if (emailLink) {
+      try {
+        await verifyEmailLink(emailLink);
+        gotRecovery = true;
+        showForm();
+      } catch {
+        showExpired();
+      }
+      return;
+    }
 
     // Maybe Supabase already set it before we subscribed:
     const { data } = await client.auth.getSession();

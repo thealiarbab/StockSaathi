@@ -133,7 +133,7 @@ export function renderRegister(main) {
     // Show / hide password toggle. Critical on mobile where users can't
     // see what swipe-input / autocorrect actually typed.
     wirePasswordToggle(main, "#r-pw", "#r-pw-toggle");
-    wireGoogleButton(main, (msg) => showErr(msg));
+    wireGoogleButton(main, (msg) => showErr(msg), finishSignIn, "signup_with");
 
     main.querySelector("#r-name").value = typed.name;
     main.querySelector("#r-username").value = typed.username;
