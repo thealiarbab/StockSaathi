@@ -16,8 +16,8 @@ const RELEASES = {
     // Swipeable screenshots, each in both themes. The card opens on the
     // visitor's theme; tapping a picture flips all of them.
     slides: [
+      { name: "signin2", alt: "Typing ananya@gmial.com on the sign-up page, tapping the suggested gmail.com fix, then pointing at Sign up with Google." },
       { name: "fullscreen-chart", alt: "A full-screen six-month candlestick chart of Reliance Industries." },
-      { name: "signin", alt: "Typing ananya@gmial.com on the sign-up page, tapping the suggested gmail.com fix, then pointing at Sign up with Google." },
       { name: "crash-replay", alt: "The COVID-19 crash replay comparing holding with selling on day 3." },
       { name: "explainer", alt: "Tapping P/E on a stock page opens a one-sentence explanation." },
     ],
