@@ -8,6 +8,11 @@ name: mf-nav
 #
 # Same endpoint and secret as data-sync.yml. Re-running is harmless: the
 # handler upserts.
+#
+# BACKUP ONLY since 17 Oct 2026. GitHub was starting these runs ~4 hours late
+# (the 07:00 IST run landed at ~11:20 IST, after the market had opened). The
+# on-time runs are Vercel crons in vercel.json (21:15, 23:00, 02:00, 07:15 IST
+# daily and 09:10 IST on weekdays), which send the same CRON_SECRET.
 
 on:
   schedule:
