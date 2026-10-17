@@ -23,7 +23,7 @@ import { getInstrument } from "../data/universe.js";
 import { ensureUniverseLoaded, ensureMfUniverseLoaded } from "../data/universeLoader.js";
 import { getPriceAt, getTodayChange, marketStatus } from "../data/prices.js";
 import { getQuoteBatch, getDataSource, subscribeToQuotes, getCachedQuotes } from "../data/marketData.js";
-import { listPendingOrders, cancelOrder } from "../features/limitOrders.js";
+import { listPendingOrders, cancelOrder, onOrdersChanged } from "../features/limitOrders.js";
 import { go } from "../navigation.js";
 import { getNews, fmtRelativeTime, labelSentiment } from "../data/news.js";
 import { stockChart, attachStockChartHover } from "../components/charts.js";
@@ -288,22 +288,10 @@ export function renderPortfolio(main) {
     render();
   }).catch(() => { if (!cancelled) { ordersUnavailable = true; render(); } });
 
-  // Live-refresh pending orders every 15 s so background-matcher fills
-  // and cross-tab cancels propagate to the visible list without
-  // requiring the user to navigate away and back. Symmetric with the
-  // quote polling above. Shallow-compare (length + first id) so we
-  // skip re-renders when nothing has moved.
-  // Transient-error ride-out: if listPendingOrders returns [] (which
-  // can happen on a single-tick RLS blip, a JWT that just expired
-  // before the client refreshes it, or a PostgREST 5xx), we don't
-  // immediately wipe the visible pendingOrders list. One empty tick
-  // is counted, two empty ticks in a row confirms a real wipe. This
-  // kills the "orders flicker to empty between polls" class of bugs
-  // that used to happen when supabase-js silently collapsed errors
-  // into data=null. Reset the streak as soon as a non-empty result
-  // or a length-match confirms stable state.
-  let emptyStreak = 0;
-  const pendingPoll = setInterval(async () => {
+  // Orders change only when the server fills or cancels one, and the server
+  // pushes that (onOrdersChanged, a Realtime channel in limitOrders.js). This
+  // page used to re-read the list every 15 s instead. On a push, re-read once.
+  const refreshPending = async () => {
     if (cancelled) return;
     try {
       const o = await listPendingOrders();
@@ -314,28 +302,21 @@ export function renderPortfolio(main) {
         if (!ordersUnavailable) { ordersUnavailable = true; render(); }
         return;
       }
-      if (ordersUnavailable) { ordersUnavailable = false; render(); }
-      if (o.length === 0 && pendingOrders.length > 0) {
-        emptyStreak++;
-        if (emptyStreak < 2) return;   // wait one more tick to confirm
-      } else {
-        emptyStreak = 0;
-      }
-      const changed = o.length !== pendingOrders.length
-        || (o[0]?.id !== pendingOrders[0]?.id);
+      ordersUnavailable = false;
       pendingOrders = o;
       syncReserved(o);
-      if (changed) render();
+      render();
     } catch (e) {
-      console.warn("[portfolio] pending-orders poll failed:", e?.message || e);
+      console.warn("[portfolio] pending-orders refresh failed:", e?.message || e);
     }
-  }, 15_000);
+  };
+  const ordersUnsub = onOrdersChanged(() => { refreshPending(); });
 
   const onLeave = () => {
     cancelled = true;
     unsub?.();
     pollUnsub?.();
-    clearInterval(pendingPoll);
+    ordersUnsub();
     // Hotfix57a: detach the universe-loaded listeners so navigating away
     // from /portfolio doesn't leave them firing render() against a stale
     // closure (which would either throw or silently rebuild a DOM that's

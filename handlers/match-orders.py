@@ -70,7 +70,9 @@ ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "").strip()
 CRON_SECRET = os.environ.get("CRON_SECRET", "").strip()
 
 # Cap work per invocation so a cold cache can't blow the 60 s function budget.
-MAX_ORDERS_PER_RUN = 300
+# Was 300 with 295 pending on 17 Oct 2026 and 100+ signups a day: orders past
+# the cap (newest first to be cut) would never have been looked at.
+MAX_ORDERS_PER_RUN = 3000
 MAX_SYMBOLS_PER_BATCH = 60
 
 # NSE trading holidays — parsed from js/data/prices.js at runtime so there is
@@ -186,9 +188,14 @@ def _load_live_quote():
     return mod
 
 
-def equity_prices(symbols):
-    """{symbol: price_paise} for equity/ETF symbols. Best effort."""
+def equity_prices(symbols, ts_out=None):
+    """{symbol: price_paise} for equity/ETF symbols. Best effort.
+
+    ts_out, if given, is filled with {symbol: market_time_ms} for each price.
+    """
     out = {}
+    if ts_out is None:
+        ts_out = {}
     if not symbols:
         return out
     try:
@@ -205,6 +212,7 @@ def equity_prices(symbols):
         for sym, row in cached.items():
             if row.get("price_paise"):
                 out[sym] = int(row["price_paise"])
+                ts_out[sym] = int(row.get("ts_ms") or 0)
         remaining = [s for s in remaining if s not in out]
     except Exception:
         pass
@@ -226,6 +234,7 @@ def equity_prices(symbols):
         for sym, q in fetched.items():
             try:
                 out[sym] = int(round(float(q["price"]) * 100))
+                ts_out[sym] = int(q.get("ts_ms") or 0)
                 rows.append(lq._to_cache_row(q))
             except Exception:
                 continue
@@ -278,10 +287,16 @@ def _mf_static_navs():
     return _mf_static_cache
 
 
-def mf_prices(symbols):
+def mf_prices(symbols, dates_out=None):
     """{symbol: nav_paise} for MF_<code> symbols. mf_master first, then the
-    shipped AMFI snapshot for anything it does not cover."""
+    shipped AMFI snapshot for anything it does not cover.
+
+    dates_out, if given, is filled with {symbol: "YYYY-MM-DD"} from mf_master
+    (the date the fill core checks against the order's nav_from_date).
+    """
     out = {}
+    if dates_out is None:
+        dates_out = {}
     if not symbols:
         return out
     if SUPA_URL and SUPA_SRV:
@@ -289,7 +304,7 @@ def mf_prices(symbols):
             chunk = symbols[i:i + MAX_SYMBOLS_PER_BATCH]
             sym_list = ",".join(f'"{s}"' for s in chunk)
             url = (f"{SUPA_URL}/rest/v1/mf_master"
-                   f"?symbol=in.({sym_list})&select=symbol,nav")
+                   f"?symbol=in.({sym_list})&select=symbol,nav,nav_date")
             req = urllib.request.Request(url, headers=_supa_headers())
             try:
                 with urllib.request.urlopen(req, timeout=6) as r:
@@ -297,6 +312,8 @@ def mf_prices(symbols):
                         nav = row.get("nav")
                         if nav:
                             out[row["symbol"]] = int(round(float(nav) * 100))
+                            if row.get("nav_date"):
+                                dates_out[row["symbol"]] = row["nav_date"]
             except Exception:
                 continue
     missing = [s for s in symbols if s not in out]
@@ -331,9 +348,15 @@ def run_match(force=False, dry=False, backfill=False):
     mf_syms = [s for s in symbols if s.startswith("MF_")]
     eq_syms = [s for s in symbols if not s.startswith("MF_")]
 
-    prices = {}
-    prices.update(equity_prices(eq_syms))
-    prices.update(mf_prices(mf_syms))
+    prices, px_ts, nav_dates = {}, {}, {}
+    prices.update(equity_prices(eq_syms, px_ts))
+    prices.update(mf_prices(mf_syms, nav_dates))
+    # Today's 09:15 IST in ms. The fill core refuses any equity price older
+    # than that (_quote_not_live_reason), so asking it is a wasted call.
+    open_ms = 0
+    if _IST is not None:
+        _now = datetime.now(tz=_IST)
+        open_ms = int(_now.replace(hour=9, minute=15, second=0, microsecond=0).timestamp() * 1000)
 
     filled, skipped, no_price, errors, closed = [], 0, [], [], []
     for o in orders:
@@ -364,6 +387,19 @@ def run_match(force=False, dry=False, backfill=False):
         if not matches:
             skipped += 1
             continue
+        # Pre-checks that mirror _fill_limit_order_core's own refusals. On
+        # 16 Oct 2026 3,114 of 3,204 fill calls came back refused: fund orders
+        # asked every minute before their NAV was out, and orders on stocks
+        # that had not traded yet that day. The core still has the final say.
+        if not backfill:
+            if otype == "MF" or o["symbol"].startswith("MF_"):
+                need, have = o.get("nav_from_date"), nav_dates.get(o["symbol"])
+                if not have or (need and have < need):
+                    no_price.append(o["symbol"])
+                    continue
+            elif px_ts.get(o["symbol"], 0) < open_ms:
+                no_price.append(o["symbol"])
+                continue
         if dry:
             filled.append({"order_id": o["id"], "symbol": o["symbol"],
                            "side": side, "at_paise": px, "dry": True})

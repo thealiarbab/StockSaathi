@@ -4,14 +4,18 @@
 // User places a BUY limit at ₹X → fires when market drops to ≤ X.
 // User places a SELL limit at ₹X → fires when market rises to ≥ X.
 //
-// EXECUTION IS SERVER-SIDE. /api/match-orders runs on a schedule (Cloudflare
-// Worker cron every minute, GitHub Actions every 5 min as backup) and fills
-// every user's orders with no browser involved.
+// EXECUTION IS SERVER-SIDE, AND ONLY SERVER-SIDE. /api/match-orders runs
+// every minute of market hours (Supabase pg_cron, GitHub Actions as backup)
+// and fills every user's orders with no browser involved. The browser cannot
+// fill an order at all: fill_limit_order is revoked from signed-in users
+// (migration 2026-10-17c).
 //
-// The loop below is now only a LATENCY OPTIMISATION: when the user happens to
-// be watching, it fills within ~12 s instead of waiting up to a minute for
-// the next server tick. It is not load-bearing. If it never ran again,
-// every order would still execute.
+// The browser only LISTENS. startOrderEvents() opens a Supabase Realtime
+// channel while the user has a pending order and the tab is visible; the
+// server's fill or cancel arrives as a push, the same pattern brokers use
+// (Zerodha order postbacks, Alpaca trade_updates). Until 17 Oct 2026 the
+// browser instead asked "any pending orders?" every 12 s, and the portfolio
+// page every 15 s: 11,728 reads on 16 Oct, mostly from users with no orders.
 //
 // It used to be the ONLY execution path, and that was the bug. An order
 // could fill only while the user personally had the app open on a weekday
@@ -23,14 +27,8 @@
 // =============================================================================
 
 import { sb } from "../db/supabase.js";
-import { getQuoteBatch } from "../data/marketData.js";
-import { marketStatus } from "../data/prices.js";
-
-let _loopTimer = null;
-let _stopFn = null;
-let _matching = false;              // guard: never run two passes in parallel
-const _inFlight = new Set();        // order-ids currently being filled
-const _recentFills = new Map();     // order-id → ts, debounce re-fires
+import { currentUser } from "../auth/accounts.js";
+import { toast } from "../components/toast.js";
 
 async function withRpcTimeout(promiseFactory, timeoutMs, label) {
   let timer = null;
@@ -106,6 +104,7 @@ export async function listPendingOrders() {
       console.error("[limit] listPendingOrders select error:", error.message, error.code, error.details);
       return null;
     }
+    notePendingOrders(data || []);
     return data || [];
   } catch (e) {
     // Timeout or thrown error — we do NOT know the user's orders.
@@ -183,6 +182,7 @@ export async function placeLimitOrder({ symbol, side, qty, limitPricePaise, orde
     }
     throw new Error(prettifyErr(msg));
   }
+  listPendingOrders();          // connect the fill listener if this is the first one
   return data;
 }
 
@@ -191,136 +191,130 @@ export async function cancelOrder(orderId) {
   if (!client) throw new Error("Backend not configured.");
   const { data, error } = await client.rpc("cancel_limit_order", { p_order_id: orderId });
   if (error) throw new Error(prettifyErr(error.message));
+  listPendingOrders();          // may close the fill listener
   return data;
 }
 
-/**
- * Attempt to fill a single order at the current market price. Called by the
- * matcher loop. Server validates that the limit condition is actually met.
- */
-async function fillOrderAt(orderId, marketPaise) {
-  // Idempotency at the client tier: never fire a second fill request while
-  // one is in-flight for the same order, and cool-down successful fills for
-  // 60 s so a slow DB commit can't be re-triggered before the status flip
-  // is visible via realtime.
-  if (_inFlight.has(orderId)) return null;
-  const lastFill = _recentFills.get(orderId);
-  if (lastFill && Date.now() - lastFill < 60_000) return null;
-  _inFlight.add(orderId);
-  try {
-    const client = await sb();
-    if (!client) return null;
-    const { data, error } = await client.rpc("fill_limit_order", {
-      p_order_id: orderId,
-      p_market_paise: Math.round(marketPaise),
+// ---- Order events: the server fills, the browser only listens -------------
+//
+// One Realtime channel per tab, open only while all three hold: someone is
+// signed in, they have at least one pending order, and the tab is visible.
+// Most users have no pending order, so most tabs never open one. RLS
+// (orders_self_read) means a tab only ever receives its own user's rows.
+// A fill arrives as an UPDATE; we toast it, reload cash and holdings once,
+// and tell any page that shows orders. Coming back to a hidden tab re-reads
+// the pending list once, in case something filled while nobody was looking.
+
+let _channel = null;
+let _channelUid = null;
+let _hasPending = false;
+let _pendingIds = new Set();
+let _started = false;
+let _syncing = Promise.resolve();
+const _orderListeners = new Set();
+
+/** fn(row) runs after the user's orders change; row is the changed order, or null after a re-sync. */
+export function onOrdersChanged(fn) {
+  _orderListeners.add(fn);
+  return () => _orderListeners.delete(fn);
+}
+
+function _emitOrders(row) {
+  for (const fn of _orderListeners) { try { fn(row); } catch (e) { console.warn("[orders] listener failed:", e); } }
+}
+
+// Called with every successful pending-list read (listPendingOrders does it),
+// so whichever page loaded the list also decides whether to stay connected.
+function notePendingOrders(list) {
+  if (!Array.isArray(list)) return;            // null = unknown: keep state
+  _hasPending = list.length > 0;
+  _pendingIds = new Set(list.map((o) => o.id));
+  _syncChannel();
+}
+
+function _syncChannel() {
+  _syncing = _syncing.then(_syncChannelNow, _syncChannelNow);
+  return _syncing;
+}
+
+async function _syncChannelNow() {
+  const uid = currentUser()?.id || null;
+  const want = !!uid && _hasPending && document.visibilityState === "visible";
+  if (_channel && (!want || _channelUid !== uid)) {
+    const ch = _channel;
+    _channel = null;
+    _channelUid = null;
+    try { (await sb())?.removeChannel(ch); } catch {}
+  }
+  if (!want || _channel) return;
+  const client = await sb();
+  if (!client) return;
+  _channelUid = uid;
+  _channel = client
+    .channel(`orders-${uid}`)
+    .on("postgres_changes",
+      { event: "UPDATE", schema: "public", table: "limit_orders", filter: `user_id=eq.${uid}` },
+      (payload) => { _onOrderChange(payload?.new); })
+    .subscribe();
+}
+
+const _rupees = (paise) => "₹" + (Number(paise || 0) / 100).toLocaleString("en-IN", { maximumFractionDigits: 2 });
+const _qty = (q) => Number(q || 0).toLocaleString("en-IN", { maximumFractionDigits: 4 });
+
+async function _onOrderChange(row) {
+  if (!row?.id) return;
+  if (row.status === "filled") {
+    const fund = String(row.symbol || "").startsWith("MF_");
+    const verb = row.side === "SELL" ? "Sold" : "Bought";
+    toast({
+      kind: "success",
+      message: fund
+        ? `Fund order done: ${verb.toLowerCase()} ${_qty(row.qty)} units at ${_rupees(row.filled_price_paise)}`
+        : `Order filled: ${verb} ${_qty(row.qty)} ${row.symbol} at ${_rupees(row.filled_price_paise)}`,
+      duration: 6000,
     });
-    if (error) {
-      if (!/market has not crossed|already /i.test(error.message)) {
-        console.warn("fill_limit_order:", error.message);
-      }
-      return null;
-    }
-    if (data?.ok) _recentFills.set(orderId, Date.now());
-    return data;
-  } finally {
-    _inFlight.delete(orderId);
-    // bounded map — forget old entries after 10 minutes
-    if (_recentFills.size > 200) {
-      const cutoff = Date.now() - 600_000;
-      for (const [k, v] of _recentFills) if (v < cutoff) _recentFills.delete(k);
-    }
   }
-}
-
-/**
- * Run one matcher pass: fetch pending orders, fetch quotes, fill matching.
- * The _matching guard means overlapping ticks (slow network → next setInterval
- * fires before the previous finished) silently drop rather than double-fill.
- */
-async function matchOnce() {
-  if (_matching) return { checked: 0, filled: 0, skipped: true };
-  // PRIMARY FIX FOR "QUEUED ORDERS VANISH ON /#/portfolio": the matcher
-  // must not fill orders while the market is closed. Before this guard,
-  // `matchOnce` ran every 12 s via the global interval started at
-  // app.js:45 — regardless of page, regardless of market status. After
-  // a user placed an AMO at, say, BUY ₹1327.80 on RELIANCE when the
-  // last cached Yahoo close was ≤ ₹1327.80, the matcher's next tick
-  // trivially matched `cur <= limit` against the STALE after-hours
-  // cached close and called `fill_limit_order` — flipping status from
-  // 'pending' to 'filled'. listPendingOrders filters status='pending',
-  // so the "queued" order vanished from the portfolio within 12 s with
-  // zero feedback. The user saw a ghost.
-  //
-  // Gate: during after-hours, do nothing. AMOs placed after-hours now
-  // correctly wait for the next market-open tick to evaluate against
-  // the actual opening price.
-  if (!marketStatus().open) {
-    return { checked: 0, filled: 0, skipped: "market_closed" };
-  }
-  _matching = true;
+  // Cash and holdings changed on the server; pull them once.
   try {
-    const pending = await listPendingOrders();
-    if (!pending.length) return { checked: 0, filled: 0 };
+    const { loadAllFromDb } = await import("../db/sync.js");
+    await loadAllFromDb();
+  } catch (e) { console.warn("[orders] reload after order change failed:", e?.message || e); }
+  _emitOrders(row);
+  listPendingOrders();          // may close the channel if nothing is left
+}
 
-    const symbols = [...new Set(pending.map(o => o.symbol))];
-    const quotes = await getQuoteBatch(symbols);
-
-    let filled = 0;
-    for (const order of pending) {
-      const q = quotes[order.symbol];
-      if (!q) {
-        // DO NOT auto-cancel. This used to cancel the order after ~2 minutes
-        // of missing quotes and refund the cash with a toast. That silently
-        // destroyed every mutual-fund order ever placed — getQuoteBatch has
-        // no MF coverage at all, so an MF order was guaranteed to hit the
-        // counter — plus any thinly-covered listing whose quote briefly
-        // dropped out. A missing price is our infrastructure's problem, not
-        // the user's order's problem.
-        //
-        // The server matcher (/api/match-orders) prices MFs off the daily
-        // NAV in mf_master and simply retries anything it cannot price, so
-        // the order stays alive until it can genuinely be evaluated.
-        continue;
-      }
-      const cur = q.pricePaise;
-      const limit = Number(order.limit_price_paise);
-      // An order at the open has no price condition; the server checks
-      // that the price is live. (Fund orders never get here: no quote.)
-      const matches = order.order_type === "AMO_MARKET"
-        || (order.side === "BUY" ? cur <= limit : cur >= limit);
-      if (matches) {
-        const result = await fillOrderAt(order.id, cur);
-        if (result?.ok) filled++;
-      }
-    }
-    return { checked: pending.length, filled };
-  } finally {
-    _matching = false;
+async function _onVisible() {
+  if (document.visibilityState !== "visible") { _syncChannel(); return; }
+  if (!_hasPending) return;      // nothing pending: nothing can have filled
+  const before = _pendingIds;
+  const now = await listPendingOrders();
+  if (!Array.isArray(now)) return;
+  const stillThere = new Set(now.map((o) => o.id));
+  if ([...before].some((id) => !stillThere.has(id))) {
+    try {
+      const { loadAllFromDb } = await import("../db/sync.js");
+      await loadAllFromDb();
+    } catch {}
+    _emitOrders(null);
   }
 }
 
 /**
- * Start the matcher loop. Idempotent — subsequent calls are no-ops.
+ * Start listening for server-side fills. Idempotent. One pending-list read
+ * at boot for a signed-in user, then nothing until something happens.
  */
-export function startLimitMatcher(intervalMs = 12_000) {
-  if (_loopTimer) return _stopFn;
-  let cancelled = false;
-
-  const tick = async () => {
-    if (cancelled) return;
-    try { await matchOnce(); } catch (e) { console.warn("limit matcher:", e); }
-  };
-
-  tick();   // run once immediately
-  _loopTimer = setInterval(tick, intervalMs);
-  _stopFn = () => {
-    cancelled = true;
-    if (_loopTimer) { clearInterval(_loopTimer); _loopTimer = null; }
-  };
-  return _stopFn;
+export function startOrderEvents() {
+  if (_started) return;
+  _started = true;
+  document.addEventListener("visibilitychange", _onVisible);
+  if (currentUser()?.id) listPendingOrders();
+  sb().then((client) => {
+    client?.auth?.onAuthStateChange?.((event) => {
+      if (event === "SIGNED_OUT") { _hasPending = false; _pendingIds = new Set(); _syncChannel(); }
+      else if (event === "SIGNED_IN") listPendingOrders();
+    });
+  }).catch(() => {});
 }
-
-export function stopLimitMatcher() { _stopFn?.(); }
 
 function prettifyErr(msg) {
   if (!msg) return "Something went wrong.";
