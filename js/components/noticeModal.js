@@ -59,6 +59,12 @@ export async function showPendingNotices() {
     }
     return;
   }
+  // ?whatsnew=preview shows the current release card without touching the
+  // database, so it can be reviewed any number of times.
+  if (new URLSearchParams(location.search).get("whatsnew") === "preview") {
+    previewNotice({ kind: "whats_new", title: "", body: "", payload: {} });
+    return;
+  }
   if (_inFlight) return;
   _inFlight = true;
   try {
