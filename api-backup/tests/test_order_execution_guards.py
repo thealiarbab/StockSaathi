@@ -66,24 +66,28 @@ def test_worker_has_scheduled_handler():
     assert "match-orders" in src, "The Worker's cron no longer calls the matcher."
 
 
-def test_client_matcher_never_auto_cancels():
-    """The client used to cancel any order it could not price for ~2 minutes.
+def test_browser_never_fills_or_polls_orders():
+    """The browser listens for the server's fills; it never makes them.
 
-    getQuoteBatch has no mutual-fund coverage, so every MF order was
-    guaranteed to trip that counter and be silently destroyed with a toast.
-    A missing quote is our problem, not the user's order's problem.
+    The client used to run its own matcher every 12 s (and once cancelled any
+    order it could not price for ~2 minutes, which silently destroyed every
+    mutual-fund order). Since 2026-10-17 it only subscribes to Realtime
+    pushes, and fill_limit_order is revoked from signed-in users.
     """
     src = (ROOT / "js" / "features" / "limitOrders.js").read_text(encoding="utf-8")
-    assert "_NO_QUOTE_CANCEL_AFTER" not in src, (
-        "The no-quote auto-cancel is back. It silently kills mutual-fund "
-        "orders, which never have an intraday quote."
+    assert 'rpc("fill_limit_order"' not in src, (
+        "The browser calls fill_limit_order again. Orders are filled only by "
+        "/api/match-orders; the browser must never be an execution path."
     )
-    # cancelOrder must still be exported for the user-initiated path, but the
-    # matcher loop itself must not call it.
-    matcher = src[src.index("async function matchOnce"):]
-    assert "cancelOrder(" not in matcher, (
-        "matchOnce() cancels orders again. Only the user may cancel an order."
+    assert "_NO_QUOTE_CANCEL_AFTER" not in src, "The no-quote auto-cancel is back."
+    assert "setInterval" not in src, (
+        "limitOrders.js polls again. Fills arrive as Realtime pushes "
+        "(startOrderEvents); there is nothing to poll for."
     )
+    portfolio = (ROOT / "js" / "pages" / "portfolio.js").read_text(encoding="utf-8")
+    assert "pendingPoll" not in portfolio, "The portfolio page polls pending orders again."
+    mig = (ROOT / "supabase" / "migrations" / "2026-10-17c_server_only_order_fills.sql").read_text(encoding="utf-8").lower()
+    assert "revoke all on function public.fill_limit_order" in mig and "authenticated" in mig
 
 
 def test_fill_rpc_has_service_role_path():

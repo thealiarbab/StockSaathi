@@ -9,7 +9,7 @@ import { mountCoachPanel } from "./components/coachPanel.js";
 import { mountRouter } from "./router.js";
 import { currentUser, refreshCurrentUser } from "./auth/accounts.js";
 import { bootSync } from "./db/sync.js";
-import { startLimitMatcher } from "./features/limitOrders.js";
+import { startOrderEvents } from "./features/limitOrders.js";
 import { showPendingNotices } from "./components/noticeModal.js";
 import { mountAiExplainer } from "./features/aiExplainer.js";
 import { mountCommandPalette, openCommandPalette } from "./components/commandPalette.js";
@@ -59,13 +59,13 @@ mountMarketStatusPopover();
 mountRouter();
 
 // If Supabase is configured, boot cross-device sync + start the limit-order
-// matcher in the background (only ticks when the user is authed + online).
+// fill listener (the server fills orders; the tab only hears about it).
 (async () => {
   try {
     await refreshCurrentUser();
     await bootSync();
     switchUser();
-    startLimitMatcher();
+    startOrderEvents();
   } catch (e) { console.warn("Supabase boot skipped:", e); }
 })();
 
