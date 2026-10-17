@@ -6,21 +6,26 @@
 // ack_notice like every other notice.
 // =============================================================================
 
+import { googleSignInEnabled } from "../auth/accounts.js";
+
+// Lines tagged { google: true } only show once Google sign-in is switched on.
 const RELEASES = {
   "2026-10": {
-    title: "25+ improvements since you last visited",
+    title: "What's new on StockSaathi",
+    sub: "30+ improvements since your last visit. Here are the big ones.",
     shot: { src: "/images/whats-new/2026-10/fullscreen-chart.png", alt: "A full-screen candlestick chart of Reliance Industries." },
     top: [
-      ["📈", "Full-screen charts", " that zoom without gaps for nights and weekends."],
-      ["⏪", "Crash replays", " rebuilt from real Nifty 50 prices, and they open instantly."],
-      ["💡", "Tap a term", " like P/E or beta to see what it means."],
-      ["💬", "Saathi is faster", " and only explains a move when a real headline says why."],
+      ["Full-screen charts", "Expand any chart to fill the screen, then zoom without gaps for nights and weekends."],
+      ["Crash replays from real prices", "Relive COVID-19, 2008 and demonetisation with real Nifty 50 closes. They open instantly now."],
+      ["Tap a term to see what it means", "P/E, beta, market cap and more, explained in a sentence."],
+      ["A faster Saathi", "Replies are quicker, and it only explains a move when a real headline says why."],
     ],
     more: [
       ["Charts and prices", [
-        "Quiet stocks hold their price between trades; their 1-day candles use 5-minute bars.",
-        "Long charts show the year, and days with no trades no longer show as fake flat stretches.",
-        "Real 52-week highs and lows; official NSE closing prices as a backup.",
+        "Quiet stocks hold their price between trades; their 1-day candles use bars big enough to fill the day.",
+        "Long charts show the year, labels never repeat, and days with no trades no longer show as flat stretches.",
+        "A fund's 1W chart shows its whole week, and zooming always keeps at least 12 bars on screen.",
+        "Real 52-week highs and lows, with official NSE closing prices as a backup.",
         "Small SME stocks no longer get stuck at an old price.",
         "Your \"Value over time\" chart has 1M to All ranges and zooms.",
       ]],
@@ -32,6 +37,7 @@ const RELEASES = {
       ["Saathi, your coach", [
         "Replies are no longer cut off halfway.",
         "Ask about the news and Saathi answers from today's headlines. Hinglish mode works.",
+        "On fund pages, Saathi talks about the fund's real NAV change.",
         "On phones, the coach panel closes properly and the chat box stays visible.",
       ]],
       ["Mutual funds", [
@@ -39,9 +45,14 @@ const RELEASES = {
         "Fund pages show the NAV date and the change since the previous NAV.",
       ]],
       ["Phones", [
-        "Everything fits on small screens: menu, timeframes, tab bar, portfolio total.",
+        "Everything fits on small screens: menu button, timeframes, tab bar, portfolio total.",
         "Dark mode follows your phone's setting.",
         "Short, shareable links like stocksaathi.co.in/stocks/TCS.",
+      ]],
+      ["Signing in", [
+        { text: "Continue with Google on the login and sign-up pages.", google: true },
+        "A typo in your email gets a \"Did you mean gmail.com?\" as you type.",
+        "No code in your inbox? Log in and we send a fresh one, with a tip on where to look.",
       ]],
     ],
     showMe: "/stocks/RELIANCE",
@@ -52,28 +63,34 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "
 
 /** Show the card for one notice row; resolves once it is closed and acked. */
 export function presentWhatsNew(client, notice) {
-  return new Promise((resolve) => {
+  return new Promise(async (resolve) => {
     const rel = RELEASES[notice.payload?.release] || RELEASES["2026-10"];
+    const google = await googleSignInEnabled().catch(() => false);
+    const line = (t) => (typeof t === "string" ? t : (!t.google || google) ? t.text : null);
     const el = document.createElement("div");
     el.className = "term-pop-overlay";
     el.innerHTML = `
       <div class="term-pop wn" role="dialog" aria-modal="true" aria-labelledby="wn-title">
         <button type="button" class="term-pop-x" aria-label="Close">✕</button>
-        <div class="term-pop-badge" aria-hidden="true">✨</div>
-        <div class="term-pop-kicker">What's new</div>
-        <h2 class="term-pop-title" id="wn-title">${esc(notice.title || rel.title)}</h2>
         <img class="wn-shot" src="${esc(rel.shot.src)}" alt="${esc(rel.shot.alt)}" width="1120" height="665" decoding="async">
-        <ul class="wn-list">
-          ${rel.top.map(([ico, b, rest]) => `<li><span class="wn-ico" aria-hidden="true">${ico}</span><span><strong>${esc(b)}</strong>${esc(rest)}</span></li>`).join("")}
-        </ul>
-        <details class="wn-more">
-          <summary>See everything new ▾</summary>
-          <div class="wn-more-body">
-            ${rel.more.map(([h, items]) => `<h4>${esc(h)}</h4><ul>${items.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>`).join("")}
-          </div>
-        </details>
+        <div class="wn-body">
+          <h2 class="term-pop-title" id="wn-title">${esc(rel.title)}</h2>
+          <p class="wn-sub">${esc(rel.sub)}</p>
+          <ul class="wn-list">
+            ${rel.top.map(([h, t]) => `<li><strong>${esc(h)}</strong><span>${esc(t)}</span></li>`).join("")}
+          </ul>
+          <details class="wn-more">
+            <summary>Everything else that's new</summary>
+            <div class="wn-more-body">
+              ${rel.more.map(([h, items]) => {
+                const lis = items.map(line).filter(Boolean);
+                return lis.length ? `<h4>${esc(h)}</h4><ul>${lis.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>` : "";
+              }).join("")}
+            </div>
+          </details>
+        </div>
         <div class="wn-actions">
-          <a class="btn btn-ghost wn-go" href="${esc(rel.showMe)}">Show me</a>
+          <a class="btn btn-ghost wn-go" href="${esc(rel.showMe)}">Open a chart</a>
           <button type="button" class="btn btn-primary term-pop-ok">Got it</button>
         </div>
       </div>`;
