@@ -159,6 +159,7 @@ function mainSeries() {
     const idx0 = days.length - pts.length;
     avg = pts.map((_, i) => {
       const end = idx0 + i;
+      if (end === days.length - 1) return null;   // today is not over yet
       const slice = days.slice(Math.max(0, end - 6), end + 1);
       return slice.length < 7 ? null : Math.round((slice.reduce((a, b) => a + b.n, 0) / 7) * 10) / 10;
     });
@@ -589,7 +590,8 @@ function drawActivity(s) {
   const t0 = parseDay(a.start);
   const ts = vals.map((_, i) => t0 + i * dayMs).slice(first);
   const v = vals.slice(first);
-  const avg = v.map((_, i) => i < 6 ? null : Math.round(v.slice(i - 6, i + 1).reduce((x, y) => x + y, 0) / 7 * 10) / 10);
+  // Today is not over yet, so it gets no average point.
+  const avg = v.map((_, i) => i < 6 || i === v.length - 1 ? null : Math.round(v.slice(i - 6, i + 1).reduce((x, y) => x + y, 0) / 7 * 10) / 10);
   st.charts.push(xyChart(st.host.querySelector("#sg-act"), {
     labels: ts,
     series: [
