@@ -39,6 +39,10 @@ const state = {
   activityPaused: false,
   tail: null,                // EventSource instance
   tailConnected: false,
+  tailWanted: false,         // the admin switched the tail on
+  tailSince: null,           // watermark to resume from after a reconnect
+  tailStartedAt: 0,          // tail switches itself off after TAIL_MAX_MS
+  tailRetry: null,           // pending reconnect timer
   userDetail: null,
   userDetailLoading: false,
   filters: {
@@ -188,7 +192,12 @@ async function loadOverview() {
   state.overviewLoading = true;
   state.overviewError = null;
   try { state.overview = await adminGet("/api/ai?op=admin-overview"); }
-  catch (e) { state.overviewError = e.message || String(e); state.overview = null; throw e; }
+  catch (e) {
+    // A failed refresh keeps the numbers already on screen.
+    if (state.overview) toast({ kind: "error", message: "Refresh failed: " + (e.message || e) });
+    else state.overviewError = e.message || String(e);
+    throw e;
+  }
   finally { state.overviewLoading = false; }
 }
 
@@ -240,14 +249,18 @@ function renderTabbedShell(main) {
   });
   main.querySelector("#admin-logout").addEventListener("click", () => {
     setToken("");
-    closeTail();
+    stopTail();
     state.overview = null;
     renderTokenForm(main);
   });
+  tailVisibilityMain = main;
   main.querySelector("#tail-toggle").addEventListener("click", () => {
-    if (state.tailConnected) closeTail(); else openTail(main);
+    if (state.tailWanted) stopTail(); else openTail(main);
     updateTailBadge(main);
   });
+  // Re-entering the console with the tail still switched on reconnects it.
+  if (state.tailWanted && !state.tail) connectTail(main);
+  updateTailBadge(main);
   renderTabBody(main);
 }
 
@@ -276,18 +289,32 @@ function renderPlaceholder(host, title, hint) {
 // -----------------------------------------------------------------------------
 // Overview tab
 // -----------------------------------------------------------------------------
-function renderOverview(host, main) {
-  if (!state.overview && !state.overviewLoading) {
+// Load the overview once for the Overview and Users tabs. A failed load shows
+// the error with a Retry button. It used to re-render on failure, which saw
+// "no data, not loading" and fired the request again at once, forever: every
+// attempt pulled the whole user base from Supabase.
+function ensureOverview(host, main, loadingText) {
+  if (state.overview) return true;
+  if (!state.overviewLoading && !state.overviewError) {
     loadOverview().catch(() => {}).finally(() => renderTabBody(main));
   }
-  if (state.overviewLoading && !state.overview) {
-    host.innerHTML = `<div class="card"><div class="muted">Loading overview…</div></div>`;
-    return;
+  if (state.overviewLoading || !state.overviewError) {
+    host.innerHTML = `<div class="card"><div class="muted">${escapeHtml(loadingText)}</div></div>`;
+    return false;
   }
-  if (!state.overview) {
-    host.innerHTML = `<div class="card"><div style="color: var(--negative);">${escapeHtml(state.overviewError || "Failed to load.")}</div></div>`;
-    return;
-  }
+  host.innerHTML = `<div class="card">
+    <div style="color: var(--negative);">${escapeHtml(state.overviewError)}</div>
+    <button class="btn btn-ghost btn-sm" id="overview-retry" style="margin-top: var(--sp-3);">Retry</button>
+  </div>`;
+  host.querySelector("#overview-retry").addEventListener("click", () => {
+    state.overviewError = null;
+    renderTabBody(main);
+  });
+  return false;
+}
+
+function renderOverview(host, main) {
+  if (!ensureOverview(host, main, "Loading overview…")) return;
   const { aggregates: a, byDay, top, rowCounts } = state.overview;
   const maxDay = byDay.reduce((b, c) => c.count > b.count ? c : b, { count: 0, day: "" });
   const signupChart = areaChart(byDay.map(d => d.count), { height: 80, color: "var(--brand)", paddingLeft: 0 });
@@ -335,6 +362,9 @@ function renderOverview(host, main) {
         ${renderLeaderboard(top.biggestLosers, v => v.toFixed(1) + "%")}
       </div>
     </div>`;
+  // Leaderboard names open the user drill-down. They were never wired here,
+  // so a click only followed href="#".
+  wireRowClicks(host, main);
 }
 function renderLeaderboard(rows, fmt) {
   if (!rows?.length) return `<div class="muted text-sm" style="padding: var(--sp-3);">No data yet.</div>`;
@@ -345,14 +375,7 @@ function renderLeaderboard(rows, fmt) {
 // Users tab
 // -----------------------------------------------------------------------------
 function renderUsersTab(host, main) {
-  if (!state.overview && !state.overviewLoading) {
-    loadOverview().catch(() => {}).finally(() => renderTabBody(main));
-  }
-  if (state.overviewLoading && !state.overview) {
-    host.innerHTML = `<div class="card"><div class="muted">Loading users…</div></div>`;
-    return;
-  }
-  if (!state.overview) return;
+  if (!ensureOverview(host, main, "Loading users…")) return;
   const users = state.overview.users || [];
   const list = applyFiltersAndSort(users);
   const schools = [...new Set(users.map(u => u.school).filter(Boolean))].sort();
@@ -372,7 +395,7 @@ function renderUsersTab(host, main) {
 
     <div class="card">
       <div class="card-head">
-        <h3>Users (${list.length} of ${users.length})</h3>
+        <h3 id="u-count">Users (${list.length} of ${users.length})</h3>
         <div class="dim text-xs">Click header to sort · click row for drill-down</div>
       </div>
       <div class="admin-table-wrap">
@@ -387,8 +410,11 @@ function renderUsersTab(host, main) {
   };
   host.querySelector("#u-search").addEventListener("input", e => {
     state.filters.search = e.target.value;
+    const filtered = applyFiltersAndSort(users);
     const tbody = host.querySelector(".admin-table tbody");
-    if (tbody) tbody.innerHTML = renderUsersRowsHtml(applyFiltersAndSort(users));
+    if (tbody) tbody.innerHTML = renderUsersRowsHtml(filtered);
+    const count = host.querySelector("#u-count");
+    if (count) count.textContent = `Users (${filtered.length} of ${users.length})`;
     wireRowClicks(host, main);
   });
   mountThemedSelect(host.querySelector("#u-onboarded"), {
@@ -525,7 +551,7 @@ function wireRowClicks(host, main) {
       const reason = prompt("Reason for reset (≥ 8 chars, logged to audit):");
       if (!reason || reason.trim().length < 8) return;
       adminPost("/api/ai?op=admin-user-reset", { userId, reason })
-        .then(() => { toast({ kind: "success", message: "User reset." }); loadOverview().then(() => renderTabBody(main)); })
+        .then(() => { toast({ kind: "success", message: "User reset." }); loadOverview().catch(() => {}).finally(() => renderTabBody(main)); })
         .catch(e => toast({ kind: "error", message: e.message }));
     });
   });
@@ -636,7 +662,7 @@ function paintUserModal() {
   const histValues = (portfolioHistory || []).map(h => (h.total_value_paise || 0) / 100);
   const histSvg = histValues.length > 1
     ? `<div style="height: 180px;">${areaChart(histValues, { height: 180, color: "var(--brand)", paddingLeft: 40 })}</div>`
-    : `<div class="muted text-sm" style="padding: var(--sp-3); border: 1px dashed var(--border); border-radius: var(--r); text-align:center;">No history yet. Kick off backfill from System tab.</div>`;
+    : `<div class="muted text-sm" style="padding: var(--sp-3); border: 1px dashed var(--border); border-radius: var(--r); text-align:center;">No history yet. Run a backfill from Audit → system.</div>`;
 
   const totalHoldValue = (holdings || []).reduce((a, h) => a + (Number(h.qty) || 0) * (Number(h.avg_cost_paise) || 0), 0) / 100;
   const cashRupees = (portfolio?.cash_paise || 0) / 100;
@@ -865,9 +891,11 @@ function renderActivityTab(host, main) {
     state.activity = [];
     repaintActivity();
   });
-  // Also auto-fetch a recent batch of events so the feed isn't empty on open.
+  // Also fetch a recent batch so the feed isn't empty on open. Merged, so
+  // events the live tail already delivered are kept.
+  repaintActivity();
   adminGet("/api/ai?op=admin-activity-feed&limit=100")
-    .then(d => { state.activity = (d?.events || []).reverse(); repaintActivity(); })
+    .then(d => addActivity(d?.events || []))
     .catch(() => {});
 }
 
@@ -892,7 +920,7 @@ function matchesFilter(kind, filter) {
 }
 function renderEventRow(ev) {
   const icon = ({ trade: "🟢", coach: "💬", order: "📊", signup: "✨", admin: "🛠" })[ev.kind] || "•";
-  const payload = ev.payload?.row || ev.payload || {};
+  const payload = ev.payload || ev.row || {};
   let summary = "";
   if (ev.kind === "trade")    summary = `${payload.side} ${payload.qty} ${payload.symbol} @ ${formatRupees(payload.price_paise || 0, { compact: true })}`;
   else if (ev.kind === "coach") summary = `${payload.event_type || ""} ${payload.trigger_symbol || ""}`;
@@ -902,36 +930,111 @@ function renderEventRow(ev) {
   return `<div class="activity-row"><span class="act-icon">${icon}</span><span class="act-kind">${escapeHtml(ev.kind)}</span><span class="act-summary">${escapeHtml(summary)}</span><span class="act-ts dim">${formatDateShort(ev.ts)}</span></div>`;
 }
 
+// Live tail. The server closes each stream after 4 minutes. EventSource
+// reconnects by itself after a close or an error, so the old code never
+// stopped: a forgotten admin tab, even in the background, kept the server
+// querying Supabase around the clock. Now every reconnect is ours: only while
+// the tail is switched on, the tab is visible and the console is on screen,
+// and the tail switches itself off after TAIL_MAX_MS.
+const TAIL_MAX_MS = 30 * 60 * 1000;
+const TAIL_RETRY_MS = 15_000;
+
+function consoleMounted(main) { return !!(main && main.isConnected && main.querySelector(".admin-shell")); }
+
 function openTail(main) {
-  if (state.tail) return;
+  state.tailWanted = true;
+  state.tailStartedAt = Date.now();
+  state.tailSince = new Date().toISOString();
+  connectTail(main);
+}
+function connectTail(main) {
+  clearTimeout(state.tailRetry);
+  state.tailRetry = null;
+  if (state.tail || !state.tailWanted) return;
+  if (!consoleMounted(main)) { stopTail(); return; }
+  if (document.hidden) { updateTailBadge(main); return; }  // resumes on visibilitychange
+  if (Date.now() - state.tailStartedAt > TAIL_MAX_MS) {
+    stopTail();
+    updateTailBadge(main);
+    toast({ kind: "info", message: "Live tail paused after 30 minutes. Switch it on again to resume." });
+    return;
+  }
   const token = getToken();
-  if (!token) { toast({ kind: "error", message: "No admin token." }); return; }
-  const url = `/api/ai?op=admin-tail&token=${encodeURIComponent(token)}`;
+  if (!token) { stopTail(); toast({ kind: "error", message: "No admin token." }); return; }
+  const url = `/api/ai?op=admin-tail&token=${encodeURIComponent(token)}&since=${encodeURIComponent(state.tailSince)}`;
   const es = new EventSource(url);
   state.tail = es;
+  const drop = (retryMs) => {
+    try { es.close(); } catch {}
+    if (state.tail === es) state.tail = null;
+    state.tailConnected = false;
+    updateTailBadge(main);
+    if (state.tailWanted) state.tailRetry = setTimeout(() => connectTail(main), retryMs);
+  };
   es.addEventListener("open", () => { state.tailConnected = true; updateTailBadge(main); });
-  es.addEventListener("error", () => { state.tailConnected = false; updateTailBadge(main); });
+  es.addEventListener("error", () => drop(TAIL_RETRY_MS));
+  es.addEventListener("hb", (e) => {
+    if (!consoleMounted(main)) { stopTail(); return; }
+    try { const d = JSON.parse(e.data); if (d.since) state.tailSince = d.since; } catch {}
+  });
   ["trade", "coach", "order", "signup", "admin"].forEach(kind => {
     es.addEventListener(kind, (e) => {
       try {
         const ev = JSON.parse(e.data);
-        state.activity.push(ev);
-        if (state.activity.length > 500) state.activity.shift();
-        if (currentTab === "activity") repaintActivity();
+        addActivity([ev]);
+        if (ev.ts) state.tailSince = ev.ts;
       } catch {}
     });
   });
-  es.addEventListener("close", () => { state.tailConnected = false; state.tail = null; updateTailBadge(main); });
+  es.addEventListener("close", (e) => {
+    try { const d = JSON.parse(e.data); if (d.since) state.tailSince = d.since; } catch {}
+    drop(1000);
+  });
+}
+function stopTail() {
+  state.tailWanted = false;
+  closeTail();
 }
 function closeTail() {
+  clearTimeout(state.tailRetry);
+  state.tailRetry = null;
   if (state.tail) { try { state.tail.close(); } catch {} state.tail = null; }
   state.tailConnected = false;
 }
 function updateTailBadge(main) {
   const el = main.querySelector("#tail-indicator");
   const btn = main.querySelector("#tail-toggle");
-  if (el) { el.className = `tail-indicator ${state.tailConnected ? "live" : "off"}`; el.textContent = state.tailConnected ? "● LIVE" : "○ paused"; }
-  if (btn) btn.textContent = state.tailConnected ? "Pause tail" : "Live tail";
+  const label = state.tailConnected ? "● LIVE"
+    : !state.tailWanted ? "○ paused"
+    : document.hidden ? "○ paused (tab hidden)" : "○ connecting";
+  if (el) { el.className = `tail-indicator ${state.tailConnected ? "live" : "off"}`; el.textContent = label; }
+  if (btn) btn.textContent = state.tailWanted ? "Pause tail" : "Live tail";
+}
+// Hidden tab: drop the stream. Visible again: reconnect if still switched on.
+let tailVisibilityMain = null;
+document.addEventListener("visibilitychange", () => {
+  const main = tailVisibilityMain;
+  if (!main || !state.tailWanted) return;
+  if (document.hidden) { closeTail(); updateTailBadge(main); }
+  else connectTail(main);
+});
+
+// Merge events from the feed and the tail without duplicates, oldest first.
+function addActivity(events) {
+  const seen = new Set(state.activity.map(activityKey));
+  for (const ev of events) {
+    const k = activityKey(ev);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    state.activity.push(ev);
+  }
+  state.activity.sort((a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0));
+  if (state.activity.length > 500) state.activity.splice(0, state.activity.length - 500);
+  if (currentTab === "activity") repaintActivity();
+}
+function activityKey(ev) {
+  const p = ev.payload || ev.row || {};
+  return `${ev.kind}:${p.id || ""}:${ev.ts || ""}`;
 }
 
 // -----------------------------------------------------------------------------
@@ -1242,11 +1345,19 @@ async function renderDbStats(body) {
 // -----------------------------------------------------------------------------
 const authState = { users: null, loading: false };
 async function renderAuthTab(host, main) {
-  if (!authState.users && !authState.loading) {
+  if (!authState.users) {
+    host.innerHTML = `<div class="card"><div class="muted">Loading auth users…</div></div>`;
+    if (authState.loading) return;
     authState.loading = true;
     try { authState.users = (await adminGet("/api/ai?op=admin-auth-users&perPage=500")).users || []; }
-    catch (e) { host.innerHTML = `<div class="card"><div style="color:var(--negative);">${escapeHtml(e.message)}</div></div>`; return; }
+    catch (e) {
+      if (currentTab === "auth") host.innerHTML = `<div class="card"><div style="color:var(--negative);">${escapeHtml(e.message)}</div></div>`;
+      return;
+    }
     finally { authState.loading = false; }
+    // The admin may have switched tabs while this loaded; host is shared, so
+    // drawing now would cover the tab they are on.
+    if (currentTab !== "auth") return;
   }
   host.innerHTML = `
     <div class="card">
@@ -1614,6 +1725,9 @@ async function renderAiCacheView(body) {
     catch (e) { toast({ kind: "error", message: e.message }); }
   });
   body.querySelectorAll("[data-cache-del]").forEach(b => b.addEventListener("click", async (e) => {
+    // The button sits inside <summary>; without preventDefault every click
+    // also opened or closed the row.
+    e.preventDefault();
     e.stopPropagation();
     const reason = prompt("Reason (≥ 8 chars):"); if (!reason || reason.trim().length < 8) return;
     try { await adminPost("/api/ai?op=admin-cache-invalidate", { table: "ai_response_cache", bucket: b.dataset.bucket, key: b.dataset.key, reason }); toast({ kind: "success", message: "Deleted." }); marketsState.aiCache = null; renderAiCacheView(body); }
@@ -1690,7 +1804,7 @@ async function renderAuditTab(host, main) {
   host.querySelectorAll("[data-audit-view]").forEach(b => b.addEventListener("click", () => { auditState.view = b.dataset.auditView; renderAuditTab(host, main); }));
   const body = host.querySelector("#audit-body");
   if (auditState.view === "log") return renderAuditLog(body);
-  if (auditState.view === "system") return renderSystem(body);
+  if (auditState.view === "system") return renderSystem(body, main);
 }
 async function renderAuditLog(body) {
   body.innerHTML = `<div class="muted">Loading audit log…</div>`;
@@ -1699,7 +1813,8 @@ async function renderAuditLog(body) {
   const rows = auditState.rows;
   if (!rows.length) { body.innerHTML = `<div class="muted text-sm">Audit log is empty. Every future admin write will leave a row.</div>`; return; }
   body.innerHTML = `
-    <div class="dim text-xs" style="margin-bottom: 6px;">${rows.length} admin actions</div>
+    <div class="dim text-xs" style="margin-bottom: 6px;">${rows.length} admin actions
+      <button class="btn btn-ghost btn-sm" id="audit-refresh">↻ Refresh</button></div>
     <div class="flex-col gap-2">
       ${rows.slice(0, 200).map(r => `
         <details class="admin-coach-row">
@@ -1714,8 +1829,11 @@ async function renderAuditLog(body) {
           <details><summary class="dim text-xs">After state</summary><pre class="admin-coach-payload">${escapeHtml(JSON.stringify(r.after_state, null, 2))}</pre></details>
         </details>`).join("")}
     </div>`;
+  // Rows are cached for the session; without this, actions taken since
+  // opening the tab never showed up.
+  body.querySelector("#audit-refresh").addEventListener("click", () => { auditState.rows = null; renderAuditLog(body); });
 }
-function renderSystem(body) {
+function renderSystem(body, main) {
   body.innerHTML = `
     <div class="admin-user-grid">
       <div class="card">
@@ -1739,8 +1857,10 @@ function renderSystem(body) {
     </div>`;
   body.querySelector("#sys-clear-token").addEventListener("click", () => {
     setToken("");
-    closeTail();
-    toast({ kind: "success", message: "Token cleared. Reload to re-auth." });
+    stopTail();
+    state.overview = null;
+    toast({ kind: "success", message: "Token cleared." });
+    renderTokenForm(main);
   });
   const doBackfill = async (todayOnly) => {
     const reason = prompt("Reason (≥ 8 chars):"); if (!reason || reason.trim().length < 8) return;
