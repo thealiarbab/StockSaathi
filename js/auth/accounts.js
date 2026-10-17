@@ -219,9 +219,10 @@ export async function googleSignInEnabled() {
 }
 
 /**
- * Sign in or sign up with Google. No password, no confirmation email, no
- * typo'd address. Google returns to /login, where the session in the URL
- * fragment is picked up (the fragment never reaches analytics).
+ * Sign in or sign up with Google through Supabase's redirect flow. Used only
+ * when Google's own button can't load (see googleButton.js). Google returns
+ * to /login, where the session in the URL fragment is picked up (the
+ * fragment never reaches analytics).
  */
 export async function signInWithGoogle() {
   const client = await sb();
@@ -231,6 +232,56 @@ export async function signInWithGoogle() {
     options: { redirectTo: `${location.origin}/login`, queryParams: { prompt: "select_account" } },
   });
   if (error) throw new Error(prettifySbError(error.message));
+}
+
+// The web OAuth client in the StockSaathi Google Cloud project. Public by
+// design: it names the app to Google, and only https://stocksaathi.co.in may
+// use it. The same ID is listed under Supabase's Google provider.
+export const GOOGLE_CLIENT_ID = "84599335055-ihl81mub9uiak46o0obppt2ao9l8ihvo.apps.googleusercontent.com";
+
+/**
+ * Finish a Google Identity Services sign-in: Supabase checks the signed ID
+ * token (and the nonce inside it) and creates or signs in the account.
+ */
+export async function signInWithGoogleIdToken(idToken, rawNonce) {
+  const client = await sb();
+  if (!client) throw new Error("Couldn't reach StockSaathi's servers. Check your connection and try again.");
+  const { error } = await client.auth.signInWithIdToken({ provider: "google", token: idToken, nonce: rawNonce });
+  if (error) throw new Error(prettifySbError(error.message));
+}
+
+/**
+ * Links in our auth emails open stocksaathi.co.in with ?token_hash=&type=
+ * instead of going through the Supabase project address. Exchanging the
+ * hash here signs the user in (or opens a recovery session for /reset-password).
+ * Mail scanners that prefetch the link can't use it up: nothing is spent
+ * until this runs in a browser.
+ */
+const EMAIL_LINK_TYPES = new Set(["recovery", "magiclink", "email", "signup", "invite", "email_change"]);
+export function readEmailLinkParams() {
+  const q = new URLSearchParams(location.search);
+  const tokenHash = q.get("token_hash");
+  const type = q.get("type");
+  if (!tokenHash || !EMAIL_LINK_TYPES.has(type)) return null;
+  // The token must not sit in the address bar, history or anything that
+  // reads location later (ads, analytics).
+  q.delete("token_hash");
+  q.delete("type");
+  const rest = q.toString();
+  history.replaceState(history.state, "", location.pathname + (rest ? `?${rest}` : ""));
+  return { tokenHash, type };
+}
+export async function verifyEmailLink({ tokenHash, type }) {
+  const client = await sb();
+  if (!client) throw new Error("Couldn't reach StockSaathi's servers. Check your connection and try again.");
+  const { data, error } = await client.auth.verifyOtp({ token_hash: tokenHash, type });
+  if (error) {
+    if (/expired|invalid|not found/i.test(error.message || "")) {
+      throw new Error("This link has expired or was already used. Links work once and last an hour.");
+    }
+    throw new Error(prettifySbError(error.message));
+  }
+  return { user: data?.user, session: data?.session };
 }
 
 /**
