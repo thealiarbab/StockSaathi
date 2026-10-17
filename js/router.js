@@ -75,8 +75,8 @@ const COMPANION_ROUTES = new Set(["stocks", "stock-detail", "crash-replay", "cra
 
 const ROUTES = [
   { name: "home",          match: /^$|^\/$/,                              render: renderLanding, public: true },
-  { name: "login",         match: /^\/login\/?$/,                          render: renderLogin, public: true },
-  { name: "register",      match: /^\/register\/?$/,                       render: renderRegister, public: true },
+  { name: "login",         match: /^\/login\/?$/,                          render: renderLogin, public: true, guestOnly: true },
+  { name: "register",      match: /^\/register\/?$/,                       render: renderRegister, public: true, guestOnly: true },
   { name: "reset-req",     match: /^\/reset-password-request\/?$/,         render: renderResetPasswordRequest, public: true },
   { name: "reset-password", match: /^\/reset-password\/?$/,                render: renderResetPassword, public: true },
   { name: "onboarding",    match: /^\/onboarding\/?$/,                     render: renderOnboarding, needsAuth: true },
@@ -237,6 +237,14 @@ function trackablePath() {
 // PROOF of auth — the JWT is already signed and dated, and the actual
 // RPC calls will still 401 if it's expired. Avoids the "hard reload →
 // flash of /login before state loads" we kept hitting.
+// An email link (?token_hash=&type=), Google's redirect (#access_token=) or
+// the signup code step (?verify=1) is in the URL: the auth page itself is
+// finishing a sign-in, so it must render even for a signed-in visitor.
+function authHandoffInUrl() {
+  return /access_token=|error_description=/.test(location.hash)
+    || /[?&](token_hash|type|verify|code)=/.test(location.search);
+}
+
 function hasPersistedSession() {
   try { return !!localStorage.getItem("ss.sb.session.v1"); } catch { return false; }
 }
@@ -307,6 +315,19 @@ export function mountRouter() {
       }
       navigate("/login");
       return;
+    }
+
+    // /login and /register have nothing for a signed-in visitor: send them to
+    // their portfolio (whose own guard handles onboarding). If the session is
+    // still loading, show the form now and move on as soon as it lands.
+    if (r.guestOnly && !authHandoffInUrl()) {
+      if (user) { go("/portfolio", { replace: true }); return; }
+      if (hasPersistedSession()) {
+        const unsub = subscribe(() => {
+          if (currentUser() && currentRoute().guestOnly) { unsub(); route(); }
+        });
+        setTimeout(unsub, 6000);
+      }
     }
 
     // needsOnboarded: same treatment. If we have a user object but the

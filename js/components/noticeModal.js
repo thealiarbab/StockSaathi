@@ -38,7 +38,27 @@ let _doneForUser = null;
  * Safe to call repeatedly — on boot, after login, on user switch. Returns
  * immediately when there is nothing to show, and never throws into the caller.
  */
+// Never on a sign-in or setup screen: a card over the login form reads as
+// "you're logged out". Wait for the first real page instead.
+const AUTH_PAGE = /^\/(login|register|reset-password(-request)?|onboarding)\/?$/;
+let _waitingForPage = false;
+
 export async function showPendingNotices() {
+  if (AUTH_PAGE.test(location.pathname)) {
+    if (!_waitingForPage) {
+      _waitingForPage = true;
+      const retry = () => {
+        if (AUTH_PAGE.test(location.pathname)) return;
+        window.removeEventListener("ss:navigate", retry);
+        window.removeEventListener("popstate", retry);
+        _waitingForPage = false;
+        setTimeout(() => { showPendingNotices(); }, 600);
+      };
+      window.addEventListener("ss:navigate", retry);
+      window.addEventListener("popstate", retry);
+    }
+    return;
+  }
   if (_inFlight) return;
   _inFlight = true;
   try {
