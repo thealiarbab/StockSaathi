@@ -31,11 +31,12 @@ const st = {
   stats: null, error: null, loading: false, statsAt: 0,
   count: null, countAt: 0, openedCount: null, liveErr: null,
   timer: null, charts: [],
+  web: null, webErr: null, webAt: 0, webLoading: false,
   prefs: loadPrefs(),
 };
 
 function loadPrefs() {
-  const d = { range: "30d", gran: "day", cumulative: false, avg: true, metric: "dau" };
+  const d = { range: "30d", gran: "day", cumulative: false, avg: true, metric: "dau", webMetric: "visitors", webSpan: "day" };
   try { return { ...d, ...(JSON.parse(localStorage.getItem(PREF_KEY) || "{}")) }; } catch { return d; }
 }
 function savePrefs() { try { localStorage.setItem(PREF_KEY, JSON.stringify(st.prefs)); } catch {} }
@@ -176,6 +177,7 @@ export function renderSignupsTab(host, { adminGet, onOpenUser }) {
   if (st.openedCount == null && st.count != null) st.openedCount = st.count;
   paint();
   if (!st.stats || Date.now() - st.statsAt > STATS_MAX_AGE_MS) loadStats();
+  if (!st.web || Date.now() - st.webAt > STATS_MAX_AGE_MS) loadWeb();
   startLive();
 }
 
@@ -194,6 +196,22 @@ async function loadStats() {
   } finally {
     st.loading = false;
     if (mounted()) paint();
+  }
+}
+
+// Vercel Web Analytics (every visitor, signed in or not), via op=admin-web-analytics.
+async function loadWeb() {
+  if (st.webLoading) return;
+  st.webLoading = true;
+  try {
+    const r = await st.adminGet("/api/ai?op=admin-web-analytics");
+    if (r.ok) { st.web = r; st.webErr = null; } else st.webErr = r.error || "failed";
+    st.webAt = Date.now();
+  } catch (e) {
+    st.webErr = e.message || String(e);
+  } finally {
+    st.webLoading = false;
+    if (mounted() && st.stats) paint();
   }
 }
 
@@ -224,6 +242,7 @@ async function liveTick() {
     paintLive(prev != null && r.count > prev ? r.count - prev : 0);
     const stale = Date.now() - st.statsAt;
     if ((prev != null && r.count !== prev && stale > STATS_MIN_GAP_MS) || stale > STATS_MAX_AGE_MS) loadStats();
+    if (Date.now() - st.webAt > STATS_MAX_AGE_MS) loadWeb();
   } catch (e) {
     st.liveErr = e.message || String(e);
     paintLive(0);
@@ -336,9 +355,11 @@ function paint() {
       ${funnel(s.totals)}
     </div>
 
+    ${webCard()}
+
     <div class="card sg-card">
       <div class="sg-card-head">
-        <h3>Usage per day</h3>
+        <h3>Signed-in usage per day <span class="dim text-sm">(our own log, signed-in students only)</span></h3>
         <div class="sg-seg" id="sg-metric">${METRICS.map(m => `<button data-v="${m.id}" class="${st.prefs.metric === m.id ? "on" : ""}">${m.label}</button>`).join("")}</div>
       </div>
       <div id="sg-act" style="margin-top:8px"></div>
@@ -374,6 +395,7 @@ function paint() {
   drawRolling(days, hours);
   drawClock(s);
   drawActivity(s);
+  drawWeb();
   wire();
   window.scrollTo(0, scroll);
 }
@@ -508,7 +530,7 @@ function allDaysTable(days) {
 
 const METRICS = [
   { id: "dau", label: "Active users", key: "dau", hint: "Different signed-in people who opened the app that day (tracking started 14 Sep)." },
-  { id: "views", label: "Page views", key: "views", hint: "Pages opened by signed-in people." },
+  { id: "views", label: "Pages (signed-in)", key: "views", hint: "Pages opened by signed-in students only. Everyone, including logged-out visitors, is in Website traffic above." },
   { id: "trades", label: "Trades", key: "trades", hint: "Buys and sells filled that day." },
   { id: "traders", label: "People trading", key: "traders", hint: "Different people with at least one trade that day." },
   { id: "coach", label: "Coach messages", key: "coach", hint: "Messages in the AI coach (both sides)." },
@@ -580,6 +602,78 @@ function drawClock(s) {
   });
 }
 
+// --- Website traffic (Vercel) ---------------------------------------------
+const utcDay = iso => { const d = new Date(iso); return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()); };
+const istFmt = new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+const istTimeFmt = new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", hour: "numeric", minute: "2-digit" });
+
+function webCard() {
+  const w = st.web;
+  const seg = (id, key, opts) => `<div class="sg-seg" id="${id}">${opts.map(([v, l]) => `<button data-v="${v}" class="${st.prefs[key] === v ? "on" : ""}">${l}</button>`).join("")}</div>`;
+  const head = `<div class="sg-card-head"><h3>Website traffic <span class="dim text-sm">(Vercel Analytics: everyone, signed in or not)</span></h3>
+    ${w ? `<div class="sg-controls">${seg("sg-web-metric", "webMetric", [["visitors", "Visitors"], ["pageviews", "Page views"]])}${seg("sg-web-span", "webSpan", [["day", "60 days"], ["hour", "48 hours"]])}</div>` : ""}</div>`;
+  if (!w) {
+    const msg = st.webErr === "vercel_not_configured"
+      ? `Needs a Vercel access token on the project. In Vercel: Account Settings → Tokens → create one for this team, then Project → Settings → Environment Variables → add <b>VERCEL_TOKEN</b> (Production) and redeploy. The Deploy tab needs the same token.`
+      : st.webErr ? `Couldn't load Vercel numbers: ${escapeHtml(st.webErr)}` : "Loading Vercel numbers…";
+    return `<div class="card sg-card">${head}<div class="muted text-sm">${msg}</div></div>`;
+  }
+  const days = w.daily;
+  const today = days[days.length - 1] || [null, 0, 0];
+  const yest = days[days.length - 2] || [null, 0, 0];
+  const full = days.slice(0, -1);
+  const last7 = full.slice(-7);
+  const avgV = last7.reduce((a, d) => a + d[1], 0) / Math.max(1, last7.length);
+  const avgP = last7.reduce((a, d) => a + d[2], 0) / Math.max(1, last7.length);
+  const bestV = full.reduce((b, d) => (d[1] > b[1] ? d : b), [null, 0, 0]);
+  const bestP = full.reduce((b, d) => (d[2] > b[2] ? d : b), [null, 0, 0]);
+  const pv = (v, p) => `${fmtInt(v)} <span class="dim text-sm">visitors</span><div class="sg-sub">${fmtInt(p)} page views</div>`;
+  const lst = (rows, label) => barList(rows.map(r => [label(r[0]), r[1]]));
+  return `<div class="card sg-card">${head}
+    <div class="sg-tiles" style="margin-bottom:12px">
+      <div class="stat-tile sg-tile"><div class="l">Today so far (UTC day)</div><div class="v tabular">${pv(today[1], today[2])}</div></div>
+      <div class="stat-tile sg-tile"><div class="l">Yesterday (UTC day)</div><div class="v tabular">${pv(yest[1], yest[2])}</div></div>
+      <div class="stat-tile sg-tile"><div class="l">Average per day, last 7</div><div class="v tabular">${pv(Math.round(avgV), Math.round(avgP))}</div></div>
+      <div class="stat-tile sg-tile"><div class="l">Best day, last 60</div><div class="v tabular">${fmtInt(bestV[1])}</div><div class="sg-sub">visitors on ${bestV[0] ? fmtDay(utcDay(bestV[0])) : "—"}<br>most page views: ${fmtInt(bestP[2])}${bestP[0] ? " on " + fmtDay(utcDay(bestP[0])) : ""}</div></div>
+      <div class="stat-tile sg-tile"><div class="l">Pages per visitor, last 7</div><div class="v tabular">${(avgP / Math.max(1, avgV)).toFixed(1)}</div></div>
+    </div>
+    <div id="sg-web"></div>
+    <div class="dim text-xs" style="margin-top:4px">Vercel counts days in UTC (5:30 am to 5:30 am Indian time). "Visitors" are counted per day, so days can't be added into unique people. Last bar is still running. Fetched ${new Date(st.webAt).toLocaleTimeString("en-IN")}.</div>
+    <div class="sg-grid2">
+      <div class="card sg-card"><div class="sg-card-head"><h3>Top pages</h3><span class="dim text-sm">visitors, last 7 days</span></div>${lst(w.paths, k => k || "(unknown)")}</div>
+      <div class="card sg-card"><div class="sg-card-head"><h3>Where visitors came from</h3><span class="dim text-sm">visitors, last 7 days</span></div>${lst(w.referrers, k => k || "Direct / app / no referrer")}</div>
+      <div class="card sg-card"><div class="sg-card-head"><h3>Countries</h3><span class="dim text-sm">visitors, last 7 days</span></div>${lst(w.countries, k => k || "(unknown)")}</div>
+      <div class="card sg-card"><div class="sg-card-head"><h3>Devices</h3><span class="dim text-sm">visitors, last 7 days</span></div>${lst(w.devices, k => k || "(unknown)")}</div>
+    </div>
+    ${w.errors?.length ? `<div class="dim text-xs" style="margin-top:6px">Some Vercel queries failed: ${escapeHtml(w.errors.join("; "))}</div>` : ""}
+  </div>`;
+}
+
+function drawWeb() {
+  const el = st.host.querySelector("#sg-web");
+  if (!el || !st.web) return;
+  const hourly = st.prefs.webSpan === "hour";
+  const rows = hourly ? st.web.hourly : st.web.daily;
+  const i = st.prefs.webMetric === "pageviews" ? 2 : 1;
+  const name = i === 2 ? "Page views" : "Visitors";
+  const ts = rows.map(r => Date.parse(r[0]));
+  const v = rows.map(r => r[i]);
+  const ser = [{ name: hourly ? `${name} per hour` : `${name} per day`, values: v, color: C.blue, kind: "bar" }];
+  if (!hourly) {
+    ser.push({ name: "7-day average", color: C.avg, kind: "line",
+      values: v.map((_, k) => (k < 6 || k === v.length - 1) ? null : Math.round(v.slice(k - 6, k + 1).reduce((a, b) => a + b, 0) / 7)) });
+  }
+  // Hour slots are UTC hours, shown in Indian time (each starts at :30).
+  st.charts.push(xyChart(el, {
+    labels: ts, series: ser, height: 240,
+    xTick: k => hourly ? (new Date(ts[k]).getUTCHours() % 6 === 0 ? istTimeFmt.format(new Date(ts[k])) : "") : fmtDay(utcDay(rows[k][0]), false),
+    tip: k => hourly
+      ? `${istFmt.format(new Date(ts[k]))} – ${istTimeFmt.format(new Date(ts[k] + hourMs))} IST`
+      : `${fmtDayY(utcDay(rows[k][0]))} (UTC day)${k === rows.length - 1 ? ", so far" : ""}`,
+    faded: k => k === rows.length - 1,
+  }));
+}
+
 function drawActivity(s) {
   const a = s.activity;
   const metric = METRICS.find(m => m.id === st.prefs.metric) || METRICS[0];
@@ -619,7 +713,9 @@ function wire() {
   h.querySelector("#sg-avg")?.addEventListener("click", () => { st.prefs.avg = !st.prefs.avg; savePrefs(); paint(); });
   h.querySelectorAll("#sg-metric button").forEach(b => b.addEventListener("click", () => { st.prefs.metric = b.dataset.v; savePrefs(); paint(); }));
   h.querySelectorAll("tr[data-uid]").forEach(tr => tr.addEventListener("click", () => st.onOpenUser?.(tr.dataset.uid)));
-  h.querySelector("#sg-reload")?.addEventListener("click", e => { e.preventDefault(); loadStats(); });
+  h.querySelector("#sg-reload")?.addEventListener("click", e => { e.preventDefault(); loadStats(); loadWeb(); });
+  h.querySelectorAll("#sg-web-metric button").forEach(b => b.addEventListener("click", () => { st.prefs.webMetric = b.dataset.v; savePrefs(); paint(); }));
+  h.querySelectorAll("#sg-web-span button").forEach(b => b.addEventListener("click", () => { st.prefs.webSpan = b.dataset.v; savePrefs(); paint(); }));
   h.querySelector("#sg-csv-d")?.addEventListener("click", () => {
     const { days } = series();
     let run = 0;

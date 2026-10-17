@@ -150,13 +150,16 @@ export function xyChart(host, cfg) {
       svg += `<line class="axc-grid" x1="${padL}" x2="${W - padR}" y1="${yy}" y2="${yy}"/>`;
       svg += `<text class="axc-ylab" x="${padL - 6}" y="${yy + 3.5}" text-anchor="end">${ylabs[ti]}</text>`;
     });
-    // X labels: about one per 72 px.
-    const every = Math.max(1, Math.ceil(n / Math.max(1, pw / 72)));
-    for (let i = 0; i < n; i += every) {
+    // X labels: every slot may offer one (xTick returns "" to skip); keep
+    // those that leave room after the previous label.
+    let lastX = -Infinity;
+    for (let i = 0; i < n; i++) {
+      const cx = padL + band * (i + 0.5);
+      if (cx - lastX < 64) continue;
       const lab = xTick(i);
       if (lab == null || lab === "") continue;
-      const cx = padL + band * (i + 0.5);
       svg += `<text class="axc-xlab" x="${cx}" y="${H - 5}" text-anchor="middle">${escapeHtml(lab)}</text>`;
+      lastX = cx;
     }
     bars.forEach((s, bi) => {
       for (let i = 0; i < n; i++) {

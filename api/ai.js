@@ -1221,6 +1221,7 @@ export default async function handler(req) {
       case "admin-overview":      return await opAdminOverview(req, origin);
       case "admin-signup-stats":  return await opAdminSignupStats(req, origin);
       case "admin-signup-count":  return await opAdminSignupCount(req, origin);
+      case "admin-web-analytics": return await opAdminWebAnalytics(req, origin);
       case "admin-user":          return await opAdminUser(req, origin, url);
       case "admin-activity-feed": return await opAdminActivityFeed(req, origin, url);
       case "admin-ai-cache":      return await opAdminAiCache(req, origin, url);
@@ -2543,16 +2544,23 @@ async function opAdminAuthForceConfirm(req, origin) {
 
 // =============================================================================
 // VERCEL PROXY — deployments, logs, envs, redeploy, rollback, domains
-// Requires VERCEL_TOKEN + VERCEL_TEAM_ID (optional) + VERCEL_PROJECT_ID.
+// Requires VERCEL_TOKEN. VERCEL_TEAM_ID / VERCEL_PROJECT_ID default to this
+// project's IDs (they are identifiers, not secrets), so the token is the only
+// thing to set.
 // https://vercel.com/docs/rest-api
 // =============================================================================
+const VERCEL_DEFAULT_TEAM = "team_uDFTGZMVEwrjtxi21s7Pb0Nl";
+const VERCEL_DEFAULT_PROJECT = "prj_EnsEmBUp905QAg88YlS2n0SBabCe";
+function vercelProjectId() {
+  return (globalThis.process?.env || {}).VERCEL_PROJECT_ID || VERCEL_DEFAULT_PROJECT;
+}
 
 const VERCEL_BASE = "https://api.vercel.com";
 
 async function vercelFetch(path, opts = {}) {
   const env = globalThis.process?.env || {};
   if (!env.VERCEL_TOKEN) throw new Error("vercel_not_configured");
-  const teamId = env.VERCEL_TEAM_ID;
+  const teamId = env.VERCEL_TEAM_ID || VERCEL_DEFAULT_TEAM;
   const sep = path.includes("?") ? "&" : "?";
   const pathWithTeam = teamId ? `${path}${sep}teamId=${encodeURIComponent(teamId)}` : path;
   return fetch(`${VERCEL_BASE}${pathWithTeam}`, {
@@ -2565,6 +2573,51 @@ async function vercelFetch(path, opts = {}) {
   });
 }
 
+// Vercel Web Analytics: every visitor, signed in or not (user_events only
+// sees signed-in people). Vercel buckets days and hours in UTC and allows at
+// most 62 days per daily query.
+async function opAdminWebAnalytics(req, origin) {
+  const gate = checkAdmin(req);
+  if (!gate.ok) return j(401, { error: gate.reason }, origin);
+  const env = globalThis.process?.env || {};
+  if (!env.VERCEL_TOKEN) return j(200, { ok: false, error: "vercel_not_configured" }, origin);
+  const now = Date.now();
+  const dayStart = Date.UTC(new Date(now).getUTCFullYear(), new Date(now).getUTCMonth(), new Date(now).getUTCDate());
+  const iso = (t) => new Date(t).toISOString();
+  const q = (by, since, limit) => {
+    const p = new URLSearchParams({ projectId: vercelProjectId(), since: iso(since), until: iso(now), limit: String(limit) });
+    for (const b of [].concat(by)) p.append("by", b);
+    return vercelFetch(`/v1/query/web-analytics/visits/aggregate?${p}`)
+      .then(async (r) => (r.ok ? (await r.json()).data || [] : { error: `${r.status} ${(await r.text()).slice(0, 160)}` }))
+      .catch((e) => ({ error: String(e?.message || e) }));
+  };
+  const week = dayStart - 6 * 86400000;
+  const [daily, hourly, paths, referrers, countries, devices] = await Promise.all([
+    q("day", dayStart - 59 * 86400000, 100),
+    q("hour", now - 48 * 3600000, 100),
+    q("requestPath", week, 15),
+    q("referrerHostname", week, 10),
+    q("country", week, 10),
+    q("deviceType", week, 5),
+  ]);
+  const errs = [daily, hourly, paths, referrers, countries, devices].filter((x) => x && x.error).map((x) => x.error);
+  if (errs.length === 6) return j(502, { ok: false, error: "vercel_query_failed", detail: errs[0] }, origin);
+  const series = (rows) => (Array.isArray(rows) ? rows.map((r) => [r.timestamp, r.visitors || 0, r.pageviews || 0]) : []);
+  const top = (rows, key) => (Array.isArray(rows) ? rows.map((r) => [r[key] || "", r.visitors || 0, r.pageviews || 0]) : []);
+  return j(200, {
+    ok: true,
+    at: iso(now),
+    weekSince: iso(week),
+    daily: series(daily),
+    hourly: series(hourly),
+    paths: top(paths, "requestPath"),
+    referrers: top(referrers, "referrerHostname"),
+    countries: top(countries, "country"),
+    devices: top(devices, "deviceType"),
+    errors: errs,
+  }, origin);
+}
+
 async function opAdminVercelDeployments(req, origin, url) {
   const gate = checkAdmin(req);
   if (!gate.ok) return j(401, { error: gate.reason }, origin);
@@ -2572,7 +2625,7 @@ async function opAdminVercelDeployments(req, origin, url) {
   if (!env.VERCEL_TOKEN) return j(501, { error: "vercel_not_configured" }, origin);
   const limit = Math.max(1, Math.min(100, parseInt(url.searchParams.get("limit") || "30", 10)));
   const target = url.searchParams.get("target") || ""; // 'production' or ''
-  let path = `/v6/deployments?projectId=${encodeURIComponent(env.VERCEL_PROJECT_ID || "")}&limit=${limit}`;
+  let path = `/v6/deployments?projectId=${encodeURIComponent(vercelProjectId())}&limit=${limit}`;
   if (target === "production") path += "&target=production";
   try {
     const r = await vercelFetch(path);
@@ -2616,9 +2669,9 @@ async function opAdminVercelEnvs(req, origin) {
   const gate = checkAdmin(req);
   if (!gate.ok) return j(401, { error: gate.reason }, origin);
   const env = globalThis.process?.env || {};
-  if (!env.VERCEL_PROJECT_ID) return j(501, { error: "vercel_project_id_missing" }, origin);
+  if (!vercelProjectId()) return j(501, { error: "vercel_project_id_missing" }, origin);
   try {
-    const r = await vercelFetch(`/v10/projects/${encodeURIComponent(env.VERCEL_PROJECT_ID)}/env`);
+    const r = await vercelFetch(`/v10/projects/${encodeURIComponent(vercelProjectId())}/env`);
     if (!r.ok) return j(502, { error: `vercel_http_${r.status}`, detail: await r.text() }, origin);
     const body = await r.json();
     const envs = Array.isArray(body?.envs) ? body.envs : [];
@@ -2648,7 +2701,7 @@ async function opAdminVercelEnvPatch(req, origin) {
   if (parsed.err) return j(400, { error: parsed.err }, origin);
   const { body, reason } = parsed;
   const env = globalThis.process?.env || {};
-  if (!env.VERCEL_PROJECT_ID) return j(501, { error: "vercel_project_id_missing" }, origin);
+  if (!vercelProjectId()) return j(501, { error: "vercel_project_id_missing" }, origin);
 
   // Three modes: create, update, delete
   const action = body?.action;  // 'create' | 'update' | 'delete'
@@ -2661,7 +2714,7 @@ async function opAdminVercelEnvPatch(req, origin) {
   const result = await auditWrap(req, {
     action: `vercel_env_${action}`, targetKind: "env_var", targetId: key, reason,
   }, async () => {
-    const projId = encodeURIComponent(env.VERCEL_PROJECT_ID);
+    const projId = encodeURIComponent(vercelProjectId());
     let r;
     if (action === "create") {
       r = await vercelFetch(`/v10/projects/${projId}/env`, {
@@ -2743,7 +2796,7 @@ async function opAdminVercelRollback(req, origin) {
     // Vercel "promote" / rollback uses the alias API to point production
     // alias at an old deployment.
     const env = globalThis.process?.env || {};
-    const r = await vercelFetch(`/v9/projects/${encodeURIComponent(env.VERCEL_PROJECT_ID || "")}/promote/${encodeURIComponent(id)}`, {
+    const r = await vercelFetch(`/v9/projects/${encodeURIComponent(vercelProjectId())}/promote/${encodeURIComponent(id)}`, {
       method: "POST",
     });
     return { beforeState: { target_deployment: id }, afterState: { ok: r.ok, status: r.status }, ok: r.ok };
@@ -2756,9 +2809,9 @@ async function opAdminVercelDomains(req, origin) {
   const gate = checkAdmin(req);
   if (!gate.ok) return j(401, { error: gate.reason }, origin);
   const env = globalThis.process?.env || {};
-  if (!env.VERCEL_PROJECT_ID) return j(501, { error: "vercel_project_id_missing" }, origin);
+  if (!vercelProjectId()) return j(501, { error: "vercel_project_id_missing" }, origin);
   try {
-    const r = await vercelFetch(`/v9/projects/${encodeURIComponent(env.VERCEL_PROJECT_ID)}/domains`);
+    const r = await vercelFetch(`/v9/projects/${encodeURIComponent(vercelProjectId())}/domains`);
     if (!r.ok) return j(502, { error: `vercel_http_${r.status}`, detail: await r.text() }, origin);
     return j(200, await r.json(), origin);
   } catch (e) {
