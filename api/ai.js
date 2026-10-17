@@ -1375,18 +1375,6 @@ function istDayKey(date = new Date()) {
   return `${p.year}-${p.month}-${p.day}`;
 }
 
-// Count-only fetch via Prefer:count=exact — returns { count: N }.
-async function sbCount(path) {
-  try {
-    const r = await sbAdminFetch(path, {
-      headers: { "Prefer": "count=exact", "Range-Unit": "items", "Range": "0-0" },
-    });
-    const cr = r.headers.get("content-range") || "";
-    const m = cr.match(/\/(\d+)$/);
-    return m ? parseInt(m[1], 10) : 0;
-  } catch { return 0; }
-}
-
 async function opAdminOverview(req, origin) {
   const gate = checkAdmin(req);
   if (!gate.ok) return j(401, { error: gate.reason }, origin);
@@ -1399,116 +1387,57 @@ async function opAdminOverview(req, origin) {
   }
 
   try {
-    // Parallel fan-out across every relevant table.
-    // Raised caps: users 500→5000, trades 5000→50000, coach 10000→50000.
-    const [
-      profilesRes, portsRes, txsRes, coachRes,
-      holdRes, wlRes, orderRes,
-      aiCacheCountRes, quoteCacheCountRes, dhanCountRes, auditCountRes,
-      histCountRes,
-    ] = await Promise.all([
-      sbAdminFetch(`/rest/v1/profiles?select=id,username,display_name,email,age,school,city,risk_profile,onboarded,created_at,updated_at,avatar_color,class_code&order=created_at.desc&limit=5000`),
-      sbAdminFetch(`/rest/v1/portfolios?select=user_id,cash_paise,starting_cash_paise,updated_at&limit=5000`),
-      sbAdminFetch(`/rest/v1/transactions?select=id,user_id,symbol,side,qty,price_paise,value_paise,bias_flags,created_at&order=created_at.desc&limit=50000`),
-      sbAdminFetch(`/rest/v1/coach_messages?select=id,user_id,event_type,trigger_symbol,model,created_at&limit=50000`),
-      sbAdminFetch(`/rest/v1/holdings?select=user_id,symbol,qty,avg_cost_paise&limit=20000`),
-      sbAdminFetch(`/rest/v1/watchlist?select=user_id,symbol,added_at&limit=20000`),
-      sbAdminFetch(`/rest/v1/limit_orders?select=id,user_id,status,created_at&limit=20000`),
-      // Count-only probes for big / rarely-inspected tables
-      sbCount(`/rest/v1/ai_response_cache?select=bucket`),
-      sbCount(`/rest/v1/quote_cache?select=symbol`),
-      sbCount(`/rest/v1/dhan_instruments?select=symbol`),
-      sbCount(`/rest/v1/admin_audit_log?select=id`),
-      sbCount(`/rest/v1/portfolio_history?select=id`),
-    ]);
-
-    const profiles = profilesRes.ok ? await profilesRes.json() : [];
-    const ports = portsRes.ok ? await portsRes.json() : [];
-    const txs = txsRes.ok ? await txsRes.json() : [];
-    const coachMessages = coachRes.ok ? await coachRes.json() : [];
-    const holdings = holdRes.ok ? await holdRes.json() : [];
-    const watchlist = wlRes.ok ? await wlRes.json() : [];
-    const orders = orderRes.ok ? await orderRes.json() : [];
-
-    // Per-user enrichment maps
-    const portByUser = {};
-    for (const p of ports) portByUser[p.user_id] = p;
-
-    const tradeCountByUser = {};
-    const lastTradeByUser = {};
-    const totalTradedValueByUser = {};
-    const biasFlagCountByUser = {};
-    for (const t of txs) {
-      tradeCountByUser[t.user_id] = (tradeCountByUser[t.user_id] || 0) + 1;
-      if (!lastTradeByUser[t.user_id]) lastTradeByUser[t.user_id] = t.created_at;
-      totalTradedValueByUser[t.user_id] = (totalTradedValueByUser[t.user_id] || 0) + (Number(t.value_paise) || 0);
-      const flags = Array.isArray(t.bias_flags) ? t.bias_flags.length : 0;
-      biasFlagCountByUser[t.user_id] = (biasFlagCountByUser[t.user_id] || 0) + flags;
-    }
-    const coachCountByUser = {};
-    for (const m of coachMessages) coachCountByUser[m.user_id] = (coachCountByUser[m.user_id] || 0) + 1;
-    const holdingCountByUser = {};
-    const unrealizedByUser = {};
-    for (const h of holdings) {
-      holdingCountByUser[h.user_id] = (holdingCountByUser[h.user_id] || 0) + 1;
-      // unrealized uses cost-basis sum as a proxy; actual mark-to-market needs live prices
-      unrealizedByUser[h.user_id] = (unrealizedByUser[h.user_id] || 0) + (Number(h.qty) * Number(h.avg_cost_paise) || 0);
-    }
-    const watchlistCountByUser = {};
-    for (const w of watchlist) watchlistCountByUser[w.user_id] = (watchlistCountByUser[w.user_id] || 0) + 1;
-    const orderCountByUser = {};
-    for (const o of orders) orderCountByUser[o.user_id] = (orderCountByUser[o.user_id] || 0) + 1;
-
-    // Populate the 30-day sign-up chart
-    for (const p of profiles) {
-      const k = istDayKey(new Date(p.created_at));
-      if (k in buckets) buckets[k]++;
-    }
-    const byDay = Object.entries(buckets).sort((a, b) => (a[0] < b[0] ? 1 : -1)).map(([day, count]) => ({ day, count }));
+    // admin_overview() counts and sums every table per user inside Postgres
+    // and returns one compact array per user (~0.5 MB). This used to pull
+    // seven whole tables (~3.5 MB) into this function on every load, which
+    // was a large share of the Supabase egress quota.
+    const res = await sbAdminFetch(`/rest/v1/rpc/admin_overview`, { method: "POST", body: "{}" });
+    if (!res.ok) return j(502, { error: "query_failed", detail: `admin_overview ${res.status}` }, origin);
+    const { users: rows = [], counts = {} } = await res.json();
 
     // Per-user enriched row — 27 axes available to the UI for sorting/filtering
-    const users = profiles.map(p => {
-      const port = portByUser[p.id];
-      const cashRupees = port ? Math.round((port.cash_paise || 0) / 100) : null;
-      const holdingsValueRupees = unrealizedByUser[p.id] ? Math.round(unrealizedByUser[p.id] / 100) : 0;
+    const users = rows.map(([
+      id, username, displayName, email, age, school, classCode, city, riskProfile,
+      avatarColor, onboarded, createdAt, updatedAt, cashPaise, startingCashPaise,
+      portUpdatedAt, holdCostPaise, holdingCount, tradeCount, tradedValuePaise,
+      biasFlagCount, lastTrade, coachMsgCount, watchlistCount, limitOrderCount,
+    ]) => {
+      const hasPort = cashPaise != null;
+      const cashRupees = hasPort ? Math.round(Number(cashPaise) / 100) : null;
+      const holdingsValueRupees = Math.round(Number(holdCostPaise || 0) / 100);
       const totalPortfolioRupees = (cashRupees || 0) + holdingsValueRupees;
-      const startingRupees = port ? Math.round((port.starting_cash_paise || 10000000) / 100) : 100000;
+      const startingRupees = hasPort ? Math.round(Number(startingCashPaise || 10000000) / 100) : 100000;
       const unrealizedPLPct = startingRupees ? ((totalPortfolioRupees - startingRupees) / startingRupees) * 100 : 0;
-      const lastTrade = lastTradeByUser[p.id];
       const daysSinceLastTrade = lastTrade
         ? Math.floor((Date.now() - new Date(lastTrade).getTime()) / 86400000)
         : null;
       return {
-        id: p.id,
-        username: p.username,
-        displayName: p.display_name,
-        email: p.email,
-        age: p.age,
-        school: p.school,
-        classCode: p.class_code,
-        city: p.city,
-        riskProfile: p.risk_profile,
-        avatarColor: p.avatar_color,
-        onboarded: p.onboarded,
-        createdAt: p.created_at,
-        updatedAt: p.updated_at,
+        id, username, displayName, email, age, school, classCode, city, riskProfile,
+        avatarColor, onboarded, createdAt, updatedAt,
         cashRupees,
         startingCashRupees: startingRupees,
         holdingsValueRupees,
         totalPortfolioRupees,
         unrealizedPLPct: Math.round(unrealizedPLPct * 100) / 100,
-        lastActive: port?.updated_at || p.created_at,
-        tradeCount: tradeCountByUser[p.id] || 0,
-        totalTradedValueRupees: Math.round((totalTradedValueByUser[p.id] || 0) / 100),
-        coachMsgCount: coachCountByUser[p.id] || 0,
-        holdingCount: holdingCountByUser[p.id] || 0,
-        watchlistCount: watchlistCountByUser[p.id] || 0,
-        limitOrderCount: orderCountByUser[p.id] || 0,
-        biasFlagCount: biasFlagCountByUser[p.id] || 0,
+        lastActive: portUpdatedAt || createdAt,
+        tradeCount,
+        totalTradedValueRupees: Math.round(Number(tradedValuePaise || 0) / 100),
+        coachMsgCount,
+        holdingCount,
+        watchlistCount,
+        limitOrderCount,
+        biasFlagCount,
         lastTradeAt: lastTrade || null,
         daysSinceLastTrade,
       };
     });
+
+    // Populate the 30-day sign-up chart
+    for (const u of users) {
+      const k = istDayKey(new Date(u.createdAt));
+      if (k in buckets) buckets[k]++;
+    }
+    const byDay = Object.entries(buckets).sort((a, b) => (a[0] < b[0] ? 1 : -1)).map(([day, count]) => ({ day, count }));
 
     // Aggregates
     const totalCashRupees = users.reduce((a, u) => a + (u.cashRupees || 0), 0);
@@ -1536,26 +1465,13 @@ async function opAdminOverview(req, origin) {
         totalCashRupees,
         totalHoldingsValueRupees,
         totalPortfolioRupees: totalCashRupees + totalHoldingsValueRupees,
-        totalTrades: txs.length,
-        totalCoachMessages: coachMessages.length,
-        totalHoldings: holdings.length,
-        totalWatchlistEntries: watchlist.length,
-        totalLimitOrders: orders.length,
+        totalTrades: counts.transactions || 0,
+        totalCoachMessages: counts.coach_messages || 0,
+        totalHoldings: counts.holdings || 0,
+        totalWatchlistEntries: counts.watchlist || 0,
+        totalLimitOrders: counts.limit_orders || 0,
       },
-      rowCounts: {
-        profiles: profiles.length,
-        portfolios: ports.length,
-        transactions: txs.length,
-        coach_messages: coachMessages.length,
-        holdings: holdings.length,
-        watchlist: watchlist.length,
-        limit_orders: orders.length,
-        ai_response_cache: aiCacheCountRes,
-        quote_cache: quoteCacheCountRes,
-        dhan_instruments: dhanCountRes,
-        admin_audit_log: auditCountRes,
-        portfolio_history: histCountRes,
-      },
+      rowCounts: counts,
       top,
       byDay,
       users,
@@ -3042,10 +2958,14 @@ async function opAdminGhWorkflowTrigger(req, origin) {
 // Why poll-based, not Supabase-realtime-proxied:
 // A clean SSE from realtime would require a persistent server connection and
 // Vercel Edge runtime has short-lived request limits. Instead, this endpoint
-// is a long-polling SSE that wakes up every 2 seconds, asks Supabase for any
-// rows newer than the last seen watermark across every relevant table, and
-// emits them as SSE events. Connection auto-closes after 4 minutes; client
-// reconnects (EventSource does this for free) with the last-seen watermark.
+// is a long-polling SSE that wakes up every 10 seconds, makes ONE call to
+// admin_tail_since() for every event newer than the watermark, and emits them
+// as SSE events. Connection closes after 4 minutes; the client reopens it
+// with ?since=<watermark> only while the admin tab is visible.
+//
+// It used to read five tables every 2 seconds and the browser reconnected
+// forever, even in a background tab: 153k Supabase requests on 16 Oct 2026,
+// half of all API traffic and a large share of the egress quota.
 //
 // Client must connect with ?token=<ADMIN_TOKEN> (query arg; EventSource
 // doesn't let you set headers). Treated with same constant-time compare as
@@ -3063,59 +2983,55 @@ function checkAdminQuery(url) {
   return diff === 0 ? { ok: true } : { ok: false, reason: "bad_token" };
 }
 
+const TAIL_POLL_MS = 10_000;
+
 async function opAdminTail(req, origin) {
   const url = new URL(req.url);
   const gate = checkAdminQuery(url);
   if (!gate.ok) return new Response("not_authorised", { status: 401 });
 
   const encoder = new TextEncoder();
+  // Stop polling the moment the browser goes away; before, a closed tab kept
+  // this loop querying Supabase until the 4-minute cap.
+  let closed = false;
+  req.signal?.addEventListener?.("abort", () => { closed = true; });
   const stream = new ReadableStream({
     async start(controller) {
-      // Watermark: where each table left off. Start from "now" unless the
-      // client sent a ?since=<iso> to resume from a specific timestamp.
-      let since = url.searchParams.get("since") || new Date().toISOString();
+      // Watermark: where the feed left off. Start from "now" unless the
+      // client sent a valid ?since=<iso> to resume from a specific timestamp.
+      const sinceArg = url.searchParams.get("since");
+      let since = sinceArg && !isNaN(Date.parse(sinceArg)) ? sinceArg : new Date().toISOString();
       const endAt = Date.now() + 4 * 60 * 1000;
 
       function send(event, data) {
+        if (closed) return;
         try {
           controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
-        } catch {}
+        } catch { closed = true; }
       }
 
       send("open", { since, ts: new Date().toISOString() });
 
-      const tables = [
-        { name: "transactions",   kind: "trade",   timeCol: "created_at" },
-        { name: "coach_messages", kind: "coach",   timeCol: "created_at" },
-        { name: "limit_orders",   kind: "order",   timeCol: "created_at" },
-        { name: "profiles",       kind: "signup",  timeCol: "created_at" },
-        { name: "admin_audit_log",kind: "admin",   timeCol: "ts" },
-      ];
-
-      while (Date.now() < endAt) {
+      while (!closed && Date.now() < endAt) {
         try {
-          const results = await Promise.all(tables.map(async t => {
-            try {
-              const path = `/rest/v1/${t.name}?select=*&${t.timeCol}=gt.${encodeURIComponent(since)}&order=${t.timeCol}.asc&limit=100`;
-              const r = await sbAdminFetch(path);
-              if (!r.ok) return [];
-              const rows = await r.json();
-              return rows.map(row => ({ kind: t.kind, table: t.name, ts: row[t.timeCol], row }));
-            } catch { return []; }
-          }));
-          const events = results.flat().sort((a, b) => (a.ts < b.ts ? -1 : 1));
-          if (events.length) {
+          const r = await sbAdminFetch(`/rest/v1/rpc/admin_tail_since`, {
+            method: "POST",
+            body: JSON.stringify({ p_since: since, p_limit: 200 }),
+          });
+          const events = r.ok ? await r.json() : [];
+          if (Array.isArray(events) && events.length) {
             for (const ev of events) send(ev.kind, ev);
             since = events[events.length - 1].ts;
           }
         } catch {}
         // Heartbeat every iteration so clients know we're alive.
         send("hb", { ts: new Date().toISOString(), since });
-        await new Promise(r => setTimeout(r, 2000));
+        await new Promise(r => setTimeout(r, TAIL_POLL_MS));
       }
       send("close", { reason: "duration_exceeded", since });
-      controller.close();
+      try { controller.close(); } catch {}
     },
+    cancel() { closed = true; },
   });
 
   return new Response(stream, {
