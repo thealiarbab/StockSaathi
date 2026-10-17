@@ -362,20 +362,22 @@ export function stockChart(ohlc, {
     const close = xAxisRange.toMs;
     const isFullDayWindow = (close - open) <= dayMs;
     if (isFullDayWindow) {
-      const day = new Date(open);
-      day.setMinutes(0, 0, 0);
-      // The fixed offsets assume a whole session; a zoomed 1D window
-      // (8× ≈ 47 min) put three of the five ticks off the chart, so short
-      // windows get evenly spaced ticks instead.
-      const tickTimes = (close - open) >= 5 * 60 * 60 * 1000 ? [
-        open,
-        open + 2 * 60 * 60 * 1000,        // +2h ≈ 11:15 from 09:15
-        open + 3 * 60 * 60 * 1000 + 15 * 60 * 1000, // +3h15 ≈ 12:30
-        close - 60 * 60 * 1000,           // -1h ≈ 14:30
-        close,
-      ] : [0, 1, 2, 3, 4].map(i => open + (i / 4) * (close - open));
-      // Phones: open, midday, close only.
-      const shown = width < 480 ? [tickTimes[0], tickTimes[2], tickTimes[4]] : tickTimes;
+      // Round clock times, as many as fit: 10:00, 11:00 … on a whole session,
+      // 10:30, 10:45 … when zoomed in. Offsets from the window edges gave
+      // "02:29 pm, 03:29 pm" (the window ends on the last minute bar) and a
+      // zoomed window split in quarters read "10:47 am".
+      const IST = 330 * 60 * 1000, MIN = 60 * 1000;
+      const fit = Math.max(2, Math.floor(plotW / 70));
+      const steps = [1, 2, 5, 10, 15, 30, 60, 120, 180];
+      let shown = [];
+      for (const m of steps) {
+        const s = m * MIN;
+        const first = Math.ceil((open + IST) / s) * s - IST;
+        const ts = [];
+        for (let t = first; t <= close; t += s) ts.push(t);
+        shown = ts;
+        if (ts.length <= fit) break;
+      }
       for (const t of shown) {
         const x = toXt(t);
         xLabels += `<text class="chart-axis-label" x="${x}" y="${height - 10}" text-anchor="middle">${fmtTime(t)}</text>`;
