@@ -13,7 +13,14 @@ const RELEASES = {
   "2026-10": {
     title: "What's new on StockSaathi",
     sub: "30+ improvements since your last visit. Here are the big ones.",
-    shot: { src: "/images/whats-new/2026-10/fullscreen-chart.png", alt: "A full-screen candlestick chart of Reliance Industries." },
+    // Swipeable screenshots, each in both themes. The card opens on the
+    // visitor's theme; tapping a picture flips all of them.
+    slides: [
+      { name: "fullscreen-chart", alt: "A full-screen six-month candlestick chart of Reliance Industries." },
+      { name: "signin", alt: "Typing ananya@gmial.com on the sign-up page, tapping the suggested gmail.com fix, then pointing at Sign up with Google." },
+      { name: "crash-replay", alt: "The COVID-19 crash replay comparing holding with selling on day 3." },
+      { name: "explainer", alt: "Tapping P/E on a stock page opens a one-sentence explanation." },
+    ],
     top: [
       ["Full-screen charts", "Expand any chart to fill the screen, then zoom without gaps for nights and weekends."],
       ["Crash replays from real prices", "Relive COVID-19, 2008 and demonetisation with real Nifty 50 closes. They open instantly now."],
@@ -61,18 +68,61 @@ const RELEASES = {
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-/** Show the card for one notice row; resolves once it is closed and acked. */
+const IMG = "/images/whats-new/2026-10/";
+const src = (slide, theme) => `${IMG}${slide.name}-${theme}.webp`;
+const seenKey = (id) => `ss.notice.seen.${id}`;
+const pageTheme = () => (document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light");
+
+// Mark the row seen. supabase-js reports failure in the result rather than
+// throwing, so check it; one retry covers a token refresh in flight.
+async function ack(client, id) {
+  for (let i = 0; i < 2; i++) {
+    try {
+      const { error } = await client.rpc("ack_notice", { p_notice_id: id });
+      if (!error) return true;
+      console.warn("[whats-new] ack failed:", error.message);
+    } catch (e) { console.warn("[whats-new] ack failed:", e?.message || e); }
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+  return false;
+}
+
+/** Show the card for one notice row; resolves once it is closed. The card
+ *  counts as seen the moment it opens (and this device remembers that), so
+ *  reloading or closing the tab never brings it back. */
 export function presentWhatsNew(client, notice) {
   return new Promise(async (resolve) => {
+    const real = notice.id && notice.id !== "preview";
+    if (real) {
+      let latched = false;
+      try { latched = localStorage.getItem(seenKey(notice.id)) === "1"; } catch {}
+      if (latched) { ack(client, notice.id); return resolve(); }
+      try { localStorage.setItem(seenKey(notice.id), "1"); } catch {}
+      ack(client, notice.id);
+    }
     const rel = RELEASES[notice.payload?.release] || RELEASES["2026-10"];
     const google = await googleSignInEnabled().catch(() => false);
     const line = (t) => (typeof t === "string" ? t : (!t.google || google) ? t.text : null);
+    let theme = pageTheme();
+    const other = () => (theme === "dark" ? "light" : "dark");
+    const label = () => (other() === "dark" ? "Show dark" : "Show light");
     const el = document.createElement("div");
     el.className = "term-pop-overlay";
     el.innerHTML = `
       <div class="term-pop wn" role="dialog" aria-modal="true" aria-labelledby="wn-title">
         <button type="button" class="term-pop-x" aria-label="Close">✕</button>
-        <img class="wn-shot" src="${esc(rel.shot.src)}" alt="${esc(rel.shot.alt)}" width="1120" height="665" decoding="async">
+        <div class="wn-media">
+          <div class="wn-slides" role="group" aria-roledescription="carousel" aria-label="Screenshots">
+            ${rel.slides.map((sl, i) => `
+              <figure class="wn-slide" aria-label="${i + 1} of ${rel.slides.length}">
+                <img src="${esc(src(sl, theme))}" alt="${esc(sl.alt)}" width="1120" height="615" decoding="async"${i ? ' loading="lazy"' : ""}>
+              </figure>`).join("")}
+          </div>
+          <button type="button" class="wn-theme" aria-label="Show the ${other()} version">${label()}</button>
+        </div>
+        <div class="wn-dots">
+          ${rel.slides.map((_, i) => `<button type="button" aria-label="Screenshot ${i + 1}"${i ? "" : ' aria-current="true"'}></button>`).join("")}
+        </div>
         <div class="wn-body">
           <h2 class="term-pop-title" id="wn-title">${esc(rel.title)}</h2>
           <p class="wn-sub">${esc(rel.sub)}</p>
@@ -100,11 +150,31 @@ export function presentWhatsNew(client, notice) {
     if (gutter > 0) document.documentElement.style.setProperty("--term-pop-gutter", gutter + "px");
     document.documentElement.classList.add("term-pop-open");
     document.body.appendChild(el);
-    const ok = el.querySelector(".term-pop-ok");
-    ok.focus({ preventScroll: true });
+    el.querySelector(".term-pop-ok").focus({ preventScroll: true });
+
+    // Carousel: native horizontal scroll with snap; the dots follow and steer it.
+    const track = el.querySelector(".wn-slides");
+    const dots = [...el.querySelectorAll(".wn-dots button")];
+    const imgs = [...el.querySelectorAll(".wn-slide img")];
+    const themeBtn = el.querySelector(".wn-theme");
+    const at = () => Math.round(track.scrollLeft / Math.max(1, track.clientWidth));
+    const go = (i) => track.scrollTo({ left: i * track.clientWidth, behavior: "smooth" });
+    track.addEventListener("scroll", () => {
+      const i = at();
+      dots.forEach((d, j) => (j === i ? d.setAttribute("aria-current", "true") : d.removeAttribute("aria-current")));
+    }, { passive: true });
+    dots.forEach((d, i) => d.addEventListener("click", () => go(i)));
+    const flip = () => {
+      theme = other();
+      imgs.forEach((im, i) => { im.src = src(rel.slides[i], theme); });
+      themeBtn.textContent = label();
+      themeBtn.setAttribute("aria-label", `Show the ${other()} version`);
+    };
+    themeBtn.addEventListener("click", flip);
+    track.addEventListener("click", flip);
 
     let done = false;
-    const close = async () => {
+    const close = () => {
       if (done) return;
       done = true;
       document.removeEventListener("keydown", onKey, true);
@@ -112,13 +182,15 @@ export function presentWhatsNew(client, notice) {
       document.documentElement.classList.remove("term-pop-open");
       document.documentElement.style.removeProperty("--term-pop-gutter");
       try { prevFocus?.focus?.({ preventScroll: true }); } catch {}
-      // Best-effort ack; on failure the card simply shows again next visit.
-      try { await client.rpc("ack_notice", { p_notice_id: notice.id }); }
-      catch (e) { console.warn("[whats-new] ack failed:", e?.message || e); }
       resolve();
     };
     const onKey = (e) => {
       if (e.key === "Escape") { e.preventDefault(); close(); return; }
+      if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+        e.preventDefault();
+        go(Math.max(0, Math.min(rel.slides.length - 1, at() + (e.key === "ArrowRight" ? 1 : -1))));
+        return;
+      }
       if (e.key !== "Tab") return;
       const f = [...el.querySelectorAll("button, a[href], summary")];
       const i = f.indexOf(document.activeElement);
@@ -128,7 +200,7 @@ export function presentWhatsNew(client, notice) {
     document.addEventListener("keydown", onKey, true);
     el.addEventListener("click", (e) => {
       if (e.target === el || e.target.closest(".term-pop-x, .term-pop-ok")) close();
-      // "Show me" is an in-app link: the router takes the click, we just close.
+      // "Open a chart" is an in-app link: the router takes the click, we just close.
       if (e.target.closest(".wn-go")) close();
     });
   });

@@ -5171,11 +5171,34 @@ body.chart-fs-open #main { animation: none; transform: none; }
   position: absolute; top: 12px; right: 12px; z-index: 1;
   background: var(--surface-elev, var(--surface)); box-shadow: var(--sh-md);
 }
-.wn-shot {
-  display: block; width: 100%; height: auto; aspect-ratio: 1120 / 615; object-fit: cover; object-position: center bottom;
-  border-bottom: 1px solid var(--border);
+/* Screenshots: swipe sideways (scroll-snap), tap to flip light/dark. */
+.wn-media { position: relative; border-bottom: 1px solid var(--border); }
+.wn-slides {
+  display: flex; overflow-x: auto; overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory; scrollbar-width: none; touch-action: pan-x pan-y;
 }
-.wn-body { padding: 18px 20px 4px; }
+.wn-slides::-webkit-scrollbar { display: none; }
+.wn-slide { flex: 0 0 100%; margin: 0; scroll-snap-align: start; cursor: pointer; }
+.wn-slide img { display: block; width: 100%; height: auto; aspect-ratio: 1120 / 615; background: var(--bg-soft); }
+.wn-theme {
+  position: absolute; left: 12px; bottom: 12px;
+  height: 28px; padding: 0 12px; border-radius: var(--r-full);
+  border: 1px solid var(--border); background: var(--surface-elev, var(--surface));
+  color: var(--text-strong); font: 600 var(--text-xs)/1 var(--font-sans); cursor: pointer;
+  box-shadow: var(--sh-md);
+}
+.wn-dots { display: flex; justify-content: center; gap: 2px; padding: 6px 0 0; }
+.wn-dots button {
+  width: 22px; height: 18px; padding: 0; border: 0; background: none; cursor: pointer;
+  display: grid; place-items: center;
+}
+.wn-dots button::after {
+  content: ""; width: 6px; height: 6px; border-radius: var(--r-full); background: var(--border-strong);
+  transition: width var(--dur-1, 150ms) var(--ease), background var(--dur-1, 150ms) var(--ease);
+}
+.wn-dots button[aria-current="true"]::after { width: 16px; background: var(--brand); }
+.wn-theme:focus-visible, .wn-dots button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.wn-body { padding: 8px 20px 4px; }
 .wn .term-pop-title { padding: 0; font-size: var(--text-2xl); line-height: 1.2; }
 .wn-sub { margin: 6px 0 0; font-size: var(--text-md); line-height: 1.5; color: var(--text-muted); }
 .wn-list { list-style: none; margin: 16px 0 0; padding: 0; }
