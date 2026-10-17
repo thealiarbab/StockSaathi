@@ -6,6 +6,7 @@
 //
 // Tabs:
 //   Overview   — aggregate health across all three services
+//   Signups    — every signup number, live count, graphs (adminSignups.js)
 //   Users      — every user x every column x filterable/sortable/drill-down
 //   Activity   — live-tailing SSE feed of every event
 //   Database   — Supabase god mode (SQL editor, table CRUD, RPC runner)
@@ -22,7 +23,8 @@
 // =============================================================================
 
 import { formatRupees } from "../money.js";
-import { areaChart } from "../components/charts.js";
+import { xyChart } from "./adminCharts.js";
+import { renderSignupsTab } from "./adminSignups.js";
 import { toast } from "../components/toast.js";
 import { mountThemedSelect } from "../components/themedSelect.js";
 
@@ -207,6 +209,7 @@ async function loadOverview() {
 function renderTabbedShell(main) {
   const tabs = [
     { id: "overview", label: "Overview" },
+    { id: "signups",  label: "Signups" },
     { id: "users",    label: "Users" },
     { id: "activity", label: "Activity" },
     { id: "database", label: "Database" },
@@ -270,6 +273,7 @@ function renderTabBody(main) {
   host.innerHTML = "";
   switch (currentTab) {
     case "overview": return renderOverview(host, main);
+    case "signups":  return renderSignupsTab(host, { adminGet, onOpenUser: id => openUserModal(id) });
     case "users":    return renderUsersTab(host, main);
     case "activity": return renderActivityTab(host, main);
     case "database": return renderDatabaseTab(host, main);
@@ -317,7 +321,6 @@ function renderOverview(host, main) {
   if (!ensureOverview(host, main, "Loading overview…")) return;
   const { aggregates: a, byDay, top, rowCounts } = state.overview;
   const maxDay = byDay.reduce((b, c) => c.count > b.count ? c : b, { count: 0, day: "" });
-  const signupChart = areaChart(byDay.map(d => d.count), { height: 80, color: "var(--brand)", paddingLeft: 0 });
   host.innerHTML = `
     <div class="admin-stats">
       <div class="stat-tile"><div class="l">Users</div><div class="v tabular">${a.users}</div></div>
@@ -331,7 +334,8 @@ function renderOverview(host, main) {
 
     <div class="card" style="margin-top: var(--sp-4);">
       <div class="card-head"><h3>Sign-ups · last 30 days</h3><span class="dim text-sm">Peak: ${maxDay.count || 0} on ${escapeHtml(maxDay.day || "—")}</span></div>
-      <div style="height: 80px;">${signupChart}</div>
+      <div id="ov-signups"></div>
+      <div class="dim text-xs" style="margin-top: 4px;">Every number, hour by hour: <a href="#" id="ov-to-signups">Signups tab</a></div>
     </div>
 
     <div class="admin-overview-grid" style="margin-top: var(--sp-4);">
@@ -362,6 +366,20 @@ function renderOverview(host, main) {
         ${renderLeaderboard(top.biggestLosers, v => v.toFixed(1) + "%")}
       </div>
     </div>`;
+  // The API lists days newest first; the chart reads left to right in time.
+  const days = byDay.slice().sort((x, y) => (x.day < y.day ? -1 : 1));
+  xyChart(host.querySelector("#ov-signups"), {
+    labels: days.map(d => d.day),
+    series: [{ name: "Signups", values: days.map(d => d.count), color: "var(--brand)", kind: "bar" }],
+    height: 180, legend: false,
+    xTick: i => days[i].day.slice(8, 10) + "/" + days[i].day.slice(5, 7),
+    tip: i => days[i].day + (i === days.length - 1 ? " (so far)" : ""),
+    faded: i => i === days.length - 1,
+  });
+  host.querySelector("#ov-to-signups").addEventListener("click", (e) => {
+    e.preventDefault();
+    main.querySelector('.admin-tab[data-tab="signups"]')?.click();
+  });
   // Leaderboard names open the user drill-down. They were never wired here,
   // so a click only followed href="#".
   wireRowClicks(host, main);
@@ -659,9 +677,10 @@ function paintUserModal() {
   const { profile, portfolio, holdings, transactions, coachMessages, portfolioHistory, watchlist, limitOrders, adminActionHistory, reportCard, authMeta } = d;
   head.innerHTML = `${escapeHtml(profile.display_name || profile.username)} <span class="dim text-sm">@${escapeHtml(profile.username)}</span>`;
 
-  const histValues = (portfolioHistory || []).map(h => (h.total_value_paise || 0) / 100);
+  const hist = (portfolioHistory || []).slice().sort((x, y) => (String(x.ts) < String(y.ts) ? -1 : 1));
+  const histValues = hist.map(h => (h.total_value_paise || 0) / 100);
   const histSvg = histValues.length > 1
-    ? `<div style="height: 180px;">${areaChart(histValues, { height: 180, color: "var(--brand)", paddingLeft: 40 })}</div>`
+    ? `<div id="admin-user-hist"></div>`
     : `<div class="muted text-sm" style="padding: var(--sp-3); border: 1px dashed var(--border); border-radius: var(--r); text-align:center;">No history yet. Run a backfill from Audit → system.</div>`;
 
   const totalHoldValue = (holdings || []).reduce((a, h) => a + (Number(h.qty) || 0) * (Number(h.avg_cost_paise) || 0), 0) / 100;
@@ -790,6 +809,17 @@ function paintUserModal() {
       <details><summary>Expand every field as JSON</summary><pre class="admin-coach-payload">${escapeHtml(JSON.stringify(d, null, 2))}</pre></details>
     </div>
   `;
+  const histEl = body.querySelector("#admin-user-hist");
+  if (histEl) {
+    xyChart(histEl, {
+      labels: hist.map(h => h.ts),
+      series: [{ name: "Portfolio value", values: histValues, color: "var(--brand)", kind: "area" }],
+      height: 200, legend: false, integer: false, zeroBase: false,
+      yFmt: v => formatRupees(v * 100),
+      xTick: i => formatDateShort(hist[i].ts),
+      tip: i => `${formatDateShort(hist[i].ts)} · ${hist[i].source || ""}`,
+    });
+  }
   wireModalActions(profile);
 }
 function wireModalActions(profile) {

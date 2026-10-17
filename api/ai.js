@@ -1219,6 +1219,8 @@ export default async function handler(req) {
       case "signup-count":        return await opSignupCount(req, origin);
       case "admin-path-check":    return opAdminPathCheck(req, origin, url);
       case "admin-overview":      return await opAdminOverview(req, origin);
+      case "admin-signup-stats":  return await opAdminSignupStats(req, origin);
+      case "admin-signup-count":  return await opAdminSignupCount(req, origin);
       case "admin-user":          return await opAdminUser(req, origin, url);
       case "admin-activity-feed": return await opAdminActivityFeed(req, origin, url);
       case "admin-ai-cache":      return await opAdminAiCache(req, origin, url);
@@ -1373,6 +1375,35 @@ function istDayKey(date = new Date()) {
     timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit",
   }).formatToParts(date).reduce((a, pp) => (a[pp.type] = pp.value, a), {});
   return `${p.year}-${p.month}-${p.day}`;
+}
+
+// Signups tab: admin_signup_stats() works out every number inside Postgres
+// (Indian-time day/hour buckets, rolling windows, records, top 10s, activity)
+// and returns ~20 KB in one call.
+async function opAdminSignupStats(req, origin) {
+  const gate = checkAdmin(req);
+  if (!gate.ok) return j(401, { error: gate.reason }, origin);
+  try {
+    const res = await sbAdminFetch(`/rest/v1/rpc/admin_signup_stats`, { method: "POST", body: "{}" });
+    if (!res.ok) return j(502, { error: "query_failed", detail: `admin_signup_stats ${res.status}` }, origin);
+    return j(200, await res.json(), origin);
+  } catch (e) {
+    return j(500, { error: "signup_stats_failed", detail: String(e?.message || e) }, origin);
+  }
+}
+
+// The Signups tab's live number: one count, ~1 KB per check.
+async function opAdminSignupCount(req, origin) {
+  const gate = checkAdmin(req);
+  if (!gate.ok) return j(401, { error: gate.reason }, origin);
+  try {
+    const res = await sbAdminFetch(`/rest/v1/rpc/signup_count`, { method: "GET" });
+    const body = await res.text();
+    if (!res.ok) return j(502, { error: "query_failed", detail: `signup_count ${res.status}` }, origin);
+    return j(200, { count: Number(body), ts: new Date().toISOString() }, origin);
+  } catch (e) {
+    return j(500, { error: "signup_count_failed", detail: String(e?.message || e) }, origin);
+  }
 }
 
 async function opAdminOverview(req, origin) {
