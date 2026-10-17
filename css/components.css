@@ -5131,7 +5131,11 @@ body.chart-fs-open #main { animation: none; transform: none; }
 .auth-google-btn[hidden], .auth-google-gis[hidden], .email-hint[hidden] { display: none; }
 /* Google's own button renders in an iframe here; reserve its 44px so the
    form doesn't jump when it arrives. */
-.auth-google-gis { display: flex; justify-content: center; min-height: 44px; color-scheme: normal; }
+.auth-google-gis { display: flex; justify-content: center; min-height: 44px; }
+/* Google's iframe is a light-scheme document. Under the page's dark scheme
+   the browser paints an opaque white canvas behind it; matching schemes
+   keeps the canvas transparent around the pill. */
+.auth-google-gis, .auth-google-gis iframe { color-scheme: light; }
 .auth-or {
   display: flex; align-items: center; gap: var(--sp-3);
   margin-top: var(--sp-4); color: var(--text-dim); font-size: var(--text-xs);
