@@ -1222,6 +1222,10 @@ export default async function handler(req) {
       case "admin-signup-stats":  return await opAdminSignupStats(req, origin);
       case "admin-signup-count":  return await opAdminSignupCount(req, origin);
       case "admin-web-analytics": return await opAdminWebAnalytics(req, origin);
+      case "ev":                  if (req.method !== "POST") return j(405, { error: "method_not_allowed" }, origin); return await opEv(req, origin);
+      case "admin-behaviour":     return await opAdminBehaviour(req, origin, url);
+      case "admin-journey":       return await opAdminJourney(req, origin, url);
+      case "admin-click-map":     return await opAdminClickMap(req, origin, url);
       case "admin-user":          return await opAdminUser(req, origin, url);
       case "admin-activity-feed": return await opAdminActivityFeed(req, origin, url);
       case "admin-ai-cache":      return await opAdminAiCache(req, origin, url);
@@ -2571,6 +2575,172 @@ async function vercelFetch(path, opts = {}) {
       ...(opts.headers || {}),
     },
   });
+}
+
+// =============================================================================
+// VISITOR TRACKING — op=ev (anyone, signed in or not) -> web_events
+// The browser (js/features/telemetry.js) batches events and posts them here.
+// Everything is cleaned before it reaches the database: known kinds only,
+// clamped sizes, timestamps rebuilt from numbers. The account is taken from
+// the verified session token, never from the browser's word.
+// =============================================================================
+const EV_KINDS = new Set([
+  "session_start", "page", "page_leave", "click", "rage_click", "form_start", "field",
+  "form_submit", "form_abandon", "form_error", "toast", "error", "api", "perf", "search",
+  "outbound", "copy", "net", "install", "visibility", "share", "media",
+]);
+const EV_BOT = /bot|crawl|spider|slurp|headless|lighthouse|pagespeed|preview|facebookexternalhit|whatsapp|python-requests|curl|wget/i;
+const EV_ID = /^[A-Za-z0-9_-]{8,40}$/;
+const evRate = new Map();   // ip -> { n, reset }  (per warm instance; a soft cap)
+
+function evClean(v, max = 300) {
+  if (v == null) return null;
+  const t = typeof v;
+  if (t === "number") return Number.isFinite(v) ? Math.round(v * 1000) / 1000 : null;
+  if (t === "boolean") return v ? 1 : 0;
+  if (t === "string") return v.slice(0, max);
+  return null;
+}
+function evProps(o) {
+  const out = {};
+  if (!o || typeof o !== "object" || Array.isArray(o)) return out;
+  let k = 0;
+  for (const [key, val] of Object.entries(o)) {
+    if (k >= 24) break;
+    if (!/^[A-Za-z0-9_]{1,24}$/.test(key)) continue;
+    const c = evClean(val);
+    if (c === null || c === "") continue;
+    out[key] = c;
+    k++;
+  }
+  return out;
+}
+
+// Supabase session token -> account id, checked locally (no auth round trip).
+// HS256 with the project's JWT secret, or ES256/RS256 against the project's
+// published keys (fetched once per warm instance).
+let evJwks = null, evJwksAt = 0;
+const evTokCache = new Map();   // token -> { uid, exp }
+function b64urlBytes(s) {
+  const b = atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4));
+  const u = new Uint8Array(b.length);
+  for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i);
+  return u;
+}
+async function evVerifyToken(tok) {
+  if (!tok || typeof tok !== "string" || tok.length > 4096) return null;
+  const hit = evTokCache.get(tok);
+  if (hit) return hit.exp * 1000 > Date.now() ? hit.uid : null;
+  const parts = tok.split(".");
+  if (parts.length !== 3) return null;
+  let header, payload;
+  try {
+    header = JSON.parse(new TextDecoder().decode(b64urlBytes(parts[0])));
+    payload = JSON.parse(new TextDecoder().decode(b64urlBytes(parts[1])));
+  } catch { return null; }
+  if (!payload?.sub || !payload.exp || payload.exp * 1000 < Date.now()) return null;
+  if (payload.role && payload.role !== "authenticated") return null;
+  const env = globalThis.process?.env || {};
+  const data = new TextEncoder().encode(`${parts[0]}.${parts[1]}`);
+  const sig = b64urlBytes(parts[2]);
+  let ok = false;
+  try {
+    if (header.alg === "HS256" && env.SUPABASE_JWT_SECRET) {
+      const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(env.SUPABASE_JWT_SECRET),
+        { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
+      ok = await crypto.subtle.verify("HMAC", key, sig, data);
+    } else if ((header.alg === "ES256" || header.alg === "RS256") && env.SUPABASE_URL) {
+      if (!evJwks || Date.now() - evJwksAt > 3600_000) {
+        const r = await fetch(`${env.SUPABASE_URL.replace(/\/$/, "")}/auth/v1/.well-known/jwks.json`);
+        if (r.ok) { evJwks = (await r.json()).keys || []; evJwksAt = Date.now(); }
+      }
+      const jwk = (evJwks || []).find((k) => k.kid === header.kid) || (evJwks || [])[0];
+      if (jwk) {
+        const algo = header.alg === "ES256" ? { name: "ECDSA", namedCurve: "P-256" } : { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" };
+        const key = await crypto.subtle.importKey("jwk", jwk, algo, false, ["verify"]);
+        ok = await crypto.subtle.verify(header.alg === "ES256" ? { name: "ECDSA", hash: "SHA-256" } : algo, key, sig, data);
+      }
+    }
+  } catch { ok = false; }
+  if (!ok) return null;
+  if (evTokCache.size > 5000) evTokCache.clear();
+  evTokCache.set(tok, { uid: payload.sub, exp: payload.exp });
+  return payload.sub;
+}
+
+async function opEv(req, origin) {
+  const none = () => new Response(null, { status: 204, headers: cors(origin) });
+  const ua = req.headers.get("User-Agent") || "";
+  if (!ua || EV_BOT.test(ua)) return none();
+  const ip = (req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "?").split(",")[0].trim();
+  const now = Date.now();
+  const r = evRate.get(ip);
+  if (r && r.reset > now) { if (r.n > 600) return none(); }
+  let body;
+  try { body = JSON.parse(await req.text()); } catch { return j(400, { error: "bad_body" }, origin); }
+  const vid = body?.v, sid0 = body?.s;
+  if (!EV_ID.test(String(vid || "")) || !EV_ID.test(String(sid0 || ""))) return j(400, { error: "bad_ids" }, origin);
+  const list = Array.isArray(body.e) ? body.e.slice(0, 80) : [];
+  const cc = (req.headers.get("x-vercel-ip-country") || "").slice(0, 2) || null;
+  const rows = [];
+  for (const e of list) {
+    if (!Array.isArray(e)) continue;
+    const [t, kind, path, target, props, sid] = e;
+    if (!EV_KINDS.has(kind)) continue;
+    const ts = Number.isFinite(t) ? Math.min(now, Math.max(now - 2 * 86400_000, t)) : now;
+    const pr = evProps(props);
+    if (kind === "session_start" && cc) pr.cc = cc;
+    rows.push({
+      ts: new Date(ts).toISOString(),
+      vid, sid: EV_ID.test(String(sid || "")) ? sid : sid0,
+      kind,
+      path: typeof path === "string" && path.startsWith("/") ? path.slice(0, 300) : null,
+      target: typeof target === "string" ? target.slice(0, 300) : (typeof target === "number" ? String(target) : null),
+      props: pr,
+    });
+  }
+  if (!rows.length) return none();
+  evRate.set(ip, r && r.reset > now ? { n: r.n + rows.length, reset: r.reset } : { n: rows.length, reset: now + 60_000 });
+  if (evRate.size > 20000) evRate.clear();
+  const uid = await evVerifyToken(body.tok);
+  try {
+    await sbAdminFetch(`/rest/v1/rpc/ingest_web_events`, {
+      method: "POST",
+      headers: { "Prefer": "return=minimal" },
+      body: JSON.stringify({ p: rows, p_uid: uid, p_country: cc }),
+    });
+  } catch { /* tracking must never break the page */ }
+  return none();
+}
+
+async function opAdminBehaviour(req, origin, url) {
+  const gate = checkAdmin(req);
+  if (!gate.ok) return j(401, { error: gate.reason }, origin);
+  const days = Math.max(1, Math.min(90, parseInt(url.searchParams.get("days") || "7", 10) || 7));
+  const res = await sbAdminFetch(`/rest/v1/rpc/admin_behaviour_stats`, { method: "POST", body: JSON.stringify({ p_days: days }) });
+  if (!res.ok) return j(502, { error: "query_failed", detail: `admin_behaviour_stats ${res.status}` }, origin);
+  return j(200, await res.json(), origin);
+}
+
+async function opAdminJourney(req, origin, url) {
+  const gate = checkAdmin(req);
+  if (!gate.ok) return j(401, { error: gate.reason }, origin);
+  const uid = url.searchParams.get("uid") || "";
+  if (!/^[0-9a-f-]{36}$/i.test(uid)) return j(400, { error: "bad_uid" }, origin);
+  const res = await sbAdminFetch(`/rest/v1/rpc/admin_user_journey`, { method: "POST", body: JSON.stringify({ p_uid: uid, p_limit: 600 }) });
+  if (!res.ok) return j(502, { error: "query_failed", detail: `admin_user_journey ${res.status}` }, origin);
+  return j(200, await res.json(), origin);
+}
+
+async function opAdminClickMap(req, origin, url) {
+  const gate = checkAdmin(req);
+  if (!gate.ok) return j(401, { error: gate.reason }, origin);
+  const path = (url.searchParams.get("path") || "/").slice(0, 300);
+  const days = Math.max(1, Math.min(90, parseInt(url.searchParams.get("days") || "7", 10) || 7));
+  const dev = url.searchParams.get("dev") || null;
+  const res = await sbAdminFetch(`/rest/v1/rpc/admin_click_map`, { method: "POST", body: JSON.stringify({ p_path: path, p_days: days, p_dev: dev }) });
+  if (!res.ok) return j(502, { error: "query_failed", detail: `admin_click_map ${res.status}` }, origin);
+  return j(200, { points: await res.json() }, origin);
 }
 
 // Vercel Web Analytics: every visitor, signed in or not (user_events only

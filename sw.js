@@ -5,7 +5,7 @@
 // Bump this on every deploy so old cached JS/HTML isn't served forever. The
 // activate step below deletes any cache whose name doesn't match. Include a
 // date so it is obvious in DevTools which build is live.
-const CACHE_NAME = "stocksaathi-v370-20261018c";
+const CACHE_NAME = "stocksaathi-v371-20261018d";
 const STATIC = [
   "./",
   "./app-shell",
@@ -56,6 +56,7 @@ const STATIC = [
   "./js/vendor/supabase-js-2.45.4.umd.js",
   "./js/db/sync.js",
   "./js/features/limitOrders.js",
+  "./js/features/telemetry.js",
   "./js/features/aiLang.js",
   "./js/features/customCrash.js",
   "./js/features/chatSessions.js",
@@ -94,6 +95,7 @@ const STATIC = [
   "./js/pages/admin.js",
   "./js/pages/adminCharts.js",
   "./js/pages/adminSignups.js",
+  "./js/pages/adminBehaviour.js",
   "./js/pages/chat.js",
   "./js/pages/privacy.js",
   "./js/pages/terms.js",

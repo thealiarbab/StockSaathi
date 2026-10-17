@@ -7,6 +7,7 @@
 // Tabs:
 //   Overview   — aggregate health across all three services
 //   Signups    — every signup number, live count, graphs (adminSignups.js)
+//   Behaviour  — what visitors do: funnel, clicks, errors, searches (adminBehaviour.js)
 //   Users      — every user x every column x filterable/sortable/drill-down
 //   Activity   — live-tailing SSE feed of every event
 //   Database   — Supabase god mode (SQL editor, table CRUD, RPC runner)
@@ -25,6 +26,7 @@
 import { formatRupees } from "../money.js";
 import { xyChart } from "./adminCharts.js";
 import { renderSignupsTab } from "./adminSignups.js";
+import { renderBehaviourTab, renderJourney } from "./adminBehaviour.js";
 import { toast } from "../components/toast.js";
 import { mountThemedSelect } from "../components/themedSelect.js";
 
@@ -210,6 +212,7 @@ function renderTabbedShell(main) {
   const tabs = [
     { id: "overview", label: "Overview" },
     { id: "signups",  label: "Signups" },
+    { id: "behaviour", label: "Behaviour" },
     { id: "users",    label: "Users" },
     { id: "activity", label: "Activity" },
     { id: "database", label: "Database" },
@@ -274,6 +277,7 @@ function renderTabBody(main) {
   switch (currentTab) {
     case "overview": return renderOverview(host, main);
     case "signups":  return renderSignupsTab(host, { adminGet, onOpenUser: id => openUserModal(id) });
+    case "behaviour": return renderBehaviourTab(host, { adminGet });
     case "users":    return renderUsersTab(host, main);
     case "activity": return renderActivityTab(host, main);
     case "database": return renderDatabaseTab(host, main);
@@ -689,7 +693,7 @@ function paintUserModal() {
 
   body.innerHTML = `
     <div class="admin-drill-nav">
-      ${["identity","money","history","holdings","transactions","orders","watchlist","coach","report","auth","audit","raw"].map(s => `<button type="button" class="drill-jump" data-drill-target="sec-${s}">${s}</button>`).join("")}
+      ${["identity","journey","money","history","holdings","transactions","orders","watchlist","coach","report","auth","audit","raw"].map(s => `<button type="button" class="drill-jump" data-drill-target="sec-${s}">${s}</button>`).join("")}
     </div>
 
     <div id="sec-identity"><div class="admin-user-section-label">1. Identity</div>
@@ -720,6 +724,9 @@ function paintUserModal() {
         <span class="font-semi">Total portfolio</span><span class="font-semi">${formatRupees(totalValue * 100)}</span>
       </div>
     </div>
+
+    <div id="sec-journey"><div class="admin-user-section-label">Journey: pages, clicks, searches, errors</div>
+      <div id="admin-user-journey"><button class="btn btn-ghost btn-sm" id="admin-load-journey">Show everything they did</button></div></div>
 
     <div id="sec-history"><div class="admin-user-section-label">3. Portfolio value over time</div>${histSvg}</div>
 
@@ -809,6 +816,9 @@ function paintUserModal() {
       <details><summary>Expand every field as JSON</summary><pre class="admin-coach-payload">${escapeHtml(JSON.stringify(d, null, 2))}</pre></details>
     </div>
   `;
+  body.querySelector("#admin-load-journey")?.addEventListener("click", () => {
+    renderJourney(body.querySelector("#admin-user-journey"), { adminGet, userId: profile.id });
+  });
   const histEl = body.querySelector("#admin-user-hist");
   if (histEl) {
     xyChart(histEl, {
