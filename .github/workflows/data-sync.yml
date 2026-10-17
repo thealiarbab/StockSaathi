@@ -11,7 +11,8 @@ name: data-sync
 # fundamentals_cache was never created.
 #
 # GitHub Actions has no such cron limit, so all scheduling now lives here.
-# vercel.json no longer declares any crons — one place to look.
+# vercel.json declares only the on-time NAV syncs (Vercel Pro, 17 Oct 2026);
+# everything else is scheduled here.
 #
 # Required GitHub secret:
 #   CRON_SECRET  — must match the CRON_SECRET env var in the Vercel project.
