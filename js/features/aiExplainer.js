@@ -12,7 +12,9 @@
 //
 // The wrapper returns an <abbr class="ai-term" data-term="..."> element that
 // looks subtle (dotted-underline). Mouse hover shows a small preview; a tap,
-// click or Enter opens a centred card over a dimmed page. Both fetch /api/ai?op=explain lazily — first hover triggers the API
+// click or Enter opens a centred card over a dimmed page. Terms listed in
+// js/data/glossary.js use that fixed text. Anything else falls back to
+// /api/ai?op=explain lazily — first hover triggers the API
 // call, subsequent hovers on any instance of the same term anywhere on the
 // page are instant from the in-memory cache. The backend also caches across
 // users in Supabase (table public.ai_response_cache, bucket="explain") so
@@ -21,6 +23,7 @@
 // =============================================================================
 
 import { aiLang } from "./aiLang.js";
+import { glossaryLookup } from "../data/glossary.js";
 
 const TOOLTIP_ID = "ai-term-tooltip";
 const HOVER_DELAY_MS = 250;  // avoid firing on accidental hover pass-through
@@ -113,6 +116,10 @@ export function termHtml(term, display) {
 
 async function fetchExplanation(term) {
   const lang = aiLang();
+  // Fixed definitions first (js/data/glossary.js): instant, no network, and
+  // right for the page. The model is only asked about terms not listed there.
+  const fixed = glossaryLookup(term, lang ? "hi" : "en");
+  if (fixed) return fixed;
   const key = `${lang}|${term}`;
   if (memoryCache.has(key)) {
     const cached = memoryCache.get(key);
