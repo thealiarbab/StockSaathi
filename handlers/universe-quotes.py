@@ -16,6 +16,7 @@ import os
 import re
 import json
 import time
+import urllib.parse
 import urllib.request
 import urllib.error
 from datetime import datetime
@@ -97,8 +98,10 @@ def read_cache_bulk(symbols):
     for i in range(0, len(symbols), CHUNK_SIZE):
         chunk = symbols[i:i + CHUNK_SIZE]
         sym_list = ",".join(f'"{s}"' for s in chunk)
+        # Encoded: a raw "&" (M&M, J&KBANK) ended the query string, PostgREST
+        # answered 400 and the whole 250-symbol chunk came back blank.
         url = (f"{SUPA_URL}/rest/v1/quote_cache"
-               f"?symbol=in.({sym_list})&select=*")
+               f"?symbol=in.({urllib.parse.quote(sym_list, safe=',')})&select=*")
         req = urllib.request.Request(url, headers=_supa_headers())
         try:
             with urllib.request.urlopen(req, timeout=4) as r:
