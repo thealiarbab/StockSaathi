@@ -13,13 +13,22 @@ const RELEASES = {
   "2026-10": {
     title: "What's new on StockSaathi",
     sub: "30+ improvements since your last visit. Here are the big ones.",
-    // Swipeable screenshots, each in both themes. The card opens on the
-    // visitor's theme; tapping a picture flips all of them.
+    // Swipeable recordings and screenshots, each in both themes. The card
+    // opens on the visitor's theme; tapping a picture flips all of them. Each
+    // recording sits next to a still of the same feature.
     slides: [
-      { name: "signin2", alt: "Typing ananya@gmial.com on the sign-up page, tapping the suggested gmail.com fix, then pointing at Sign up with Google." },
-      { name: "fullscreen-chart", alt: "A full-screen six-month candlestick chart of Reliance Industries." },
-      { name: "crash-replay", alt: "The COVID-19 crash replay comparing holding with selling on day 3." },
-      { name: "explainer", alt: "Tapping P/E on a stock page opens a one-sentence explanation." },
+      { name: "signin2", cap: "Sign up with Google in one tap, or let us catch a typo in your email.",
+        alt: "Typing ananya@gmial.com on the sign-up page, tapping the suggested gmail.com fix, then pointing at Sign up with Google." },
+      { name: "chart-clip", cap: "Before and now: zoom into a chart and the candles stay side by side, with no gaps for nights and weekends.",
+        alt: "On the old version, zooming into a one-month chart left clumps of candles with empty gaps between them. Now the candles stay side by side through 3M, YTD, 1M, full screen, zoom and drag." },
+      { name: "fullscreen-chart", cap: "Open any chart full screen.",
+        alt: "A full-screen six-month candlestick chart of Reliance Industries." },
+      { name: "term-clip", cap: "Point at or tap a term like P/E to see what it means.",
+        alt: "Pointing at P/E on Reliance's fundamentals shows a short tip; tapping it opens a card with a one-sentence explanation." },
+      { name: "explainer", cap: "The explanation opens right where you are reading.",
+        alt: "Tapping P/E on a stock page opens a one-sentence explanation." },
+      { name: "crash-replay", cap: "Relive real market crashes, rebuilt from real Nifty 50 prices.",
+        alt: "The COVID-19 crash replay comparing holding with selling on day 3." },
     ],
     top: [
       ["Full-screen charts", "Expand any chart to fill the screen, then zoom without gaps for nights and weekends."],
@@ -30,6 +39,8 @@ const RELEASES = {
     more: [
       ["Charts and prices", [
         "Quiet stocks hold their price between trades; their 1-day candles use bars big enough to fill the day.",
+        "1-day charts mark round times like 10:00 and 11:00 and size their candles to your screen.",
+        "Pointing at a chart shows the right date and time for every candle.",
         "Long charts show the year, labels never repeat, and days with no trades no longer show as flat stretches.",
         "A fund's 1W chart shows its whole week, and zooming always keeps at least 12 bars on screen.",
         "Real 52-week highs and lows, with official NSE closing prices as a backup.",
@@ -119,7 +130,11 @@ export function presentWhatsNew(client, notice) {
               </figure>`).join("")}
           </div>
           <button type="button" class="wn-theme" aria-label="Show the ${other()} version">${label()}</button>
+          <button type="button" class="wn-nav wn-prev" aria-label="Previous" disabled></button>
+          <button type="button" class="wn-nav wn-next" aria-label="Next"></button>
+          <span class="wn-count" aria-hidden="true">1 / ${rel.slides.length}</span>
         </div>
+        <p class="wn-cap" aria-live="polite">${esc(rel.slides[0].cap)}</p>
         <div class="wn-dots">
           ${rel.slides.map((_, i) => `<button type="button" aria-label="Screenshot ${i + 1}"${i ? "" : ' aria-current="true"'}></button>`).join("")}
         </div>
@@ -157,12 +172,24 @@ export function presentWhatsNew(client, notice) {
     const dots = [...el.querySelectorAll(".wn-dots button")];
     const imgs = [...el.querySelectorAll(".wn-slide img")];
     const themeBtn = el.querySelector(".wn-theme");
+    const cap = el.querySelector(".wn-cap"), count = el.querySelector(".wn-count");
+    const prev = el.querySelector(".wn-prev"), next = el.querySelector(".wn-next");
+    const n = rel.slides.length;
     const at = () => Math.round(track.scrollLeft / Math.max(1, track.clientWidth));
-    const go = (i) => track.scrollTo({ left: i * track.clientWidth, behavior: "smooth" });
+    const go = (i) => track.scrollTo({ left: Math.max(0, Math.min(n - 1, i)) * track.clientWidth, behavior: "smooth" });
+    let shown = 0;
     track.addEventListener("scroll", () => {
       const i = at();
+      if (i === shown) return;
+      shown = i;
       dots.forEach((d, j) => (j === i ? d.setAttribute("aria-current", "true") : d.removeAttribute("aria-current")));
+      cap.textContent = rel.slides[i].cap;
+      count.textContent = `${i + 1} / ${n}`;
+      prev.disabled = i === 0;
+      next.disabled = i === n - 1;
     }, { passive: true });
+    prev.addEventListener("click", () => go(at() - 1));
+    next.addEventListener("click", () => go(at() + 1));
     dots.forEach((d, i) => d.addEventListener("click", () => go(i)));
     const flip = () => {
       theme = other();
@@ -188,11 +215,11 @@ export function presentWhatsNew(client, notice) {
       if (e.key === "Escape") { e.preventDefault(); close(); return; }
       if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
         e.preventDefault();
-        go(Math.max(0, Math.min(rel.slides.length - 1, at() + (e.key === "ArrowRight" ? 1 : -1))));
+        go(at() + (e.key === "ArrowRight" ? 1 : -1));
         return;
       }
       if (e.key !== "Tab") return;
-      const f = [...el.querySelectorAll("button, a[href], summary")];
+      const f = [...el.querySelectorAll("button:not([disabled]), a[href], summary")];
       const i = f.indexOf(document.activeElement);
       e.preventDefault();
       f[(i + (e.shiftKey ? -1 : 1) + f.length) % f.length]?.focus();
