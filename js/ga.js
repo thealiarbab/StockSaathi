@@ -1,4 +1,4 @@
-// Google Analytics 4. Loaded as a file because the CSP (script-src 'self')
+// Google Analytics 4 (and Microsoft Clarity, at the bottom). Loaded as a file because the CSP (script-src 'self')
 // blocks inline scripts, same as va.js.
 //
 // Admin slugs are secrets, so GA never builds its own page views: the router
@@ -40,5 +40,26 @@
   var s = document.createElement("script");
   s.async = true;
   s.src = "https://www.googletagmanager.com/gtag/js?id=" + ID;
+  document.head.appendChild(s);
+})();
+
+// Microsoft Clarity: heatmaps and session recordings. It lives in this file
+// so every page that already loads GA gets it without touching the HTML.
+//
+// Clarity records the page address itself (no redacted path to hand it), so
+// it is never started in a tab that opens on an admin page. Nothing in the
+// app links to /a/, so an admin page is only ever reached by a fresh load.
+// Password fields are always masked by Clarity; how much other text is
+// masked is the project's masking mode, set in the Clarity dashboard.
+(function () {
+  var ID = "yzb63jvdw1"; // Clarity project ID. Empty = Clarity off.
+  if (!ID || location.pathname.indexOf("/a/") === 0) return;
+
+  window.clarity = window.clarity || function () {
+    (window.clarity.q = window.clarity.q || []).push(arguments);
+  };
+  var s = document.createElement("script");
+  s.async = true;
+  s.src = "https://www.clarity.ms/tag/" + ID;
   document.head.appendChild(s);
 })();
