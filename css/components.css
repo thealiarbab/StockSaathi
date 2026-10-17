@@ -1162,6 +1162,15 @@ html.term-pop-open body { padding-right: var(--term-pop-gutter, 0); }
   text-decoration-thickness: 2px;
   text-underline-offset: 6px;
 }
+/* English/Hinglish switch: a small pill next to the close button. */
+.term-pop-lang {
+  flex: none; margin: 4px 0 0 auto;
+  height: 26px; padding: 0 10px; border-radius: var(--r-full);
+  border: 1px solid var(--border); background: transparent;
+  color: var(--text-muted); font: 600 var(--text-xs)/1 var(--font-sans); cursor: pointer;
+}
+.term-pop-lang:hover { color: var(--text-strong); border-color: var(--border-strong); }
+.term-pop-lang:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 .term-pop-x {
   flex: none;
   width: 32px; height: 32px;

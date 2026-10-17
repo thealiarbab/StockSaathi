@@ -114,11 +114,19 @@ export function termHtml(term, display) {
   return `<abbr class="ai-term" data-term="${escapeAttr(term)}" tabindex="0" role="button" aria-haspopup="dialog" aria-label="What is ${escapeAttr(term)}?">${escapeHtml(d)}</abbr>`;
 }
 
-async function fetchExplanation(term) {
-  const lang = aiLang();
+// Language of term explanations: the card's own English/Hinglish button
+// (remembered on this device) wins; until it is used, the Settings switch.
+const TERM_LANG_KEY = "ss.term.lang";
+function termLang() {
+  try { const v = localStorage.getItem(TERM_LANG_KEY); if (v === "hi" || v === "en") return v; } catch {}
+  return aiLang() ? "hi" : "en";
+}
+
+async function fetchExplanation(term, which = termLang()) {
+  const lang = which === "hi" ? "&lang=hi" : "";
   // Fixed definitions first (js/data/glossary.js): instant, no network, and
   // right for the page. The model is only asked about terms not listed there.
-  const fixed = glossaryLookup(term, lang ? "hi" : "en");
+  const fixed = glossaryLookup(term, which);
   if (fixed) return fixed;
   const key = `${lang}|${term}`;
   if (memoryCache.has(key)) {
@@ -251,19 +259,35 @@ async function openPop(target) {
   hide();
   if (popEl) popEl.remove();
   popReturnFocus = target;
+  let lang = termLang();
+  const langBtn = () => lang === "hi"
+    ? `<button type="button" class="term-pop-lang" lang="en" aria-label="Show in English">English</button>`
+    : `<button type="button" class="term-pop-lang" aria-label="Show in Hinglish">Hinglish</button>`;
   const el = document.createElement("div");
   el.className = "term-pop-overlay";
   el.innerHTML = `
     <div class="term-pop" role="dialog" aria-modal="true" aria-labelledby="term-pop-title">
       <div class="term-pop-head">
         <h2 class="term-pop-title" id="term-pop-title"><span class="term-pop-term">${escapeHtml(term)}</span></h2>
+        ${langBtn()}
         <button type="button" class="term-pop-x" aria-label="Close">✕</button>
       </div>
       <div class="term-pop-body" aria-live="polite">${bodyHtml(null)}</div>
       <button type="button" class="btn btn-primary term-pop-ok">Got it</button>
     </div>`;
-  el.addEventListener("click", (e) => {
-    if (e.target === el || e.target.closest(".term-pop-x, .term-pop-ok")) closePop();
+  el.addEventListener("click", async (e) => {
+    if (e.target === el || e.target.closest(".term-pop-x, .term-pop-ok")) { closePop(); return; }
+    const b = e.target.closest(".term-pop-lang");
+    if (!b) return;
+    lang = lang === "hi" ? "en" : "hi";
+    try { localStorage.setItem(TERM_LANG_KEY, lang); } catch {}
+    b.outerHTML = langBtn();
+    el.querySelector(".term-pop-lang").focus({ preventScroll: true });
+    const body = el.querySelector(".term-pop-body");
+    body.innerHTML = bodyHtml(null);
+    const want = lang;
+    const t = await fetchExplanation(term, want);
+    if (popEl === el && lang === want) body.innerHTML = bodyHtml(t);
   });
   // No scrolling the page underneath; keep the layout from shifting when a
   // desktop scrollbar disappears.
@@ -274,8 +298,9 @@ async function openPop(target) {
   popEl = el;
   document.addEventListener("keydown", onPopKey, true);
   el.querySelector(".term-pop-ok").focus({ preventScroll: true });
-  const text = await fetchExplanation(term);
-  if (popEl !== el) return;
+  const first = lang;
+  const text = await fetchExplanation(term, first);
+  if (popEl !== el || lang !== first) return;
   el.querySelector(".term-pop-body").innerHTML = bodyHtml(text);
 }
 
