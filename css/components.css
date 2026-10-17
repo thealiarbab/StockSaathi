@@ -1074,12 +1074,10 @@
   word-break: normal;
 }
 .ai-term-tooltip-head {
-  font-weight: 700;
-  font-size: var(--text-xs);
-  color: var(--brand);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 4px;
+  font-weight: 600;
+  font-size: var(--text-sm);
+  color: var(--text-strong);
+  margin-bottom: 3px;
   white-space: normal;
 }
 .ai-term-tooltip-body {
@@ -1119,12 +1117,13 @@ html.term-pop-open body { padding-right: var(--term-pop-gutter, 0); }
   display: grid;
   place-items: center;
   padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
-  background: rgba(6, 8, 14, 0.62);
-  -webkit-backdrop-filter: blur(10px) saturate(120%);
-  backdrop-filter: blur(10px) saturate(120%);
-  animation: termPopFade 200ms ease-out both;
+  background: rgba(4, 6, 10, 0.6);
+  animation: termPopFade 160ms ease-out both;
   touch-action: none;
 }
+/* A plain sheet: the app's own surface, border and shadow, left-aligned like
+   every other card. The one accent is the term's dotted underline, the same
+   mark the word carries on the page, so the card reads as "this word". */
 .term-pop {
   position: relative;
   width: 100%;
@@ -1133,81 +1132,73 @@ html.term-pop-open body { padding-right: var(--term-pop-gutter, 0); }
   overflow-y: auto;
   overscroll-behavior: contain;
   touch-action: pan-y;
-  padding: 28px 22px 20px;
-  border-radius: 26px;
-  background:
-    radial-gradient(120% 70% at 50% 0%, var(--brand-soft, rgba(16,185,129,.14)) 0%, transparent 62%),
-    var(--surface-elev, var(--surface));
-  border: 1px solid var(--border-strong, var(--border));
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45), 0 2px 0 rgba(255,255,255,0.04) inset;
-  text-align: center;
-  animation: termPopIn 420ms cubic-bezier(.2, 1.2, .35, 1) both;
+  padding: 18px 20px 20px;
+  border-radius: var(--r-xl);
+  background: var(--surface-elev, var(--surface));
+  border: 1px solid var(--border);
+  box-shadow: var(--sh-lg);
+  text-align: left;
+  animation: termPopIn 200ms var(--ease) both;
+}
+.term-pop-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+.term-pop-title {
+  margin: 0;
+  padding-top: 3px;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.012em;
+  color: var(--text-strong);
+}
+.term-pop-term {
+  text-decoration: underline dotted;
+  text-decoration-color: var(--brand);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 6px;
 }
 .term-pop-x {
-  position: absolute;
-  top: 12px; right: 12px;
-  width: 36px; height: 36px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text-muted, var(--text));
-  font-size: 14px;
+  flex: none;
+  width: 32px; height: 32px;
+  border-radius: var(--r-full);
+  border: 0;
+  background: var(--bg-soft);
+  color: var(--text-muted);
+  font-size: 13px;
   line-height: 1;
   cursor: pointer;
   display: grid; place-items: center;
 }
-.term-pop-x:hover { color: var(--text-strong); border-color: var(--border-strong, var(--border)); }
-.term-pop-badge {
-  width: 52px; height: 52px;
-  margin: 0 auto 12px;
-  border-radius: 999px;
-  display: grid; place-items: center;
-  font-size: 24px; font-weight: 800;
-  color: #fff;
-  background: linear-gradient(140deg, var(--brand) 0%, color-mix(in srgb, var(--brand) 55%, #2563eb) 100%);
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--brand) 40%, transparent);
-}
-.term-pop-kicker {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--brand);
-}
-.term-pop-title {
-  margin: 4px 0 12px;
-  font-size: 22px;
-  line-height: 1.2;
-  color: var(--text-strong);
-}
+.term-pop-x:hover { color: var(--text-strong); background: var(--border); }
+.term-pop-x:focus-visible, .term-pop summary:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 .term-pop-text {
   margin: 0 0 20px;
-  font-size: 15px;
+  font-size: var(--text-base);
   line-height: 1.6;
   color: var(--text);
-  text-align: left;
 }
-.term-pop-text.dim { color: var(--text-dim); text-align: center; }
-.term-pop-ok { width: 100%; min-height: 46px; border-radius: 999px; }
-.term-pop-skel { display: grid; gap: 9px; margin: 4px 0 22px; }
+.term-pop-text.dim { color: var(--text-muted); }
+.term-pop-ok { width: 100%; min-height: 44px; }
+.term-pop-skel { display: grid; gap: 9px; margin: 6px 0 24px; }
 .term-pop-skel span {
-  height: 12px; border-radius: 999px;
-  background: linear-gradient(90deg, var(--border) 0%, var(--border-strong, var(--border)) 50%, var(--border) 100%);
-  background-size: 200% 100%;
-  animation: termPopShimmer 1.1s linear infinite;
+  height: 11px; border-radius: var(--r-full);
+  background: var(--bg-soft);
+  animation: termPopPulse 1.2s ease-in-out infinite alternate;
 }
 .term-pop-skel span:nth-child(2) { width: 92%; }
 .term-pop-skel span:nth-child(3) { width: 64%; }
-.term-pop-overlay.leaving { animation: termPopFadeOut 180ms ease-in forwards; }
-.term-pop-overlay.leaving .term-pop { animation: termPopOut 180ms ease-in forwards; }
+.term-pop-overlay.leaving { animation: termPopFadeOut 160ms ease-in forwards; }
+.term-pop-overlay.leaving .term-pop { animation: termPopOut 160ms ease-in forwards; }
 @keyframes termPopFade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes termPopFadeOut { to { opacity: 0; } }
-@keyframes termPopIn {
-  from { opacity: 0; transform: translateY(18px) scale(0.92); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-@keyframes termPopOut { to { opacity: 0; transform: translateY(8px) scale(0.96); } }
-@keyframes termPopShimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@keyframes termPopIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes termPopOut { to { opacity: 0; transform: translateY(4px); } }
+@keyframes termPopPulse { from { opacity: 1; } to { opacity: 0.45; } }
 @media (prefers-reduced-motion: reduce) {
   .term-pop-overlay, .term-pop, .term-pop-skel span { animation: none !important; }
 }
@@ -5163,25 +5154,49 @@ body.chart-fs-open #main { animation: none; transform: none; }
 .otp-spam-tip .dim { font-size: var(--text-xs); }
 .otp-inbox-btn { margin-top: 6px; }
 
-/* What's new card (17 Oct): the term explainer's card (.term-pop) with a
-   screenshot, four highlights, an expandable full list and buttons pinned to
-   the bottom while that list scrolls. */
-.term-pop.wn { max-width: 460px; max-height: 92vh; overflow: auto; }
-.term-pop.wn .term-pop-badge { font-size: 26px; }
-.wn-shot { display: block; width: 100%; height: auto; border-radius: 14px; margin: 4px 0 14px; border: 1px solid var(--border); }
-.wn-list { list-style: none; margin: 0 0 14px; padding: 0; text-align: left; display: grid; gap: 10px; }
-.wn-list li { display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: start; font-size: 15px; line-height: 1.45; }
-.wn-ico { width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; font-size: 15px;
-          background: color-mix(in srgb, var(--brand) 16%, transparent); }
-.wn-list strong { color: var(--text-strong); }
-.wn-more { text-align: left; margin: 0 0 16px; border-top: 1px solid var(--border); padding-top: 10px; }
-.wn-more summary { cursor: pointer; font-weight: 600; color: var(--brand); font-size: 14px; list-style: none; padding: 4px 0; }
+/* What's new card (17 Oct): the term card as a release note. Screenshot runs
+   edge to edge on top, highlights are plain rows split by hairlines, the full
+   list opens inline, and the buttons sit on a solid strip that stays put while
+   the card scrolls. */
+.term-pop.wn { max-width: 440px; padding: 0; max-height: min(92dvh, 780px); }
+.term-pop.wn .term-pop-x {
+  position: absolute; top: 12px; right: 12px; z-index: 1;
+  background: var(--surface-elev, var(--surface)); box-shadow: var(--sh-md);
+}
+.wn-shot {
+  display: block; width: 100%; height: auto; aspect-ratio: 1120 / 615; object-fit: cover; object-position: center bottom;
+  border-bottom: 1px solid var(--border);
+}
+.wn-body { padding: 18px 20px 4px; }
+.wn .term-pop-title { padding: 0; font-size: var(--text-2xl); line-height: 1.2; }
+.wn-sub { margin: 6px 0 0; font-size: var(--text-md); line-height: 1.5; color: var(--text-muted); }
+.wn-list { list-style: none; margin: 16px 0 0; padding: 0; }
+.wn-list li { padding: 12px 0; border-top: 1px solid var(--border); }
+.wn-list strong { display: block; font-size: var(--text-base); font-weight: 600; color: var(--text-strong); }
+.wn-list span { display: block; margin-top: 2px; font-size: var(--text-md); line-height: 1.5; color: var(--text-muted); }
+.wn-more { border-top: 1px solid var(--border); }
+.wn-more summary {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 13px 0; cursor: pointer; list-style: none;
+  font-size: var(--text-md); font-weight: 600; color: var(--text-strong);
+}
 .wn-more summary::-webkit-details-marker { display: none; }
-.wn-more-body { max-height: 34vh; overflow: auto; padding-right: 4px; }
-.wn-more h4 { margin: 12px 0 4px; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted); }
-.wn-more ul { margin: 0; padding-left: 18px; font-size: 14px; line-height: 1.5; display: grid; gap: 4px; }
-.term-pop.wn:has(.wn-more[open]) .wn-shot { display: none; }
-.wn-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; position: sticky; bottom: -20px;
-              margin: 0 -22px -20px; padding: 12px 22px 20px;
-              background: linear-gradient(to bottom, transparent, var(--surface-elev, var(--surface)) 14px); }
-.wn-actions .btn { width: 100%; }
+.wn-more summary::after {
+  content: ""; width: 7px; height: 7px; margin-right: 4px;
+  border-right: 2px solid var(--text-muted); border-bottom: 2px solid var(--text-muted);
+  transform: translateY(-2px) rotate(45deg); transition: transform var(--dur-1, 150ms) var(--ease);
+}
+.wn-more[open] summary::after { transform: translateY(2px) rotate(-135deg); }
+.wn-more-body { padding: 0 0 12px; }
+.wn-more h4 { margin: 14px 0 6px; font-size: var(--text-md); font-weight: 600; color: var(--text-strong); }
+.wn-more h4:first-child { margin-top: 0; }
+.wn-more ul { margin: 0; padding-left: 18px; display: grid; gap: 5px; font-size: var(--text-md); line-height: 1.5; color: var(--text-muted); }
+.wn-more li::marker { color: var(--brand); }
+.wn-actions {
+  position: sticky; bottom: 0;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  padding: 12px 20px 16px;
+  background: var(--surface-elev, var(--surface));
+  border-top: 1px solid var(--border);
+}
+.wn-actions .btn { width: 100%; min-height: 44px; }

@@ -248,10 +248,10 @@ async function openPop(target) {
   el.className = "term-pop-overlay";
   el.innerHTML = `
     <div class="term-pop" role="dialog" aria-modal="true" aria-labelledby="term-pop-title">
-      <button type="button" class="term-pop-x" aria-label="Close">✕</button>
-      <div class="term-pop-badge" aria-hidden="true">?</div>
-      <div class="term-pop-kicker">What it means</div>
-      <h2 class="term-pop-title" id="term-pop-title">${escapeHtml(term)}</h2>
+      <div class="term-pop-head">
+        <h2 class="term-pop-title" id="term-pop-title"><span class="term-pop-term">${escapeHtml(term)}</span></h2>
+        <button type="button" class="term-pop-x" aria-label="Close">✕</button>
+      </div>
       <div class="term-pop-body" aria-live="polite">${bodyHtml(null)}</div>
       <button type="button" class="btn btn-primary term-pop-ok">Got it</button>
     </div>`;
