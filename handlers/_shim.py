@@ -63,6 +63,7 @@ ROUTES = {
     "quotes": "quotes",
     "live-quote": "live-quote",
     "universe-quotes": "universe-quotes",
+    "range52w": "range52w",
     "history": "history",
     "mf-history": "mf-history",
     "fundamentals": "fundamentals",
