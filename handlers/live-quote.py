@@ -41,6 +41,7 @@ import os as _os_yp, sys as _sys_yp
 _sys_yp.path.insert(0, _os_yp.path.dirname(_os_yp.path.abspath(__file__)))
 from _yahoo_price import pick_price  # noqa: E402
 from _prev_close import apply_eod_prev  # noqa: E402
+import _supa_http  # noqa: E402
 
 try:
     from zoneinfo import ZoneInfo  # py3.9+
@@ -126,6 +127,10 @@ def _supa_headers():
     }
 
 
+_CACHE_COLS = ("symbol,price_paise,prev_close_paise,change_pct,day_high_paise,"
+               "day_low_paise,volume,ts_ms,source,cached_at_ms")
+
+
 def read_cache(symbols, ttl_ms=None):
     """Returns {symbol: row_dict} for rows WRITTEN to cache within ttl_ms.
     Filters on cached_at_ms (when our server wrote), NOT ts_ms (Yahoo market
@@ -135,15 +140,18 @@ def read_cache(symbols, ttl_ms=None):
     effective_ttl = ttl_ms if ttl_ms is not None else current_ttl_ms()
     cutoff = int(time.time() * 1000) - effective_ttl
     sym_list = ",".join(f'"{s}"' for s in symbols)
-    url = (f"{SUPA_URL}/rest/v1/quote_cache"
-           f"?symbol=in.({sym_list})"
-           f"&cached_at_ms=gte.{cutoff}"
-           f"&select=*")
-    req = urllib.request.Request(url, headers=_supa_headers())
+    # Encoded: a raw "&" (M&M, J&KBANK) cut the filter short, PostgREST
+    # answered 400 and every symbol in the batch was refetched from Yahoo.
+    # 642 of 8,161 reads on 17 Oct 2026.
+    path = ("/rest/v1/quote_cache"
+            f"?symbol=in.({url_quote(sym_list, safe=',')})"
+            f"&cached_at_ms=gte.{cutoff}"
+            f"&select={_CACHE_COLS}")
     try:
-        with urllib.request.urlopen(req, timeout=3) as r:
-            rows = json.loads(r.read().decode("utf-8"))
-        return {row["symbol"]: row for row in rows}
+        status, body = _supa_http.request("GET", path, headers=_supa_headers(), timeout=3)
+        if status != 200:
+            return {}
+        return {row["symbol"]: row for row in json.loads(body.decode("utf-8"))}
     except Exception:
         return {}
 
@@ -156,18 +164,14 @@ def write_cache(rows):
     if not (SUPA_URL and SUPA_SRV) or not rows:
         _last_write_error = {"status": "skipped", "body": "SUPA_URL or SUPA_SRV empty", "key_prefix": None}
         return
-    url = f"{SUPA_URL}/rest/v1/quote_cache"
     headers = _supa_headers()
     headers["Prefer"] = "resolution=merge-duplicates,return=minimal"
     body = json.dumps(rows).encode("utf-8")
-    req = urllib.request.Request(url, data=body, headers=headers, method="POST")
     try:
-        r = urllib.request.urlopen(req, timeout=3)
-        _last_write_error = {"status": r.status, "body": None, "key_prefix": SUPA_SRV[:12] + "..."}
-    except urllib.error.HTTPError as e:
-        try: err_body = e.read().decode("utf-8")[:300]
-        except Exception: err_body = str(e)
-        _last_write_error = {"status": e.code, "body": err_body, "key_prefix": SUPA_SRV[:12] + "..."}
+        status, resp = _supa_http.request("POST", "/rest/v1/quote_cache",
+                                          body=body, headers=headers, timeout=3)
+        err_body = None if status < 300 else resp.decode("utf-8", "replace")[:300]
+        _last_write_error = {"status": status, "body": err_body, "key_prefix": SUPA_SRV[:12] + "..."}
     except Exception as e:
         _last_write_error = {"status": "exception", "body": str(e)[:200], "key_prefix": SUPA_SRV[:12] + "..."}
 
@@ -185,7 +189,7 @@ def fetch_dhan_ltp(symbols):
     # Resolve symbols → Dhan security_ids via the mapping table.
     sym_list = ",".join(f'"{s}"' for s in symbols)
     mapping_url = (f"{SUPA_URL}/rest/v1/dhan_instruments"
-                   f"?symbol=in.({sym_list})&select=symbol,security_id,exchange_segment")
+                   f"?symbol=in.({url_quote(sym_list, safe=',')})&select=symbol,security_id,exchange_segment")
     try:
         req = urllib.request.Request(mapping_url, headers=_supa_headers())
         with urllib.request.urlopen(req, timeout=3) as r:
@@ -410,8 +414,14 @@ class handler(BaseHTTPRequestHandler):
         ttl_ms = current_ttl_ms()
         market_open = is_market_open_ist()
 
-        # 1. Cache sweep (skipped when nocache=1)
-        cached = {} if nocache else read_cache(syms, ttl_ms=ttl_ms)
+        # 1. Cache sweep (skipped when nocache=1). One read covers both the
+        # fresh rows and the last-known fallback in step 3b: a second
+        # quote_cache read per request was ~1 in 6 of all Supabase calls.
+        cutoff = int(time.time() * 1000) - ttl_ms
+        cached, stale = {}, {}
+        if not nocache:
+            for s, row in read_cache(syms, ttl_ms=LAST_KNOWN_MAX_AGE_MS).items():
+                ((cached if (row.get("cached_at_ms") or 0) >= cutoff else stale))[s] = row
         missing = [s for s in syms if s not in cached]
 
         # 2. Source chain for misses: Dhan → Yahoo
@@ -440,7 +450,10 @@ class handler(BaseHTTPRequestHandler):
         # The nightly NSE end-of-day ingest (admin-ingest-eod) keeps these
         # rows populated for every listed stock.
         still_missing = [s for s in syms if s not in fresh and s not in cached]
-        last_known = read_cache(still_missing, ttl_ms=LAST_KNOWN_MAX_AGE_MS) if still_missing else {}
+        if nocache:
+            last_known = read_cache(still_missing, ttl_ms=LAST_KNOWN_MAX_AGE_MS) if still_missing else {}
+        else:
+            last_known = {s: stale[s] for s in still_missing if s in stale}
 
         # 4. Build response
         quotes = {}
