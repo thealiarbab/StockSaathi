@@ -780,12 +780,18 @@ export function attachStockChartHover(container, ohlc, {
     // Cursor-time format. For intraday we show HH:MM precise to the
     // pixel cursor (e.g. "11:32"), not the candle's snapped timestamp.
     // Date format only when the chart spans multiple days.
-    const cursorDate = new Date(cursorMs);
+    // Bars spaced by index (every chart but 1D) squeeze out nights, weekends
+    // and holidays, so a time read off the pixel is not a real time: a
+    // zoomed 1M read "04 Oct 2026" (a Sunday) over Monday's candle. Those
+    // charts show the snapped bar's own time, with the clock for intraday bars.
+    const cursorDate = new Date(useTimeAxis ? cursorMs : k.t);
     const totalSpan = xToMs - xFromMs;
     const isIntraday = totalSpan > 0 && totalSpan < 3 * 86400000;
+    const intradayBars = !useTimeAxis && N > 1 && (ohlc[N - 1].t - ohlc[0].t) / (N - 1) < 86400000 / 2;
     const cursorTimeStr = isIntraday
       ? cursorDate.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" })
-      : cursorDate.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric" });
+      : cursorDate.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric" })
+        + (intradayBars ? ", " + cursorDate.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" }) : "");
     const cursorDateStr = isIntraday
       ? cursorDate.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short" })
       : "";
