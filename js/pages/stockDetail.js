@@ -914,7 +914,7 @@ function render(inst, symbol) {
   // so TCS keeps 1-minute candles and 20MICRONS gets 5-minute ones. The line
   // view keeps every minute.
   if (inst.kind !== "MF" && ui.timeframe === "1D" && ui.chartMode === "candle") {
-    chartView = adaptiveIntradayBars(chartView, chartXAxisRange);
+    chartView = adaptiveIntradayBars(chartView, chartXAxisRange, computeChartWidth());
   }
 
   // 52-week high/low come only from live fundamentals (renderFundamentals);
@@ -2329,11 +2329,15 @@ function renderPriceFreshness(quote) {
   `;
 }
 
-// Regroup 1-minute bars into the smallest of 1/2/3/5/10/15-minute bars whose
-// slots are at least 85% filled within the visible window. Buckets line up
-// with the 09:15 IST open (03:45 UTC = minute 225 of the UTC day).
-const BAR_STEPS_MIN = [1, 2, 3, 5, 10, 15];
-function adaptiveIntradayBars(ohlc, range) {
+// Regroup 1-minute bars into the smallest of 1/2/3/5/10/15/30-minute bars
+// whose slots are at least 85% filled within the visible window AND that
+// leave each candle ~4px of the plot. Without the width rule a phone drew
+// 20MICRONS' 75 five-minute candles at 3px each, still a scatter of dashes;
+// zooming in narrows the window, so the bars get finer again. Buckets line
+// up with the 09:15 IST open (03:45 UTC = minute 225 of the UTC day).
+const BAR_STEPS_MIN = [1, 2, 3, 5, 10, 15, 30];
+const MIN_CANDLE_PX = 4;
+function adaptiveIntradayBars(ohlc, range, width = 800) {
   if (!Array.isArray(ohlc) || ohlc.length < 3) return ohlc;
   const steps = [];
   for (let i = 1; i < ohlc.length; i++) steps.push(ohlc[i].t - ohlc[i - 1].t);
@@ -2342,8 +2346,12 @@ function adaptiveIntradayBars(ohlc, range) {
   const inView = range ? ohlc.filter(k => k.t >= range.fromMs && k.t <= range.toMs) : ohlc;
   if (inView.length < 3) return ohlc;
   const bucketOf = (t, m) => Math.floor((Math.floor(t / 60000) - 225) / m);
+  // stockChart's plot is the width less ~116 of axis gutters.
+  const fit = Math.max(12, (width - 116) / MIN_CANDLE_PX);
+  const spanMin = range ? (range.toMs - range.fromMs) / 60000 : (inView[inView.length - 1].t - inView[0].t) / 60000;
   let pick = BAR_STEPS_MIN[BAR_STEPS_MIN.length - 1];
   for (const m of BAR_STEPS_MIN) {
+    if (spanMin / m > fit) continue;
     const first = bucketOf(inView[0].t, m), last = bucketOf(inView[inView.length - 1].t, m);
     const filled = new Set(inView.map(k => bucketOf(k.t, m))).size;
     if (filled / (last - first + 1) >= 0.85) { pick = m; break; }
