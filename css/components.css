@@ -5167,6 +5167,8 @@ body.chart-fs-open #main { animation: none; transform: none; }
    list opens inline, and the buttons sit on a solid strip that stays put while
    the card scrolls. */
 .term-pop.wn { max-width: 440px; padding: 0; max-height: min(92dvh, 780px); }
+/* Room for the recordings to be read on a laptop. */
+@media (min-width: 720px) { .term-pop.wn { max-width: 600px; } }
 .term-pop.wn .term-pop-x {
   position: absolute; top: 12px; right: 12px; z-index: 1;
   background: var(--surface-elev, var(--surface)); box-shadow: var(--sh-md);
@@ -5187,6 +5189,33 @@ body.chart-fs-open #main { animation: none; transform: none; }
   color: var(--text-strong); font: 600 var(--text-xs)/1 var(--font-sans); cursor: pointer;
   box-shadow: var(--sh-md);
 }
+/* Slide count, bottom right; arrows on the sides for mouse users (phones swipe). */
+.wn-count {
+  position: absolute; right: 12px; bottom: 12px;
+  height: 28px; padding: 0 10px; border-radius: var(--r-full);
+  display: inline-flex; align-items: center;
+  border: 1px solid var(--border); background: var(--surface-elev, var(--surface));
+  color: var(--text-muted); font: 600 var(--text-xs)/1 var(--font-sans); font-variant-numeric: tabular-nums;
+  box-shadow: var(--sh-md); pointer-events: none;
+}
+.wn-nav {
+  position: absolute; top: 50%; width: 36px; height: 36px; margin-top: -18px;
+  display: none; place-items: center; padding: 0; cursor: pointer;
+  border: 1px solid var(--border); border-radius: var(--r-full);
+  background: var(--surface-elev, var(--surface)); color: var(--text-strong); box-shadow: var(--sh-md);
+}
+.wn-nav::before {
+  content: ""; width: 8px; height: 8px;
+  border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+}
+.wn-prev { left: 12px; }
+.wn-prev::before { transform: translateX(2px) rotate(135deg); }
+.wn-next { right: 12px; }
+.wn-next::before { transform: translateX(-2px) rotate(-45deg); }
+.wn-nav[disabled] { display: none !important; }
+@media (hover: hover) and (pointer: fine) { .wn-nav { display: grid; } }
+.wn-nav:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.wn-cap { margin: 0; padding: 10px 20px 0; min-height: calc(2 * 1.45em + 10px); font-size: var(--text-md); line-height: 1.45; color: var(--text-strong); }
 .wn-dots { display: flex; justify-content: center; gap: 2px; padding: 6px 0 0; }
 .wn-dots button {
   width: 22px; height: 18px; padding: 0; border: 0; background: none; cursor: pointer;
