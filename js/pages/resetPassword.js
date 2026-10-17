@@ -21,16 +21,11 @@ export function renderResetPassword(main) {
         <h1>Set a new password</h1>
         <p class="sub">Choose something only you'll remember.</p>
 
-        <div id="rp-waiting" class="dim text-sm" style="display:flex; align-items:center; gap:var(--sp-2); margin-bottom: var(--sp-3);">
-          <span class="spinner" aria-hidden="true"></span>
-          <span>Verifying your reset link…</span>
-        </div>
-
-        <form class="auth-form" id="rp-form" autocomplete="off" style="display:none;">
+        <form class="auth-form" id="rp-form" autocomplete="off">
           <div class="field">
             <label class="label" for="rp-pw">New password</label>
             <div class="auth-pw-wrap">
-              <input class="input" id="rp-pw" type="password" required autocomplete="new-password" minlength="8" placeholder="At least 8 characters" />
+              <input class="input" id="rp-pw" type="password" disabled required autocomplete="new-password" minlength="8" placeholder="At least 8 characters" />
               <button type="button" class="auth-pw-toggle" id="rp-pw-toggle" aria-label="Show password" aria-pressed="false" tabindex="0">👁</button>
             </div>
             <div class="muted text-xs" style="margin-top: 4px;">At least 8 characters. Tap the eye icon to check what you typed.</div>
@@ -38,12 +33,12 @@ export function renderResetPassword(main) {
           <div class="field">
             <label class="label" for="rp-pw2">Confirm new password</label>
             <div class="auth-pw-wrap">
-              <input class="input" id="rp-pw2" type="password" required autocomplete="new-password" minlength="8" placeholder="Type it again" />
+              <input class="input" id="rp-pw2" type="password" disabled required autocomplete="new-password" minlength="8" placeholder="Type it again" />
               <button type="button" class="auth-pw-toggle" id="rp-pw2-toggle" aria-label="Show password" aria-pressed="false" tabindex="0">👁</button>
             </div>
           </div>
           <div id="rp-error" role="alert"></div>
-          <button type="submit" class="btn btn-primary btn-block btn-lg" id="rp-btn">Set new password</button>
+          <button type="submit" class="btn btn-primary btn-block btn-lg" id="rp-btn" disabled>Checking your link…</button>
         </form>
 
         <div id="rp-expired" style="display:none;">
@@ -60,7 +55,6 @@ export function renderResetPassword(main) {
     </div>
   `;
 
-  const waiting = main.querySelector("#rp-waiting");
   const form = main.querySelector("#rp-form");
   const expired = main.querySelector("#rp-expired");
   const errBox = main.querySelector("#rp-error");
@@ -108,10 +102,19 @@ export function renderResetPassword(main) {
     setTimeout(() => { if (!gotRecovery) showExpired(); }, RECOVERY_WAIT_MS);
   })();
 
+  // The form is drawn at once with its inputs and button disabled while the
+  // link is checked, so a good link only flips the button text instead of
+  // the card growing from one line to the full form.
+  let formShown = false;
   function showForm() {
-    waiting.style.display = "none";
+    if (formShown) return;                     // SIGNED_IN and PASSWORD_RECOVERY can both fire
+    formShown = true;
     form.style.display = "";
     expired.style.display = "none";
+    main.querySelector("#rp-pw").disabled = false;
+    main.querySelector("#rp-pw2").disabled = false;
+    btn.disabled = false;
+    btn.textContent = "Set new password";
     main.querySelector("#rp-pw")?.focus();
     // Wire show/hide toggles on both new-password fields. Critical on
     // mobile for verifying what swipe-input actually typed.
@@ -119,7 +122,7 @@ export function renderResetPassword(main) {
     wirePasswordToggle(main, "#rp-pw2", "#rp-pw2-toggle");
   }
   function showExpired() {
-    waiting.style.display = "none";
+    if (formShown) return;
     form.style.display = "none";
     expired.style.display = "";
   }
