@@ -131,10 +131,6 @@ begin
    group by 1, 2, 3, 4
   on conflict (day, kind, path, target) do update set n = excluded.n, visitors = excluded.visitors;
   get diagnostics n = row_count;
-  -- Row count, not table size: deleted rows free space for reuse but the
-  -- table's size on disk does not shrink, so a size check would never stop.
-  delete from web_events
-   where id <= (select id from web_events order by id desc offset 600000 limit 1);
   return n;
 end $$;
 
