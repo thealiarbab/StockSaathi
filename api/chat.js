@@ -460,6 +460,11 @@ export default async function handler(req) {
   // Pull + strip the profile hint; upstream providers don't understand it.
   const profile = typeof payload.profile === "string" ? payload.profile : "reasoning";
   delete payload.profile;
+  // Opt-in from the coach agent: stream even though tools are attached, so a
+  // data answer types out instead of landing as one block. The client
+  // reassembles tool_calls from the stream itself.
+  const streamTools = payload.stream_tools === true;
+  delete payload.stream_tools;
 
   // Output budget. Tools are passed through — the coach agent needs
   // function-calling to fetch live quotes, portfolio values and news during
@@ -540,7 +545,7 @@ export default async function handler(req) {
   // waiting for the full reply. Tool-use path is incompatible with streaming
   // (tool_calls arrive in chunks that are painful to reassemble client-side),
   // so we silently disable streaming if the caller included tools.
-  const wantsStream = payload.stream === true && !Array.isArray(payload.tools);
+  const wantsStream = payload.stream === true && (!Array.isArray(payload.tools) || streamTools);
 
   let last = null;
   let lastText = null;
@@ -557,8 +562,11 @@ export default async function handler(req) {
   const trail = () => attempts.join(",") || "none";
   for (const desc of order) {
     try {
-      const r = await callUpstream(desc, payload, { profile, stream: wantsStream, callerEffort });
       const isMessages = desc.kind === "messages";
+      // toChatSse only carries text, so a tool turn on the Messages upstream
+      // answers in one JSON piece; the client reads either shape.
+      const streamThis = wantsStream && !(isMessages && Array.isArray(payload.tools));
+      const r = await callUpstream(desc, payload, { profile, stream: streamThis, callerEffort });
       // The Messages upstream answers in its own shape. Translate it here so
       // everything below this point (headers, timing, passthrough) is shared.
       //   - refusal on a non-streaming call: a decline from this model's
@@ -569,7 +577,7 @@ export default async function handler(req) {
       //     upstream would reject, and the Gemini entries take the original
       //     OpenAI shape natively. The body is logged below either way.
       let translatedText = null;
-      if (isMessages && r.status >= 200 && r.status < 300 && !wantsStream) {
+      if (isMessages && r.status >= 200 && r.status < 300 && !streamThis) {
         const raw = await r.res.text();
         let msg = null;
         try { msg = JSON.parse(raw); } catch {}
@@ -597,7 +605,7 @@ export default async function handler(req) {
         // but no duration. One line here makes p50/p90 answerable from logs.
         console.log(JSON.stringify({
           evt: "chat_upstream", profile, ok: true, upstream: desc.label, model: desc.model,
-          ttft_ms: r.ttftMs, stream: wantsStream,
+          ttft_ms: r.ttftMs, stream: streamThis,
           tools: Array.isArray(payload.tools) ? payload.tools.length : 0,
           attempts: trail(),
         }));
@@ -611,7 +619,7 @@ export default async function handler(req) {
         // origin setup need this — make it explicit so devtools always
         // sees the LLM timings.
         outHeaders.set("Access-Control-Expose-Headers", "Server-Timing, X-Chat-Upstream, X-Chat-Attempts");
-        if (wantsStream) {
+        if (streamThis) {
           // Streaming path — TTFT is the only number we know yet; total
           // generation time isn't available until the stream ends, which
           // is past our return point. Emit ttft only.
