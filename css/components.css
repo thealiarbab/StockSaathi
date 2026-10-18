@@ -5870,3 +5870,8 @@ body.chat-app { overflow: hidden; }
 .cc-chart.is-up figcaption span, .cc-chart.is-up svg { color: var(--positive); }
 .cc-chart.is-down figcaption span, .cc-chart.is-down svg { color: var(--negative); }
 @media (max-width: 520px) { .cc-tool-btn span { display: none; } .cc-tool-btn { width: 36px; padding: 0; justify-content: center; } }
+
+/* The page-enter animation leaves a transform on <main>, which turns the
+   chat layout's position: fixed into "relative to main" and pushed the
+   composer below the fold again. No transform on the chat page. */
+.main.main-chat { transform: none !important; animation: none !important; }
