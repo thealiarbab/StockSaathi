@@ -85,7 +85,7 @@ export function renderRegister(main) {
                 <span class="px">@</span>
                 <input id="r-username" name="username" type="text" required autocomplete="username" placeholder="yourhandle" maxlength="24" autocapitalize="none" spellcheck="false" />
               </div>
-              <div class="muted text-xs" style="margin-top: 4px;">3-24 chars. Letters, numbers, underscores, dots.</div>
+              <div class="muted text-xs" id="r-username-hint" style="margin-top: 4px;">3-24 chars. Letters, numbers, underscores, dots.</div>
             </div>
             <div class="field">
               <label class="label" for="r-email">Email</label>
@@ -134,6 +134,35 @@ export function renderRegister(main) {
     // see what swipe-input / autocorrect actually typed.
     wirePasswordToggle(main, "#r-pw", "#r-pw-toggle");
     wireGoogleButton(main, (msg) => showErr(msg), finishSignIn, "signup_with");
+
+    // Start loading the database client now, not when Create account is
+    // pressed: the sign-up call used to wait for it first.
+    import("../db/supabase.js").then(m => m.sb()).catch(() => {});
+
+    // "Username already taken" showed 60 times on 18 Oct, each only after
+    // pressing Create account. Check as soon as the student leaves the box.
+    const unameInput = main.querySelector("#r-username");
+    const unameHint = main.querySelector("#r-username-hint");
+    const UNAME_HELP = unameHint.textContent;
+    let unameSeq = 0;
+    unameInput.addEventListener("blur", async () => {
+      const u = unameInput.value.trim().replace(/\s+/g, "_").replace(/[^a-z0-9_.]/gi, "").slice(0, 24).toLowerCase();
+      const mine = ++unameSeq;
+      unameHint.textContent = UNAME_HELP;
+      unameHint.classList.remove("error-text");
+      if (validateUsername(u)) return;
+      try {
+        const { sb } = await import("../db/supabase.js");
+        const client = await sb();
+        if (!client) return;
+        const { data } = await client.rpc("profile_by_username", { p_username: u });
+        if (mine !== unameSeq) return;
+        if (Array.isArray(data) && data.length > 0) {
+          unameHint.textContent = `@${u} is already taken. Try another, like ${u}${Math.floor(10 + Math.random() * 89)}.`;
+          unameHint.classList.add("error-text");
+        }
+      } catch {}
+    });
 
     main.querySelector("#r-name").value = typed.name;
     main.querySelector("#r-username").value = typed.username;
@@ -194,6 +223,9 @@ export function renderRegister(main) {
 
       btn.disabled = true;
       btn.textContent = "Creating account…";
+      // Supabase sends the email inside the sign-up call, so it can take a
+      // few seconds; say what is happening so nobody taps again.
+      const slowTimer = setTimeout(() => { if (btn.disabled) btn.textContent = "Sending your code…"; }, 3000);
       // A domain that doesn't exist can never receive the code (and every
       // bounce hurts delivery for everyone else). Unknown = let it through.
       const domainState = await checkEmailDomain(email);
@@ -215,7 +247,7 @@ export function renderRegister(main) {
         const timeoutPromise = new Promise((_, reject) =>
           setTimeout(() => reject(new Error("Sign-up is taking too long — check your connection and try again.")), 15000)
         );
-        const res = await Promise.race([signupPromise, timeoutPromise]);
+        const res = await Promise.race([signupPromise, timeoutPromise]).finally(() => clearTimeout(slowTimer));
 
         if (res && res.needsConfirmation) {
           // Switch to OTP entry
@@ -250,7 +282,13 @@ export function renderRegister(main) {
       }
     });
 
-    function showErr(msg) { errBox.innerHTML = `<div class="error-msg">${escapeHtml(msg)}</div>`; }
+    // On a phone the error box can sit below the keyboard or off screen; a
+    // student who sees nothing happen taps again (92 rapid repeat taps on
+    // Create account, 18 Oct). Bring it into view.
+    function showErr(msg) {
+      errBox.innerHTML = `<div class="error-msg">${escapeHtml(msg)}</div>`;
+      try { errBox.scrollIntoView({ block: "center", behavior: "smooth" }); } catch {}
+    }
   }
 
   function renderOtp() {

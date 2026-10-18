@@ -167,7 +167,14 @@ export function renderLogin(main) {
         btn.textContent = "Log in";
         return;
       }
-      errBox.innerHTML = `<div class="error-msg">${escapeHtml(err.message)}</div>`;
+      // Wrong password was the top login error (44 on 18 Oct). Put the way
+      // out inside the message instead of a small link above the box.
+      const handle = main.querySelector("#l-handle").value.trim();
+      const reset = /incorrect email or password/i.test(err.message || "")
+        ? `<a class="btn btn-ghost btn-sm" style="margin-top:8px;" href="/reset-password-request${handle.includes("@") ? "?email=" + encodeURIComponent(handle) : ""}">Forgot password? Reset it by email →</a>`
+        : "";
+      errBox.innerHTML = `<div class="error-msg">${escapeHtml(err.message)}${reset ? "<br>" + reset : ""}</div>`;
+      try { errBox.scrollIntoView({ block: "center", behavior: "smooth" }); } catch {}
       btn.disabled = false;
       btn.textContent = "Log in";
     }

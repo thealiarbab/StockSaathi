@@ -23,7 +23,8 @@ let anchorPerf = 0;       // performance.now() at sync midpoint
 let anchorServerMs = 0;   // server's Date.now() at same midpoint
 let synced = false;
 let syncing = null;
-let lastSyncAt = 0;       // performance.now() at sync completion
+let lastSyncAt = 0;
+let slowRetries = 0;     // re-syncs scheduled after a slow sample       // performance.now() at sync completion
 
 async function doSync() {
   const beforePerf = performance.now();
@@ -33,6 +34,16 @@ async function doSync() {
     if (!res.ok) throw new Error("http_" + res.status);
     const data = await res.json();
     if (typeof data?.ms !== "number") throw new Error("no_ms");
+    // A slow round trip makes the midpoint guess unreliable: during app
+    // boot this request queues behind the stock-list download and took
+    // 13.8 s on average (18 Oct 2026), i.e. up to ~7 s of clock error.
+    // Keep a slow sample only if there is nothing better, and try again
+    // shortly once the phone is less busy.
+    const rtt = afterPerf - beforePerf;
+    if (rtt > 1500) {
+      if (slowRetries++ < 3) setTimeout(syncServerTime, 20000);
+      if (synced) return;
+    }
     // Assume symmetric request/response latency: at the midpoint of
     // our local perf interval, the server's wall-clock was data.ms.
     anchorPerf = (beforePerf + afterPerf) / 2;

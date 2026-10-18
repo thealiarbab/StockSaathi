@@ -13,7 +13,7 @@ from urllib.parse import urlparse, parse_qs, quote as url_quote
 
 import os as _os_yp, sys as _sys_yp
 _sys_yp.path.insert(0, _os_yp.path.dirname(_os_yp.path.abspath(__file__)))
-from _yahoo_price import pick_price  # noqa: E402
+from _yahoo_price import pick_price, yahoo_get  # noqa: E402
 from _prev_close import apply_eod_prev  # noqa: E402
 
 
@@ -43,13 +43,11 @@ def fetch_one(symbol):
     for ticker, base in ((t, b) for t in tickers for b in HOSTS):
         try:
             url = f"{base}/{url_quote(ticker, safe='.')}?interval=1d&range=5d"
-            req = urllib.request.Request(url, headers={
+            raw = yahoo_get(url, {
                 "User-Agent": UA,
                 "Accept": "application/json,text/plain,*/*",
                 "Accept-Language": "en-US,en;q=0.9",
-            })
-            with urllib.request.urlopen(req, timeout=8) as r:
-                raw = r.read()
+            }, 8)
             data = json.loads(raw)
             result = (data.get("chart") or {}).get("result") or [{}]
             if not result:
