@@ -5836,3 +5836,33 @@ body.chat-app { overflow: hidden; }
 .cc-messages.chat-messages::-webkit-scrollbar-thumb, .cc-list::-webkit-scrollbar-thumb { background: transparent; border-radius: 8px; }
 .cc-messages.chat-messages:hover::-webkit-scrollbar-thumb, .cc-list:hover::-webkit-scrollbar-thumb { background: var(--border-strong); }
 .cc-starter { max-width: 100%; text-align: left; }
+
+/* Chart reading: button in the box, chart card on the student's message. */
+.cc-tool-btn {
+  flex: 0 0 auto; align-self: flex-end;
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 36px; padding: 0 12px;
+  border-radius: var(--r-full); border: 1px solid var(--border);
+  background: transparent; color: var(--text-muted);
+  font: inherit; font-size: var(--text-sm); font-weight: 500; cursor: pointer;
+}
+.cc-tool-btn:hover { color: var(--text-strong); background: var(--bg-soft); }
+.cc-tool-btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.cc-user-col { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; max-width: min(78%, 560px); }
+.cc-user-col .cc-bubble { max-width: 100%; }
+.cc-chart {
+  margin: 0; width: 320px; max-width: 100%;
+  padding: 10px 12px; border-radius: 12px;
+  background: var(--surface); border: 1px solid var(--border);
+}
+.cc-chart figcaption { display: flex; align-items: baseline; gap: 8px; font-size: var(--text-sm); color: var(--text-strong); }
+.cc-chart figcaption b { font-weight: 600; color: var(--text); }
+.cc-chart figcaption span { margin-left: auto; font-weight: 700; }
+.cc-chart svg { display: block; width: 100%; height: 72px; margin: 8px 0 6px; }
+.cc-chart-foot { display: flex; justify-content: space-between; font-size: var(--text-xs); }
+.cc-chart-foot em { font-style: normal; color: var(--text-dim); }
+.cc-chart-foot a { color: var(--brand); font-weight: 600; text-decoration: none; }
+.cc-chart-foot a:hover { text-decoration: underline; }
+.cc-chart.is-up figcaption span, .cc-chart.is-up svg { color: var(--positive); }
+.cc-chart.is-down figcaption span, .cc-chart.is-down svg { color: var(--negative); }
+@media (max-width: 520px) { .cc-tool-btn span { display: none; } .cc-tool-btn { width: 36px; padding: 0; justify-content: center; } }

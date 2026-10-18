@@ -5,7 +5,7 @@
 // =============================================================================
 
 import { getState } from "../state.js";
-import { getInstrument } from "../data/universe.js";
+import { getInstrument, STOCKS } from "../data/universe.js";
 import { SYSTEM_PROMPT, matchTemplate, isOffTopic, offTopicRedirect, STARTER_QUESTIONS, runtimeFacts, NO_TOOLS_NOTE } from "../coach/persona.js";
 import { marketStatus } from "../data/prices.js";
 import { runAgent, streamChat, needsLiveData, logChatTurn, stripToolCallScaffolding, isToolCallOnly, looksLikeLookupOffer, looksLikeFetchPromise, looksLikePricelessList, isDiscoveryQuery, scrubAdvice, looksHinglish, replyLanguageMismatch, prefetchNewsBlock, unsourcedFigures, figureSources, dropFigureSentences } from "../coach/agent.js";
@@ -247,6 +247,10 @@ export function renderChat(main) {
                   maxlength="2000"
                   aria-label="Message Saathi"
                 ></textarea>
+                <button class="cc-tool-btn" id="cc-chart-btn" type="button" title="Ask Saathi to read a stock chart" aria-label="Read a stock chart">
+                  <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 14 4-4 3 3 5-6"/></svg>
+                  <span>Chart</span>
+                </button>
                 ${m_pending
                   ? `<button class="composer-btn is-stop" id="chat-stop" type="button" title="Stop generating" aria-label="Stop generating">&#9632;</button>`
                   : `<button class="composer-btn" id="chat-send" type="submit" title="Send" aria-label="Send message">&#8593;</button>`}
@@ -324,6 +328,13 @@ export function renderChat(main) {
       jump.hidden = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight < 160;
     }, { passive: true });
     jump.addEventListener("click", () => { messagesEl.scrollTop = messagesEl.scrollHeight; });
+
+    main.querySelector("#cc-chart-btn")?.addEventListener("click", () => {
+      if (!/chart/i.test(input.value)) input.value = "Read the 3-month chart of " + input.value.trimStart();
+      fit();
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+    });
 
     main.querySelectorAll("[data-q]").forEach(btn => {
       btn.addEventListener("click", async () => {
@@ -545,7 +556,7 @@ let cleanupSide = null;
 function renderBubble(m) {
   const streamAttr = m.streaming ? ` data-streaming="1"` : "";
   if (m.role === "user") {
-    return `<div class="cc-row cc-row-user"${streamAttr}><div class="cc-bubble cc-user"><span class="msg-body">${escapeHtml(m.text)}</span></div></div>`;
+    return `<div class="cc-row cc-row-user"${streamAttr}><div class="cc-user-col">${m.chart ? chartCard(m.chart) : ""}<div class="cc-bubble cc-user"><span class="msg-body">${escapeHtml(m.text)}</span></div></div></div>`;
   }
   const actions = m.streaming || m.status || !m.text ? "" : `
     <div class="cc-actions-row">
@@ -599,6 +610,103 @@ async function fillStarters(main, ask) {
   if (!main.contains(box)) return;
   box.innerHTML = qs.map(q => `<button type="button" class="cc-starter" data-q="${escapeAttr(q)}">${escapeHtml(q)}</button>`).join("");
   box.querySelectorAll("[data-q]").forEach(b => b.addEventListener("click", () => ask(b.dataset.q)));
+}
+
+// ---- Chart reading -------------------------------------------------------
+// "Read the 3-month chart of TCS": the app fetches the daily NSE closes
+// itself, works out the plain facts (move, range, averages, biggest day,
+// volume) and puts them in the question, so Saathi reads the real chart and
+// cannot guess. The chart is attached to the student's message as a card.
+const CHART_RE = /\b(chart|charts|graph|trend|technicals?|support|resistance|moving averages?)\b/i;
+const CHART_SKIP = /^(read|the|a|an|month|months|mo|year|years|yr|week|weeks|chart|charts|of|for|me|my|show|explain|stock|stocks|share|shares|price|trend|graph|and|what|is|how|does|do|look|looks|last|past|this|in|on|please|can|you|give|technical|technicals|support|resistance|moving|average|averages|day|days|daily|analysis|analyse|analyze)$/i;
+function chartSymbol(text) {
+  const words = String(text).match(/[A-Za-z][A-Za-z0-9&\-]{1,19}/g) || [];
+  for (const w of words) {
+    if (CHART_SKIP.test(w)) continue;
+    const inst = getInstrument(w.toUpperCase());
+    if (inst && inst.symbol && !inst._stub) return inst.symbol;
+  }
+  // By company name: "Infosys" -> INFY, "HDFC Bank" -> HDFCBANK.
+  const t = String(text).toLowerCase();
+  let best = null;
+  for (const st of STOCKS || []) {
+    const name = String(st.name || "").toLowerCase().replace(/\b(ltd|limited|corporation|industries|company|india)\b\.?/g, "").replace(/\s+/g, " ").trim();
+    if (name.length >= 3 && t.includes(name) && (!best || name.length > best.n)) best = { sym: st.symbol, n: name.length };
+  }
+  return best ? best.sym : null;
+}
+function chartRange(text) {
+  const m = String(text).match(/(\d{1,2})\s*-?\s*(week|wk|month|mo|year|yr)/i);
+  if (!m) return { range: "3mo", label: "3-month" };
+  const n = +m[1], u = m[2].toLowerCase();
+  if (u.startsWith("w") || (u.startsWith("mo") && n <= 1)) return { range: "1mo", label: "1-month" };
+  if (u.startsWith("mo") && n <= 3) return { range: "3mo", label: "3-month" };
+  if (u.startsWith("mo") && n <= 6) return { range: "6mo", label: "6-month" };
+  return { range: "1y", label: "1-year" };
+}
+async function chartContext(text, messages) {
+  if (!CHART_RE.test(text)) return "";
+  const sym = chartSymbol(text);
+  if (!sym) return "";
+  const { range, label } = chartRange(text);
+  let bars = [];
+  try {
+    const r = await fetch(`/api/history?symbol=${encodeURIComponent(sym)}&range=${range}&interval=1d`);
+    const j = await r.json();
+    bars = (j.ohlc || []).filter(b => b && b.c > 0 && b.t);
+  } catch { return ""; }
+  if (bars.length < 15) return "";
+  const rs = (p) => (p / 100).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const day = (t) => new Date(t).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "Asia/Kolkata" });
+  const first = bars[0], last = bars[bars.length - 1];
+  const chg = (last.c - first.c) / first.c * 100;
+  let hi = bars[0], lo = bars[0], big = null, ups = 0;
+  for (let i = 0; i < bars.length; i++) {
+    if (bars[i].h > hi.h) hi = bars[i];
+    if (bars[i].l < lo.l) lo = bars[i];
+    if (i) {
+      const d = (bars[i].c - bars[i - 1].c) / bars[i - 1].c * 100;
+      if (d > 0) ups++;
+      if (!big || Math.abs(d) > Math.abs(big.d)) big = { d, t: bars[i].t };
+    }
+  }
+  const avg = (n) => { const xs = bars.slice(-n); return xs.reduce((a, b) => a + b.c, 0) / xs.length; };
+  const a20 = avg(20), a50 = bars.length >= 50 ? avg(50) : null;
+  const vol = (xs) => xs.reduce((a, b) => a + (b.v || 0), 0) / Math.max(1, xs.length);
+  const volRatio = vol(bars.slice(-5)) / Math.max(1, vol(bars.slice(0, -5)));
+  const fromHi = (last.c - hi.h) / hi.h * 100;
+  const u = [...messages].reverse().find(m => m.role === "user");
+  if (u) {
+    const step = Math.max(1, Math.floor(bars.length / 80));
+    u.chart = {
+      sym, label,
+      pts: bars.filter((_, i) => i % step === 0 || i === bars.length - 1).map(b => b.c),
+      chg: +chg.toFixed(2), last: rs(last.c), from: day(first.t), to: day(last.t),
+    };
+  }
+  return `
+
+CHART DATA: ${sym}, ${label} daily chart from NSE, ${day(first.t)} to ${day(last.t)}, ${bars.length} trading sessions.
+- First close (${day(first.t)}): ₹${rs(first.c)}. Latest close (${day(last.t)}): ₹${rs(last.c)}. Change over the period: ${chg >= 0 ? "+" : ""}${chg.toFixed(2)}%.
+- Highest price: ₹${rs(hi.h)} on ${day(hi.t)}. Lowest price: ₹${rs(lo.l)} on ${day(lo.t)}. The latest close is ${Math.abs(fromHi).toFixed(1)}% below the period high.
+- 20-day average close: ₹${rs(a20)}; the latest close is ${last.c >= a20 ? "above" : "below"} it.${a50 ? ` 50-day average close: ₹${rs(a50)}; the latest close is ${last.c >= a50 ? "above" : "below"} it.` : ""}
+- Up days: ${ups} of ${bars.length - 1}. Biggest one-day move: ${big.d >= 0 ? "+" : ""}${big.d.toFixed(2)}% on ${day(big.t)}.
+- Average volume in the last 5 sessions is ${volRatio.toFixed(1)}x the period's average.
+
+HOW TO ANSWER: this is the chart the student is looking at; it is attached above their message. Read it for them using only these numbers. Say what the overall shape was (rise, fall, sideways, or a dip and recovery), where the high and low came, and what being above or below the averages means, in plain words for a teenager, in 4 to 6 short sentences. Do not say you cannot see the chart, do not offer to look anything up, no predictions, no buy or sell views, no price targets, and do not end with a question about what happens next.`;
+}
+
+function chartCard(c) {
+  const pts = c.pts || [];
+  if (pts.length < 2) return "";
+  const W = 300, H = 72, min = Math.min(...pts), max = Math.max(...pts), span = max - min || 1;
+  const xy = pts.map((v, i) => `${(i / (pts.length - 1) * W).toFixed(1)},${(H - 4 - (v - min) / span * (H - 8)).toFixed(1)}`);
+  const up = c.chg >= 0;
+  return `<figure class="cc-chart ${up ? "is-up" : "is-down"}" aria-label="${escapeAttr(c.sym)} ${escapeAttr(c.label || "")} chart, ${c.chg}% from ${escapeAttr(c.from)} to ${escapeAttr(c.to)}">
+    <figcaption><strong>${escapeHtml(c.sym)}</strong>${c.last ? `<b>₹${escapeHtml(c.last)}</b>` : ""}<span>${up ? "+" : ""}${c.chg}%</span></figcaption>
+    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${xy.join(" ")}" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>
+    <div class="cc-chart-foot"><em>${escapeHtml(c.from)} – ${escapeHtml(c.to)}</em><a href="/stocks/${encodeURIComponent(c.sym)}">Full chart</a></div>
+  </figure>`;
 }
 
 // "Checking TCS price…" while tools run: a pulsing dot, not a reply.
@@ -866,7 +974,14 @@ async function sendAndReply(userText) {
 
   const dossier = await buildDossier();
 
-  const wantTools = needsLiveData(userText, chatLog.slice(-8, -1));
+  // A chart question carries its own data (fetched here, attached to the
+  // question), so it skips the tool round and is answered from that data.
+  const chartBlock = await chartContext(userText, ownerMessages);
+  if (chartBlock) {
+    const lastUser = [...messages].reverse().find(m => m.role === "user");
+    if (lastUser) lastUser.content = `${lastUser.content}\n\n[The app attached this chart to the question.]${chartBlock}`;
+  }
+  const wantTools = !chartBlock && needsLiveData(userText, chatLog.slice(-8, -1));
   // C28: the general language rule in runtimeFacts still lost to English
   // replies; a line about THIS message, last in the prompt, holds better.
   const turnLang = looksHinglish(userText)
