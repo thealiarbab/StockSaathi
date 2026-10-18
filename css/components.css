@@ -5740,6 +5740,10 @@ button.ss-pill-x:hover { border-color: var(--brand); }
   max-width: none; margin: 0; gap: 0;
   grid-template-columns: 260px minmax(0, 1fr);
   height: calc(100dvh - var(--nav-h));
+  /* Pinned to the visible area under the nav: sized as a full-height block
+     inside the padded page, the composer sat below the fold and the page
+     itself could not scroll to it. */
+  position: fixed; top: var(--nav-h); left: 0; right: 0; bottom: 0;
 }
 .cc-side {
   position: static; height: 100%; max-height: none;
@@ -5813,7 +5817,7 @@ button.ss-pill-x:hover { border-color: var(--brand); }
 .cc-jump { bottom: 110px; }
 
 @media (max-width: 900px) {
-  .cc.cc-has-side { display: block; height: calc(100dvh - var(--nav-h) - 76px - env(safe-area-inset-bottom)); }
+  .cc.cc-has-side { display: block; height: calc(100dvh - var(--nav-h) - 76px - env(safe-area-inset-bottom)); position: static; }
   .cc-main { height: 100%; }
   .cc-side { position: fixed; height: auto; border-right: 0; border-radius: 0; background: var(--bg); }
   .cc-has-side .cc-head { padding: 8px 12px; gap: 10px; border-bottom: 1px solid var(--divider); }
