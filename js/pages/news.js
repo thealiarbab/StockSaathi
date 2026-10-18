@@ -2,18 +2,24 @@
 // NEWS — Real-time Indian market news with sentiment + AI retail-angle tag.
 // =============================================================================
 
-import { getNews, fmtRelativeTime, labelSentiment } from "../data/news.js";
+import { getNews, fmtRelativeTime, labelSentiment, withUtm } from "../data/news.js";
 import { track } from "../features/track.js";
 import { getState, subscribe } from "../state.js";
 import { aiLang } from "../features/aiLang.js";
 
 let filter = "all";    // all | holdings | watchlist
 let newsCache = [];
+// Cards rendered so far. /api/news returns a few hundred items; drawing all
+// of them at once is slow on phones, so the page shows a page at a time.
+const PAGE_SIZE = 30;
+let shownCount = PAGE_SIZE;
+let observer = null;
 let loading = true;
 let _newsCancel = { cancelled: false };
 // AI-tag memo: { [headlineHash]: { sentiment, tldr, loading } }. Keyed on
 // the headline text itself so duplicates across sources dedupe naturally.
 const aiTags = new Map();
+let aiTagsLang = null;
 let aiQueueRunning = 0;
 // Concurrency = 4. Now that we ONLY queue items the user is actually
 // staring at (viewport-strict observer + 350 ms dwell debounce + abort
@@ -33,6 +39,44 @@ const debounceTimers = new Map();
 const aborters = new Map();
 const VIEWPORT_DWELL_MS = 350;
 
+// Saathi takes this browser has already seen, so a reload shows them with no
+// request at all. /api/news also attaches every take stored server-side, so
+// a new visitor gets them instantly too; this covers the ≤10 min before the
+// CDN copy of the feed picks up a take generated a moment ago.
+const TAKES_LS = "ss_news_takes_v1";
+const TAKES_MAX = 800;
+function loadStoredTakes() {
+  try { return JSON.parse(localStorage.getItem(TAKES_LS) || "{}") || {}; } catch { return {}; }
+}
+function storeTake(hk, sentiment, tldr) {
+  try {
+    const all = loadStoredTakes();
+    all[langTag() + hk] = { s: sentiment, t: tldr, at: Date.now() };
+    const keys = Object.keys(all);
+    if (keys.length > TAKES_MAX) {
+      keys.sort((a, b) => (all[a].at || 0) - (all[b].at || 0));
+      for (const k of keys.slice(0, keys.length - TAKES_MAX)) delete all[k];
+    }
+    localStorage.setItem(TAKES_LS, JSON.stringify(all));
+  } catch {}
+}
+function langTag() { return aiLang() ? "hi:" : ""; }
+
+// Fill aiTags from the feed's server-side takes and this browser's store.
+function seedTakes(items) {
+  const stored = loadStoredTakes();
+  const tag = langTag();
+  for (const n of items) {
+    const hk = headlineKey(n.headline);
+    if (aiTags.get(hk)?.tldr) continue;
+    if (n.take?.tldr) {
+      aiTags.set(hk, { sentiment: n.take.sentiment || "neutral", tldr: n.take.tldr, loading: false });
+    } else if (stored[tag + hk]?.t) {
+      aiTags.set(hk, { sentiment: stored[tag + hk].s || "neutral", tldr: stored[tag + hk].t, loading: false });
+    }
+  }
+}
+
 export function renderNews(main) {
   _newsCancel.cancelled = true;
   _newsCancel = { cancelled: false };
@@ -46,11 +90,16 @@ export function renderNews(main) {
   window.addEventListener("ss:navigate", onLeave, { once: true });
 }
 
-async function loadNews(main, token) {
+async function loadNews(main, token, force = false) {
   try {
-    const items = await getNews({ limit: 40 });
+    const items = await getNews({ limit: 500, lang: aiLang() ? "hi" : "", force });
     if (token.cancelled) return;
+    // Hinglish takes and English takes are different texts under the same
+    // headline; drop what's held if the language changed since last load.
+    if (aiTagsLang !== langTag()) { aiTags.clear(); aiTagsLang = langTag(); }
+    seedTakes(items);
     newsCache = items;
+    shownCount = PAGE_SIZE;
   } catch (e) {
     if (token.cancelled) return;
     console.warn("news load failed:", e);
@@ -92,7 +141,7 @@ function render(main) {
         <span class="data-badge"><span class="dot ${loading ? "offline" : ""}"></span> ${loading ? "Loading…" : "Live from RSS"}</span>
         <button class="btn btn-ghost btn-sm" id="refresh-btn">↻ Refresh</button>
       </div>
-      <p class="muted">Headlines from Economic Times, LiveMint, Business Standard, BusinessLine and CNBC-TV18. Click a story to open the original article.</p>
+      <p class="muted">Headlines from Economic Times, LiveMint, Business Standard, BusinessLine, CNBC-TV18, NDTV Profit, Business Today and The Hindu. Click a story to open the original article.</p>
     </div>
 
     <div class="flex gap-2 wrap" style="margin-bottom: var(--sp-4);">
@@ -107,28 +156,37 @@ function render(main) {
       ? `<div class="news-grid compact">${[1,2,3,4].map(() => `<div class="news-item"><div class="skeleton" style="height: 18px; width: 80%;"></div><div class="skeleton" style="height: 14px; width: 100%; margin-top: 12px;"></div><div class="skeleton" style="height: 14px; width: 60%; margin-top: 8px;"></div></div>`).join("")}</div>`
       : (visible.length === 0
         ? `<div class="empty-state"><span class="emoji">📰</span><h3>${filter === "all" ? "Couldn't load news" : filter === "holdings" ? "No news about your holdings" : "No news about your watchlist"}</h3><p>${filter === "all" ? "Market news feeds are temporarily unreachable. Try refreshing in a minute." : filter === "holdings" ? (holdings.length ? "None of your holdings are in the latest news cycle." : "Buy some stocks first — news will filter here automatically.") : (wl.length ? "None of your watchlist stocks are in the latest news cycle." : "Add stocks to your watchlist (★ icon) — news will filter here automatically.")}</p></div>`
-        : `<div class="news-grid compact">${visible.map(renderNewsItem).join("")}</div>`)
+        : `<div class="news-grid compact">${visible.slice(0, shownCount).map(renderNewsItem).join("")}</div>
+           ${visible.length > shownCount
+             ? `<div style="text-align: center; margin-top: var(--sp-4);"><button class="btn btn-ghost" id="news-more-btn">Show more (${visible.length - shownCount} left)</button></div>`
+             : ""}`)
     }
   `;
 
   main.querySelectorAll("[data-filter]").forEach(btn => {
-    btn.addEventListener("click", () => { filter = btn.dataset.filter; render(main); });
+    btn.addEventListener("click", () => { filter = btn.dataset.filter; shownCount = PAGE_SIZE; render(main); });
+  });
+  main.querySelector("#news-more-btn")?.addEventListener("click", () => {
+    shownCount += PAGE_SIZE;
+    render(main);
   });
   main.querySelector("#refresh-btn")?.addEventListener("click", () => {
     loading = true;
     render(main);
-    loadNews(main, _newsCancel);
+    loadNews(main, _newsCancel, true);
   });
 
   main.querySelectorAll("[data-newsurl]").forEach(el => {
     el.addEventListener("click", (e) => {
       e.preventDefault();
-      const url = el.dataset.newsurl;
+      const url = withUtm(el.dataset.newsurl);
       // The headline, not the URL, is what the coach can talk about.
       track("news_click", el.getAttribute("aria-label") || url, {
         host: (() => { try { return new URL(url).hostname; } catch { return null; } })(),
       });
-      if (url && url !== "#") window.open(url, "_blank", "noopener,noreferrer");
+      // noopener, not noreferrer: the publisher also gets our origin as the
+      // Referer (the site-wide policy sends only https://stocksaathi.co.in/).
+      if (url && url !== "#") window.open(url, "_blank", "noopener");
     });
   });
 
@@ -143,8 +201,11 @@ function render(main) {
   //     queue if not yet running, abort the fetch if already in flight.
   //   - cards remain observed until their fetch SUCCEEDS, so a scroll-
   //     back-up triggers a fresh queue.
-  const visibleMap = new Map(visible.map((n, i) => [headlineKey(n.headline), n]));
-  const observer = new IntersectionObserver((entries) => {
+  const visibleMap = new Map(visible.slice(0, shownCount).map(n => [headlineKey(n.headline), n]));
+  // Each render replaces the cards, so the old observer only watches
+  // detached nodes; drop it rather than letting them pile up.
+  if (observer) observer.disconnect();
+  observer = new IntersectionObserver((entries) => {
     for (const entry of entries) {
       const el = entry.target;
       const hk = el.dataset.aiHk;
@@ -253,6 +314,7 @@ async function fetchAiTag({ main, n, hk, ctrl }) {
     const j = await r.json();
     if (!j?.tldr) throw new Error("no_tldr");
     aiTags.set(hk, { sentiment: j.sentiment || "neutral", tldr: j.tldr, loading: false });
+    storeTake(hk, j.sentiment || "neutral", j.tldr);
     patchNewsItem(main, hk);
   } catch (e) {
     clearTimeout(timer);

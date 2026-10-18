@@ -1,6 +1,8 @@
 // =============================================================================
-// NEWS & SENTIMENT — Real RSS feeds via rss2json.com (free, CORS-enabled).
-// Sources: Economic Times, LiveMint, Business Standard, BusinessLine, CNBC-TV18.
+// NEWS & SENTIMENT — /api/news (handlers/news.py) reads ~16 Indian market RSS
+// feeds server-side, CDN-cached, and returns a few hundred recent headlines
+// with any Saathi take already generated. If it is down, the old path below
+// (6 feeds through rss2json.com, ~10 items each) still fills the page.
 // Sentiment is a keyword scorer.
 // =============================================================================
 
@@ -32,8 +34,25 @@ export function scoreSentiment(text) {
   if (neg >= pos + 2) return "bear";
   return "neutral";
 }
+// Accepts both spellings: the keyword scorer says bull/bear, the Saathi take
+// says bullish/bearish. Only the short ones used to match, so a bearish take
+// showed a red pill reading "Neutral".
 export function labelSentiment(s) {
-  return s === "bull" ? "Bullish" : s === "bear" ? "Bearish" : "Neutral";
+  return s === "bull" || s === "bullish" ? "Bullish" : s === "bear" || s === "bearish" ? "Bearish" : "Neutral";
+}
+
+// Every outbound news link carries our UTM tags so publishers see the visit
+// came from us. Leaves an existing utm_source alone, works with or without a
+// query string or #fragment, and returns non-http values ("#") untouched.
+export function withUtm(url) {
+  if (!url || !/^https?:\/\//i.test(url)) return url;
+  try {
+    const u = new URL(url);
+    if (u.searchParams.has("utm_source")) return url;
+    u.searchParams.set("utm_source", "stocksaathi.co.in");
+    u.searchParams.set("utm_medium", "referral");
+    return u.toString();
+  } catch { return url; }
 }
 export function fmtRelativeTime(ms) {
   const diff = Math.max(0, Date.now() - ms);
@@ -46,8 +65,9 @@ export function fmtRelativeTime(ms) {
   return `${days}d ago`;
 }
 
-// Cache feed results briefly so navigating doesn't re-hammer RSS
-const _cache = { ts: 0, items: [] };
+// Cache feed results briefly so navigating doesn't re-hammer RSS. One slot
+// per language, because /api/news attaches that language's Saathi takes.
+const _cache = new Map();   // "<lang>:full" / "<lang>:small" -> { ts, items }
 const CACHE_TTL_MS = 90_000;
 
 /**
@@ -126,46 +146,85 @@ async function fetchOneFeed({ url, source }) {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
     fetch(RSS2JSON + encodeURIComponent(url), { signal: ctrl.signal })
-      .then(r => { clearTimeout(t); return r.ok ? r.json() : null; })
+      .then(r => { clearTimeout(t); return r.ok ? r.json() : r.text().then(() => null); })
       .then(j => {
         if (!j || j.status !== "ok" || !Array.isArray(j.items)) { resolve([]); return; }
-        const items = j.items.slice(0, 8).map((it, i) => {
-          const headline = stripHtml(it.title || "");
-          const summary = stripHtml(it.description || it.content || "").slice(0, 280);
-          const ts = it.pubDate ? new Date(it.pubDate).getTime() : Date.now();
-          const fullText = headline + " " + summary;
-          return {
-            id: `${source}_${i}_${ts}`,
-            headline,
-            summary,
-            source,
-            url: it.link || "#",
-            ts,
-            hoursAgo: Math.round((Date.now() - ts) / 3_600_000),
-            symbols: inferSymbols(fullText),
-            sentiment: scoreSentiment(fullText),
-            body: summary,
-            thumbnail: it.thumbnail || (it.enclosure?.link) || null,
-            author: it.author || null,
-          };
-        }).filter(x => x.headline);
+        const items = j.items.map((it, i) => toItem({
+          headline: stripHtml(it.title || ""),
+          summary: stripHtml(it.description || it.content || "").slice(0, 280),
+          source,
+          url: it.link,
+          ts: it.pubDate ? new Date(it.pubDate).getTime() : Date.now(),
+          thumbnail: it.thumbnail || (it.enclosure?.link) || null,
+          author: it.author || null,
+        }, i)).filter(x => x.headline);
         resolve(items);
       })
       .catch(() => { clearTimeout(t); resolve([]); });
   });
 }
 
+function toItem({ headline, summary, source, url, ts, thumbnail, author = null, take = null }, i) {
+  const fullText = headline + " " + summary;
+  return {
+    id: `${source}_${i}_${ts}`,
+    headline,
+    summary,
+    source,
+    url: withUtm(url || "#"),
+    ts,
+    hoursAgo: Math.round((Date.now() - ts) / 3_600_000),
+    symbols: inferSymbols(fullText),
+    sentiment: scoreSentiment(fullText),
+    body: summary,
+    thumbnail: thumbnail || null,
+    author,
+    take,   // { sentiment, tldr } when a Saathi take already exists, else null
+  };
+}
+
+async function fetchServerNews(lang, force, small) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 15_000);
+  try {
+    const qs = [lang === "hi" ? "lang=hi" : "", small ? "n=60" : ""].filter(Boolean).join("&");
+    const r = await fetch("/api/news" + (qs ? "?" + qs : ""), {
+      signal: ctrl.signal,
+      // Refresh skips the browser's 2-minute copy; the CDN copy (≤10 min)
+      // still answers, so the feeds aren't re-read per click.
+      cache: force ? "no-cache" : "default",
+    });
+    // Always read the body, even on an error: Chrome keeps an unread
+    // response open, which held the page "busy" forever.
+    const text = await r.text();
+    if (!r.ok) return [];
+    const j = JSON.parse(text);
+    if (!j?.ok || !Array.isArray(j.items)) return [];
+    return j.items.map((it, i) => toItem({
+      headline: it.h, summary: it.s || "", source: it.src, url: it.u,
+      ts: it.ts, thumbnail: it.img, take: it.take || null,
+    }, i)).filter(x => x.headline);
+  } catch { return []; }
+  finally { clearTimeout(t); }
+}
+
 /**
  * Return a list of news items, most-recent first, deduplicated by headline.
  * Falls back to a minimal curated set if all feeds fail.
+ *   lang:  "hi" to get Hinglish Saathi takes attached (News page only).
+ *   force: skip the in-memory and browser caches (Refresh button).
  */
-export async function getNews({ limit = 40, filterSymbols = null } = {}) {
-  // Hot cache
-  if (Date.now() - _cache.ts < CACHE_TTL_MS && _cache.items.length) {
-    return applyFilter(_cache.items, filterSymbols, limit);
+export async function getNews({ limit = 40, filterSymbols = null, lang = "", force = false } = {}) {
+  // A short unfiltered list (coach panel, portfolio card) only needs the
+  // newest 60, ~12 KB instead of the full ~190 KB. A full list in memory
+  // serves either kind of call.
+  const small = limit <= 60 && !filterSymbols?.length;
+  const hot = _cache.get(lang + ":full") || (small ? _cache.get(lang + ":small") : null);
+  if (!force && hot && Date.now() - hot.ts < CACHE_TTL_MS && hot.items.length) {
+    return applyFilter(hot.items, filterSymbols, limit);
   }
-  const feedResults = await Promise.all(FEEDS.map(fetchOneFeed));
-  let items = feedResults.flat();
+  let items = await fetchServerNews(lang, force, small);
+  if (!items.length) items = (await Promise.all(FEEDS.map(fetchOneFeed))).flat();
   if (!items.length) items = FALLBACK_ITEMS();
   // Dedupe by headline
   const seen = new Set();
@@ -177,8 +236,7 @@ export async function getNews({ limit = 40, filterSymbols = null } = {}) {
     out.push(it);
   }
   out.sort((a, b) => (b.ts || 0) - (a.ts || 0));
-  _cache.ts = Date.now();
-  _cache.items = out;
+  _cache.set(lang + (small ? ":small" : ":full"), { ts: Date.now(), items: out });
   return applyFilter(out, filterSymbols, limit);
 }
 
