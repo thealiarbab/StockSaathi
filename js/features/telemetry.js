@@ -326,12 +326,17 @@ const searchTimers = new WeakMap();
 function isSearchInput(el) {
   return el instanceof HTMLInputElement && (el.type === "search" || /search|cmdk|query/i.test(el.id || el.name || ""));
 }
-function resultCount(el) {
+function resultCount(el, q) {
   if (el.id === "stocks-search") {
-    if (document.querySelector("#stocks-grid-host .empty-state")) return 0;
-    const total = document.querySelector("#stocks-grid-host")?.dataset.total;
+    // Enter on a sure match ("tcs") opens that stock, so by the time this
+    // runs the grid is gone; counting it gave 0 and logged real hits as
+    // "found nothing". Only count a grid that was rendered for this query.
+    const host = document.querySelector("#stocks-grid-host");
+    if (!host || host.dataset.q !== q) return null;
+    if (host.querySelector(".empty-state")) return 0;
+    const total = host.dataset.total;
     if (total != null && total !== "") return Number(total);
-    return document.querySelectorAll("#stocks-grid-host .stocks-grid > *").length;
+    return host.querySelectorAll(".stocks-grid > *").length;
   }
   const list = el.closest("[role=dialog], .cmdk, .modal, form, header, section")?.querySelectorAll("[role=option], .cmdk-item, .search-result, li a");
   return list ? list.length : null;
@@ -342,7 +347,7 @@ function logSearch(el, how) {
   if (lastSearch && lastSearch.q === q && Date.now() - lastSearch.at < 5000) return;
   lastSearch = { q, at: Date.now() };
   setTimeout(() => {
-    const res = resultCount(el);
+    const res = resultCount(el, q);
     ev("search", q, { in: (el.id || el.name || "search").slice(0, 40), res: res == null ? "" : res, how });
   }, 400);
 }

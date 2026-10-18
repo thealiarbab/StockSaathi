@@ -1246,6 +1246,7 @@ export function renderStocks(main) {
     const list = fullList.slice(0, visibleCount);
     const truncated = fullList.length > list.length;
     host.dataset.total = String(fullList.length);
+    host.dataset.q = aiSearch ? "" : filter.q.trim();
     const summaryHtml = filter.q.trim() && !aiSearch ? searchSummaryHtml(_lastSearch, fullList.length) : "";
     if (list.length === 0) {
       host.innerHTML = summaryHtml + searchEmptyHtml(aiSearch ? "" : filter.q, filter.kind);
@@ -2086,12 +2087,24 @@ function searchSummaryHtml(r, total) {
     </div>${r.note ? `<p class="ss-note">${escapeHtml(r.note)}</p>` : ""}`;
 }
 
+// Things students search for that are not on NSE. Searched on 18 Oct 2026:
+// crypto (6), bitcoin, forex, samsung, apple, singapore nifty.
+function notListedHere(q) {
+  const t = q.trim().toLowerCase();
+  if (/\b(crypto|cry?pt|bitcoin|btc|ethereum|eth|dogecoin|solana|usdt)\b/.test(t)) return "Crypto isn't traded on Indian stock exchanges, so it isn't here";
+  if (/\b(forex|currency|dollar|usd|inr\/usd)\b/.test(t)) return "Currency trading (forex) isn't part of StockSaathi";
+  if (/\b(samsung|google|alphabet|microsoft|tesla|amazon|nvidia|meta|netflix|singapore|gift nifty|sgx|nasdaq|dow|s&p)\b/.test(t)) return "Only Indian (NSE) listings are here, not foreign stocks or indices";
+  return "";
+}
+
 // "No matches" that never dead-ends: where else it is, a spelling fix, or Saathi.
 function searchEmptyHtml(q, kind) {
   const r = _lastSearch;
   if (!q || !r) return `<div class="empty-state"><span class="emoji">🔍</span><h3>No matches</h3><p>Try clearing a filter or searching differently.</p></div>`;
   const els = r.elsewhere;
   const words = q.trim().split(/\s+/).length;
+  const offList = notListedHere(q);
+  if (offList && !els) return `<div class="empty-state"><span class="emoji">🇮🇳</span><h3>${escapeHtml(offList)}</h3><p class="muted">StockSaathi has every NSE stock, ETF and mutual fund. Try "gold", "nifty 50" or "bank stocks".</p></div>`;
   return `<div class="empty-state ss-empty-state"><span class="emoji">🔍</span>
       <h3>Nothing in ${escapeHtml(TAB_NAME[kind] || "this list")} for “${escapeHtml(q.trim())}”</h3>
       ${els ? `<p class="ss-empty-row">${Object.entries(els.by).map(([k, n]) =>
