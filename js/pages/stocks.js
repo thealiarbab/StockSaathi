@@ -923,7 +923,9 @@ export function renderStocks(main) {
     // replaces the slot's innerHTML without firing render(). Net cold-
     // load improvement: ~1.5 s in the typical case where mood is the
     // slowest gate to flip.
-    return _universeLoaded && _initialQuotesLoaded && _viewportPreheatDone && _snapDone;
+    // The snapshot wait is only needed for an old universe file without sizes.
+    return _universeLoaded && _initialQuotesLoaded && _viewportPreheatDone
+      && (_snapDone || getInstrument("RELIANCE")?.mc > 0);
   }
 
   function render() {
@@ -2195,7 +2197,9 @@ function applyFilters(all, f, state, quoteCache) {
     // search snapshot), biggest first. Until 18 Oct 2026 this was index tier
     // then A-Z, so "Top by size" read ADANIENT, ADANIPORTS, APOLLOHOSP...
     // Index tier is now only the fallback for rows with no market value.
-    const mcOf = (it) => (it.kind === "ETF" ? 0 : snapOf(it.symbol)?.mc || 0);
+    // it.mc: the size baked into universeFull.json at build time (2 sig.
+    // figures), so first paint is already in order before the snapshot lands.
+    const mcOf = (it) => (it.kind === "ETF" ? 0 : snapOf(it.symbol)?.mc || it.mc || 0);
     list.sort((a, b) => {
       const am = mcOf(a), bm = mcOf(b);
       if (am && bm) return bm - am;
