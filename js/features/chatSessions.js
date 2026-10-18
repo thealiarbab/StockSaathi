@@ -273,3 +273,40 @@ export function formatRelative(ts) {
   if (diff < 7 * 86400_000) return Math.floor(diff / 86400_000) + "d ago";
   return new Date(ts).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 }
+
+
+// Display order for a chat. Before 19 Oct 2026 a reply was timestamped when
+// it FINISHED, so asking a second question before the first answer arrived
+// could store Q1 Q2 A2 A1. This pairs each run of k questions followed by k
+// answers back up (by shared words, else in order) for display only; stored
+// history is not rewritten, so syncing cannot duplicate anything.
+const _words = (t) => new Set(String(t || "").toLowerCase().match(/[a-z0-9ऀ-ॿ]{3,}/g) || []);
+export function displayOrder(messages) {
+  if (!Array.isArray(messages) || messages.length < 4) return messages || [];
+  const out = [];
+  let i = 0;
+  while (i < messages.length) {
+    let j = i;
+    while (j < messages.length && messages[j]?.role === "user") j++;
+    let k = j;
+    while (k < messages.length && messages[k]?.role === "assistant") k++;
+    const qs = messages.slice(i, j), as = messages.slice(j, k);
+    if (qs.length >= 2 && qs.length === as.length) {
+      const left = as.slice();
+      for (const q of qs) {
+        const qw = _words(q.text);
+        let best = 0, score = -1;
+        left.forEach((a, n) => {
+          const aw = _words(a.text);
+          let sc = 0; qw.forEach((w) => { if (aw.has(w)) sc++; });
+          if (sc > score) { score = sc; best = n; }
+        });
+        out.push(q, left.splice(score > 0 ? best : 0, 1)[0]);
+      }
+    } else {
+      out.push(...messages.slice(i, Math.max(k, i + 1)));
+    }
+    i = Math.max(k, i + 1);
+  }
+  return out;
+}

@@ -16,6 +16,7 @@ import {
   createNewSession, deleteSessionById, touchActive, clearActiveMessages,
   renameSession, togglePin,
   formatRelative, SESSIONS_KEY,
+  displayOrder,
 } from "../features/chatSessions.js";
 
 // Defense-in-depth: strip any prompt-scaffolding patterns the model might
@@ -542,7 +543,7 @@ export function renderChat(main) {
         </div>
       `;
     }
-    return chatLog.map(m => renderBubble(m)).join("") +
+    return displayOrder(chatLog).map(m => renderBubble(m)).join("") +
       (m_pending ? renderTyping() : "");
   }
 }
@@ -847,7 +848,7 @@ async function sendAndReply(userText) {
     const messagesEl = outer?.querySelector("#chat-messages");
     if (messagesEl) {
       messagesEl.innerHTML = "";
-      for (const m of ownerMessages) messagesEl.innerHTML += renderBubble(m);
+      for (const m of displayOrder(ownerMessages)) messagesEl.innerHTML += renderBubble(m);
       if (m_pending && !ownerMessages.at(-1)?.streaming) messagesEl.innerHTML += renderTyping();
       messagesEl.scrollTop = messagesEl.scrollHeight;
     }
@@ -875,7 +876,7 @@ async function sendAndReply(userText) {
       const active = getActiveSession(sessionsData);
       if (!active || active.id !== ownerSessionId) return;
       el.innerHTML = "";
-      for (const m of active.messages) el.innerHTML += renderBubble(m);
+      for (const m of displayOrder(active.messages)) el.innerHTML += renderBubble(m);
       el.scrollTop = el.scrollHeight;
     } catch (e) {
       console.warn("[chat] finalPaint failed:", e);
