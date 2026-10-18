@@ -36,14 +36,37 @@ async function loadSdk() {
   return _sbPromise;
 }
 
+// Every database call waits on this config, and /api/config is a Python
+// function: cold starts on phone networks averaged 10 s (18 Oct 2026). The
+// values are public and rarely change, so after the first visit the stored
+// copy is used at once and refreshed in the background.
+const CONFIG_KEY = "ss_public_config";
+function storedConfig() {
+  try {
+    const c = JSON.parse(localStorage.getItem(CONFIG_KEY) || "null");
+    return c?.supabaseUrl && c?.supabaseAnonKey ? c : null;
+  } catch { return null; }
+}
+function fetchConfig() {
+  return fetch("/api/config", { cache: "no-store" })
+    .then(r => r.ok ? r.json() : {})
+    .catch(() => ({}))
+    .then(cfg => {
+      if (cfg?.supabaseUrl && cfg?.supabaseAnonKey) {
+        try { localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg)); } catch {}
+      }
+      return cfg;
+    });
+}
+
 async function loadConfig() {
   if (_config) return _config;
+  const stored = storedConfig();
+  if (stored) { _config = stored; fetchConfig(); return stored; }
   if (_configPromise) return _configPromise;
   // Only a config that actually has the keys is cached. A failed fetch used
   // to cache {} for the life of the tab, pinning the app in local-only mode.
-  _configPromise = fetch("/api/config", { cache: "no-store" })
-    .then(r => r.ok ? r.json() : {})
-    .catch(() => ({}));
+  _configPromise = fetchConfig();
   const cfg = await _configPromise;
   _configPromise = null;
   if (cfg?.supabaseUrl && cfg?.supabaseAnonKey) _config = cfg;

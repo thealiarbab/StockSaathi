@@ -367,7 +367,13 @@ export function renderRegister(main) {
         await verifySignupOtp({ email: pendingEmail, code });
         await onSignedIn();
       } catch (err) {
-        errBox.innerHTML = `<div class="error-msg">${escapeHtml(err.message)}</div>`;
+        // Supabase's "Token has expired or is invalid" (15 times on 18 Oct)
+        // reads like a fault; it is almost always a typo or the code from an
+        // older email after Resend.
+        const msg = /expired|invalid/i.test(err.message || "")
+          ? "That code didn't work. Check for a typo, and if you pressed Resend, use the code from the newest email."
+          : err.message;
+        errBox.innerHTML = `<div class="error-msg">${escapeHtml(msg)}</div>`;
         btn.disabled = false;
         btn.textContent = "Verify and continue";
       }
