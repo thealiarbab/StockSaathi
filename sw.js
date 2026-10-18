@@ -1,11 +1,11 @@
-// =============================================================================
-// SERVICE WORKER — Offline-first cache. Demo-day insurance against flaky WiFi.
+﻿// =============================================================================
+// SERVICE WORKER â€” Offline-first cache. Demo-day insurance against flaky WiFi.
 // =============================================================================
 
 // Bump this on every deploy so old cached JS/HTML isn't served forever. The
 // activate step below deletes any cache whose name doesn't match. Include a
 // date so it is obvious in DevTools which build is live.
-const CACHE_NAME = "stocksaathi-v392-20261018y";
+const CACHE_NAME = "stocksaathi-v393-20261019a";
 const STATIC = [
   "./",
   "./app-shell",
@@ -122,7 +122,7 @@ async function putPage(request, response) {
 self.addEventListener("install", (event) => {
   // Use cache.add per-entry inside allSettled so a single 404 (e.g. a path
   // that was renamed since the last deploy) doesn't reject the whole install
-  // — previously this made the SW fail forever and left the OLD SW in
+  // â€” previously this made the SW fail forever and left the OLD SW in
   // charge, which is how stale caches lived for weeks.
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE_NAME);
@@ -146,7 +146,7 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
-  // Never cache external APIs — always network
+  // Never cache external APIs â€” always network
   // External API hostnames the SW must never try to cache. Listed as
   // substrings so subdomains match. These are required API destinations;
   // removing any will either break the feature or let the SW swallow its
@@ -172,7 +172,7 @@ self.addEventListener("fetch", (event) => {
 
   if (url.origin !== location.origin) return;
 
-  // Never cache our own /api/* routes — they should always hit network.
+  // Never cache our own /api/* routes â€” they should always hit network.
   // Previously these were cache-first and could return stale config / health
   // responses on subsequent loads.
   if (url.pathname.startsWith("/api/")) return;
@@ -195,7 +195,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Cache-first for assets (CSS, JS, fonts, icons) — fast on repeat.
+  // Cache-first for assets (CSS, JS, fonts, icons) â€” fast on repeat.
   event.respondWith(
     caches.match(event.request).then(cached => {
       return cached || fetch(event.request).then(res => {
