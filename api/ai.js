@@ -2726,9 +2726,11 @@ async function opSearchSnapshot(req, origin) {
   const res = await sbAdminFetch(`/rest/v1/rpc/search_snapshot`, { method: "POST", body: "{}" });
   if (!res.ok) return j(502, { error: "query_failed" }, origin);
   const h = cors(origin, false);
-  h.set("Cache-Control", "public, max-age=1800");
+  h.set("Cache-Control", "public, max-age=3600");
   h.set("CDN-Cache-Control", "public, s-maxage=21600, stale-while-revalidate=86400");
-  return new Response(await res.text(), { status: 200, headers: h });
+  // Postgres prints JSON with a space after every comma; re-serialising
+  // drops ~10% before compression.
+  return new Response(JSON.stringify(await res.json()), { status: 200, headers: h });
 }
 
 async function opAdminBehaviour(req, origin, url) {
