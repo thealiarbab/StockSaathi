@@ -27,6 +27,9 @@
 let uidCounter = 0;
 
 export function mountThemedSelect(hostEl, config) {
+  // Callers mount after an async import; if the student has already moved
+  // to another page the host is gone (seen 18 Oct 2026 on /register).
+  if (!hostEl) return null;
   // Clean up any prior instance on this host. Without this, callers that
   // re-mount on every render (like stocks.js subscribing to quote updates
   // every few seconds) leave zombie <div.ts-menu> nodes attached to
