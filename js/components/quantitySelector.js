@@ -106,8 +106,14 @@ export function mountQuantitySelector(container, opts) {
     });
 
     container.querySelectorAll("[data-step]").forEach(btn => {
+      // Update in place: re-rendering replaced the button under the user's
+      // finger, so quick taps were lost (352 "angry" +/- clicks on 18 Oct 2026).
+      btn.style.touchAction = "manipulation";
       btn.addEventListener("click", () => {
-        setQty(state.qty + parseFloat(btn.dataset.step));
+        state.qty = clamp(state.qty + parseFloat(btn.dataset.step));
+        input.value = state.qty.toFixed(fixedDp);
+        slider.value = state.qty;
+        opts.onChange?.(state.qty);
       });
     });
 
