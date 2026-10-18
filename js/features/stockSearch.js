@@ -180,7 +180,10 @@ const STOP = new Set(("best good great top nice stock stocks share shares equity
   "invest investing investment investments now right currently india indian nse bse market markets rate " +
   "beginner beginners student students new newbie long short term longterm shortterm this year years month months week " +
   "worth recommended recommend suggest suggestions options option kaun konsa kon sa accha acche achha achhe " +
-  "wala wale ke ki ka me hai mein sabse that are is be to my portfolio buy sell").split(" "));
+  "wala wale ke ki ka me hai mein sabse that are is be to my portfolio buy sell " +
+  "most least more less very much many highest lowest high low max min maximum minimum lot lots amount " +
+  "has have having who whose where how why does do did get got from by at as it's its their them they " +
+  "please pls plz tell know about all").split(" "));
 
 function parseAmount(raw) {
   if (!raw) return null;
@@ -267,6 +270,26 @@ function understand(qn) {
   } else if ((m = take(/\b(near|at|close to|hitting)?\s*(52[\s-]?(week|wk|w)[\s-]?low|year low)\b|\b(discount(ed)?|dips?|fallen|beaten|bottomed|sale)\b/))) {
     sort = { key: "nearLo", dir: -1, label: "Closest to 52-week low" };
     chips.push({ id: "sort", label: sort.label, phrase: m[0].trim() });
+  }
+
+  // "company with most debt", "highest pe", "lowest roe", "least volatile":
+  // a direction word, up to three filler words, then a measure.
+  const METRICS = [
+    [/(debts?|loans?|borrowings?|borrowed|leverage[d]?|debt to equity|d\/?e)/, "de", "debt", "Most debt first (debt compared to the company's own money)", "Least debt first (debt compared to the company's own money)"],
+    [/(p\/?e|pe ratio|price to earnings|valuations?)/, "pe", "pe", "Highest P/E first", "Lowest P/E first"],
+    [/(roe|return on equity|profitab\w*)/, "roe", "roe", "Highest return on equity first", "Lowest return on equity first"],
+    [/(dividends?|dividend yield|yield|payouts?)/, "dy", "div", "Highest dividend first", "Lowest dividend first"],
+    [/(volatil\w*|beta|risk\w*|swings?)/, "b", "beta", "Swings the most first", "Swings the least first"],
+    [/(valuable|valued|market cap\w*|mcap|market value)/, "mc", "size", "Biggest company first", "Smallest company first"],
+  ];
+  for (const [mre, key, id, hiLabel, loLabel] of METRICS) {
+    const re = new RegExp(String.raw`\b(most|highest|max(?:imum)?|biggest|largest|more|greatest|top|least|lowest|min(?:imum)?|smallest|fewest|less)\s+(?:\w+\s+){0,3}?` + mre.source + String.raw`\b`);
+    if ((m = take(re))) {
+      const up = !/^(least|lowest|min|minimum|smallest|fewest|less)$/.test(m[1]);
+      sort = { key, dir: up ? -1 : 1, label: up ? hiLabel : loLabel };
+      chips.push({ id: "sort", label: sort.label, phrase: m[0].trim() });
+      break;
+    }
   }
 
   // Size / quality / income
@@ -544,7 +567,11 @@ export function search(query, list, opts = {}) {
       }
     }
     // Typos the student can fix in one tap.
-    const dym = tokens.map((t, i) => (perToken[i].size === 0 || ![...perToken[i].values()].some(v => v >= 45)) ? (suggestWord(ix, t) || t) : t);
+    const dym = tokens.map((t, i) => {
+      if (perToken[i].size && [...perToken[i].values()].some(v => v >= 45)) return t;
+      const w = suggestWord(ix, t);
+      return w && w.length >= t.length ? w : t;
+    });
     if (dym.join(" ") !== tokens.join(" ")) res.didYouMean = dym.join(" ");
   }
 
@@ -600,6 +627,11 @@ export function search(query, list, opts = {}) {
         case "r2w": return s.r2w;
         case "p": return priceOf(it);
         case "dy": return s.dy;
+        case "de": return s.de;
+        case "pe": return s.pe > 0 ? s.pe : null;
+        case "roe": return s.roe;
+        case "b": return s.b;
+        case "mc": return s.mc;
         case "nearHi": { const p = priceOf(it); return s.hi > 0 && p > 0 ? p / s.hi : null; }
         case "nearLo": { const p = priceOf(it); return s.lo > 0 && p > 0 ? s.lo / p : null; }
         default: return null;
