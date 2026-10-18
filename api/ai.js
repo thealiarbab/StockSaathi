@@ -533,7 +533,10 @@ async function opNewsTldr(req, origin) {
     const tldr = typeof parsed.tldr === "string" && parsed.tldr.trim() ? parsed.tldr.trim().slice(0, 200) : "";
     if (!tldr) return j(502, { error: "no_tldr" }, origin);
     const out = { sentiment, tldr };
-    cachePut("news_tldr", key, headline, out);
+    // AWAITED: a fire-and-forget write is killed when the Edge function
+    // returns, so most takes were never stored and every visitor paid for a
+    // fresh generation of the same headline. /api/news reads these rows.
+    await cachePutAwait("news_tldr", key, headline, out);
     return j(200, { ...out, source: "fresh" }, origin);
   } catch (e) {
     return j(502, { error: "generation_failed", detail: String(e.message).slice(0, 120) }, origin);
