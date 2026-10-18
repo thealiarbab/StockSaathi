@@ -83,7 +83,7 @@ export function renderRegister(main) {
               <label class="label" for="r-username">Username</label>
               <div class="input-prefix">
                 <span class="px">@</span>
-                <input id="r-username" name="username" type="text" required autocomplete="username" placeholder="yourhandle" />
+                <input id="r-username" name="username" type="text" required autocomplete="username" placeholder="yourhandle" maxlength="24" autocapitalize="none" spellcheck="false" />
               </div>
               <div class="muted text-xs" style="margin-top: 4px;">3-24 chars. Letters, numbers, underscores, dots.</div>
             </div>
@@ -178,7 +178,7 @@ export function renderRegister(main) {
       errBox.innerHTML = "";
 
       const name = main.querySelector("#r-name").value.trim();
-      const username = main.querySelector("#r-username").value.trim();
+      const username = main.querySelector("#r-username").value.trim().replace(/\s+/g, "_").replace(/[^a-z0-9_.]/gi, "").slice(0, 24);
       const email = emailInput.value.trim().replace(/\s+/g, "");
       typed.name = name; typed.username = username; typed.email = email;
       // Trim password too — mobile autofill / swipe-input frequently leaves
