@@ -5825,3 +5825,4 @@ button.ss-pill-x:hover { border-color: var(--brand); }
   .cc-panel.is-empty { padding-bottom: 6vh; }
   .cc-foot { display: none; }
 }
+.cc-panel.chat-card #chat-form.cc-composer { position: static; background: transparent; z-index: auto; }
