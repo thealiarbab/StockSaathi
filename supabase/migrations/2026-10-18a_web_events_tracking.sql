@@ -166,8 +166,9 @@ select jsonb_build_object(
       'sessions5m', count(distinct sid) filter (where ts > now() - interval '5 minutes'),
       'visitors30m', count(distinct vid) filter (where ts > now() - interval '30 minutes'),
       'pages', coalesce((select jsonb_agg(jsonb_build_array(pp, n) order by n desc) from (
-          select pp, count(distinct sid) as n from w where ts > now() - interval '5 minutes' and kind = 'page'
-           group by pp order by 2 desc limit 10) t), '[]'::jsonb))
+          select l.pp, count(*) as n from last_page l
+           where l.sid in (select sid from w where ts > now() - interval '5 minutes')
+           group by l.pp order by 2 desc limit 10) t), '[]'::jsonb))
     from w),
   'totals', (select jsonb_build_object(
       'events', (select count(*) from w),
