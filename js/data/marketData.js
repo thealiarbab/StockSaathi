@@ -284,6 +284,16 @@ export async function getQuote(symbol, opts = {}) {
     return q;
   }
 
+  // 0. Shared cached path first. /api/live-quote is answered from server
+  // memory and the Vercel edge; /api/quote fetched Yahoo on every call
+  // (avg 4.7 s, 370 x 502 on 18 Oct 2026). Only the refresh button
+  // (bustCache) still goes straight to the source.
+  if (!bustCache) {
+    await getQuoteBatch([symbol]).catch(() => null);
+    const hit = _quoteCache.get(symbol);
+    if (hit && Date.now() - hit.ts < 5000 && hit.data && hit.data.source !== "synthetic") return hit.data;
+  }
+
   // 1. New normalized single endpoint. Append nocache=1 when bustCache
   // is requested so the SERVER also bypasses its own cache (and Vercel
   // edge cache via the no-store header the server adds when it sees
