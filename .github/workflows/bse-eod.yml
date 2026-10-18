@@ -1,0 +1,101 @@
+name: bse-eod
+
+# BSE's official end-of-day bhavcopy -> bse_eod_prices, for the ~1,180 stocks
+# in js/data/universeFull.json that are listed only on BSE (nse-eod.yml covers
+# everything on NSE). Used by search_snapshot(): price searches ("under ₹100")
+# and the 3-week list charts on /stocks. Real exchange closes only.
+#
+# Rows are matched to our symbols by BSE scrip code (bseScripCd in the
+# universe file). Same ingest endpoint as NSE, with "exchange": "BSE".
+#
+# Backfill: run manually with days=15 to fill the last three weeks.
+# Needs: CRON_SECRET repo secret (same value as the Vercel env var).
+
+on:
+  schedule:
+    # 13:45 UTC = 19:15 IST, after BSE publishes (~18:00 IST). Mon-Fri.
+    - cron: "45 13 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "How many recent trading days to load (1 = latest only)"
+        default: "1"
+
+concurrency:
+  group: bse-eod
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: js/data/universeFull.json
+          sparse-checkout-cone-mode: false
+
+      - name: Guard — secret must be configured
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          [ -n "$CRON_SECRET" ] || { echo "::error::CRON_SECRET repo secret is not set."; exit 1; }
+
+      - name: Fetch BSE bhavcopies and ingest them
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          DAYS: ${{ github.event.inputs.days || '1' }}
+        run: |
+          python3 - <<'PY'
+          import csv, datetime as dt, io, json, os, sys, urllib.request
+
+          UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131 Safari/537.36",
+                "Referer": "https://www.bseindia.com/"}
+          IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
+          today = dt.datetime.now(IST).date()
+          want = max(1, min(30, int(os.environ.get("DAYS") or 1)))
+
+          uni = json.load(open("js/data/universeFull.json"))
+          by_code = {str(r["bseScripCd"]): r["symbol"] for r in uni
+                     if r.get("exchange") == "BSE" and r.get("bseScripCd")}
+          print(f"{len(by_code)} BSE-only stocks in the universe")
+
+          def fetch(day):
+              url = ("https://www.bseindia.com/download/BhavCopy/Equity/"
+                     f"BhavCopy_BSE_CM_0_0_0_{day:%Y%m%d}_F_0000.CSV")
+              try:
+                  with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=60) as r:
+                      return list(csv.DictReader(io.TextIOWrapper(io.BytesIO(r.read()), encoding="utf-8")))
+              except Exception as e:
+                  print(f"  {day}: {e}")
+                  return None
+
+          done, back = 0, 0
+          while done < want and back < want * 2 + 8:
+              day = today - dt.timedelta(days=back)
+              back += 1
+              if day.weekday() >= 5:
+                  continue
+              rows = fetch(day)
+              if not rows:
+                  continue
+              trade_date = rows[0]["TradDt"]
+              payload = [[by_code[r["FinInstrmId"]], r["FinInstrmId"], r["SctySrs"], r["OpnPric"], r["HghPric"],
+                          r["LwPric"], r["ClsPric"], r["PrvsClsgPric"], r["TtlTradgVol"]]
+                         for r in rows if r.get("FinInstrmId") in by_code]
+              req = urllib.request.Request(
+                  "https://stocksaathi.co.in/api/admin-ingest-eod",
+                  data=json.dumps({"exchange": "BSE", "trade_date": trade_date, "rows": payload}).encode(),
+                  headers={"Authorization": "Bearer " + os.environ["CRON_SECRET"], "Content-Type": "application/json"},
+                  method="POST")
+              try:
+                  with urllib.request.urlopen(req, timeout=120) as r:
+                      res = json.loads(r.read())
+              except urllib.error.HTTPError as e:
+                  print(f"::error::ingest HTTP {e.code}: {e.read()[:400]}"); sys.exit(1)
+              print(f"{trade_date}: {len(rows)} BSE rows, {len(payload)} ours -> {res}")
+              if not res.get("ok"):
+                  print("::error::ingest failed"); sys.exit(1)
+              done += 1
+          if done == 0:
+              print("::error::no BSE bhavcopy found"); sys.exit(1)
+          PY

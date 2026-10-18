@@ -107,6 +107,11 @@ jobs:
       - name: Rebuild equity universe
         run: node scripts/build-universe.mjs
 
+      # Company sizes for "Top by size" on first paint (keeps old values if
+      # the snapshot is unreachable).
+      - name: Add company sizes
+        run: node scripts/universe-size.mjs
+
       - name: Rebuild MF universe
         run: node scripts/build-mf-universe.mjs
         continue-on-error: true

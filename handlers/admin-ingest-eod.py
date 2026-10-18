@@ -15,6 +15,9 @@ public.apply_nse_eod(trade_date) adds missing quote_cache rows, replaces
 prices from before that trading day, and returns every stock where a same-day
 Yahoo price disagrees with the exchange close by more than 15%.
 
+With "exchange": "BSE" (bse-eod.yml) the rows are BSE closes for our
+BSE-only stocks and go to bse_eod_prices only (see ingest_bse).
+
 Auth: Authorization: Bearer <CRON_SECRET> (or ADMIN_TOKEN). Stdlib only.
 """
 
@@ -67,6 +70,37 @@ def _post(path, payload, prefer=None, timeout=20):
     with urllib.request.urlopen(req, timeout=timeout) as r:
         body = r.read().decode("utf-8")
         return json.loads(body) if body else None
+
+
+def ingest_bse(trade_date, rows):
+    """BSE bhavcopy rows for our BSE-only stocks (bse-eod.yml):
+    [symbol, scrip_code, group, open, high, low, close, prev_close, volume].
+    Stored in bse_eod_prices only; quote_cache is not touched."""
+    best = {}
+    for r in rows:
+        if not isinstance(r, (list, tuple)) or len(r) < 9:
+            continue
+        sym = str(r[0]).strip().upper()
+        close = _paise(r[6])
+        try:
+            code = int(r[1])
+        except (TypeError, ValueError):
+            continue
+        if not _SYM_RE.match(sym) or close is None:
+            continue
+        try:
+            vol = int(float(r[8] or 0))
+        except (TypeError, ValueError):
+            vol = 0
+        best[sym] = {"symbol": sym, "trade_date": trade_date, "scrip_code": code,
+                     "bse_group": str(r[2] or "").strip()[:4] or None,
+                     "open_paise": _paise(r[3]), "high_paise": _paise(r[4]), "low_paise": _paise(r[5]),
+                     "close_paise": close, "prev_close_paise": _paise(r[7]), "volume": vol}
+    records = list(best.values())
+    for i in range(0, len(records), CHUNK):
+        _post("bse_eod_prices?on_conflict=symbol,trade_date", records[i:i + CHUNK],
+              prefer="resolution=merge-duplicates,return=minimal")
+    return {"ok": True, "exchange": "BSE", "stored": len(records)}
 
 
 def ingest(trade_date, rows):
@@ -126,6 +160,8 @@ class handler(BaseHTTPRequestHandler):
         if not _DATE_RE.match(trade_date) or not isinstance(rows, list) or not rows:
             return self._respond(400, {"ok": False, "error": "need trade_date YYYY-MM-DD and rows"})
         try:
+            if str(data.get("exchange") or "NSE").upper() == "BSE":
+                return self._respond(200, ingest_bse(trade_date, rows))
             self._respond(200, ingest(trade_date, rows))
         except Exception as e:
             self._respond(500, {"ok": False, "error": str(e)[:300]})
