@@ -2,10 +2,22 @@
 // NEWS — Real-time Indian market news with sentiment + AI retail-angle tag.
 // =============================================================================
 
-import { getNews, fmtRelativeTime, labelSentiment, withUtm } from "../data/news.js";
+import { getNews, fmtRelativeTime, labelSentiment, withUtm, withoutUtm, findSameStory } from "../data/news.js";
 import { track } from "../features/track.js";
 import { getState, subscribe } from "../state.js";
 import { aiLang } from "../features/aiLang.js";
+import { ensureUniverseLoaded, getAllInstruments } from "../data/universeLoader.js";
+
+// Tickers the AI names are only linked when they are real listed symbols.
+let knownSymbols = null;
+function isKnownSymbol(t) {
+  if (!knownSymbols) {
+    const all = getAllInstruments();
+    if (all.length < 1000) return false;   // full list not loaded yet
+    knownSymbols = new Set(all.map(i => i.symbol));
+  }
+  return knownSymbols.has(t);
+}
 
 let filter = "all";    // all | holdings | watchlist
 let newsCache = [];
@@ -43,15 +55,17 @@ const VIEWPORT_DWELL_MS = 350;
 // request at all. /api/news also attaches every take stored server-side, so
 // a new visitor gets them instantly too; this covers the ≤10 min before the
 // CDN copy of the feed picks up a take generated a moment ago.
-const TAKES_LS = "ss_news_takes_v1";
+// v2: takes written from the articles. v1 held headline-only takes.
+const TAKES_LS = "ss_news_takes_v2";
 const TAKES_MAX = 800;
+try { localStorage.removeItem("ss_news_takes_v1"); } catch {}
 function loadStoredTakes() {
   try { return JSON.parse(localStorage.getItem(TAKES_LS) || "{}") || {}; } catch { return {}; }
 }
-function storeTake(hk, sentiment, tldr) {
+function storeTake(hk, sentiment, tldr, impacts) {
   try {
     const all = loadStoredTakes();
-    all[langTag() + hk] = { s: sentiment, t: tldr, at: Date.now() };
+    all[langTag() + hk] = { s: sentiment, t: tldr, i: impacts || [], at: Date.now() };
     const keys = Object.keys(all);
     if (keys.length > TAKES_MAX) {
       keys.sort((a, b) => (all[a].at || 0) - (all[b].at || 0));
@@ -70,11 +84,19 @@ function seedTakes(items) {
     const hk = headlineKey(n.headline);
     if (aiTags.get(hk)?.tldr) continue;
     if (n.take?.tldr) {
-      aiTags.set(hk, { sentiment: n.take.sentiment || "neutral", tldr: n.take.tldr, loading: false });
+      aiTags.set(hk, { sentiment: n.take.sentiment || "neutral", tldr: n.take.tldr, impacts: n.take.impacts || [], loading: false });
     } else if (stored[tag + hk]?.t) {
-      aiTags.set(hk, { sentiment: stored[tag + hk].s || "neutral", tldr: stored[tag + hk].t, loading: false });
+      const s = stored[tag + hk];
+      aiTags.set(hk, { sentiment: s.s || "neutral", tldr: s.t, impacts: s.i || [], loading: false });
     }
   }
+}
+
+// Stocks a story is about: the keyword matcher's tickers plus every listed
+// company the Saathi take judged. Drives the holdings / watchlist tabs.
+function storyTickers(n) {
+  const fromAi = (aiTags.get(headlineKey(n.headline))?.impacts || []).map(x => x.ticker);
+  return [...(n.symbols || []), ...fromAi];
 }
 
 export function renderNews(main) {
@@ -85,6 +107,11 @@ export function renderNews(main) {
   loading = true;
   render(main);
   loadNews(main, myToken);
+  // Once the full stock list is in, AI-named tickers become links.
+  ensureUniverseLoaded()?.then?.(() => {
+    knownSymbols = null;
+    if (!myToken.cancelled && !loading) render(main);
+  }).catch?.(() => {});
   const unsub = subscribe(() => { if (!myToken.cancelled) render(main); });
   const onLeave = () => { myToken.cancelled = true; unsub?.(); };
   window.addEventListener("ss:navigate", onLeave, { once: true });
@@ -120,19 +147,19 @@ function render(main) {
     if (holdings.length === 0) {
       visible = [];
     } else {
-      visible = newsCache.filter(n => n.symbols?.length && n.symbols.some(s => holdings.includes(s)));
+      visible = newsCache.filter(n => storyTickers(n).some(s => holdings.includes(s)));
     }
   } else if (filter === "watchlist") {
     if (wl.length === 0) {
       visible = [];
     } else {
-      visible = newsCache.filter(n => n.symbols?.length && n.symbols.some(s => wl.includes(s)));
+      visible = newsCache.filter(n => storyTickers(n).some(s => wl.includes(s)));
     }
   }
 
   const countAll = newsCache.length;
-  const countHoldings = holdings.length ? newsCache.filter(n => n.symbols?.length && n.symbols.some(s => holdings.includes(s))).length : 0;
-  const countWatchlist = wl.length ? newsCache.filter(n => n.symbols?.length && n.symbols.some(s => wl.includes(s))).length : 0;
+  const countHoldings = holdings.length ? newsCache.filter(n => storyTickers(n).some(s => holdings.includes(s))).length : 0;
+  const countWatchlist = wl.length ? newsCache.filter(n => storyTickers(n).some(s => wl.includes(s))).length : 0;
 
   main.innerHTML = `
     <div style="margin-bottom: var(--sp-5);">
@@ -141,7 +168,7 @@ function render(main) {
         <span class="data-badge"><span class="dot ${loading ? "offline" : ""}"></span> ${loading ? "Loading…" : "Live from RSS"}</span>
         <button class="btn btn-ghost btn-sm" id="refresh-btn">↻ Refresh</button>
       </div>
-      <p class="muted">Headlines from Economic Times, LiveMint, Business Standard, BusinessLine, CNBC-TV18, NDTV Profit, Business Today and The Hindu. Click a story to open the original article.</p>
+      <p class="muted">Headlines from Economic Times, LiveMint, Business Standard, BusinessLine, CNBC-TV18, NDTV Profit, Business Today, The Hindu and Indian Express. Each Saathi take is written from the full article and the same story from other publishers. Click a story to open the original article.</p>
     </div>
 
     <div class="flex gap-2 wrap" style="margin-bottom: var(--sp-4);">
@@ -178,6 +205,8 @@ function render(main) {
 
   main.querySelectorAll("[data-newsurl]").forEach(el => {
     el.addEventListener("click", (e) => {
+      // A stock chip inside the card goes to our stock page, not the article.
+      if (e.target.closest("[data-stock-link]")) return;
       e.preventDefault();
       const url = withUtm(el.dataset.newsurl);
       // The headline, not the URL, is what the coach can talk about.
@@ -246,7 +275,7 @@ function renderNewsItem(n) {
   const hk = headlineKey(n.headline);
   const ai = aiTags.get(hk);
   const aiBlock = ai && ai.tldr
-    ? `<div class="news-ai-take sentiment-${escapeAttr(ai.sentiment)}" data-ai-hk="${escapeAttr(hk)}"><span class="news-ai-label">Saathi take</span><span class="news-ai-body">${escapeHtml(ai.tldr)}</span></div>`
+    ? `<div class="news-ai-take sentiment-${escapeAttr(ai.sentiment)}" data-ai-hk="${escapeAttr(hk)}">${takeInner(ai)}</div>`
     : `<div class="news-ai-take loading" data-ai-hk="${escapeAttr(hk)}"><span class="news-ai-label">Saathi take</span><span class="news-ai-body dim">Analysing…</span></div>`;
   return `
     <article class="news-item" data-newsurl="${escapeAttr(n.url)}" tabindex="0" role="link" aria-label="${escapeAttr(n.headline)}">
@@ -263,6 +292,22 @@ function renderNewsItem(n) {
       </div>
     </article>
   `;
+}
+
+// Take text plus one chip per listed company the AI judged: ▲ good for that
+// stock, ▼ bad, • no clear effect; hover shows its one-line reason. Real
+// tickers link to their stock page.
+function takeInner(ai) {
+  const chips = (ai.impacts || []).map(x => {
+    const eff = ["bullish", "bearish"].includes(x.effect) ? x.effect : "neutral";
+    const label = `${escapeHtml(x.ticker)} ${eff === "bullish" ? "▲" : eff === "bearish" ? "▼" : "•"}`;
+    const title = escapeAttr(x.why || labelSentiment(eff));
+    return isKnownSymbol(x.ticker)
+      ? `<a class="sentiment ${eff}" data-stock-link href="/stocks/${encodeURIComponent(x.ticker)}" title="${title}" style="text-decoration: none;">${label}</a>`
+      : `<span class="sentiment ${eff}" title="${title}">${label}</span>`;
+  }).join("");
+  return `<span class="news-ai-label">Saathi take</span><span class="news-ai-body">${escapeHtml(ai.tldr)}${
+    chips ? `<span class="news-ai-impacts" style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px;">${chips}</span>` : ""}</span>`;
 }
 
 function headlineKey(headline) {
@@ -298,23 +343,33 @@ async function pumpAiQueue() {
 async function fetchAiTag({ main, n, hk, ctrl }) {
   // The AbortController was created in enqueueAiTag and stored in the
   // aborters Map so the IntersectionObserver can find and abort it the
-  // moment the card scrolls out of view. We layer on a 12 s timeout so
+  // moment the card scrolls out of view. We layer on a 25 s timeout so
   // a hung endpoint can't leave a stuck skeleton even for a card the
-  // user is still looking at.
-  const timer = setTimeout(() => { try { ctrl.abort(); } catch {} }, 12000);
+  // user is still looking at. (A first-time take reads up to five articles
+  // before writing, so it needs longer than the old headline-only one.)
+  const timer = setTimeout(() => { try { ctrl.abort(); } catch {} }, 25000);
   try {
+    // The server reads the article and the same story from up to four other
+    // publishers in our list. Links go without our UTM tags: those fetches
+    // are not readers we sent.
+    const related = findSameStory(n, newsCache, 4).map(o => ({
+      headline: o.headline, source: o.source, summary: o.summary || "", url: withoutUtm(o.url),
+    }));
     const r = await fetch("/api/ai?op=news-tldr" + aiLang(), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ headline: n.headline, source: n.source, symbols: n.symbols || [] }),
+      body: JSON.stringify({
+        headline: n.headline, source: n.source, symbols: n.symbols || [],
+        summary: n.summary || "", url: withoutUtm(n.url), related,
+      }),
       signal: ctrl.signal,
     });
     clearTimeout(timer);
     if (!r.ok) throw new Error("http_" + r.status);
     const j = await r.json();
     if (!j?.tldr) throw new Error("no_tldr");
-    aiTags.set(hk, { sentiment: j.sentiment || "neutral", tldr: j.tldr, loading: false });
-    storeTake(hk, j.sentiment || "neutral", j.tldr);
+    aiTags.set(hk, { sentiment: j.sentiment || "neutral", tldr: j.tldr, impacts: j.impacts || [], loading: false });
+    storeTake(hk, j.sentiment || "neutral", j.tldr, j.impacts || []);
     patchNewsItem(main, hk);
   } catch (e) {
     clearTimeout(timer);
@@ -339,7 +394,7 @@ function patchNewsItem(main, hk) {
   const el = main?.querySelector(`[data-ai-hk="${cssEscape(hk)}"]`);
   if (!el) return;
   el.className = `news-ai-take sentiment-${ai.sentiment}`;
-  el.innerHTML = `<span class="news-ai-label">Saathi take</span><span class="news-ai-body">${escapeHtml(ai.tldr)}</span>`;
+  el.innerHTML = takeInner(ai);
   // Also update the top-right sentiment pill on the same card to match
   // what the AI concluded (often more accurate than the keyword-based
   // sentiment from data/news.js).
