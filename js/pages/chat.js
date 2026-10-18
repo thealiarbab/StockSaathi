@@ -1130,11 +1130,20 @@ You already offered to look this up and the user already asked. Do NOT ask again
     }
     cleanedReply = await finishReply(cleanedReply, userText, system, messages);
     const finalText = (cleanedReply && cleanedReply.trim()) ? cleanedReply : (errorText || "Saathi couldn't answer that. Try rephrasing or asking again.");
+    // Stamp the reply just after ITS question, not when it finished: chats
+    // are re-sorted by ts on sync, so a slow answer used to land below a
+    // later question's answer.
+    let qIdx = -1;
+    for (let i = ownerMessages.length - 1; i >= 0; i--) {
+      if (ownerMessages[i]?.role === "user" && ownerMessages[i].text === userText) { qIdx = i; break; }
+    }
+    const replyTs = qIdx >= 0 ? (ownerMessages[qIdx].ts || Date.now()) + 1 : Date.now();
     if (live) {
       if (liveTimer) { clearInterval(liveTimer); liveTimer = null; }
-      live.text = finalText; live.streaming = false; live.status = false; live.ts = Date.now();
+      live.text = finalText; live.streaming = false; live.status = false; live.ts = replyTs;
     }
-    else ownerMessages.push({ role: "assistant", text: finalText, ts: Date.now() });
+    else if (qIdx >= 0) ownerMessages.splice(qIdx + 1, 0, { role: "assistant", text: finalText, ts: replyTs });
+    else ownerMessages.push({ role: "assistant", text: finalText, ts: replyTs });
     // Title/timestamp refresh on the owner session
     ownerSession.updatedAt = Date.now();
     if (!ownerSession.title || ownerSession.title === "New chat") {
