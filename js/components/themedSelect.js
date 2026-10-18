@@ -216,7 +216,7 @@ export function mountThemedSelect(hostEl, config) {
       return;
     }
     // Type-to-jump: first option whose label starts with this key
-    if (e.key.length === 1) {
+    if (e.key && e.key.length === 1) {
       const idx = state.options.findIndex((o, i) =>
         o !== "---" && i > state.activeIdx && o.label.toLowerCase().startsWith(e.key.toLowerCase())
       );
