@@ -10,6 +10,7 @@ import { SYSTEM_PROMPT, matchTemplate, isOffTopic, offTopicRedirect, STARTER_QUE
 import { marketStatus } from "../data/prices.js";
 import { runAgent, streamChat, needsLiveData, logChatTurn, stripToolCallScaffolding, isToolCallOnly, looksLikeLookupOffer, looksLikeFetchPromise, looksLikePricelessList, isDiscoveryQuery, scrubAdvice, looksHinglish, replyLanguageMismatch, prefetchNewsBlock, unsourcedFigures, figureSources, dropFigureSentences } from "../coach/agent.js";
 import { buildDossier } from "../coach/dossier.js";
+import { getNews } from "../data/news.js";
 import {
   loadSessions, saveSessions, getActiveSession, setActiveSession,
   createNewSession, deleteSessionById, touchActive, clearActiveMessages,
@@ -262,6 +263,7 @@ export function renderChat(main) {
 
     const input = main.querySelector("#chat-input");
     const form = main.querySelector("#chat-form");
+    if (!chatLog.length) fillStarters(main, (q) => { if (m_pending) return; input.value = q; form.requestSubmit(); });
     const messagesEl = main.querySelector("#chat-messages");
     if (chatLog.length) messagesEl.scrollTop = messagesEl.scrollHeight;
     // Desktop: auto-focus so the user can start typing. Mobile: don't —
@@ -550,6 +552,53 @@ function renderBubble(m) {
       <button type="button" class="cc-act" data-copy aria-label="Copy reply"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="3"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><span>Copy</span></button>
     </div>`;
   return `<div class="cc-row cc-row-bot"${streamAttr}><div class="cc-bot-col"><div class="cc-bubble cc-bot"><span class="msg-body">${m.status ? statusHtml(m.text) : renderMarkdown(m.text)}</span></div>${actions}</div></div>`;
+}
+
+// ---- Starter questions from today's market and news ----------------------
+// Built from data the site already caches (the CDN-cached NSE snapshot and the
+// news feed), so they cost no AI call and no database read. Two from the
+// biggest moves among large companies, two from the latest headlines, two
+// evergreen. Falls back to the fixed list if either source is unavailable.
+let _starters = null;
+async function liveStarters() {
+  if (_starters) return _starters;
+  const out = [];
+  try {
+    const snap = await (await fetch("/api/ai?op=search-snapshot&v=3")).json();
+    const col = (n) => snap.cols.indexOf(n);
+    const [S, D, MC] = [col("s"), col("d"), col("mc")];
+    const big = snap.rows.filter(r => r[MC] >= 20000 && typeof r[D] === "number");
+    const when = snap.asOf ? new Date(snap.asOf + "T12:00:00+05:30").toLocaleDateString("en-IN", { weekday: "long" }) : "";
+    const isToday = snap.asOf === new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+    const day = isToday ? "today" : `on ${when}`;
+    const up = big.slice().sort((a, b) => b[D] - a[D])[0];
+    const down = big.slice().sort((a, b) => a[D] - b[D])[0];
+    if (up && up[D] > 1) out.push(`Why did ${up[S]} rise ${up[D].toFixed(1)}% ${day}?`);
+    if (down && down[D] < -1) out.push(`Why did ${down[S]} fall ${Math.abs(down[D]).toFixed(1)}% ${day}?`);
+  } catch (e) { console.warn("[chat] starters: snapshot", e); }
+  try {
+    const news = await getNews({ limit: 30 });
+    const picked = (news || [])
+      .filter(n => n?.headline && n.headline.length < 90)
+      .slice(0, 12)
+      .sort((a, b) => (b.sentiment !== "neutral") - (a.sentiment !== "neutral"))
+      .slice(0, 2);
+    for (const n of picked) {
+      const h = n.headline.replace(/\s+/g, " ").trim();
+      out.push(`What does this mean: "${h.length > 70 ? h.slice(0, 68).trimEnd() + "…" : h}"`);
+    }
+  } catch (e) { console.warn("[chat] starters: news", e); }
+  if (out.length < 2) return (_starters = STARTER_QUESTIONS);
+  out.push("How does compounding work?", "How do I spot a finfluencer scam?");
+  return (_starters = out.slice(0, 6));
+}
+async function fillStarters(main, ask) {
+  const box = main.querySelector(".cc-starters");
+  if (!box) return;
+  const qs = await liveStarters();
+  if (!main.contains(box)) return;
+  box.innerHTML = qs.map(q => `<button type="button" class="cc-starter" data-q="${escapeAttr(q)}">${escapeHtml(q)}</button>`).join("");
+  box.querySelectorAll("[data-q]").forEach(b => b.addEventListener("click", () => ask(b.dataset.q)));
 }
 
 // "Checking TCS price…" while tools run: a pulsing dot, not a reply.
