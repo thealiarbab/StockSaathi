@@ -67,6 +67,54 @@ export function fmtRelativeTime(ms) {
   return `${days}d ago`;
 }
 
+// Our UTM tags removed again: links handed to the server for reading the
+// article must not show up in the publisher's stats as visits we sent.
+export function withoutUtm(url) {
+  if (!url || !/^https?:\/\//i.test(url)) return url;
+  try {
+    const u = new URL(url);
+    if (u.searchParams.get("utm_source") !== "stocksaathi.co.in") return url;
+    u.searchParams.delete("utm_source");
+    u.searchParams.delete("utm_medium");
+    return u.toString();
+  } catch { return url; }
+}
+
+// The same story as reported by other publishers in `items`: headlines that
+// share enough distinctive words, from a different source, published within
+// two days. Up to `max`, best match first, one per publisher.
+const STORY_STOP = new Set(("the a an and or of to in on for with at by from as is are was were be been it its this that these those " +
+  "after before over under into amid says said say will may can could would should has have had not no new now up down " +
+  "india indian indias stock stocks share shares market markets price prices today week year crore lakh rs per cent percent " +
+  "q1 q2 q3 q4 fy26 fy27 results result news check here what why how all more than about against").split(" "));
+function storyWords(h) {
+  return new Set(String(h || "").toLowerCase().replace(/[’']/g, "").split(/[^a-z0-9]+/)
+    .filter(w => w.length >= 3 && !STORY_STOP.has(w)));
+}
+export function findSameStory(item, items, max = 4) {
+  const mine = storyWords(item.headline);
+  if (mine.size < 2) return [];
+  const scored = [];
+  for (const o of items) {
+    if (o === item || o.source === item.source || !o.url || o.url === "#") continue;
+    if (Math.abs((o.ts || 0) - (item.ts || 0)) > 48 * 3_600_000) continue;
+    const theirs = storyWords(o.headline);
+    let shared = 0;
+    for (const w of mine) if (theirs.has(w)) shared++;
+    const score = shared / Math.min(mine.size, theirs.size || 1);
+    if (shared >= 3 && score >= 0.4) scored.push({ o, score });
+  }
+  scored.sort((a, b) => b.score - a.score);
+  const out = [], seenSrc = new Set();
+  for (const { o } of scored) {
+    if (seenSrc.has(o.source)) continue;
+    seenSrc.add(o.source);
+    out.push(o);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
 // Cache feed results briefly so navigating doesn't re-hammer RSS. One slot
 // per language, because /api/news attaches that language's Saathi takes.
 const _cache = new Map();   // "<lang>:full" / "<lang>:small" -> { ts, items }

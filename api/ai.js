@@ -503,9 +503,76 @@ async function opExplain(req, origin, url) {
 }
 
 // --- News sentiment + retail-angle TL;DR ------------------------------------
-const SYSTEM_NEWS_TLDR = `You are Saathi. Given one news headline and optional related tickers, return strict JSON:
-{ "sentiment": "bullish" | "bearish" | "neutral", "tldr": "<single sentence, ≤ 22 words, Indian retail context, no hedges>" }
-Rules: sentiment is expected impact on the stocks; tldr is plain, useful, no "it depends". Return ONLY the JSON.`;
+// Written from the articles themselves: on a cache miss the server fetches
+// this story's page plus up to four other publishers' pages on the same story
+// (the News page picks them from its list), and the model cross-checks them
+// and judges each listed company the story touches. Saved once, for good.
+// Until 18 Oct the model saw only the headline.
+const SYSTEM_NEWS_TLDR = `You are Saathi. You get one Indian business news story: its headline, publisher summary and article text, and often the same story as reported by other publishers. Cross-check them: rely on facts the reports agree on, and treat a claim only one report makes with care. The other reports were matched by shared words, so ignore any that turn out to be about a different event or company. Return strict JSON:
+{ "sentiment": "bullish" | "bearish" | "neutral",
+  "tldr": "<single sentence, ≤ 25 words, Indian retail-investor context, no hedges>",
+  "impacts": [ { "ticker": "<NSE symbol, e.g. TATASTEEL>", "effect": "bullish" | "bearish" | "neutral", "why": "<≤ 12 words>" } ] }
+Rules: base everything on what the articles actually say (numbers, names, reasons), not just the headline. impacts: up to 4 NSE-listed companies the story really affects, directly or as a clear competitor, supplier or customer; judge each separately (good news for one can be bad for another); use [] when no listed company is affected. sentiment is the overall effect on the stocks or sector involved. No "it depends". Return ONLY the JSON.`;
+
+// Only these publishers' pages are fetched (they are the /api/news feeds), so
+// this endpoint can't be used to make the server fetch arbitrary URLs.
+const NEWS_HOSTS = new Set([
+  "economictimes.indiatimes.com", "www.livemint.com", "www.business-standard.com",
+  "www.thehindubusinessline.com", "www.cnbctv18.com", "www.thehindu.com",
+  "indianexpress.com", "www.ndtvprofit.com", "www.businesstoday.in",
+  "bazaar.businesstoday.in", "www.goodreturns.in",
+]);
+// Full articles: most are 400-1,000 words. The cap only stops a broken page
+// (comments, related-story lists) from flooding the prompt.
+const ARTICLE_WORDS = 4000;
+
+function newsHostOk(u) {
+  try { const x = new URL(u); return x.protocol === "https:" && NEWS_HOSTS.has(x.hostname); } catch { return false; }
+}
+function cleanText(s) {
+  return String(s || "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&quot;/g, '"')
+    .replace(/&#39;|&#039;|&rsquo;|&lsquo;/g, "'").replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n))
+    .replace(/&[a-z]+;/g, " ").replace(/\s+/g, " ").trim();
+}
+// Article text: the schema.org "articleBody" most news sites embed for
+// search engines, else the page's paragraphs with scripts removed
+// (BusinessLine has no articleBody). "" when the page can't be read.
+async function fetchArticleText(url, maxWords = ARTICLE_WORDS) {
+  if (!newsHostOk(url)) return "";
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 4000);
+  try {
+    const r = await fetch(url, {
+      signal: ctrl.signal, redirect: "follow",
+      headers: {
+        // Several publishers refuse anything that doesn't look like a browser.
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0 Safari/537.36",
+        "Accept": "text/html",
+      },
+    });
+    if (!r.ok || !newsHostOk(r.url || url)) { try { await r.body?.cancel(); } catch {} return ""; }
+    const page = (await r.text()).slice(0, 1_500_000);
+    let best = "";
+    for (const m of page.matchAll(/<script[^>]*application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi)) {
+      for (const b of m[1].matchAll(/"articleBody"\s*:\s*"((?:[^"\\]|\\.)*)"/g)) {
+        let v; try { v = JSON.parse('"' + b[1] + '"'); } catch { v = b[1]; }
+        v = cleanText(cleanText(v));
+        if (v.length > best.length) best = v;
+      }
+    }
+    if (best.split(" ").length < 120) {
+      const stripped = page.replace(/<(script|style|noscript)\b[\s\S]*?<\/\1>/gi, " ");
+      const paras = [...stripped.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/gi)]
+        .map(m => cleanText(m[1])).filter(p => p.length > 60);
+      const joined = paras.join(" ");
+      if (joined.length > best.length) best = joined;
+    }
+    return best.split(" ").slice(0, maxWords).join(" ");
+  } catch { return ""; }
+  finally { clearTimeout(t); }
+}
 
 async function opNewsTldr(req, origin) {
   let body; try { body = await req.json(); } catch { return j(400, { error: "bad_body" }, origin); }
@@ -513,28 +580,69 @@ async function opNewsTldr(req, origin) {
   if (!headline) return j(400, { error: "missing_headline" }, origin);
   const symbols = Array.isArray(body.symbols) ? body.symbols.filter(s => typeof s === "string").slice(0, 6) : [];
   const source = typeof body.source === "string" ? body.source.slice(0, 40) : "";
+  const summary = typeof body.summary === "string" ? body.summary.trim().slice(0, 400) : "";
+  const articleUrl = typeof body.url === "string" && newsHostOk(body.url) ? body.url : "";
+  // The same story from other publishers, picked by the News page from its
+  // list. Only allowed hosts, at most four (five reports with this one).
+  const related = (Array.isArray(body.related) ? body.related : [])
+    .filter(r => r && typeof r.headline === "string" && typeof r.url === "string" && newsHostOk(r.url) && r.url !== articleUrl)
+    .slice(0, 4)
+    .map(r => ({
+      headline: r.headline.trim().slice(0, 300),
+      source: typeof r.source === "string" ? r.source.slice(0, 40) : "",
+      summary: typeof r.summary === "string" ? r.summary.trim().slice(0, 400) : "",
+      url: r.url,
+    }));
 
-  const key = "h_" + await sha12(headline) + (hinglishOf(req) ? "_hi" : "");
+  // "a_" = written from the article (news page sends the link); "h_" = the
+  // old headline-only takes, still used if an old cached page omits the link
+  // so they never overwrite article-based ones. handlers/news.py builds the
+  // same "a_" key to attach saved takes to the feed.
+  const key = (articleUrl ? "a_" : "h_") + await sha12(headline) + (hinglishOf(req) ? "_hi" : "");
   const hit = await cacheGet("news_tldr", key);
   if (hit?.sentiment && hit?.tldr) return j(200, { ...hit, source: "cache" }, origin);
 
+  // All pages at once, so the wait is the slowest page (4 s cap), not the sum.
+  const [article, ...relatedText] = await Promise.all([
+    articleUrl ? fetchArticleText(articleUrl) : "",
+    ...related.map(r => fetchArticleText(r.url)),
+  ]);
   const userMsg = [
     `Headline: ${headline}`,
     source ? `Source: ${source}` : null,
-    symbols.length ? `Related tickers: ${symbols.join(", ")}` : null,
+    summary ? `Publisher summary: ${summary}` : null,
+    symbols.length ? `Tickers our keyword matcher spotted: ${symbols.join(", ")}` : null,
+    article ? `Article text:\n${article}` : `(This publisher's page could not be read.)`,
+    ...related.map((r, i) => [
+      `\n--- Same story, other report ${i + 1}${r.source ? ` (${r.source})` : ""} ---`,
+      `Headline: ${r.headline}`,
+      r.summary ? `Summary: ${r.summary}` : null,
+      relatedText[i] ? `Article text:\n${relatedText[i]}` : null,
+    ].filter(Boolean).join("\n")),
   ].filter(Boolean).join("\n");
 
   try {
     const text = await callLlm({ hinglish: hinglishOf(req),
       messages: [{ role: "system", content: SYSTEM_NEWS_TLDR }, { role: "user", content: userMsg }],
-      max_tokens: 180, temperature: 0.3, response_format: { type: "json_object" }, profile: "json", effort: "low",
+      max_tokens: 400, temperature: 0.3, response_format: { type: "json_object" }, profile: "json", effort: "low",
     });
     const parsed = parseJsonLoose(text);
     if (!parsed) return j(502, { error: "non_json" }, origin);
-    const sentiment = ["bullish", "bearish", "neutral"].includes(parsed.sentiment) ? parsed.sentiment : "neutral";
-    const tldr = typeof parsed.tldr === "string" && parsed.tldr.trim() ? parsed.tldr.trim().slice(0, 200) : "";
+    const EFFECTS = ["bullish", "bearish", "neutral"];
+    const sentiment = EFFECTS.includes(parsed.sentiment) ? parsed.sentiment : "neutral";
+    const tldr = typeof parsed.tldr === "string" && parsed.tldr.trim() ? parsed.tldr.trim().slice(0, 220) : "";
     if (!tldr) return j(502, { error: "no_tldr" }, origin);
-    const out = { sentiment, tldr };
+    const impacts = (Array.isArray(parsed.impacts) ? parsed.impacts : [])
+      .map(x => ({
+        ticker: String(x?.ticker || "").trim().toUpperCase().replace(/^NSE:/, ""),
+        effect: EFFECTS.includes(x?.effect) ? x.effect : "neutral",
+        why: typeof x?.why === "string" ? x.why.trim().slice(0, 90) : "",
+      }))
+      .filter(x => /^[A-Z0-9][A-Z0-9&-]{0,19}$/.test(x.ticker))
+      .slice(0, 4);
+    const read = [article ? "article" : (summary ? "summary" : "headline"),
+                  ...relatedText.map(t => t ? "article" : "summary")];
+    const out = { sentiment, tldr, impacts, read };
     // AWAITED: a fire-and-forget write is killed when the Edge function
     // returns, so most takes were never stored and every visitor paid for a
     // fresh generation of the same headline. /api/news reads these rows.

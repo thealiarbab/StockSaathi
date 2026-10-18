@@ -17,7 +17,7 @@ That is one Supabase read per CDN refresh, not one per visitor.
 
 Reply: {"ok": true, "n": <count>, "items": [{"h": headline, "s": summary,
         "src": source, "u": url, "ts": ms, "img": thumbnail|null,
-        "take": {"sentiment", "tldr"}|absent}]}
+        "take": {"sentiment", "tldr", "impacts": [{"ticker", "effect", "why"}]}|absent}]}
 ?lang=hi returns the Hinglish takes instead (cached separately).
 ?n=60 returns only the newest 60 (coach panel, portfolio card), ~12 KB
 instead of ~190 KB; any n from 1 to 1000 works, each is its own CDN copy.
@@ -91,9 +91,15 @@ FEEDS = [
     ("https://indianexpress.com/section/business/feed/", "Indian Express"),
     ("https://feeds.feedburner.com/ndtvprofit-latest", "NDTV Profit"),
     ("https://www.businesstoday.in/rssfeeds/?id=225346", "Business Today"),
-    ("https://www.businesstoday.in/rssfeeds/?id=home", "Business Today"),
-    ("https://www.goodreturns.in/rss/news-fb.xml", "Goodreturns"),
 ]
+# Business Today's home feed and Goodreturns' news feed were dropped on
+# 18 Oct: they are mostly world and general news (riots, rallies), not markets.
+
+# Sections that are never market news, even inside a business feed
+# (NDTV Profit's "latest" carries /india/ stories, Business Today /world/).
+OFF_TOPIC = re.compile(
+    r"/(world|india|lifestyle|entertainment|sports?|cricket|photo|photos|videos?|"
+    r"trending|cities|politics|education|technology/gadgets|auto/reviews)/", re.I)
 
 # Business Standard 403s anything that doesn't look like a browser.
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -165,7 +171,7 @@ def _fetch(feed):
     for block in _ITEM.findall(text):
         headline = _clean(_field(block, "title"))
         link = _clean(_field(block, "link")) or _clean(_field(block, "guid"))
-        if not headline or not link.startswith("http"):
+        if not headline or not link.startswith("http") or OFF_TOPIC.search(link):
             continue
         out.append({
             "h": headline,
@@ -182,9 +188,11 @@ def _fetch(feed):
 def take_key(headline, hinglish):
     # Must match sha12() + opNewsTldr in api/ai.js: headline trimmed and cut
     # to 300, then lowercased, whitespace collapsed, SHA-256, first 12 bytes.
+    # "a_" = takes written from the articles (since 18 Oct). The older "h_"
+    # rows were written from the headline alone and are deliberately ignored.
     h = str(headline or "").strip()[:300]
     norm = _WS.sub(" ", h.strip().lower())[:400]
-    return "h_" + hashlib.sha256(norm.encode("utf-8")).hexdigest()[:24] + ("_hi" if hinglish else "")
+    return "a_" + hashlib.sha256(norm.encode("utf-8")).hexdigest()[:24] + ("_hi" if hinglish else "")
 
 
 def _supa_key():
@@ -193,7 +201,7 @@ def _supa_key():
 
 
 def load_takes(keys):
-    """{cache_key: {"sentiment", "tldr"}} for keys that already have a take."""
+    """{cache_key: {"sentiment", "tldr", "impacts"}} for keys that already have a take."""
     key = _supa_key()
     if not key or not keys:
         return {}
@@ -214,7 +222,8 @@ def load_takes(keys):
         for row in json.loads(body):
             p = row.get("payload") or {}
             if p.get("tldr") and p.get("sentiment"):
-                found[row["cache_key"]] = {"sentiment": p["sentiment"], "tldr": p["tldr"]}
+                found[row["cache_key"]] = {"sentiment": p["sentiment"], "tldr": p["tldr"],
+                                           "impacts": p.get("impacts") or []}
     return found
 
 
