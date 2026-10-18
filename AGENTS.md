@@ -17,7 +17,7 @@ Vanilla-JS SPA + Python serverless (Vercel) + Postgres (Supabase). Virtual-money
   `vercel.json` + `.vercelignore`, headless Chromium). Anchor `.vercelignore`
   directories with a leading `/`: an unanchored `db/` once removed `js/db/`
   from production.
-- **Backend:** Vercel Python serverless functions in `api/*.py`
+- **Backend:** Vercel Python serverless functions in `api/*.py` — pinned to `bom1` (Mumbai) via `vercel.json` `regions`, next to the Supabase DB (`ap-south-1`). They defaulted to `iad1` (US East) until 2026-10-19, which put two ocean crossings on every quote.
 - **Database:** Supabase Postgres, RLS-enforced, RPCs for cross-user reads
 - **Data:** Yahoo Finance free tier (rate-limited for Vercel IPs) with a Supabase
   `quote_cache` TTL layer. **Yahoo is the ONLY source.** `fetch_dhan_ltp` exists
