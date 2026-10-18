@@ -119,7 +119,9 @@ select jsonb_build_object(
       round((l.close_paise / 100.0)::numeric, 2),
       case when l.trade_date = (select trade_date from d0) and l.prev_close_paise > 0
            then round((100.0 * (l.close_paise - l.prev_close_paise) / l.prev_close_paise)::numeric, 2) end,
-      case when b.close_paise > 0 and l.close_paise > 0 then round((100.0 * (l.close_paise - b.close_paise) / b.close_paise)::numeric, 1) end,
+      -- No 2-week change across a split or bonus (closes 2.5x apart in the window).
+      case when b.close_paise > 0 and l.close_paise > 0 and coalesce(rg.ratio, 1) < 2.5
+           then round((100.0 * (l.close_paise - b.close_paise) / b.close_paise)::numeric, 1) end,
       case when f.market_cap > 0 then round(f.market_cap / 1e7) end,
       case when f.pe_ratio > 0 and f.pe_ratio < 2000 then round(f.pe_ratio::numeric, 1) end,
       case when f.dividend_yield >= 0 and f.dividend_yield < 1 then round((f.dividend_yield * 100)::numeric, 2) end,
@@ -135,7 +137,8 @@ from syms s
 left join last l on l.symbol = s.symbol
 left join back b on b.symbol = s.symbol
 left join fund f on f.symbol = s.symbol and f.ok
-left join shape sh on sh.symbol = s.symbol;
+left join shape sh on sh.symbol = s.symbol
+left join (select symbol, max(close_paise)::numeric / nullif(min(close_paise), 0) as ratio from daily group by symbol) rg on rg.symbol = s.symbol;
 $$;
 
 revoke all on function public.search_snapshot() from public, anon, authenticated;
