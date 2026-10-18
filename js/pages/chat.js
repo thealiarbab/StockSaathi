@@ -56,6 +56,30 @@ Your last draft was in English. The user wrote in Hinglish: answer again in Hing
   return scrubAdvice(out, userText).text;
 }
 
+// One short line per tool round, shown while the data loads.
+function toolStatus(calls) {
+  const arg = (tc) => { try { return JSON.parse(tc?.function?.arguments || "{}"); } catch { return {}; } };
+  const syms = [];
+  let label = "Looking that up…";
+  for (const tc of calls || []) {
+    const a = arg(tc), name = tc?.function?.name || "";
+    const sym = String(a.symbol || a.ticker || a.coin || "").toUpperCase();
+    if ((name === "get_stock_price" || name === "get_crypto_price" || name === "get_fundamentals") && sym) syms.push(sym);
+    if (name === "get_user_portfolio") label = "Looking at your portfolio…";
+    else if (name === "get_trade_history") label = "Checking your trades…";
+    else if (name === "get_watchlist") label = "Opening your watchlist…";
+    else if (name === "get_limit_orders") label = "Checking your orders…";
+    else if (name === "get_market_news") label = "Reading the latest news…";
+    else if (name === "search_stocks") label = "Searching stocks…";
+    else if (name === "get_fundamentals") label = `Pulling ${sym || "company"} numbers…`;
+  }
+  if (syms.length && label === "Looking that up…") {
+    const shown = [...new Set(syms)];
+    label = `Checking ${shown.slice(0, 3).join(", ")}${shown.length > 3 ? ` and ${shown.length - 3} more` : ""} price${shown.length > 1 ? "s" : ""}…`;
+  }
+  return label;
+}
+
 function withDeadline(promise, ms) {
   return Promise.race([
     Promise.resolve(promise).catch(() => null),
@@ -693,6 +717,37 @@ The user wrote in Hinglish (Hindi in Roman script). Reply in Hinglish, the way t
     reRenderOuter();   // show typing indicator
     let replyText = null;
     let errorText = null;
+    // Live bubble: a status line while tools run ("Checking TCS price…"),
+    // then the answer as it streams. The finished reply replaces its text.
+    let live = null;
+    const showLive = (t, isStatus) => {
+      if (!live) {
+        live = { role: "assistant", text: "", ts: Date.now(), streaming: true };
+        ownerMessages.push(live);
+        reRenderOuter();
+      }
+      // Status lines show at once; answer text types out, because the model
+      // often sends a short reply in one or two big chunks.
+      liveTarget = isStatus ? "" : t;
+      if (isStatus || liveStatus || !t.startsWith(live.text)) live.text = isStatus ? t : "";
+      liveStatus = !!isStatus;
+      if (isStatus || !t) paintLive();
+      else if (!liveTimer) liveTimer = setInterval(() => {
+        const rem = liveTarget.length - live.text.length;
+        if (rem <= 0 || liveStatus) { clearInterval(liveTimer); liveTimer = null; return; }
+        live.text = liveTarget.slice(0, live.text.length + Math.min(rem, 2 + Math.floor(rem / 40)));
+        paintLive();
+      }, 18);
+    };
+    let liveTarget = "", liveTimer = null, liveStatus = false;
+    const paintLive = () => {
+      if (!isOwnerActive() || !live) return;
+      const bubble = outer?.querySelector('#chat-messages [data-streaming="1"] .msg-body');
+      if (!bubble) { reRenderOuter(); return; }
+      bubble.innerHTML = renderMarkdown(live.text);
+      const msgs = outer?.querySelector("#chat-messages");
+      if (msgs) msgs.scrollTop = msgs.scrollHeight;
+    };
     // DECLARED HERE, NOT INSIDE THE try BELOW.
     //
     // It used to live inside the try, whose block scope ends ~15 lines later.
@@ -736,11 +791,21 @@ This is a discovery question. Search for the instruments AND call get_stock_pric
         system,
         messages,
         profile: "fast",
+        onText: (t) => showLive(t || "", false),
+        onStep: (st) => {
+          if (st.action === "tool_calls") showLive(toolStatus(st.calls), true);
+          else if (st.action === "figure_check") showLive("Double-checking the numbers…", true);
+        },
       });
     } catch (e) {
       console.warn("coach chat tool path error:", e);
       errorText = "Couldn't reach Saathi right now. Try again in a moment.";
     }
+    // Let the typing finish (at most 2 s) before the final text lands.
+    if (liveTimer) await new Promise((done) => {
+      const until = Date.now() + 2000;
+      const w = setInterval(() => { if (!liveTimer || Date.now() > until) { clearInterval(w); done(); } }, 30);
+    });
     m_pending = false;
     m_abortController = null;
     // Write into the OWNER session's messages directly so a mid-stream
@@ -782,7 +847,11 @@ You already offered to look this up and the user already asked. Do NOT ask again
     }
     cleanedReply = await finishReply(cleanedReply, userText, system, messages);
     const finalText = (cleanedReply && cleanedReply.trim()) ? cleanedReply : (errorText || "Saathi couldn't answer that. Try rephrasing or asking again.");
-    ownerMessages.push({ role: "assistant", text: finalText, ts: Date.now() });
+    if (live) {
+      if (liveTimer) { clearInterval(liveTimer); liveTimer = null; }
+      live.text = finalText; live.streaming = false; live.ts = Date.now();
+    }
+    else ownerMessages.push({ role: "assistant", text: finalText, ts: Date.now() });
     // Title/timestamp refresh on the owner session
     ownerSession.updatedAt = Date.now();
     if (!ownerSession.title || ownerSession.title === "New chat") {

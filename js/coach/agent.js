@@ -733,7 +733,7 @@ function resolveCryptoId(q) {
 // -----------------------------------------------------------------------------
 // Transport — client-direct OR via backend proxy
 // -----------------------------------------------------------------------------
-async function callLLM({ apiKey, system, messages, tools, profile = "fast", reasoningEffort }) {
+async function callLLM({ apiKey, system, messages, tools, profile = "fast", reasoningEffort, onText }) {
   // Convert chat history (role/content string) to OpenAI format
   const openaiMessages = [
     { role: "system", content: system },
@@ -803,11 +803,13 @@ async function callLLM({ apiKey, system, messages, tools, profile = "fast", reas
     }
   }
 
-  // Otherwise go through our backend proxy
+  // Otherwise go through our backend proxy. With onText the reply streams:
+  // text is shown as it arrives and tool calls are rebuilt from the chunks.
+  if (onText) { body.stream = true; body.stream_tools = true; }
   try {
     const res = await fetch(BACKEND_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(onText ? { "Accept": "text/event-stream" } : {}) },
       body: JSON.stringify(body),
     });
     if (!res.ok) {
@@ -815,11 +817,67 @@ async function callLLM({ apiKey, system, messages, tools, profile = "fast", reas
       console.warn("Backend /api/chat", res.status, txt);
       return null;
     }
+    if (onText && res.body && /event-stream/.test(res.headers.get("Content-Type") || "")) {
+      return await readToolStream(res, onText);
+    }
     return await res.json();
   } catch (e) {
     console.warn("Backend /api/chat failed:", e);
     return null;
   }
+}
+
+// Rebuilds one chat-completion reply from an SSE stream. Text goes to onText
+// (the whole cleaned text so far) until the first tool call shows up; tool
+// calls arrive in pieces keyed by index, with arguments split across chunks.
+async function readToolStream(res, onText) {
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "", text = "", finish = null, usage = null;
+  const calls = [];
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split(String.fromCharCode(10));
+    buffer = lines.pop() ?? "";
+    for (const raw of lines) {
+      const line = raw.trim();
+      if (!line.startsWith("data:")) continue;
+      const data = line.slice(5).trim();
+      if (!data || data === "[DONE]") continue;
+      let chunk;
+      try { chunk = JSON.parse(data); } catch { continue; }
+      if (chunk.usage) usage = chunk.usage;
+      const ch = chunk.choices?.[0];
+      if (!ch) continue;
+      if (ch.finish_reason) finish = ch.finish_reason;
+      const d = ch.delta || {};
+      for (const tc of d.tool_calls || []) {
+        const i = Number.isInteger(tc.index) ? tc.index : calls.length;
+        const cur = calls[i] || (calls[i] = { type: "function", function: { name: "", arguments: "" } });
+        for (const [k, v] of Object.entries(tc)) {
+          if (k === "index") continue;
+          if (k === "function") {
+            if (v?.name) cur.function.name = v.name;
+            if (v?.arguments) cur.function.arguments += v.arguments;
+          } else cur[k] = v;
+        }
+      }
+      if (d.content) {
+        text += d.content;
+        if (!calls.length) onText(stripToolCallScaffolding(text));
+      }
+    }
+  }
+  const tool_calls = calls.filter(Boolean);
+  return {
+    choices: [{
+      message: { role: "assistant", content: text, ...(tool_calls.length ? { tool_calls } : {}) },
+      finish_reason: finish || (tool_calls.length ? "tool_calls" : "stop"),
+    }],
+    usage,
+  };
 }
 
 // -----------------------------------------------------------------------------
@@ -850,7 +908,7 @@ function splitForCache(system, messages) {
   return { system: s.slice(0, at), messages: out };
 }
 
-export async function runAgent({ apiKey, system, messages, onStep, profile = "fast" }) {
+export async function runAgent({ apiKey, system, messages, onStep, onText, profile = "fast" }) {
   let loops = 0;
   const split = splitForCache(system, messages);
   const conv = split.messages.map(m => ({ ...m }));
@@ -867,6 +925,7 @@ export async function runAgent({ apiKey, system, messages, onStep, profile = "fa
     const resp = await callLLM({
       apiKey, system: split.system, messages: conv, tools: TOOLS, profile,
       reasoningEffort: lastTurnRanTools ? "minimal" : undefined,
+      onText,
     });
     if (!resp) {
       console.warn("LLM unreachable (attempt", loops, ")");
@@ -889,7 +948,9 @@ export async function runAgent({ apiKey, system, messages, onStep, profile = "fa
       (choice.finish_reason === "tool_calls" || choice.finish_reason === "function_call" || !msg.content);
 
     if (wantsTools) {
-      onStep?.({ stepIndex: loops, action: "tool_calls", tools: toolCalls.map(tc => tc.function?.name) });
+      // Any words streamed before the tool call were a preamble, not the answer.
+      onText?.("");
+      onStep?.({ stepIndex: loops, action: "tool_calls", tools: toolCalls.map(tc => tc.function?.name), calls: toolCalls });
 
       // Append assistant tool-call turn as-is. upstream_blocks (when the
       // proxy sends it) is opaque here and must go back untouched on the
@@ -952,6 +1013,7 @@ export async function runAgent({ apiKey, system, messages, onStep, profile = "fa
       if (!figureNudged && loops < MAX_TOOL_LOOPS - 1) {
         figureNudged = true;
         onStep?.({ stepIndex: loops, action: "figure_check", figures: bad });
+        onText?.("");
         conv.push({ role: "assistant", content: text });
         conv.push({ role: "user", content: FIGURE_NUDGE(bad) });
         lastTurnRanTools = false;
