@@ -693,7 +693,7 @@ CHART DATA: ${sym}, ${label} daily chart from NSE, ${day(first.t)} to ${day(last
 - Up days: ${ups} of ${bars.length - 1}. Biggest one-day move: ${big.d >= 0 ? "+" : ""}${big.d.toFixed(2)}% on ${day(big.t)}.
 - Average volume in the last 5 sessions is ${volRatio.toFixed(1)}x the period's average.
 
-HOW TO ANSWER: this is the chart the student is looking at; it is attached above their message. Read it for them using only these numbers. Say what the overall shape was (rise, fall, sideways, or a dip and recovery), where the high and low came, and what being above or below the averages means, in plain words for a teenager, in 4 to 6 short sentences. Do not say you cannot see the chart, do not offer to look anything up, no predictions, no buy or sell views, no price targets, and do not end with a question about what happens next.`;
+HOW TO ANSWER: this is the chart the student is looking at; it is attached above their message. Read it for them using only these numbers. Say what the overall shape was (rise, fall, sideways, or a dip and recovery), where the high and low came, and what being above or below the averages means, in plain words for a teenager, in 4 to 6 short sentences. Do not say you cannot see the chart, do not offer to look anything up, no predictions, no buy or sell views, no price targets, and do not end with a question about what happens next. Write the answer in ${looksHinglish(text) || getState()?.settings?.hinglish ? "Hinglish (Hindi in Roman script), keeping finance terms in English" : "English"}.`;
 }
 
 function chartCard(c) {
