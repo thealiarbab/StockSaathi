@@ -156,6 +156,11 @@ def read_cache(symbols, ttl_ms=None):
         return {}
 
 
+# Per-instance memory of quote rows (same shape as quote_cache rows), keyed
+# by symbol. Warm Vercel instances serve many requests, so this absorbs most
+# repeat lookups without a database round-trip.
+_MEM = {}
+
 _last_write_error = {"status": None, "body": None, "key_prefix": None}
 
 def write_cache(rows):
@@ -417,11 +422,26 @@ class handler(BaseHTTPRequestHandler):
         # 1. Cache sweep (skipped when nocache=1). One read covers both the
         # fresh rows and the last-known fallback in step 3b: a second
         # quote_cache read per request was ~1 in 6 of all Supabase calls.
+        #
+        # Memory first. Rows this function instance fetched or read recently
+        # are reused without a Supabase call: one quote_cache read per request
+        # was the biggest single share of Supabase egress (22,794 reads on
+        # 18 Oct 2026, a closed-market Saturday). Supabase is read only when
+        # memory can't answer, and while the market is open not at all for
+        # the live path: a 5-second-old row from another instance is no
+        # better than asking the source again.
         cutoff = int(time.time() * 1000) - ttl_ms
         cached, stale = {}, {}
         if not nocache:
-            for s, row in read_cache(syms, ttl_ms=LAST_KNOWN_MAX_AGE_MS).items():
-                ((cached if (row.get("cached_at_ms") or 0) >= cutoff else stale))[s] = row
+            for s in syms:
+                row = _MEM.get(s)
+                if row:
+                    ((cached if (row.get("cached_at_ms") or 0) >= cutoff else stale))[s] = row
+            need_db = [s for s in syms if s not in cached and s not in stale]
+            if need_db and not market_open:
+                for s, row in read_cache(need_db, ttl_ms=LAST_KNOWN_MAX_AGE_MS).items():
+                    _MEM[s] = row
+                    ((cached if (row.get("cached_at_ms") or 0) >= cutoff else stale))[s] = row
         missing = [s for s in syms if s not in cached]
 
         # 2. Source chain for misses: Dhan → Yahoo
@@ -439,7 +459,11 @@ class handler(BaseHTTPRequestHandler):
         # write fresh rows back to cache.
         if fresh:
             apply_eod_prev(fresh)
-            write_cache([_to_cache_row(q) for q in fresh.values()])
+            rows = [_to_cache_row(q) for q in fresh.values()]
+            for r in rows:
+                _MEM[r["symbol"]] = r
+            # Still written: trades and order fills price from quote_cache.
+            write_cache(rows)
 
         # 3b. Last known REAL price for anything still missing. A symbol with
         # no live feed (Yahoo has no listing for many new NSE SME stocks) used
@@ -450,10 +474,12 @@ class handler(BaseHTTPRequestHandler):
         # The nightly NSE end-of-day ingest (admin-ingest-eod) keeps these
         # rows populated for every listed stock.
         still_missing = [s for s in syms if s not in fresh and s not in cached]
-        if nocache:
-            last_known = read_cache(still_missing, ttl_ms=LAST_KNOWN_MAX_AGE_MS) if still_missing else {}
-        else:
-            last_known = {s: stale[s] for s in still_missing if s in stale}
+        last_known = {s: stale[s] for s in still_missing if s in stale}
+        need_db = [s for s in still_missing if s not in last_known]
+        if need_db:
+            for s, row in read_cache(need_db, ttl_ms=LAST_KNOWN_MAX_AGE_MS).items():
+                _MEM[s] = row
+                last_known[s] = row
 
         # 4. Build response
         quotes = {}
@@ -508,6 +534,10 @@ class handler(BaseHTTPRequestHandler):
             # Open: 5s edge TTL. Closed: 300s edge TTL.
             edge_ttl = max(1, (ttl_ms if ttl_ms is not None else current_ttl_ms()) // 1000)
             self.send_header("Cache-Control", f"public, max-age={edge_ttl}")
+            # Shared Vercel edge copy: identical requests from different
+            # visitors inside the TTL are answered without running this
+            # function at all (plain max-age is browser-only).
+            self.send_header("CDN-Cache-Control", f"public, s-maxage={edge_ttl}")
         self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
         self.wfile.write(body)
