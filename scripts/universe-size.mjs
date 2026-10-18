@@ -4,7 +4,7 @@
  * js/data/universeFull.json so "Top by size" on /stocks is in the right order
  * on first paint, before the search snapshot arrives.
  *
- * Source: the public search snapshot (/api/ai?op=search-snapshot&v=2), which
+ * Source: the public search snapshot (/api/ai?op=search-snapshot&v=3), which
  * already drops fundamentals filed under the wrong ticker. Values are rounded
  * to 2 significant figures so the file (and its cache hash) doesn't change
  * every day. If the snapshot can't be fetched, existing values are kept.
@@ -23,7 +23,7 @@ const brotli = promisify(zlib.brotliCompress);
 const OUT_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "js", "data");
 const OUT_JSON = path.join(OUT_DIR, "universeFull.json");
 const OUT_META = path.join(OUT_DIR, "universeFull.meta.json");
-const SNAP_URL = "https://stocksaathi.co.in/api/ai?op=search-snapshot&v=2";
+const SNAP_URL = "https://stocksaathi.co.in/api/ai?op=search-snapshot&v=3";
 
 function round2(n) {
   if (!(n > 0)) return null;

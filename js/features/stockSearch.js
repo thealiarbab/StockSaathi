@@ -28,8 +28,8 @@ const _snapListeners = new Set();
 export function loadSearchSnapshot() {
   if (_snap) return Promise.resolve(_snap);
   if (_snapPromise) return _snapPromise;
-  // v=2: one character per day in the chart shape (v1 used two digits).
-  _snapPromise = fetch("/api/ai?op=search-snapshot&v=2")
+  // v=3 (v2 = one char per day; bumped to skip CDN copies cached before BSE closes).
+  _snapPromise = fetch("/api/ai?op=search-snapshot&v=3")
     .then(r => (r.ok ? r.json() : Promise.reject(new Error("http_" + r.status))))
     .then(d => {
       const cols = d.cols || [];
