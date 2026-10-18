@@ -59,7 +59,7 @@ Vanilla-JS SPA + Python serverless (Vercel) + Postgres (Supabase). Virtual-money
 
 ## Workflow rules
 - **Always push + let Vercel deploy** after any task. User pre-authorised.
-- **Push target:** `origin` remote — **only** `aliarbab2009/StockSaathi.git`. Never add a second pushurl.
+- **Push target:** `origin` remote — **only** `thealiarbab/stocksaathi` (renamed from `aliarbab2009/StockSaathi`). Never add a second pushurl.
 - **Style:** terse, blunt, no ceremony. User prefers honesty > padding.
 - **No attribution** in anything committed to this repo — no co-author trailers, no "built by X" comments, no vendor-branded filenames or identifiers. This is a hard rule.
 - **SW cache bump:** every JS/CSS change → bump `CACHE_NAME` in `sw.js` (format `stocksaathi-vN-YYYYMMDDx`)

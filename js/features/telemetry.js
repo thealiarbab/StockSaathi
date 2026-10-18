@@ -358,19 +358,33 @@ function onKeyDown(e) {
 
 // ---------------------------------------------------------------------------
 // Errors students hit: script errors, failed promises, files that did not load.
+// Ad and analytics scripts that ad blockers stop, plus errors browser
+// extensions throw into the page, are not faults in the app: they made up
+// 50 of 78 errors on 18 Oct 2026 and buried the real ones.
+const BLOCKED_HOSTS = /(^|\.)(clarity\.ms|googletagmanager\.com|google-analytics\.com|googlesyndication\.com|adtrafficquality\.google|doubleclick\.net)$/;
+const EXTENSION_NOISE = /window\.ethereum|chrome: call method|ResizeObserver loop/;
 function onError(e) {
   const t = e.target;
   if (t && t !== window && (t.src || t.href)) {
     let u = t.src || t.href;
-    try { const x = new URL(u); u = x.hostname === location.hostname ? x.pathname : x.hostname + x.pathname; } catch {}
+    try {
+      const x = new URL(u);
+      if (BLOCKED_HOSTS.test(x.hostname)) return;
+      u = x.hostname === location.hostname ? x.pathname : x.hostname + x.pathname;
+    } catch {}
     return logError(`load failed: ${t.tagName.toLowerCase()} ${u}`.slice(0, 200), {});
   }
+  const m = String(e.message || "");
+  // "Script error." with no file is a cross-origin script (ads, extensions)
+  // hiding its details; there is nothing in it to act on.
+  if (EXTENSION_NOISE.test(m) || (m === "Script error." && !e.filename)) return;
   let src = e.filename || "";
   try { src = new URL(src).pathname; } catch {}
   logError(String(e.message || "error").slice(0, 200), { src: `${src}:${e.lineno || 0}:${e.colno || 0}`.slice(0, 120), st: String(e.error?.stack || "").slice(0, 600) });
 }
 function onRejection(e) {
   const r = e.reason;
+  if (EXTENSION_NOISE.test(String(r?.message || r || ""))) return;
   logError(`unhandled: ${String(r?.message || r || "rejection")}`.slice(0, 200), { st: String(r?.stack || "").slice(0, 600) });
 }
 function logError(msg, props) {
