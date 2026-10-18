@@ -76,7 +76,8 @@ jobs:
               if day.weekday() >= 5:
                   continue
               rows = fetch(day)
-              if not rows:
+              # Holidays return a page that isn't the price file: skip it.
+              if not rows or "TradDt" not in rows[0] or "FinInstrmId" not in rows[0]:
                   continue
               trade_date = rows[0]["TradDt"]
               payload = [[by_code[r["FinInstrmId"]], r["FinInstrmId"], r["SctySrs"], r["OpnPric"], r["HghPric"],
