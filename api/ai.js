@@ -1222,6 +1222,7 @@ export default async function handler(req) {
       case "admin-signup-stats":  return await opAdminSignupStats(req, origin);
       case "admin-signup-count":  return await opAdminSignupCount(req, origin);
       case "admin-web-analytics": return await opAdminWebAnalytics(req, origin);
+      case "search-snapshot":     return await opSearchSnapshot(req, origin);
       case "ev":                  if (req.method !== "POST") return j(405, { error: "method_not_allowed" }, origin); return await opEv(req, origin);
       case "admin-behaviour":     return await opAdminBehaviour(req, origin, url);
       case "admin-journey":       return await opAdminJourney(req, origin, url);
@@ -2711,6 +2712,20 @@ async function opEv(req, origin) {
     });
   } catch { /* tracking must never break the page */ }
   return none();
+}
+
+// Markets search box: every symbol's last close, day and 2-week change and a
+// few fundamentals in one compact file (search_snapshot() in Postgres). The
+// data only changes after the nightly NSE import, so the CDN keeps it for 6 h
+// and serves the old copy while refreshing — a few database reads a day no
+// matter how many students search.
+async function opSearchSnapshot(req, origin) {
+  const res = await sbAdminFetch(`/rest/v1/rpc/search_snapshot`, { method: "POST", body: "{}" });
+  if (!res.ok) return j(502, { error: "query_failed" }, origin);
+  const h = cors(origin, false);
+  h.set("Cache-Control", "public, max-age=1800");
+  h.set("CDN-Cache-Control", "public, s-maxage=21600, stale-while-revalidate=86400");
+  return new Response(await res.text(), { status: 200, headers: h });
 }
 
 async function opAdminBehaviour(req, origin, url) {
