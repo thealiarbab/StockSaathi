@@ -5875,3 +5875,9 @@ body.chat-app { overflow: hidden; }
    chat layout's position: fixed into "relative to main" and pushed the
    composer below the fold again. No transform on the chat page. */
 .main.main-chat { transform: none !important; animation: none !important; }
+/* Keep the chat column the height of the screen: without a bounded row the
+   grid grew with each message and pushed the composer down. */
+@media (min-width: 901px) {
+  .cc.cc-has-side { grid-template-rows: minmax(0, 1fr); }
+  .cc.cc-has-side > .cc-main { min-height: 0; height: 100%; overflow: hidden; }
+}
