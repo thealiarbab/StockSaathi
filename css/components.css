@@ -4215,6 +4215,7 @@ table.compare { min-width: 560px; }
   font-size: var(--text-sm);
   color: var(--text-muted);
 }
+.error-text { color: var(--negative); }
 .error-msg {
   background: var(--negative-soft);
   color: var(--negative);
@@ -5881,3 +5882,8 @@ body.chat-app { overflow: hidden; }
   .cc.cc-has-side { grid-template-rows: minmax(0, 1fr); }
   .cc.cc-has-side > .cc-main { min-height: 0; height: 100%; overflow: hidden; }
 }
+
+/* Points at the order button when the already-selected Buy/Sell tab is tapped. */
+@keyframes btn-nudge { 0%, 100% { transform: scale(1); } 40% { transform: scale(1.04); box-shadow: 0 0 0 4px var(--accent-soft, rgba(16,185,129,.25)); } }
+.nudge { animation: btn-nudge .6s var(--ease, ease) 2; }
+@media (prefers-reduced-motion: reduce) { .nudge { animation: none; outline: 2px solid currentColor; } }

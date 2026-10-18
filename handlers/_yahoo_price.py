@@ -45,3 +45,27 @@ def pick_price(result):
     if last_close is not None:
         return float(last_close), int(last_ts), prev_close
     return None, None, None
+
+
+# --- Fetching -----------------------------------------------------------------
+# Every handler sends a full desktop-Chrome User-Agent. Reports from other
+# Yahoo clients (Oct 2026) found Yahoo answers 429 to some browser strings
+# while plain ones pass from the same IP, so a 429 may be about the header,
+# not our rate. On a 429, try once more with a plain UA. This can only add
+# successful fetches; a second 429 is raised as before.
+_PLAIN_UA = "Mozilla/5.0"
+
+
+def yahoo_get(url, headers, timeout):
+    """GET a Yahoo URL and return the body bytes; retries a 429 once."""
+    import urllib.error
+    import urllib.request
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=timeout) as r:
+            return r.read()
+    except urllib.error.HTTPError as e:
+        if e.code != 429 or headers.get("User-Agent") == _PLAIN_UA:
+            raise
+    retry = dict(headers, **{"User-Agent": _PLAIN_UA})
+    with urllib.request.urlopen(urllib.request.Request(url, headers=retry), timeout=timeout) as r:
+        return r.read()

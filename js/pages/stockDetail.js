@@ -1522,6 +1522,18 @@ function attachListeners(main, inst, symbol, curPrice, holding, chartOhlc, sessi
 
   main.querySelectorAll("[data-side]").forEach(btn => {
     btn.addEventListener("click", () => {
+      // Students tap the "Buy" tab expecting it to buy (60 rapid repeat taps
+      // on 18 Oct). It used to reset the quantity to 1 and redraw, so their
+      // chosen quantity vanished. Same side: keep everything and point at
+      // the button that actually places the order.
+      if (ui.side === btn.dataset.side) {
+        const go = main.querySelector("#place-trade-btn");
+        if (go) {
+          go.scrollIntoView({ block: "center", behavior: "smooth" });
+          go.classList.remove("nudge"); void go.offsetWidth; go.classList.add("nudge");
+        }
+        return;
+      }
       ui.side = btn.dataset.side;
       ui.qty = inst.kind === "MF" ? 0.5 : 1;
       render(inst, symbol);
