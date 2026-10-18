@@ -13,6 +13,7 @@ import { buildDossier } from "../coach/dossier.js";
 import {
   loadSessions, saveSessions, getActiveSession, setActiveSession,
   createNewSession, deleteSessionById, touchActive, clearActiveMessages,
+  renameSession, togglePin,
   formatRelative, SESSIONS_KEY,
 } from "../features/chatSessions.js";
 
@@ -185,54 +186,64 @@ export function renderChat(main) {
     const active = getActiveSession(sessionsData);
 
     main.innerHTML = `
-      <div class="cc">
-        <header class="cc-head">
-          <div class="cc-id">
-            <span class="cc-avatar cc-avatar-lg" aria-hidden="true">S<i class="cc-online"></i></span>
-            <div class="cc-id-text">
-              <h1 class="cc-title">Saathi</h1>
-              <p class="cc-sub">Your money coach. Explains markets, never gives tips.</p>
-            </div>
+      <div class="cc cc-has-side ${drawerOpen ? "is-drawer-open" : ""}">
+        <aside class="cc-side" id="cc-side" aria-label="Your chats">
+          <div class="cc-side-top">
+            <button id="chat-new-btn" class="cc-side-new" type="button"><span aria-hidden="true">+</span> New chat</button>
+            <button class="cc-side-close" id="cc-side-close" type="button" aria-label="Close chat list">&times;</button>
           </div>
-          <div class="cc-actions chat-session-bar">
-            <div class="chat-session-picker-wrap" style="position: relative;">
-              <button id="chat-session-picker" class="cc-chip-btn" type="button" aria-haspopup="listbox" aria-expanded="false" title="Switch chat">
-                <span class="cc-chip-label">${escapeHtml(active.title && active.title !== "New chat" ? active.title : "Your chats")}</span>
-                <span aria-hidden="true" class="cc-caret">▾</span>
-              </button>
-              <div id="chat-session-menu" class="chat-session-menu" hidden role="listbox"></div>
-            </div>
-            <button class="cc-chip-btn cc-quiet" id="chat-clear" type="button" title="Clear this chat">Clear</button>
-            <button id="chat-new-btn" class="cc-chip-btn cc-new" type="button" title="Start a new chat (previous chats are kept)">+ New chat</button>
-          </div>
-        </header>
+          <label class="cc-search">
+            <span class="sr-only">Search chats</span>
+            <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input id="cc-search" type="search" placeholder="Search chats" autocomplete="off" value="${escapeAttr(sideQuery)}" />
+          </label>
+          <nav class="cc-list" id="cc-list">${renderChatList()}</nav>
+        </aside>
+        <button class="cc-scrim" id="cc-scrim" type="button" aria-label="Close chat list" tabindex="-1"></button>
 
-        <div class="cc-panel chat-card">
-          <div id="chat-messages" class="chat-messages cc-messages">
-            ${renderMessages()}
-          </div>
-
-          <form id="chat-form" class="composer cc-composer">
-            <div class="composer-shell ${m_pending ? "is-busy" : ""}">
-              ${m_pending
-                ? `<span class="composer-dots" aria-live="polite"><span>Saathi is thinking</span><i></i><i></i><i></i></span>`
-                : ""}
-              <input
-                id="chat-input"
-                class="composer-input"
-                placeholder="${m_pending ? "" : "Ask about SIPs, P/E, crashes, anything…"}"
-                autocomplete="off"
-                maxlength="500"
-                aria-label="Message Saathi"
-                ${m_pending ? "disabled" : ""}
-              />
-              ${m_pending
-                ? `<button class="composer-btn is-stop" id="chat-stop" type="button" title="Stop generating" aria-label="Stop generating">&#9632;</button>`
-                : `<button class="composer-btn" id="chat-send" type="submit" title="Send" aria-label="Send message">&#8593;</button>`}
+        <section class="cc-main">
+          <header class="cc-head">
+            <button class="cc-chip-btn cc-menu-btn" id="cc-open-side" type="button" aria-controls="cc-side" aria-label="Open chat list">
+              <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+              Chats
+            </button>
+            <div class="cc-id">
+              <span class="cc-avatar cc-avatar-lg" aria-hidden="true">S<i class="cc-online"></i></span>
+              <div class="cc-id-text">
+                <h1 class="cc-title">${chatLog.length ? escapeHtml(active.title || "Saathi") : "Saathi"}</h1>
+                <p class="cc-sub">${chatLog.length ? "With Saathi, your money coach" : "Your money coach. Explains markets, never gives tips."}</p>
+              </div>
             </div>
-          </form>
-        </div>
-        <p class="cc-foot">Saathi can get things wrong. Check prices before you trade.</p>
+            <button class="cc-chip-btn cc-new cc-head-new" id="chat-new-btn-2" type="button" aria-label="New chat">+</button>
+          </header>
+
+          <div class="cc-panel chat-card ${chatLog.length ? "" : "is-empty"}">
+            <div id="chat-messages" class="chat-messages cc-messages">
+              ${renderMessages()}
+            </div>
+
+            <form id="chat-form" class="composer cc-composer">
+              <div class="composer-shell ${m_pending ? "is-busy" : ""}">
+                <textarea
+                  id="chat-input"
+                  class="composer-input"
+                  rows="1"
+                  placeholder="${m_pending ? "Type your next message…" : "Ask Saathi anything"}"
+                  autocomplete="off"
+                  maxlength="2000"
+                  aria-label="Message Saathi"
+                ></textarea>
+                ${m_pending
+                  ? `<button class="composer-btn is-stop" id="chat-stop" type="button" title="Stop generating" aria-label="Stop generating">&#9632;</button>`
+                  : `<button class="composer-btn" id="chat-send" type="submit" title="Send" aria-label="Send message">&#8593;</button>`}
+              </div>
+            </form>
+            <button class="cc-jump" id="cc-jump" type="button" aria-label="Jump to latest message" hidden>
+              <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+            </button>
+          </div>
+          <p class="cc-foot">Saathi can get things wrong. Check prices before you trade.</p>
+        </section>
       </div>
     `;
 
@@ -243,18 +254,36 @@ export function renderChat(main) {
     // Desktop: auto-focus so the user can start typing. Mobile: don't —
     // focusing an input pops the soft keyboard, and the user hasn't
     // asked for it yet. They can tap the input themselves to start.
-    if (window.innerWidth >= 1024) input.focus();
+    if (window.innerWidth >= 1024 && !drawerOpen) input.focus();
+
+    // Grows with the text up to ~8 lines, like the big chat apps.
+    const fit = () => { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 200) + "px"; input.style.overflowY = input.scrollHeight > 200 ? "auto" : "hidden"; };
+    input.addEventListener("input", fit);
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+        e.preventDefault();
+        if (!m_pending) form.requestSubmit();
+      }
+    });
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
-      if (m_pending) return;   // guardrail: don't queue sends while streaming
+      // A reply is still running: keep what was typed, it sends once it ends.
+      if (m_pending) return;
       const text = input.value.trim();
       if (!text) return;
       input.value = "";
+      fit();
+      main.querySelector(".cc-panel")?.classList.remove("is-empty");
       pushUser(text);
       rerender();
+      refreshSide();
       await sendAndReply(text);
       rerender();
+      refreshSide();
+      const cur = getActiveSession(sessionsData);
+      const h = main.querySelector(".cc-title"), sub = main.querySelector(".cc-sub");
+      if (h && cur?.messages?.length) { h.textContent = cur.title || "Saathi"; if (sub) sub.textContent = "With Saathi, your money coach"; }
     });
 
     // Stop-button: aborts the in-flight stream. The sendAndReply handler
@@ -264,116 +293,208 @@ export function renderChat(main) {
       if (m_abortController) m_abortController.abort();
     });
 
+    messagesEl.addEventListener("click", async (e) => {
+      const copyBtn = e.target.closest("[data-copy]");
+      if (!copyBtn) return;
+      const body = copyBtn.closest(".cc-row")?.querySelector(".msg-body");
+      try {
+        await navigator.clipboard.writeText(body?.innerText || "");
+        copyBtn.classList.add("is-done");
+        copyBtn.lastChild.textContent = "Copied";
+        setTimeout(() => { copyBtn.classList.remove("is-done"); copyBtn.lastChild.textContent = "Copy"; }, 1500);
+      } catch {}
+    });
+    const jump = main.querySelector("#cc-jump");
+    messagesEl.addEventListener("scroll", () => {
+      jump.hidden = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight < 160;
+    }, { passive: true });
+    jump.addEventListener("click", () => { messagesEl.scrollTop = messagesEl.scrollHeight; });
+
     main.querySelectorAll("[data-q]").forEach(btn => {
       btn.addEventListener("click", async () => {
         if (m_pending) return;
-        const q = btn.dataset.q;
-        input.value = q;
+        input.value = btn.dataset.q;
         form.dispatchEvent(new Event("submit"));
       });
     });
 
-    main.querySelector("#chat-clear")?.addEventListener("click", () => {
-      if (confirm("Clear THIS chat's history? Previous sessions in the 🗂 menu stay.")) {
-        // Wipe only the active session's messages (not all sessions).
-        clearActiveMessages(sessionsData);
-        // Re-bind chatLog to the (now empty) same session's messages array.
-        chatLog = getActiveSession(sessionsData).messages;
-        render();
-      }
-    });
-
-    // Session picker + new-chat + session switch / delete handlers.
-    main.querySelector("#chat-new-btn")?.addEventListener("click", () => {
-      // Abort any in-flight stream before swapping sessions so tokens from
-      // the previous session don't leak into the new one.
+    const stopStream = () => {
       if (m_abortController) { try { m_abortController.abort(); } catch {} }
       m_abortController = null;
       m_pending = false;
-      createNewSession(sessionsData);
-      rebindActiveChatLog();
-      render();
-    });
-
-    const pickerBtn = main.querySelector("#chat-session-picker");
-    const pickerMenu = main.querySelector("#chat-session-menu");
-    pickerBtn?.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const open = !pickerMenu.hidden;
-      if (open) {
-        pickerMenu.hidden = true;
-        pickerBtn.setAttribute("aria-expanded", "false");
-        return;
-      }
-      // Build the menu lazily so timestamps are fresh every open.
-      pickerMenu.innerHTML = sessionsData.sessions.map(s => {
-        const isActive = s.id === sessionsData.activeId;
-        const title = escapeHtml(s.title || "New chat");
-        const rel = escapeHtml(formatRelative(s.updatedAt || s.createdAt));
-        const count = (s.messages || []).length;
-        return `
-          <div class="chat-session-row ${isActive ? "active" : ""}" data-session-id="${escapeAttr(s.id)}" role="option" aria-selected="${isActive ? "true" : "false"}">
-            <button type="button" class="chat-session-row-main" data-switch-session="${escapeAttr(s.id)}">
-              <div class="chat-session-row-title">${title}</div>
-              <div class="chat-session-row-meta">${count} msg${count === 1 ? "" : "s"} · ${rel}</div>
-            </button>
-            <button type="button" class="chat-session-row-del" data-delete-session="${escapeAttr(s.id)}" aria-label="Delete this chat" title="Delete this chat">×</button>
-          </div>
-        `;
-      }).join("");
-      pickerMenu.hidden = false;
-      pickerBtn.setAttribute("aria-expanded", "true");
-    });
-
-    // Outside-click closes the picker. One listener added per render —
-    // cleaned up on next render via innerHTML replacement (implicit).
-    const closePicker = (e) => {
-      if (!pickerMenu || pickerMenu.hidden) return;
-      if (e.target.closest("#chat-session-picker") || e.target.closest("#chat-session-menu")) return;
-      pickerMenu.hidden = true;
-      pickerBtn?.setAttribute("aria-expanded", "false");
     };
-    document.addEventListener("click", closePicker, { once: false });
-    // We rely on document listeners getting cleaned up naturally when the
-    // hash changes (chat page unmounts); no explicit removal needed for now.
+    const newChat = () => {
+      stopStream();
+      // Reuse an empty chat instead of piling up blank ones.
+      const blank = sessionsData.sessions.find(x => !(x.messages || []).length);
+      if (blank) setActiveSession(sessionsData, blank.id);
+      else createNewSession(sessionsData);
+      rebindActiveChatLog();
+      sideQuery = "";
+      drawerOpen = false;
+      render();
+    };
+    main.querySelector("#chat-new-btn")?.addEventListener("click", newChat);
+    main.querySelector("#chat-new-btn-2")?.addEventListener("click", newChat);
 
-    pickerMenu?.addEventListener("click", (e) => {
-      const switchBtn = e.target.closest("[data-switch-session]");
-      const delBtn = e.target.closest("[data-delete-session]");
-      if (delBtn) {
+    // Drawer (phones and narrow windows).
+    const setDrawer = (open) => {
+      drawerOpen = open;
+      main.querySelector(".cc")?.classList.toggle("is-drawer-open", open);
+      if (open) main.querySelector("#cc-search")?.focus();
+    };
+    main.querySelector("#cc-open-side")?.addEventListener("click", () => setDrawer(true));
+    main.querySelector("#cc-side-close")?.addEventListener("click", () => setDrawer(false));
+    main.querySelector("#cc-scrim")?.addEventListener("click", () => setDrawer(false));
+
+    const search = main.querySelector("#cc-search");
+    search?.addEventListener("input", () => { sideQuery = search.value; refreshSide(); });
+
+    const list = main.querySelector("#cc-list");
+    const closeMenus = () => list?.querySelectorAll(".cc-item-menu").forEach(m => m.remove());
+    list?.addEventListener("click", (e) => {
+      const openBtn = e.target.closest("[data-open]");
+      const moreBtn = e.target.closest("[data-more]");
+      const act = e.target.closest("[data-act]");
+      if (act) {
         e.stopPropagation();
-        const id = delBtn.dataset.deleteSession;
-        const s = sessionsData.sessions.find(x => x.id === id);
-        const label = s?.title || "this chat";
-        if (!confirm(`Delete "${label}"? This can't be undone.`)) return;
-        // If we're aborting the current session, cancel its stream.
-        if (sessionsData.activeId === id && m_abortController) {
-          try { m_abortController.abort(); } catch {}
-          m_abortController = null;
-          m_pending = false;
+        const id = act.dataset.id;
+        const sess = sessionsData.sessions.find(x => x.id === id);
+        closeMenus();
+        if (!sess) return;
+        if (act.dataset.act === "pin") { togglePin(sessionsData, id); refreshSide(); }
+        else if (act.dataset.act === "rename") startRename(id);
+        else if (act.dataset.act === "delete") {
+          if (!confirm(`Delete "${sess.title || "this chat"}"? This can't be undone.`)) return;
+          if (sessionsData.activeId === id) stopStream();
+          deleteSessionById(sessionsData, id);
+          rebindActiveChatLog();
+          render();
         }
-        deleteSessionById(sessionsData, id);
-        rebindActiveChatLog();
-        pickerMenu.hidden = true;
-        render();
         return;
       }
-      if (switchBtn) {
-        const id = switchBtn.dataset.switchSession;
-        if (id === sessionsData.activeId) {
-          pickerMenu.hidden = true;
-          pickerBtn.setAttribute("aria-expanded", "false");
-          return;
-        }
-        if (m_abortController) { try { m_abortController.abort(); } catch {} }
-        m_abortController = null;
-        m_pending = false;
+      if (moreBtn) {
+        e.stopPropagation();
+        const row = moreBtn.closest(".cc-item");
+        const had = row.querySelector(".cc-item-menu");
+        closeMenus();
+        if (had) return;
+        const id = row.dataset.id;
+        const sess = sessionsData.sessions.find(x => x.id === id);
+        row.insertAdjacentHTML("beforeend", `
+          <div class="cc-item-menu" role="menu">
+            <button type="button" role="menuitem" data-act="pin" data-id="${escapeAttr(id)}">${sess?.pinned ? "Unpin" : "Pin"}</button>
+            <button type="button" role="menuitem" data-act="rename" data-id="${escapeAttr(id)}">Rename</button>
+            <button type="button" role="menuitem" data-act="delete" data-id="${escapeAttr(id)}" class="is-danger">Delete</button>
+          </div>`);
+        row.querySelector(".cc-item-menu button")?.focus();
+        return;
+      }
+      if (openBtn) {
+        const id = openBtn.dataset.open;
+        drawerOpen = false;
+        if (id === sessionsData.activeId) { setDrawer(false); return; }
+        stopStream();
         setActiveSession(sessionsData, id);
         rebindActiveChatLog();
-        pickerMenu.hidden = true;
         render();
       }
     });
+    const onDocClick = (e) => { if (!e.target.closest(".cc-item")) closeMenus(); };
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      if (list?.querySelector(".cc-item-menu")) closeMenus();
+      else if (drawerOpen) setDrawer(false);
+    };
+    document.addEventListener("click", onDocClick);
+    document.addEventListener("keydown", onKey);
+    // render() runs again on every chat switch; drop this render's listeners
+    // when the next one starts or the page is left.
+    const off = () => {
+      document.removeEventListener("click", onDocClick);
+      document.removeEventListener("keydown", onKey);
+    };
+    cleanupSide?.();
+    cleanupSide = off;
+    window.addEventListener("ss:navigate", off, { once: true });
+
+    function startRename(id) {
+      const row = list.querySelector(`.cc-item[data-id="${CSS.escape(id)}"]`);
+      const sess = sessionsData.sessions.find(x => x.id === id);
+      if (!row || !sess) return;
+      const btn = row.querySelector("[data-open]");
+      btn.outerHTML = `<input class="cc-rename" maxlength="80" value="${escapeAttr(sess.title || "")}" aria-label="Chat name" />`;
+      const inp = row.querySelector(".cc-rename");
+      inp.focus(); inp.select();
+      let done = false;
+      const finish = (save) => {
+        if (done) return; done = true;
+        if (save) renameSession(sessionsData, id, inp.value);
+        render();
+      };
+      inp.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter") { ev.preventDefault(); finish(true); }
+        if (ev.key === "Escape") { ev.stopPropagation(); finish(false); }
+      });
+      inp.addEventListener("blur", () => finish(true));
+    }
+
+    function refreshSide() {
+      const l = main.querySelector("#cc-list");
+      if (l) l.innerHTML = renderChatList();
+    }
+  }
+
+  // Chat list: pinned first, then grouped by last activity.
+  function renderChatList() {
+    const q = sideQuery.trim().toLowerCase();
+    const all = sessionsData.sessions
+      .filter(x => (x.messages || []).length || x.id === sessionsData.activeId)
+      .slice()
+      .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    if (q) {
+      const hits = [];
+      for (const x of all) {
+        const inTitle = (x.title || "").toLowerCase().includes(q);
+        const msg = (x.messages || []).find(m => String(m.text || "").toLowerCase().includes(q));
+        if (!inTitle && !msg) continue;
+        let snip = "";
+        if (msg) {
+          const t = String(msg.text).replace(/\s+/g, " ");
+          const i = t.toLowerCase().indexOf(q);
+          snip = (i > 30 ? "…" : "") + t.slice(Math.max(0, i - 30), i + q.length + 50);
+        }
+        hits.push(chatItem(x, snip));
+      }
+      return hits.length ? hits.join("") : `<p class="cc-list-empty">No chats match "${escapeHtml(sideQuery.trim())}".</p>`;
+    }
+    const day = 86400000;
+    const start = new Date(); start.setHours(0, 0, 0, 0);
+    const today = start.getTime();
+    const groups = [["Pinned", []], ["Today", []], ["Yesterday", []], ["Previous 7 days", []], ["Previous 30 days", []], ["Older", []]];
+    for (const x of all) {
+      const t = x.updatedAt || x.createdAt || 0;
+      const g = x.pinned ? 0 : t >= today ? 1 : t >= today - day ? 2 : t >= today - 7 * day ? 3 : t >= today - 30 * day ? 4 : 5;
+      groups[g][1].push(x);
+    }
+    return groups.filter(([, xs]) => xs.length).map(([name, xs]) => `
+      <div class="cc-group">
+        <h2 class="cc-group-name">${name}</h2>
+        ${xs.map(x => chatItem(x)).join("")}
+      </div>`).join("");
+  }
+
+  function chatItem(x, snip = "") {
+    const isActive = x.id === sessionsData.activeId;
+    const title = (x.messages || []).length ? (x.title || "New chat") : "New chat";
+    return `
+      <div class="cc-item ${isActive ? "is-active" : ""}" data-id="${escapeAttr(x.id)}">
+        <button type="button" class="cc-item-open" data-open="${escapeAttr(x.id)}" ${isActive ? 'aria-current="page"' : ""}>
+          <span class="cc-item-title">${escapeHtml(title)}</span>
+          ${snip ? `<span class="cc-item-snip">${escapeHtml(snip)}</span>` : ""}
+        </button>
+        <button type="button" class="cc-item-more" data-more aria-label="Options for ${escapeAttr(title)}" aria-haspopup="menu">&middot;&middot;&middot;</button>
+      </div>`;
   }
 
   function rerender() {
@@ -404,13 +525,20 @@ export function renderChat(main) {
 
 let m_pending = false;
 let m_abortController = null;
+let sideQuery = "";
+let drawerOpen = false;
+let cleanupSide = null;
 
 function renderBubble(m) {
   const streamAttr = m.streaming ? ` data-streaming="1"` : "";
   if (m.role === "user") {
     return `<div class="cc-row cc-row-user"${streamAttr}><div class="cc-bubble cc-user"><span class="msg-body">${escapeHtml(m.text)}</span></div></div>`;
   }
-  return `<div class="cc-row cc-row-bot"${streamAttr}><span class="cc-avatar" aria-hidden="true">S</span><div class="cc-bubble cc-bot"><span class="msg-body">${m.status ? statusHtml(m.text) : renderMarkdown(m.text)}</span></div></div>`;
+  const actions = m.streaming || m.status || !m.text ? "" : `
+    <div class="cc-actions-row">
+      <button type="button" class="cc-act" data-copy aria-label="Copy reply"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="3"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><span>Copy</span></button>
+    </div>`;
+  return `<div class="cc-row cc-row-bot"${streamAttr}><span class="cc-avatar" aria-hidden="true">S</span><div class="cc-bot-col"><div class="cc-bubble cc-bot"><span class="msg-body">${m.status ? statusHtml(m.text) : renderMarkdown(m.text)}</span></div>${actions}</div></div>`;
 }
 
 // "Checking TCS price…" while tools run: a pulsing dot, not a reply.
@@ -530,20 +658,10 @@ async function sendAndReply(userText) {
   const input = outer?.querySelector("#chat-input");
   const sendBtn = outer?.querySelector("#chat-send");
   const shell = outer?.querySelector(".composer-shell");
-  if (shell) {
-    shell.classList.add("is-busy");
-    // Live typing dots INSIDE the composer. The old treatment just disabled
-    // the input and set the placeholder to "Saathi is responding…", which
-    // reads as a dead form rather than a busy one — especially when a reply
-    // takes a few seconds.
-    if (!shell.querySelector(".composer-dots")) {
-      shell.insertAdjacentHTML("afterbegin",
-        `<span class="composer-dots" aria-live="polite"><span>Saathi is thinking</span><i></i><i></i><i></i></span>`);
-    }
-  }
+  if (shell) shell.classList.add("is-busy");
   if (input) {
-    input.setAttribute("readonly", "readonly");
-    input.placeholder = "";
+    // Typing stays open while Saathi replies; only sending waits.
+    input.placeholder = "Type your next message…";
     // Don't steal focus during mobile streaming — keeps the virtual
     // keyboard from popping up uninvited. Desktop-only.
     if (window.innerWidth >= 1024) input.focus();
@@ -609,7 +727,7 @@ async function sendAndReply(userText) {
     if (inputNow) {
       inputNow.removeAttribute("readonly");
       inputNow.removeAttribute("disabled");
-      inputNow.placeholder = "Ask about SIPs, P/E, crashes, anything…";
+      inputNow.placeholder = "Ask Saathi anything";
       // Same rationale as above — desktop auto-focus is fine, mobile
       // pops a keyboard the user didn't ask for.
       if (window.innerWidth >= 1024) inputNow.focus();

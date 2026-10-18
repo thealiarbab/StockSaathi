@@ -398,6 +398,7 @@ function mergeLocalChatTail(sessions, coachLog) {
  */
 export function clearChatCaches() {
   try { localStorage.removeItem(SESSIONS_LS_KEY); } catch {}
+  try { localStorage.removeItem("ss.chat.meta.v1"); } catch {}
   try { localStorage.removeItem(COACHLOG_LS_KEY); } catch {}
   try { localStorage.removeItem(CHAT_OWNER_KEY); } catch {}
   try { window.dispatchEvent(new CustomEvent("ss:coach-sync")); } catch {}

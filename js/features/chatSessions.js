@@ -15,6 +15,30 @@
 // =============================================================================
 
 export const SESSIONS_KEY = "ss.chat.sessions.v1";
+// Renames, pins and deletions live in their own key. For a signed-in user the
+// sessions envelope is rebuilt from coach_messages on every boot, which used
+// to undo all three (a deleted chat came back on the next visit).
+export const META_KEY = "ss.chat.meta.v1";
+
+function readMeta() {
+  try { return JSON.parse(localStorage.getItem(META_KEY) || "{}") || {}; } catch { return {}; }
+}
+function patchMeta(id, patch) {
+  const meta = readMeta();
+  meta[id] = { ...(meta[id] || {}), ...patch };
+  for (const k of Object.keys(meta[id])) if (meta[id][k] === undefined) delete meta[id][k];
+  try { localStorage.setItem(META_KEY, JSON.stringify(meta)); } catch {}
+}
+function applyMeta(data) {
+  const meta = readMeta();
+  data.sessions = data.sessions.filter((x) => !meta[x.id]?.deleted);
+  for (const x of data.sessions) {
+    const m = meta[x.id];
+    if (!m) continue;
+    if (m.title) x.title = m.title;
+    x.pinned = !!m.pinned;
+  }
+}
 const LEGACY_LOG_KEY = "ss.chatlog.v1";
 
 function genId() {
@@ -51,6 +75,7 @@ export function loadSessions() {
       if (data && Array.isArray(data.sessions) && data.sessions.length) {
         // Repair: ensure every session has required fields + activeId exists
         data.sessions = data.sessions.filter(s => s && s.id && Array.isArray(s.messages));
+        applyMeta(data);
         if (!data.sessions.length) data.sessions = [createBlank()];
         if (!data.sessions.find(s => s.id === data.activeId)) {
           data.activeId = data.sessions[0].id;
@@ -176,6 +201,7 @@ export function deleteSessionById(data, id) {
   const wasActive = data.activeId === id;
   data.sessions.splice(idx, 1);
   data.deleted = [...(data.deleted || []), id].slice(-100);   // tombstone, see mergeStored
+  patchMeta(id, { deleted: true });
   if (!data.sessions.length) {
     const blank = createBlank();
     data.sessions = [blank];
@@ -207,6 +233,24 @@ export function renameActive(data, title) {
   saveSessions(data);
 }
 
+// Rename any session. An empty title goes back to the automatic one.
+export function renameSession(data, id, title) {
+  const s = data.sessions.find((x) => x.id === id);
+  if (!s) return;
+  const t = String(title || "").replace(/\s+/g, " ").trim().slice(0, 80);
+  s.title = t || deriveTitle(s.messages);
+  patchMeta(id, { title: t || undefined });
+  saveSessions(data);
+}
+
+export function togglePin(data, id) {
+  const s = data.sessions.find((x) => x.id === id);
+  if (!s) return;
+  s.pinned = !s.pinned;
+  patchMeta(id, { pinned: s.pinned || undefined });
+  saveSessions(data);
+}
+
 // Clear all messages in the active session (keeps the session, wipes history).
 export function clearActiveMessages(data) {
   const s = getActiveSession(data);
@@ -215,6 +259,7 @@ export function clearActiveMessages(data) {
   s.title = "New chat";
   s.updatedAt = Date.now();
   s.clearedAt = s.updatedAt;   // tombstone, see mergeStored
+  patchMeta(s.id, { title: undefined });
   saveSessions(data);
 }
 
