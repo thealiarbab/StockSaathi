@@ -170,6 +170,8 @@ function replyFor(text) {
 }
 
 export function renderChat(main) {
+  main.classList.add("main-chat");
+  window.addEventListener("ss:navigate", () => main.classList.remove("main-chat"), { once: true });
   render();
 
   // Cross-tab sync: when the storage event handler (see module scope) pulls
@@ -189,9 +191,13 @@ export function renderChat(main) {
       <div class="cc cc-has-side ${drawerOpen ? "is-drawer-open" : ""}">
         <aside class="cc-side" id="cc-side" aria-label="Your chats">
           <div class="cc-side-top">
-            <button id="chat-new-btn" class="cc-side-new" type="button"><span aria-hidden="true">+</span> New chat</button>
+            <span class="cc-side-name">Saathi</span>
             <button class="cc-side-close" id="cc-side-close" type="button" aria-label="Close chat list">&times;</button>
           </div>
+          <button id="chat-new-btn" class="cc-side-new" type="button">
+            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+            New chat
+          </button>
           <label class="cc-search">
             <span class="sr-only">Search chats</span>
             <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -208,11 +214,7 @@ export function renderChat(main) {
               Chats
             </button>
             <div class="cc-id">
-              <span class="cc-avatar cc-avatar-lg" aria-hidden="true">S<i class="cc-online"></i></span>
-              <div class="cc-id-text">
-                <h1 class="cc-title">${chatLog.length ? escapeHtml(active.title || "Saathi") : "Saathi"}</h1>
-                <p class="cc-sub">${chatLog.length ? "With Saathi, your money coach" : "Your money coach. Explains markets, never gives tips."}</p>
-              </div>
+              <h1 class="cc-title">${chatLog.length ? escapeHtml(active.title || "Saathi") : "Saathi"}</h1>
             </div>
             <button class="cc-chip-btn cc-new cc-head-new" id="chat-new-btn-2" type="button" aria-label="New chat">+</button>
           </header>
@@ -283,7 +285,7 @@ export function renderChat(main) {
       refreshSide();
       const cur = getActiveSession(sessionsData);
       const h = main.querySelector(".cc-title"), sub = main.querySelector(".cc-sub");
-      if (h && cur?.messages?.length) { h.textContent = cur.title || "Saathi"; if (sub) sub.textContent = "With Saathi, your money coach"; }
+      if (h && cur?.messages?.length) h.textContent = cur.title || "Saathi";
     });
 
     // Stop-button: aborts the in-flight stream. The sendAndReply handler
@@ -509,9 +511,7 @@ export function renderChat(main) {
     if (!chatLog.length) {
       return `
         <div class="cc-empty">
-          <span class="cc-avatar cc-avatar-xl" aria-hidden="true">S</span>
           <h2 class="cc-empty-title">What do you want to understand today?</h2>
-          <p class="cc-empty-text">Ask about SIPs, crashes, valuation, taxes, or a finfluencer claim that felt off. I explain how things work. I don't tell you what to buy.</p>
           <div class="cc-starters">
             ${STARTER_QUESTIONS.map(q => `<button type="button" class="cc-starter" data-q="${escapeAttr(q)}">${escapeHtml(q)}</button>`).join("")}
           </div>
@@ -538,7 +538,7 @@ function renderBubble(m) {
     <div class="cc-actions-row">
       <button type="button" class="cc-act" data-copy aria-label="Copy reply"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="3"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><span>Copy</span></button>
     </div>`;
-  return `<div class="cc-row cc-row-bot"${streamAttr}><span class="cc-avatar" aria-hidden="true">S</span><div class="cc-bot-col"><div class="cc-bubble cc-bot"><span class="msg-body">${m.status ? statusHtml(m.text) : renderMarkdown(m.text)}</span></div>${actions}</div></div>`;
+  return `<div class="cc-row cc-row-bot"${streamAttr}><div class="cc-bot-col"><div class="cc-bubble cc-bot"><span class="msg-body">${m.status ? statusHtml(m.text) : renderMarkdown(m.text)}</span></div>${actions}</div></div>`;
 }
 
 // "Checking TCS price…" while tools run: a pulsing dot, not a reply.
@@ -614,7 +614,7 @@ function renderMarkdown(text) {
 }
 
 function renderTyping() {
-  return `<div class="cc-row cc-row-bot"><span class="cc-avatar" aria-hidden="true">S</span><div class="cc-bubble cc-bot cc-typing" aria-label="Saathi is typing"><i></i><i></i><i></i></div></div>`;
+  return `<div class="cc-row cc-row-bot"><div class="cc-bubble cc-bot cc-typing" aria-label="Saathi is typing"><i></i><i></i><i></i></div></div>`;
 }
 
 function pushUser(text) {
