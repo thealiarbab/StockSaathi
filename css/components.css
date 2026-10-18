@@ -5826,3 +5826,6 @@ button.ss-pill-x:hover { border-color: var(--brand); }
   .cc-foot { display: none; }
 }
 .cc-panel.chat-card #chat-form.cc-composer { position: static; background: transparent; z-index: auto; }
+body.chat-app > footer.disclaimer { display: none; }
+body.chat-app { overflow: hidden; }
+@media (max-width: 900px) { body.chat-app { overflow: auto; } }
