@@ -1954,7 +1954,7 @@ async function _reviewTrade(inst, symbol, curPrice, holding) {
         () => placeLimitOrder({ symbol, side: ui.side, qty, limitPricePaise: limitPaise, orderType: atOpen ? "AMO_MARKET" : "LIMIT" }),
         {
           timeoutMs: 25_000,
-          timeoutMessage: "AMO request timed out after 25s — Supabase may be unreachable. Open DevTools console for details.",
+          timeoutMessage: "This is taking too long. Check Orders before trying again: it may already be queued.",
         },
       );
       console.log("[AMO] placed", res);
