@@ -911,7 +911,7 @@ async function sendAndReply(userText) {
   // with it the cacheable start of the request) stays the same between turns.
   const messages = chatLog.slice(Math.floor(Math.max(0, chatLog.length - 12) / 8) * 8).map(m => ({
     role: m.role === "user" ? "user" : "assistant",
-    content: m.text,
+    content: m.role === "user" && m.chartText ? `${m.text}\n\n[The app attached this chart to the question.]${m.chartText}` : m.text,
   }));
 
   // Heuristic: does the message obviously need live data (stock price,
@@ -980,6 +980,9 @@ async function sendAndReply(userText) {
   if (chartBlock) {
     const lastUser = [...messages].reverse().find(m => m.role === "user");
     if (lastUser) lastUser.content = `${lastUser.content}\n\n[The app attached this chart to the question.]${chartBlock}`;
+    // Keep the numbers with the question so follow-ups use them, not guesses.
+    const owner = [...ownerMessages].reverse().find(m => m.role === "user");
+    if (owner) owner.chartText = chartBlock.split("\n\nHOW TO ANSWER")[0];
   }
   const wantTools = !chartBlock && needsLiveData(userText, chatLog.slice(-8, -1));
   // C28: the general language rule in runtimeFacts still lost to English
