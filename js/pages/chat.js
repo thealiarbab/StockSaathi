@@ -185,31 +185,34 @@ export function renderChat(main) {
     const active = getActiveSession(sessionsData);
 
     main.innerHTML = `
-      <div style="max-width: 760px; margin: 0 auto;">
-        <div style="margin-bottom: var(--sp-4);">
-          <div class="flex items-center gap-3 wrap">
-            <h1 style="margin: 0;">Saathi <span class="dim" style="font-size: 0.55em; font-weight: 500;">AI stock market coach</span></h1>
-            <div class="chat-session-bar" style="margin-left: auto; display: flex; gap: 8px; align-items: center;">
-              <div class="chat-session-picker-wrap" style="position: relative;">
-                <button id="chat-session-picker" class="btn btn-ghost btn-sm" type="button" aria-haspopup="listbox" aria-expanded="false" style="max-width: 220px; display: inline-flex; align-items: center; gap: 6px;" title="Switch chat session">
-                  <span aria-hidden="true">🗂</span>
-                  <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(active.title || "New chat")}</span>
-                  <span aria-hidden="true">▾</span>
-                </button>
-                <div id="chat-session-menu" class="chat-session-menu" hidden role="listbox"></div>
-              </div>
-              <button id="chat-new-btn" class="btn btn-primary btn-sm" type="button" title="Start a new chat (previous chats are kept)">+ New</button>
+      <div class="cc">
+        <header class="cc-head">
+          <div class="cc-id">
+            <span class="cc-avatar cc-avatar-lg" aria-hidden="true">S<i class="cc-online"></i></span>
+            <div class="cc-id-text">
+              <h1 class="cc-title">Saathi</h1>
+              <p class="cc-sub">Your money coach. Explains markets, never gives tips.</p>
             </div>
           </div>
-          <p class="muted" style="margin-top: var(--sp-2);">I'm Saathi — your finance coach. Ask anything about money, investing, Indian markets, taxes, behavioral econ, or how a past crash played out. Out of scope: everything else.</p>
-        </div>
+          <div class="cc-actions chat-session-bar">
+            <div class="chat-session-picker-wrap" style="position: relative;">
+              <button id="chat-session-picker" class="cc-chip-btn" type="button" aria-haspopup="listbox" aria-expanded="false" title="Switch chat">
+                <span class="cc-chip-label">${escapeHtml(active.title && active.title !== "New chat" ? active.title : "Your chats")}</span>
+                <span aria-hidden="true" class="cc-caret">▾</span>
+              </button>
+              <div id="chat-session-menu" class="chat-session-menu" hidden role="listbox"></div>
+            </div>
+            <button class="cc-chip-btn cc-quiet" id="chat-clear" type="button" title="Clear this chat">Clear</button>
+            <button id="chat-new-btn" class="cc-chip-btn cc-new" type="button" title="Start a new chat (previous chats are kept)">+ New chat</button>
+          </div>
+        </header>
 
-        <div class="card chat-card">
-          <div id="chat-messages" class="chat-messages">
+        <div class="cc-panel chat-card">
+          <div id="chat-messages" class="chat-messages cc-messages">
             ${renderMessages()}
           </div>
 
-          <form id="chat-form" class="composer">
+          <form id="chat-form" class="composer cc-composer">
             <div class="composer-shell ${m_pending ? "is-busy" : ""}">
               ${m_pending
                 ? `<span class="composer-dots" aria-live="polite"><span>Saathi is thinking</span><i></i><i></i><i></i></span>`
@@ -229,18 +232,14 @@ export function renderChat(main) {
             </div>
           </form>
         </div>
-
-        <div class="flex gap-2 wrap" style="margin-top: var(--sp-4);">
-          ${STARTER_QUESTIONS.map(q => `<button class="filter-pill" data-q="${escapeAttr(q)}">${escapeHtml(q)}</button>`).join("")}
-          <button class="filter-pill" id="chat-clear" style="color: var(--negative);">Clear chat</button>
-        </div>
+        <p class="cc-foot">Saathi can get things wrong. Check prices before you trade.</p>
       </div>
     `;
 
     const input = main.querySelector("#chat-input");
     const form = main.querySelector("#chat-form");
     const messagesEl = main.querySelector("#chat-messages");
-    messagesEl.scrollTop = messagesEl.scrollHeight;
+    if (chatLog.length) messagesEl.scrollTop = messagesEl.scrollHeight;
     // Desktop: auto-focus so the user can start typing. Mobile: don't —
     // focusing an input pops the soft keyboard, and the user hasn't
     // asked for it yet. They can tap the input themselves to start.
@@ -274,13 +273,13 @@ export function renderChat(main) {
       });
     });
 
-    main.querySelector("#chat-clear").addEventListener("click", () => {
+    main.querySelector("#chat-clear")?.addEventListener("click", () => {
       if (confirm("Clear THIS chat's history? Previous sessions in the 🗂 menu stay.")) {
         // Wipe only the active session's messages (not all sessions).
         clearActiveMessages(sessionsData);
         // Re-bind chatLog to the (now empty) same session's messages array.
         chatLog = getActiveSession(sessionsData).messages;
-        rerender();
+        render();
       }
     });
 
@@ -388,10 +387,13 @@ export function renderChat(main) {
   function renderMessages() {
     if (!chatLog.length) {
       return `
-        <div style="margin: auto; text-align: center; color: var(--text-muted); max-width: 460px;">
-          <div style="font-size: 40px; margin-bottom: var(--sp-3);">🎓</div>
-          <div class="font-semi" style="color: var(--text-strong); margin-bottom: var(--sp-2);">Hi — I'm Saathi</div>
-          <div class="text-sm">I talk about one thing: money. Ask about SIPs, crashes, valuation, taxes, or any finfluencer claim that felt off. I explain — I don't give tips. Ask me about cooking and I'll politely decline.</div>
+        <div class="cc-empty">
+          <span class="cc-avatar cc-avatar-xl" aria-hidden="true">S</span>
+          <h2 class="cc-empty-title">What do you want to understand today?</h2>
+          <p class="cc-empty-text">Ask about SIPs, crashes, valuation, taxes, or a finfluencer claim that felt off. I explain how things work. I don't tell you what to buy.</p>
+          <div class="cc-starters">
+            ${STARTER_QUESTIONS.map(q => `<button type="button" class="cc-starter" data-q="${escapeAttr(q)}">${escapeHtml(q)}</button>`).join("")}
+          </div>
         </div>
       `;
     }
@@ -406,23 +408,14 @@ let m_abortController = null;
 function renderBubble(m) {
   const streamAttr = m.streaming ? ` data-streaming="1"` : "";
   if (m.role === "user") {
-    // Ultra-tight hug — ≈1.7px vertical, ≈3.9px horizontal at text-sm
-    // (font unchanged). Line-height tight too so the bubble sits
-    // millimetre-off the glyphs.
-    return `
-      <div${streamAttr} style="align-self: flex-end; width: fit-content; max-width: 78%; background: var(--brand); color: white; padding: 0.13em 0.3em; border-radius: 8px 8px 2px 8px; font-size: var(--text-sm); line-height: 1.3; white-space: pre-wrap; word-wrap: break-word; box-shadow: var(--sh-xs);">
-        <span class="msg-body">${escapeHtml(m.text)}</span>
-      </div>
-    `;
+    return `<div class="cc-row cc-row-user"${streamAttr}><div class="cc-bubble cc-user"><span class="msg-body">${escapeHtml(m.text)}</span></div></div>`;
   }
-  return `
-    <div${streamAttr} style="align-self: flex-start; width: fit-content; max-width: 82%; display: flex; gap: 5px; align-items: flex-start;">
-      <div class="friend-avatar green" style="width: 18px; height: 18px; font-size: 8px; flex-shrink: 0;">SS</div>
-      <div style="background: var(--surface); border: 1px solid var(--border); padding: 0.13em 0.3em; border-radius: 8px 8px 8px 2px; font-size: var(--text-sm); line-height: 1.3; white-space: pre-wrap; word-wrap: break-word; color: var(--text); box-shadow: var(--sh-xs);">
-        <span class="msg-body">${renderMarkdown(m.text)}</span>
-      </div>
-    </div>
-  `;
+  return `<div class="cc-row cc-row-bot"${streamAttr}><span class="cc-avatar" aria-hidden="true">S</span><div class="cc-bubble cc-bot"><span class="msg-body">${m.status ? statusHtml(m.text) : renderMarkdown(m.text)}</span></div></div>`;
+}
+
+// "Checking TCS price…" while tools run: a pulsing dot, not a reply.
+function statusHtml(text) {
+  return `<span class="cc-status" role="status"><i aria-hidden="true"></i>${escapeHtml(text)}</span>`;
 }
 
 // Minimal safe Markdown renderer for chat bubbles. Escapes HTML first (so
@@ -493,14 +486,7 @@ function renderMarkdown(text) {
 }
 
 function renderTyping() {
-  return `
-    <div style="align-self: flex-start; display: flex; gap: 10px; align-items: flex-start;">
-      <div class="friend-avatar green" style="width: 28px; height: 28px; font-size: 11px; flex-shrink: 0;">SS</div>
-      <div style="background: var(--surface); border: 1px solid var(--border); padding: 12px 16px; border-radius: 16px;">
-        <div class="coach-typing" style="padding: 0;"><span></span><span></span><span></span></div>
-      </div>
-    </div>
-  `;
+  return `<div class="cc-row cc-row-bot"><span class="cc-avatar" aria-hidden="true">S</span><div class="cc-bubble cc-bot cc-typing" aria-label="Saathi is typing"><i></i><i></i><i></i></div></div>`;
 }
 
 function pushUser(text) {
@@ -731,6 +717,7 @@ The user wrote in Hinglish (Hindi in Roman script). Reply in Hinglish, the way t
       liveTarget = isStatus ? "" : t;
       if (isStatus || liveStatus || !t.startsWith(live.text)) live.text = isStatus ? t : "";
       liveStatus = !!isStatus;
+      live.status = liveStatus;
       if (isStatus || !t) paintLive();
       else if (!liveTimer) liveTimer = setInterval(() => {
         const rem = liveTarget.length - live.text.length;
@@ -744,7 +731,7 @@ The user wrote in Hinglish (Hindi in Roman script). Reply in Hinglish, the way t
       if (!isOwnerActive() || !live) return;
       const bubble = outer?.querySelector('#chat-messages [data-streaming="1"] .msg-body');
       if (!bubble) { reRenderOuter(); return; }
-      bubble.innerHTML = renderMarkdown(live.text);
+      bubble.innerHTML = live.status ? statusHtml(live.text) : renderMarkdown(live.text);
       const msgs = outer?.querySelector("#chat-messages");
       if (msgs) msgs.scrollTop = msgs.scrollHeight;
     };
@@ -849,7 +836,7 @@ You already offered to look this up and the user already asked. Do NOT ask again
     const finalText = (cleanedReply && cleanedReply.trim()) ? cleanedReply : (errorText || "Saathi couldn't answer that. Try rephrasing or asking again.");
     if (live) {
       if (liveTimer) { clearInterval(liveTimer); liveTimer = null; }
-      live.text = finalText; live.streaming = false; live.ts = Date.now();
+      live.text = finalText; live.streaming = false; live.status = false; live.ts = Date.now();
     }
     else ownerMessages.push({ role: "assistant", text: finalText, ts: Date.now() });
     // Title/timestamp refresh on the owner session
