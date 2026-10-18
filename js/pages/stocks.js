@@ -277,6 +277,10 @@ export function renderStocks(main) {
     _snapDone = true;
     if (!wasReady) { if (pageReady()) render(); return; }
     fillDailyCharts(main);
+    // Rows already on screen that were waiting for a quote can draw now.
+    main.querySelectorAll('.stock-card[data-stub="1"]').forEach(c => {
+      try { _cardObserver?.unobserve(c); _cardObserver?.observe(c); } catch {}
+    });
     if (filter.q.trim() || (late && filter.sort === "marketCap")) { _searchMemo.key = ""; renderList(); }
   });
   const warmIndex = () => {
@@ -1388,7 +1392,7 @@ export function renderStocks(main) {
               // never the intermediate "hydrated with skeleton price"
               // state. MFs short-circuit through this guard via
               // inst.nav fallback so they always hydrate immediately.
-              const _q = quoteCache[sym];
+              const _q = quoteCache[sym]?.pricePaise != null ? quoteCache[sym] : (eodQuote(sym) || quoteCache[sym]);
               if (inst.kind !== KIND_MF && _q?.pricePaise == null) {
                 continue;
               }
@@ -1994,6 +1998,29 @@ async function fetchMarketMood() {
   return d;
 }
 
+// A row scrolled into view before its live quote arrives draws from the
+// latest real exchange close in the search snapshot (shown with the usual
+// CLOSED / SYNCING tag); the live quote replaces it in place when it lands.
+// Never a made-up price: no snapshot close means the row waits as before.
+function eodQuote(sym) {
+  const s = snapOf(sym);
+  if (!s || !(s.p > 0)) return null;
+  const prev = s.d != null ? s.p / (1 + s.d / 100) : null;
+  return {
+    pricePaise: Math.round(s.p * 100),
+    changePct: s.d != null ? s.d / 100 : null,
+    prevClosePaise: prev ? Math.round(prev * 100) : null,
+    source: "synthetic",          // badge: CLOSED after hours, SYNCING while open
+    eod: true,
+  };
+}
+
+// No chart data at all (no stored closes yet): an empty slot, not a grey
+// placeholder that never resolves.
+function noChartHtml() {
+  return searchSnapshotReady() ? "" : `<div class="skeleton" style="width: 100%; height: 100%;"></div>`;
+}
+
 // Fill the list charts that are still grey placeholders once the 3-week
 // NSE close data arrives.
 function fillDailyCharts(root) {
@@ -2001,7 +2028,7 @@ function fillDailyCharts(root) {
     if (!el.querySelector(".skeleton")) return;
     const sym = el.closest("[data-sym]").dataset.sym;
     const closes = getIntradaySparkline(sym, dailyShape(sym));
-    if (!closes || closes.length < 2) return;
+    if (!closes || closes.length < 2) { el.innerHTML = ""; return; }
     const tile = el.classList.contains("tile-spark");
     el.innerHTML = tile ? sparkline(closes, { width: 88, height: 28, strokeWidth: 1.5 }) : sparkline(closes);
     el.dataset.sparkFp = `${closes.length}:${closes[closes.length - 1]}`;
@@ -2384,7 +2411,7 @@ function renderStockCardBody(inst, state, wlSet, opts = null) {
       </div>
       <span class="risk-pill ${inst.risk || "med"}">${(inst.risk || "MED").toUpperCase()}</span>
     </div>
-    <div class="stock-sparkline"${closes && closes.length > 1 ? ` data-spark-fp="${closes.length}:${closes[closes.length - 1]}"` : ""}>${closes && closes.length > 1 ? sparkline(closes) : `<div class="skeleton" style="width: 100%; height: 40px;" aria-label="Loading sparkline"></div>`}</div>
+    <div class="stock-sparkline"${closes && closes.length > 1 ? ` data-spark-fp="${closes.length}:${closes[closes.length - 1]}"` : ""}>${closes && closes.length > 1 ? sparkline(closes) : (searchSnapshotReady() ? "" : `<div class="skeleton" style="width: 100%; height: 40px;" aria-label="Loading sparkline"></div>`)}</div>
   `;
 }
 
@@ -2528,7 +2555,7 @@ function renderStockTileBody(inst, state, wlSet, opts = null) {
   }
   const sparkSvg = closes && closes.length > 1
     ? sparkline(closes, { width: 88, height: 28, strokeWidth: 1.5 })
-    : `<div class="skeleton" style="width: 100%; height: 100%;"></div>`;
+    : noChartHtml();
   const sparkFp = closes && closes.length > 1 ? ` data-spark-fp="${closes.length}:${closes[closes.length - 1]}"` : "";
   // Absolute 1D change in rupees: pricePaise - prevClosePaise (if known).
   // Falls back to deriving from changePct: change * prevClose.
