@@ -6,6 +6,15 @@
 // and GA's per-hit kill switch is on whenever the URL is under /a/. That also
 // stops GA's automatic history-change page views if they get switched on in
 // the GA admin.
+// Third-party scripts wait until the page has painted and gone quiet. On
+// budget phones over mobile data they were competing with our own CSS and JS
+// for the same bandwidth (home page: 2.8 s to main content at p75, 18 Oct).
+window.ssAfterLoad = function (fn) {
+  function idle() { (window.requestIdleCallback || function (f) { setTimeout(f, 1); })(fn, { timeout: 2000 }); }
+  if (document.readyState === "complete") idle();
+  else window.addEventListener("load", idle, { once: true });
+};
+
 (function () {
   var ID = "G-65CB0CZ1PX"; // GA4 measurement ID. Empty = analytics off.
 
@@ -37,10 +46,12 @@
     },
   };
 
-  var s = document.createElement("script");
-  s.async = true;
-  s.src = "https://www.googletagmanager.com/gtag/js?id=" + ID;
-  document.head.appendChild(s);
+  window.ssAfterLoad(function () {
+    var s = document.createElement("script");
+    s.async = true;
+    s.src = "https://www.googletagmanager.com/gtag/js?id=" + ID;
+    document.head.appendChild(s);
+  });
 })();
 
 // Microsoft Clarity: heatmaps and session recordings. It lives in this file
@@ -58,8 +69,22 @@
   window.clarity = window.clarity || function () {
     (window.clarity.q = window.clarity.q || []).push(arguments);
   };
-  var s = document.createElement("script");
-  s.async = true;
-  s.src = "https://www.clarity.ms/tag/" + ID;
-  document.head.appendChild(s);
+  window.ssAfterLoad(function () {
+    var s = document.createElement("script");
+    s.async = true;
+    s.src = "https://www.clarity.ms/tag/" + ID;
+    document.head.appendChild(s);
+  });
+})();
+
+// Google AdSense (auto ads). Was a <script async> in every page's <head>.
+(function () {
+  if (location.pathname.indexOf("/a/") === 0) return;
+  window.ssAfterLoad(function () {
+    var s = document.createElement("script");
+    s.async = true;
+    s.crossOrigin = "anonymous";
+    s.src = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6383385864830785";
+    document.head.appendChild(s);
+  });
 })();
