@@ -92,7 +92,7 @@ export function renderNews(main) {
 
 async function loadNews(main, token, force = false) {
   try {
-    const items = await getNews({ limit: 500, lang: aiLang() ? "hi" : "", force });
+    const items = await getNews({ limit: 1000, lang: aiLang() ? "hi" : "", force });
     if (token.cancelled) return;
     // Hinglish takes and English takes are different texts under the same
     // headline; drop what's held if the language changed since last load.

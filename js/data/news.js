@@ -42,13 +42,15 @@ export function labelSentiment(s) {
 }
 
 // Every outbound news link carries our UTM tags so publishers see the visit
-// came from us. Leaves an existing utm_source alone, works with or without a
-// query string or #fragment, and returns non-http values ("#") untouched.
+// came from us. A publisher's own tag in its feed links (Business Today puts
+// utm_source=rssfeed on all of them) is replaced; ours is never added twice.
+// Works with or without a query string or #fragment, and returns non-http
+// values ("#") untouched.
 export function withUtm(url) {
   if (!url || !/^https?:\/\//i.test(url)) return url;
   try {
     const u = new URL(url);
-    if (u.searchParams.has("utm_source")) return url;
+    if (u.searchParams.get("utm_source") === "stocksaathi.co.in") return url;
     u.searchParams.set("utm_source", "stocksaathi.co.in");
     u.searchParams.set("utm_medium", "referral");
     return u.toString();
