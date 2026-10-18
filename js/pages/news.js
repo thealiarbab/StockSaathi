@@ -117,7 +117,7 @@ function render(main) {
   main.querySelector("#refresh-btn")?.addEventListener("click", () => {
     loading = true;
     render(main);
-    loadNews(main);
+    loadNews(main, _newsCancel);
   });
 
   main.querySelectorAll("[data-newsurl]").forEach(el => {

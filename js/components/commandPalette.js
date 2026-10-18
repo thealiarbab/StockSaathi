@@ -220,7 +220,7 @@ export function mountCommandPalette() {
   mounted = true;
   ensureRoot();
   document.addEventListener("keydown", (e) => {
-    const key = e.key.toLowerCase();
+    const key = (e.key || "").toLowerCase();
     const modK = (e.ctrlKey || e.metaKey) && key === "k";
     if (modK) {
       e.preventDefault();
