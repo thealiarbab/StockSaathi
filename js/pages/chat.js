@@ -170,8 +170,19 @@ function replyFor(text) {
 }
 
 export function renderChat(main) {
+  // App-style page: no site footer, only the messages scroll.
   main.classList.add("main-chat");
-  window.addEventListener("ss:navigate", () => main.classList.remove("main-chat"), { once: true });
+  document.body.classList.add("chat-app");
+  const leaveChat = () => {
+    // The router fires ss:navigate for this page too; only undo on a real exit.
+    if (location.pathname.replace(/\/+$/, "") === "/chat") return;
+    main.classList.remove("main-chat");
+    document.body.classList.remove("chat-app");
+    window.removeEventListener("ss:navigate", leaveChat);
+    window.removeEventListener("popstate", leaveChat);
+  };
+  window.addEventListener("ss:navigate", () => setTimeout(leaveChat, 0));
+  window.addEventListener("popstate", () => setTimeout(leaveChat, 0));
   render();
 
   // Cross-tab sync: when the storage event handler (see module scope) pulls
@@ -244,7 +255,7 @@ export function renderChat(main) {
               <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
             </button>
           </div>
-          <p class="cc-foot">Saathi can get things wrong. Check prices before you trade.</p>
+          <p class="cc-foot">Saathi can make mistakes. Practice only, not investment advice.</p>
         </section>
       </div>
     `;
