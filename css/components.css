@@ -5829,3 +5829,10 @@ button.ss-pill-x:hover { border-color: var(--brand); }
 body.chat-app > footer.disclaimer { display: none; }
 body.chat-app { overflow: hidden; }
 @media (max-width: 900px) { body.chat-app { overflow: auto; } }
+/* Scroll bars: hidden until hover, then thin (like the big chat apps). */
+.cc-messages.chat-messages, .cc-list { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+.cc-messages.chat-messages:hover, .cc-list:hover { scrollbar-color: var(--border-strong) transparent; }
+.cc-messages.chat-messages::-webkit-scrollbar, .cc-list::-webkit-scrollbar { width: 8px; }
+.cc-messages.chat-messages::-webkit-scrollbar-thumb, .cc-list::-webkit-scrollbar-thumb { background: transparent; border-radius: 8px; }
+.cc-messages.chat-messages:hover::-webkit-scrollbar-thumb, .cc-list:hover::-webkit-scrollbar-thumb { background: var(--border-strong); }
+.cc-starter { max-width: 100%; text-align: left; }
