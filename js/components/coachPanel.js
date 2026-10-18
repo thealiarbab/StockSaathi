@@ -181,7 +181,8 @@ async function callLlmAgent(apiKey, history, state, extraSystem = "") {
   const newsBlock = await prefetchNewsBlock(lastUser);
   const system = `${SAATHI_SYSTEM}\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# RUNTIME CONTEXT\n${screen ? screen + "\n" : ""}## Latest market headlines\n${newsContext || "(none loaded)"}\n\n# TONE\nKeep replies short by default (1–3 sentences). Go longer only when asked for depth.` + newsBlock + turnLanguage(lastUser) + extraSystem;
 
-  const messages = history.slice(-12).map(m => ({
+  // Steps of 8 so the start of the history (the cacheable part) holds still.
+  const messages = history.slice(Math.floor(Math.max(0, history.length - 12) / 8) * 8).map(m => ({
     role: m.role === "user" ? "user" : "assistant",
     content: m.text,
   }));
@@ -407,7 +408,7 @@ function render() {
       const newsContext = newsSnap.slice(0, 5).map(n => `- ${n.headline} (${n.source}) [${n.sentiment}]`).join("\n");
       const screen = currentScreen();
       const system = `${SAATHI_NO_TOOLS}\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# RUNTIME CONTEXT\n${screen ? screen + "\n" : ""}## Latest market headlines\n${newsContext || "(none loaded)"}\n\n# TONE\nKeep replies short by default (1–3 sentences). Go longer only when asked for depth.\n\nAnswer only the latest message. Do not restate prices or facts from earlier turns unless the user asks for them again.` + turnLanguage(text);
-      const messages = chatHistory.slice(-12).filter(m => !m.streaming || m === chatHistory[placeholderIdx]).slice(0, -1).map(m => ({
+      const messages = chatHistory.slice(Math.floor(Math.max(0, chatHistory.length - 13) / 8) * 8).filter(m => !m.streaming || m === chatHistory[placeholderIdx]).slice(0, -1).map(m => ({
         role: m.role === "user" ? "user" : "assistant",
         content: m.text,
       }));

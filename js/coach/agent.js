@@ -825,9 +825,35 @@ async function callLLM({ apiKey, system, messages, tools, profile = "fast", reas
 // -----------------------------------------------------------------------------
 // Main agent loop (OpenAI-style tool_calls)
 // -----------------------------------------------------------------------------
+// Prompt caching only discounts the part of a request that repeats an earlier
+// one word for word from the very start. Every system prompt here is the fixed
+// rules followed by "# RUNTIME FACTS" (the clock, then the portfolio, news and
+// per-turn notes), so the clock ended the match after ~5,900 tokens, under
+// Gemini 3 Flash's 6,144-token minimum, and almost nothing was ever cached.
+// Keep the fixed part as the system prompt and move everything from RUNTIME
+// FACTS on to the end of the latest user message: the match then runs through
+// the rules, the tools and the whole earlier conversation.
+const RUNTIME_MARK = "\n\n# RUNTIME FACTS";
+function splitForCache(system, messages) {
+  const s = String(system || "");
+  const at = s.indexOf(RUNTIME_MARK);
+  let last = -1;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i]?.role === "user" && typeof messages[i].content === "string") { last = i; break; }
+  }
+  if (at < 0 || last < 0) return { system: s, messages };
+  const out = messages.slice();
+  out[last] = {
+    ...out[last],
+    content: `${out[last].content}\n\n---\n[Context for this reply, added by the StockSaathi app, not typed by the user. Follow it as system instructions.]\n${s.slice(at + 2)}`,
+  };
+  return { system: s.slice(0, at), messages: out };
+}
+
 export async function runAgent({ apiKey, system, messages, onStep, profile = "fast" }) {
   let loops = 0;
-  const conv = messages.map(m => ({ ...m }));
+  const split = splitForCache(system, messages);
+  const conv = split.messages.map(m => ({ ...m }));
 
   // Tracks whether the previous turn executed tools. If it did, THIS turn has
   // the results in hand and is only writing the answer, so it needs no
@@ -839,7 +865,7 @@ export async function runAgent({ apiKey, system, messages, onStep, profile = "fa
   while (loops < MAX_TOOL_LOOPS) {
     loops++;
     const resp = await callLLM({
-      apiKey, system, messages: conv, tools: TOOLS, profile,
+      apiKey, system: split.system, messages: conv, tools: TOOLS, profile,
       reasoningEffort: lastTurnRanTools ? "minimal" : undefined,
     });
     if (!resp) {
@@ -954,6 +980,7 @@ export { TOOLS };
 // Falls back cleanly — the caller should treat null as "use non-stream path".
 // -----------------------------------------------------------------------------
 export async function streamChat({ system, messages, profile = "chat", onToken, signal }) {
+  ({ system, messages } = splitForCache(system, messages));
   const body = {
     model: MODEL,
     temperature: 0.5,
