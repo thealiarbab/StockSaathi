@@ -103,6 +103,8 @@ async function cacheGet(bucket, cacheKey) {
     return rows[0].payload;
   } catch { return null; }
 }
+// Fire-and-forget: on Edge the write is cut off when the response returns,
+// so it usually never lands. Use await cachePutAwait() instead.
 function cachePut(bucket, cacheKey, display, payload) {
   supabaseReq("/rest/v1/ai_response_cache", {
     method: "POST",
@@ -623,7 +625,7 @@ async function opStockWhy(req, origin) {
     if (!parsed) return j(502, { error: "non_json" }, origin);
     const explanation = typeof parsed.explanation === "string" ? parsed.explanation.trim().slice(0, 700) : "";
     if (!explanation) return j(502, { error: "no_explanation" }, origin);
-    cachePut("stock_why", key, sym, { explanation });
+    await cachePutAwait("stock_why", key, sym, { explanation });
     return j(200, { explanation, source: "fresh" }, origin);
   } catch (e) {
     return j(502, { error: "generation_failed", detail: String(e.message).slice(0, 120) }, origin);
@@ -777,7 +779,7 @@ async function opMarketMood(req, origin) {
     }
 
     const out = { narrative, temperature };
-    cachePut("market_mood", key, null, out);
+    await cachePutAwait("market_mood", key, null, out);
     return j(200, { ...out, source: "fresh" }, origin);
   } catch (e) {
     return j(502, { error: "generation_failed", detail: String(e.message).slice(0, 120) }, origin);
@@ -813,7 +815,7 @@ async function opMarketSearch(req, origin) {
     const matches = Array.isArray(parsed.matches) ? parsed.matches.filter(s => typeof s === "string" && valid.has(s)).slice(0, 15) : [];
     const rationale = typeof parsed.rationale === "string" ? parsed.rationale.trim().slice(0, 280) : "";
     const out = { matches, rationale };
-    cachePut("nl_search", key, query, out);
+    await cachePutAwait("nl_search", key, query, out);
     return j(200, { ...out, source: "fresh" }, origin);
   } catch (e) {
     return j(502, { error: "generation_failed", detail: String(e.message).slice(0, 120) }, origin);
@@ -890,7 +892,7 @@ async function opCrashSuggestions(req, origin) {
     const suggestions = Array.isArray(parsed.suggestions) ? parsed.suggestions.filter(s => typeof s === "string" && s.trim().length >= 3).slice(0, 12).map(s => s.trim().slice(0, 80)) : [];
     if (!suggestions.length) return j(502, { error: "no_suggestions" }, origin);
     const out = { suggestions };
-    cachePut("crash_sugg_v2", key, null, out);
+    await cachePutAwait("crash_sugg_v2", key, null, out);
     return j(200, { ...out, source: "fresh" }, origin, false);
   } catch (e) {
     return j(502, { error: "generation_failed", detail: String(e.message).slice(0, 120) }, origin);
@@ -1105,7 +1107,7 @@ async function opHistory(req, origin, url) {
         }
         if (points.length >= 5) {
           const out = { symbol, currency: result?.meta?.currency || "INR", points, sources_tried: ["yahoo"] };
-          cachePut("history", cacheKey, null, out);
+          await cachePutAwait("history", cacheKey, null, out);
           return j(200, { ...out, source: "fresh" }, origin, false, {
             "Server-Timing": `cache;dur=${cacheMs};desc="miss", yahoo;dur=${yahooMs};desc="fresh"`,
           });
@@ -1135,7 +1137,7 @@ async function opHistory(req, origin, url) {
       sources_tried: ["yahoo", "fallback"],
       fallback_reason: yahooErrReason,
     };
-    cachePut("history", cacheKey, null, out);
+    await cachePutAwait("history", cacheKey, null, out);
     return j(200, { ...out, source: "fallback" }, origin, false, {
       "Server-Timing": `cache;dur=${cacheMs};desc="miss", yahoo;dur=${yahooMs};desc="${yahooErrReason}", fallback;dur=0;desc="hit"`,
     });
