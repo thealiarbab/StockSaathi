@@ -329,6 +329,8 @@ function isSearchInput(el) {
 function resultCount(el) {
   if (el.id === "stocks-search") {
     if (document.querySelector("#stocks-grid-host .empty-state")) return 0;
+    const total = document.querySelector("#stocks-grid-host")?.dataset.total;
+    if (total != null && total !== "") return Number(total);
     return document.querySelectorAll("#stocks-grid-host .stocks-grid > *").length;
   }
   const list = el.closest("[role=dialog], .cmdk, .modal, form, header, section")?.querySelectorAll("[role=option], .cmdk-item, .search-result, li a");

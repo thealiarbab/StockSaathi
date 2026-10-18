@@ -12,19 +12,19 @@ import { getState, addToWatchlist, removeFromWatchlist, subscribe } from "../sta
 import { toast } from "../components/toast.js";
 import { go } from "../navigation.js";
 import { aiLang } from "../features/aiLang.js";
+import { dailyShape, loadSearchSnapshot, onSearchSnapshot, snapOf, search as searchStocks, queryKind, removeChipFromQuery, searchSnapshotReady, searchSnapshotAsOf, warmSearchIndex } from "../features/stockSearch.js";
+import { mountSearchSuggest } from "../features/stockSearchUi.js";
 
 // Default tab = Stocks (showing the full universe sorted by index prominence
 // — Nifty 50/100 stocks naturally land on top). No Featured/All split.
 // `mfBucket` and `mfPlan` are MF-tab-only filters — preserved across tab
 // switches so coming back to Mutual Funds keeps the user's last view.
-// Hotfix64b: default sort = name A→Z for anyone who has traded ("every stock
-// arranged in ALPHABETICAL ORDER"). Users with no trades yet open on "Top
-// by size" (see _sortChosen below). The dropdown choice is sticky.
-let filter = { q: "", sector: "all", kind: "EQUITY", sort: "name", mfBucket: "all", mfPlan: "all" };
+// Everyone opens on "Top by size" (18 Oct 2026: the owner wanted A→Z gone for
+// everyone, not just for new users). The dropdown choice is sticky.
+let filter = { q: "", sector: "all", kind: "EQUITY", sort: "marketCap", mfBucket: "all", mfPlan: "all" };
 // U8: A→Z put tickers that start with a digit (20MICRONS, 21STCENMGM,
 // 360ONE) at the very top, and new users mostly tapped those rows: they
-// became the most-traded stocks on the platform for no reason. Until a user
-// has made a trade, the list opens on "Top by size" instead. Picking a sort
+// became the most-traded stocks on the platform for no reason. Picking a sort
 // in the dropdown always wins.
 let _sortChosen = false;
 
@@ -78,7 +78,7 @@ const VIEWPORT_PREHEAT_SIZE = 60;
 // resolved within this window we drop the skeleton anyway and let the
 // post-render warm-up flow fill prices. Prevents a hung upstream API
 // from holding the skeleton indefinitely on slow networks.
-const PREHEAT_FAIL_OPEN_MS = 3000;
+const PREHEAT_FAIL_OPEN_MS = 1500;
 // IntersectionObserver rootMargin values. Hydrate observer uses 200%
 // (cards within 2 viewport heights of visible region get warmed up).
 // Dehydrate observer uses 600% (cards 6 viewport heights past visible
@@ -178,9 +178,7 @@ const RISK_KEYWORDS = {
 
 export function renderStocks(main) {
   let cancelled = false;
-  if (!_sortChosen) {
-    filter.sort = (getState().transactions || []).length === 0 ? "marketCap" : "name";
-  }
+  if (!_sortChosen) filter.sort = "marketCap";
   let pollUnsub = null;
   // One-shot flag — first batch of viewport-visible symbols triggers an
   // immediate getQuoteBatch so users see prices instantly. Subsequent
@@ -231,6 +229,9 @@ export function renderStocks(main) {
   // → cards-with-prices. This flag (wired into the gate by 21b.3) holds
   // the skeleton until quotes for the actual visible viewport are loaded.
   let _viewportPreheatDone = false;
+  // Search snapshot (market values for "Top by size", chart shapes) loaded,
+  // or its 1.5 s wait ran out. See loadSearchSnapshot() below.
+  let _snapDone = searchSnapshotReady();
   // Hotfix27a removed the 2-second mood fail-open timer. _moodReady is
   // no longer in pageReady() so there's nothing to fail open against â€”
   // mood resolves whenever the LLM call finishes, and the surgical DOM
@@ -249,13 +250,42 @@ export function renderStocks(main) {
   // or already in flight. Kicks the JSON fetch early so the "All NSE" pill
   // is click-ready by the time the user scans the toolbar.
   ensureUniverseLoaded();
-  // Eager-load MF universe always — cold-load cost is ~250 KB brotli +
-  // ~1 s on a fast connection. Without this, the Mutual Funds pill
-  // shows "(10)" (legacy placeholder count) until the user clicks
-  // the pill, which forces them to click twice to see the real list.
-  // User-reported confusing UX: "MF still shows 10 until the pill is
-  // clicked". Now the count populates within ~1-2 s of page load.
-  ensureMfUniverseLoaded();
+  // The mutual fund list is 14,000 funds (5.8 MB of JSON once unpacked).
+  // Loading it at mount made phones unpack it while the stock list was
+  // trying to draw, so it now waits until the browser is idle (or loads
+  // at once when the Mutual Funds tab is the one open). The tab shows no
+  // count until it lands, never the old "(10)" placeholder.
+  if (filter.kind === KIND_MF) ensureMfUniverseLoaded();
+  else if (typeof requestIdleCallback === "function") requestIdleCallback(() => ensureMfUniverseLoaded(), { timeout: 8000 });
+  else setTimeout(() => ensureMfUniverseLoaded(), 4000);
+  // Prices, fundamentals and 3-week chart shapes for every symbol (one
+  // CDN-cached file). "Top by size" needs its market values, so the first
+  // paint waits for it, but never more than 1.5 s; after that the list
+  // re-sorts in place once it lands.
+  loadSearchSnapshot().catch(() => {});
+  const snapTimer = _snapDone ? null : setTimeout(() => {
+    if (cancelled || _snapDone) return;
+    const wasReady = pageReady();
+    _snapDone = true;
+    if (!wasReady && pageReady()) render();
+  }, 1500);
+  const offSnapshot = onSearchSnapshot(() => {
+    if (cancelled) return;
+    if (snapTimer) clearTimeout(snapTimer);
+    const wasReady = pageReady();
+    const late = _snapDone;
+    _snapDone = true;
+    if (!wasReady) { if (pageReady()) render(); return; }
+    fillDailyCharts(main);
+    if (filter.q.trim() || (late && filter.sort === "marketCap")) { _searchMemo.key = ""; renderList(); }
+  });
+  const warmIndex = () => {
+    const run = () => { if (!cancelled) warmSearchIndex(getAllInstruments()); };
+    if (typeof requestIdleCallback === "function") requestIdleCallback(run, { timeout: 5000 }); else setTimeout(run, 1500);
+  };
+  if (getAllInstruments().length > 1000) warmIndex();
+  window.addEventListener("ss:universe-loaded", warmIndex);
+  window.addEventListener("ss:mf-universe-loaded", warmIndex);
   // Also re-render once AMFI lands so the count pills + grid update.
   const onMfLoaded = () => {
     if (cancelled) return;
@@ -489,6 +519,10 @@ export function renderStocks(main) {
     pollUnsub?.();
     window.removeEventListener("ss:universe-loaded", onUniverseLoaded);
     window.removeEventListener("ss:mf-universe-loaded", onMfLoaded);
+    offSnapshot();
+    if (snapTimer) clearTimeout(snapTimer);
+    window.removeEventListener("ss:universe-loaded", warmIndex);
+    window.removeEventListener("ss:mf-universe-loaded", warmIndex);
     if (aiSearchAbort) { try { aiSearchAbort.abort(); } catch {} aiSearchAbort = null; }
     if (_debounceTimer) { clearTimeout(_debounceTimer); _debounceTimer = null; }
     if (_cardObserver) { try { _cardObserver.disconnect(); } catch {} _cardObserver = null; }
@@ -702,7 +736,7 @@ export function renderStocks(main) {
       }
       const sparkEl = card.querySelector(".stock-sparkline");
       if (sparkEl) {
-        const seededCloses = [] /* real ticks only (D7) */;
+        const seededCloses = dailyShape(sym);
         const closes = getIntradaySparkline(sym, seededCloses);
         if (closes && closes.length > 1) {
           // Fingerprint-guarded write: cheap length+last-value check skips
@@ -749,7 +783,7 @@ export function renderStocks(main) {
       if (!card) continue;
       const inst = getInstrument(sym);
       if (!inst) continue;
-      const seededCloses = [] /* real ticks only (D7) */;
+      const seededCloses = dailyShape(sym);
       const closes = getIntradaySparkline(sym, seededCloses);
       const quote = quoteCache[sym];
       const hasLive = quote?.pricePaise != null;
@@ -840,6 +874,43 @@ export function renderStocks(main) {
   // renderSkeletonState() and the full grid emit, AND by every
   // late-resolving callback that calls render() to decide whether
   // to skip a redundant render that would wipe hydrated cards.
+  // Search helpers used by the box, the dropdown and the summary line.
+  function applyQueryKind(q) {
+    const k = queryKind(q);
+    const target = k === "MF" ? KIND_MF : k === "ETF" ? KIND_ETF : null;
+    if (target && filter.kind !== target && filter.kind !== "watchlist") {
+      filter.kind = target;
+      filter.sector = "all";
+      if (target === KIND_MF) ensureMfUniverseLoaded();
+      return true;
+    }
+    return false;
+  }
+  function setQuery(q) {
+    filter.q = q;
+    visibleCount = PAGE_SIZE;
+    if (aiSearch) { aiSearch = null; aiSearchQuery = ""; }
+    const el = main.querySelector("#stocks-search");
+    if (el) el.value = q;
+    if (applyQueryKind(q)) render(); else renderList();
+  }
+  function handleSearchAction(el) {
+    if (el.dataset.ssChip != null) {
+      const chip = _lastSearch?.chips[+el.dataset.ssChip];
+      if (chip) setQuery(removeChipFromQuery(filter.q, chip));
+    } else if (el.dataset.ssQ != null) {
+      setQuery(el.dataset.ssQ);
+    } else if (el.dataset.ssKind) {
+      filter.kind = el.dataset.ssKind;
+      filter.sector = "all";
+      if (filter.kind === KIND_MF) ensureMfUniverseLoaded();
+      visibleCount = PAGE_SIZE;
+      render();
+    } else if (el.dataset.ssAsk) {
+      runAiSearch(filter.q.trim(), render);
+    }
+  }
+
   function pageReady() {
     // _moodReady removed from the gate as of Hotfix27a. The mood banner
     // is decorative â€” there's no reason to hold the entire grid behind a
@@ -848,7 +919,7 @@ export function renderStocks(main) {
     // replaces the slot's innerHTML without firing render(). Net cold-
     // load improvement: ~1.5 s in the typical case where mood is the
     // slowest gate to flip.
-    return _universeLoaded && _initialQuotesLoaded && _viewportPreheatDone;
+    return _universeLoaded && _initialQuotesLoaded && _viewportPreheatDone && _snapDone;
   }
 
   function render() {
@@ -899,7 +970,8 @@ export function renderStocks(main) {
     // Hotfix46c: show ACTIVE MF count, not the raw 13,969 figure that
     // includes ~5,000 zombie schemes. The headline number now
     // reflects what the user actually sees in the grid below.
-    const mfCount     = universeReady ? allInst.filter(i => i.kind === KIND_MF && !_isMfTerminated(i)).length : null;
+    const mfLoadedCt  = allInst.filter(i => i.kind === KIND_MF && !_isMfTerminated(i)).length;
+    const mfCount     = universeReady && mfLoadedCt > 100 ? mfLoadedCt : null;   // only the 10 featured funds until the full list lands
     // Preserve focus + caret on the search input across the re-render — every
     // keystroke triggers this render and the 10s live-quote poll does too, so
     // without this the user can't type more than one character at a time.
@@ -921,7 +993,7 @@ export function renderStocks(main) {
             // matching what the user can actually browse below.
             const equityCt = allInst.filter(i => i.kind === KIND_EQUITY).length;
             const etfCt    = allInst.filter(i => i.kind === KIND_ETF).length;
-            const mfActive = allInst.filter(i => i.kind === KIND_MF && !_isMfTerminated(i)).length;
+            const mfActive = mfCount || 0;
             const total    = equityCt + etfCt + mfActive;
             const fmt = (n) => n.toLocaleString("en-IN");
             const parts = [`${fmt(total)} instruments`];
@@ -950,7 +1022,7 @@ export function renderStocks(main) {
       <div class="stocks-toolbar">
         <div class="input-prefix">
           <span class="px">🔍</span>
-          <input type="search" id="stocks-search" placeholder="Search, or try &quot;cheap IT stocks with low debt&quot;..." value="${escapeAttr(filter.q)}" />
+          <input type="search" id="stocks-search" enterkeyhint="search" placeholder="Search any stock, or try &quot;under ₹100&quot;, &quot;bank stocks&quot;…" value="${escapeAttr(filter.q)}" />
         </div>
         <button class="btn btn-ghost btn-sm" id="ask-saathi-btn" title="Filter the universe with natural language" ${aiSearchLoading ? "disabled" : ""}>${aiSearchLoading ? "…" : "✨ Ask Saathi"}</button>
         <div id="stocks-sort" style="min-width: 200px;"></div>
@@ -1001,8 +1073,8 @@ export function renderStocks(main) {
         </div>
       `}
 
-      <div id="stocks-grid-host">${list.length === 0
-        ? `<div class="empty-state"><span class="emoji">🔍</span><h3>No matches</h3><p>Try clearing a filter or searching differently.</p></div>`
+      <div id="stocks-grid-host" data-total="${fullList.length}">${filter.q.trim() && !aiSearch ? searchSummaryHtml(_lastSearch, fullList.length) : ""}${list.length === 0
+        ? searchEmptyHtml(aiSearch ? "" : filter.q, filter.kind)
         : `${viewMode === "tiles" ? _tileHeaderHtml() : ""}<div class="stocks-grid stocks-grid--${viewMode}">${list.map(inst => renderStubRow(inst, viewMode)).join("")}</div>${truncated ? `<div class="flex justify-center stocks-pager" style="margin-top: var(--sp-4); gap: 8px; flex-wrap: wrap;"><button class="btn btn-ghost" id="stocks-show-more">Show ${Math.min(PAGE_SIZE, fullList.length - list.length)} more (${fullList.length - list.length} remaining)</button><button class="btn btn-ghost" id="stocks-show-all">Show all ${fullList.length}</button></div>` : ""}`}</div>
     `;
 
@@ -1015,6 +1087,8 @@ export function renderStocks(main) {
       const newQ = e.target.value;
       filter.q = newQ;
       visibleCount = PAGE_SIZE;   // reset pagination on new query
+      // "gold ETF", "sip mutual funds": jump to that tab.
+      if (applyQueryKind(newQ)) { render(); return; }
       // Hotfix46b: when the user clicks the input's built-in X (or
       // hits Backspace down to empty), also clear the AI search
       // result that may have been set from a prior 'Ask Saathi'
@@ -1113,16 +1187,27 @@ export function renderStocks(main) {
       aiSearchQuery = "";
       render();
     });
-    // Also trigger AI search on Enter inside the search input when the
-    // query has multiple words (looks like natural language, not a ticker).
-    searchEl.addEventListener("keydown", e => {
-      if (e.key === "Enter") {
-        const q = filter.q.trim();
-        if (q.split(/\s+/).length >= 2 && q.length >= 6) {
-          e.preventDefault();
-          runAiSearch(q, render);
-        }
-      }
+    // Dropdown under the box (stockSearchUi.js). Enter opens the stock when
+    // the match is certain ("tcs", "hdfc bank"), asks Saathi when nothing
+    // matched a real question, and otherwise shows the results below.
+    const suggest = mountSearchSuggest(searchEl, {
+      universe: () => getAllInstruments(),
+      keep: it => it.kind !== KIND_MF || !_isMfTerminated(it),
+      priceOf: sym => livePrice(sym, quoteCache),
+      changeOf: sym => liveChangePct(sym, quoteCache),
+      onPick: (it) => go("/stocks/" + encodeURIComponent(it.symbol)),
+      onQuery: (q) => { suggest.hide(); searchEl.blur(); setQuery(q); },
+      onAsk: (q) => { suggest.hide(); searchEl.blur(); runAiSearch(q, render); },
+      listCount: (q) => applyFilters(source(), { ...filter, q }, getState(), quoteCache).length,
+      listName: () => (filter.sector !== "all" && filter.kind === KIND_EQUITY ? filter.sector : TAB_NAME[filter.kind] || "results"),
+      onSubmit: (q, r, showAll) => {
+        if (!showAll && r?.strong && r.results[0]) { go("/stocks/" + encodeURIComponent(r.results[0].symbol)); return; }
+        const inTab = applyFilters(source(), { ...filter, q }, getState(), quoteCache);
+        if (!inTab.length && !r?.results?.length && q.split(/\s+/).length >= 2) { runAiSearch(q, render); return; }
+        suggest.hide();
+        searchEl.blur();
+        main.querySelector("#stocks-grid-host")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      },
     });
   }
 
@@ -1154,8 +1239,10 @@ export function renderStocks(main) {
     const fullList = applyFilters(source(), filter, state, quoteCache);
     const list = fullList.slice(0, visibleCount);
     const truncated = fullList.length > list.length;
+    host.dataset.total = String(fullList.length);
+    const summaryHtml = filter.q.trim() && !aiSearch ? searchSummaryHtml(_lastSearch, fullList.length) : "";
     if (list.length === 0) {
-      host.innerHTML = `<div class="empty-state"><span class="emoji">🔍</span><h3>No matches</h3><p>Try clearing a filter or searching differently.</p></div>`;
+      host.innerHTML = summaryHtml + searchEmptyHtml(aiSearch ? "" : filter.q, filter.kind);
       attachGridDelegation(host);
       attachCardObserver(host);
       return;
@@ -1171,13 +1258,13 @@ export function renderStocks(main) {
     const headerHtml = viewMode === "tiles" ? _tileHeaderHtml() : "";
     if (list.length <= CHUNK_THRESHOLD) {
       // Synchronous path — small lists render in one shot.
-      host.innerHTML = `${headerHtml}<div class="stocks-grid stocks-grid--${viewMode}">${list.map(inst => renderStubRow(inst, viewMode)).join("")}</div>${pagerHtml}`;
+      host.innerHTML = `${summaryHtml}${headerHtml}<div class="stocks-grid stocks-grid--${viewMode}">${list.map(inst => renderStubRow(inst, viewMode)).join("")}</div>${pagerHtml}`;
       attachGridDelegation(host);
       attachCardObserver(host);
     } else {
       // Chunked path — render the first batch immediately so users see
       // SOMETHING within ~20 ms of clicking, then progressively fill.
-      host.innerHTML = `${headerHtml}<div class="stocks-grid stocks-grid--${viewMode}"></div><div id="stocks-loading-indicator" class="dim text-xs center" style="margin: var(--sp-4) 0; padding: var(--sp-3);">Loading ${list.length.toLocaleString("en-IN")} stubs…</div>`;
+      host.innerHTML = `${summaryHtml}${headerHtml}<div class="stocks-grid stocks-grid--${viewMode}"></div><div id="stocks-loading-indicator" class="dim text-xs center" style="margin: var(--sp-4) 0; padding: var(--sp-3);">Loading ${list.length.toLocaleString("en-IN")} stubs…</div>`;
       const grid = host.querySelector(".stocks-grid");
       // Wire the click delegation + create the IO once UP FRONT (with no
       // cards yet — observe-list starts empty). Then we incrementally
@@ -1305,7 +1392,7 @@ export function renderStocks(main) {
               if (inst.kind !== KIND_MF && _q?.pricePaise == null) {
                 continue;
               }
-              const seededCloses = [] /* real ticks only (D7) */;
+              const seededCloses = dailyShape(sym);
               const closes = getIntradaySparkline(sym, seededCloses);
               const quote = _q;
               const hasLive = quote?.pricePaise != null;
@@ -1482,6 +1569,8 @@ export function renderStocks(main) {
   function attachGridDelegation(host) {
     if (!host) return;
     host.onclick = (e) => {
+      const ssEl = e.target.closest("[data-ss-chip], [data-ss-q], [data-ss-kind], [data-ss-ask]");
+      if (ssEl) { handleSearchAction(ssEl); return; }
       // Watchlist toggle wins over card-click — handle it first and stop.
       const wlBtn = e.target.closest(".watchlist-toggle");
       if (wlBtn) {
@@ -1905,19 +1994,85 @@ async function fetchMarketMood() {
   return d;
 }
 
+// Fill the list charts that are still grey placeholders once the 3-week
+// NSE close data arrives.
+function fillDailyCharts(root) {
+  root?.querySelectorAll?.(".stock-card[data-sym] .stock-sparkline").forEach(el => {
+    if (!el.querySelector(".skeleton")) return;
+    const sym = el.closest("[data-sym]").dataset.sym;
+    const closes = getIntradaySparkline(sym, dailyShape(sym));
+    if (!closes || closes.length < 2) return;
+    const tile = el.classList.contains("tile-spark");
+    el.innerHTML = tile ? sparkline(closes, { width: 88, height: 28, strokeWidth: 1.5 }) : sparkline(closes);
+    el.dataset.sparkFp = `${closes.length}:${closes[closes.length - 1]}`;
+  });
+}
+
 function changeFor(sym, quoteCache) {
   const q = quoteCache?.[sym];
   if (q && Number.isFinite(q.changePct)) return q.changePct;
   return getTodayChange(sym) ?? 0;   // unknown sorts as flat
 }
 
-// Former company name or ticker -> current NSE symbol(s), for the Markets
-// search box. Tata Motors demerged in 2025 into TMPV and TMCV; its old
-// ticker matched neither.
-const FORMER_NAMES = {
-  zomato: ["ETERNAL"],
-  tatamotors: ["TMPV", "TMCV"],
-};
+// The Markets search box (js/features/stockSearch.js). The engine indexes the
+// whole universe once; the open tab and sector pill reach it as a filter.
+// Former names (Zomato -> ETERNAL, Tata Motors -> TMPV/TMCV) live there now.
+let _lastSearch = null;
+let _searchMemo = { key: "", r: null };
+function livePrice(sym, qc) { const p = qc?.[sym]?.pricePaise; return p != null ? p / 100 : null; }
+function liveChangePct(sym, qc) { const c = qc?.[sym]?.changePct; return Number.isFinite(c) ? c * 100 : null; }
+function runSearchFor(q, list, f, qc) {
+  const all = getAllInstruments();
+  const key = [q, f.kind, f.sector, f.mfBucket, f.mfPlan, list.length, all.length, searchSnapshotReady()].join("|");
+  if (_searchMemo.key === key) return _searchMemo.r;
+  const allowed = new Set(list);
+  const r = searchStocks(q, all, {
+    filter: it => allowed.has(it),
+    elsewhereFilter: it => it.kind !== KIND_MF || !_isMfTerminated(it),
+    priceOf: sym => livePrice(sym, qc),
+    changeOf: sym => liveChangePct(sym, qc),
+  });
+  _searchMemo = { key, r };
+  return r;
+}
+
+const TAB_NAME = { EQUITY: "Stocks", ETF: "ETFs", MF: "Mutual funds", watchlist: "your watchlist" };
+
+// Line above the results: count, how the words were read (each removable),
+// order, and which close the numbers come from.
+function searchSummaryHtml(r, total) {
+  if (!r) return "";
+  const chips = r.chips.map((c, i) =>
+    `<button type="button" class="ss-pill ss-pill-x" data-ss-chip="${i}" title="${c.add ? "Include all sizes" : "Remove"}">${escapeHtml(c.label)} <span aria-hidden="true">×</span></button>`).join("");
+  const sortShown = r.sortLabel && !r.chips.some(c => c.label === r.sortLabel);
+  const usesClose = r.chips.some(c => /^(price|pricemin|div|debt|roe|pe|beta|sort|floor)$/.test(c.id));
+  const asOf = searchSnapshotAsOf();
+  const asOfTxt = asOf ? new Date(asOf + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : "";
+  return `<div class="ss-summary" role="status">
+      <span class="ss-count">${total.toLocaleString("en-IN")} ${total === 1 ? "result" : "results"}</span>
+      ${chips}
+      ${sortShown ? `<span class="ss-sort">${escapeHtml(r.sortLabel)}</span>` : ""}
+      ${r.needsSnapshot ? `<span class="ss-asof">Loading prices…</span>` : usesClose && asOfTxt ? `<span class="ss-asof">Using NSE close of ${escapeHtml(asOfTxt)}</span>` : ""}
+      ${r.didYouMean ? `<button type="button" class="ss-link" data-ss-q="${escapeAttr(r.didYouMean)}">Did you mean “${escapeHtml(r.didYouMean)}”?</button>` : ""}
+    </div>${r.note ? `<p class="ss-note">${escapeHtml(r.note)}</p>` : ""}`;
+}
+
+// "No matches" that never dead-ends: where else it is, a spelling fix, or Saathi.
+function searchEmptyHtml(q, kind) {
+  const r = _lastSearch;
+  if (!q || !r) return `<div class="empty-state"><span class="emoji">🔍</span><h3>No matches</h3><p>Try clearing a filter or searching differently.</p></div>`;
+  const els = r.elsewhere;
+  const words = q.trim().split(/\s+/).length;
+  return `<div class="empty-state ss-empty-state"><span class="emoji">🔍</span>
+      <h3>Nothing in ${escapeHtml(TAB_NAME[kind] || "this list")} for “${escapeHtml(q.trim())}”</h3>
+      ${els ? `<p class="ss-empty-row">${Object.entries(els.by).map(([k, n]) =>
+        `<button type="button" class="btn btn-ghost btn-sm" data-ss-kind="${escapeAttr(k)}">${n.toLocaleString("en-IN")} in ${escapeHtml(TAB_NAME[k] || k)}${els.top[0]?.kind === k ? ` · ${escapeHtml(els.top[0].kind === KIND_MF ? (els.top[0].name || "").slice(0, 32) : els.top[0].symbol)}` : ""}</button>`).join(" ")}</p>` : ""}
+      ${r.didYouMean ? `<p class="ss-empty-row"><button type="button" class="btn btn-ghost btn-sm" data-ss-q="${escapeAttr(r.didYouMean)}">Did you mean “${escapeHtml(r.didYouMean)}”?</button></p>` : ""}
+      ${words >= 2
+        ? `<p class="ss-empty-row"><button type="button" class="btn btn-primary btn-sm" data-ss-ask="1">✨ Ask Saathi</button></p><p class="muted text-sm">Saathi can answer what the search box can't, like "companies that make phones".</p>`
+        : `<p class="muted">Try a company name, a ticker, or words like "under ₹100", "bank stocks" or "best performing".</p>`}
+    </div>`;
+}
 
 function applyFilters(all, f, state, quoteCache) {
   // If an AI-search result is active, it overrides the keyword filter
@@ -1971,20 +2126,16 @@ function applyFilters(all, f, state, quoteCache) {
   // each instrument's raw .sector through getCanonicalCategory before
   // comparing.
   if (f.kind !== "MF" && f.sector !== "all") list = list.filter(i => getCanonicalCategory(i) === f.sector);
-  if (f.q) {
-    const q = f.q.toLowerCase();
-    // Former names that teens still search by. "Zomato" matched nothing after
-    // the company became Eternal Ltd, and users told the coach "it shows no
-    // match" (2026-10-08 and 2026-10-10).
-    const renamed = new Set(q.trim().length >= 3
-      ? Object.entries(FORMER_NAMES).filter(([old]) => old.startsWith(q.trim()) || q.includes(old)).flatMap(([, syms]) => syms)
-      : []);
-    list = list.filter(i =>
-      i.name.toLowerCase().includes(q) ||
-      i.symbol.toLowerCase().includes(q) ||
-      (i.sector || "").toLowerCase().includes(q) ||
-      renamed.has(i.symbol)
-    );
+  if (f.q && f.q.trim()) {
+    const r = runSearchFor(f.q, list, f, quoteCache);
+    _lastSearch = r;
+    list = r.results.slice();
+    // The search decides the order (best match, or what the words asked for
+    // such as "top gainers") unless the student picked a sort in the dropdown.
+    const wordsSorted = r.sortLabel && r.sortLabel !== "Best match first" && r.sortLabel !== "Biggest first";
+    if (wordsSorted || !_sortChosen) return list;
+  } else {
+    _lastSearch = null;
   }
   if (f.sort === "gainers") list.sort((a, b) => changeFor(b.symbol, quoteCache) - changeFor(a.symbol, quoteCache));
   else if (f.sort === "losers") list.sort((a, b) => changeFor(a.symbol, quoteCache) - changeFor(b.symbol, quoteCache));
@@ -2013,12 +2164,20 @@ function applyFilters(all, f, state, quoteCache) {
       MIDCAP150: 65, NIFTYIETF: 70, SETFNN50: 60, NIF100IETF: 60,
       SILVERBEES: 65, SETFGOLD: 50,
     };
+    // Companies: real market value (₹ crore, fundamentals in the nightly
+    // search snapshot), biggest first. Until 18 Oct 2026 this was index tier
+    // then A-Z, so "Top by size" read ADANIENT, ADANIPORTS, APOLLOHOSP...
+    // Index tier is now only the fallback for rows with no market value.
+    const mcOf = (it) => (it.kind === "ETF" ? 0 : snapOf(it.symbol)?.mc || 0);
     list.sort((a, b) => {
+      const am = mcOf(a), bm = mcOf(b);
+      if (am && bm) return bm - am;
       let ai = idxTier(a.idx || a.idx_tags);
       let bi = idxTier(b.idx || b.idx_tags);
       if (a.kind === "ETF" && ETF_PROMINENCE[a.symbol]) ai = 5 + ETF_PROMINENCE[a.symbol] / 100;
       if (b.kind === "ETF" && ETF_PROMINENCE[b.symbol]) bi = 5 + ETF_PROMINENCE[b.symbol] / 100;
       if (ai !== bi) return bi - ai;
+      if (am !== bm) return bm - am;
       return (a.symbol || "").localeCompare(b.symbol || "");
     });
   }
@@ -2077,7 +2236,7 @@ function renderStockCard(inst, state, wlSet) {
   // overlays once subscribeToQuotes lands a tick. Drops the previous
   // `inst.price != null` gate that left ALL Tier-2 cards with empty
   // sparklines forever (the gate was a vestige of the hand-typed era).
-  const seededCloses = [] /* real ticks only (D7) */;
+  const seededCloses = dailyShape(inst.symbol);
   const closes = getIntradaySparkline(inst.symbol, seededCloses);
   const quote = quoteCache[inst.symbol];
   const hasLive = quote?.pricePaise != null;
@@ -2180,7 +2339,7 @@ function renderStockCardBody(inst, state, wlSet, opts = null) {
   if (opts) {
     ({ closes, hasLive, price, change, isWatched, liveBadge } = opts);
   } else {
-    const seededCloses = [] /* real ticks only (D7) */;
+    const seededCloses = dailyShape(inst.symbol);
     closes = getIntradaySparkline(inst.symbol, seededCloses);
     const quote = (typeof window !== "undefined" && window.__ssQuoteCache) ? window.__ssQuoteCache[inst.symbol] : null;
     hasLive = quote?.pricePaise != null;
@@ -2346,7 +2505,7 @@ function renderStockTileBody(inst, state, wlSet, opts = null) {
     ({ closes, hasLive, price, change, isWatched, liveBadge } = opts);
     quote = (typeof window !== "undefined" && window.__ssQuoteCache) ? window.__ssQuoteCache[inst.symbol] : null;
   } else {
-    const seededCloses = [] /* real ticks only (D7) */;
+    const seededCloses = dailyShape(inst.symbol);
     closes = getIntradaySparkline(inst.symbol, seededCloses);
     quote = (typeof window !== "undefined" && window.__ssQuoteCache) ? window.__ssQuoteCache[inst.symbol] : null;
     hasLive = quote?.pricePaise != null;
