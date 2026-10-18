@@ -210,10 +210,35 @@ const TOOLS = [
 // -----------------------------------------------------------------------------
 // Tool executors (client-side)
 // -----------------------------------------------------------------------------
+// Close matches for a code NSE does not list. TATAMOTORS stopped trading after
+// the demerger (TMPV + TMCV): told only "no listing", the model retried the old
+// code until it ran out of rounds and the student got no answer at all.
+function suggestSymbols(raw) {
+  const key = String(raw || "").toLowerCase().replace(/\.(ns|bo)$/, "").replace(/[^a-z0-9]/g, "");
+  if (key.length < 3) return [];
+  let all = [];
+  try { all = getAllInstruments() || []; } catch { all = []; }
+  const hits = [];
+  for (const x of all) {
+    if (!x?.symbol || x.kind === "MF") continue;
+    const name = String(x.name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+    const sym = String(x.symbol).toLowerCase();
+    if (name.startsWith(key) || key.startsWith(sym) && sym.length >= 4 || name.includes(key)) hits.push(x);
+    if (hits.length >= 4) break;
+  }
+  return hits.map(x => `${x.symbol} (${x.name})`);
+}
+function noListing(raw, sym) {
+  const alt = suggestSymbols(raw);
+  return alt.length
+    ? `NSE has no listing under ${sym || raw} (renamed, merged, demerged or misspelt). Current listings that match: ${alt.join(", ")}. Use one of these exact symbols instead; do not retry ${sym || raw}.`
+    : `NSE has no listing under ${sym || raw} (it may be renamed, delisted or misspelt). Do not retry it; call search_stocks with the company name, or tell the student you could not find it.`;
+}
+
 async function execGetStockPrice(input) {
   const raw = String(input.symbol || "").trim();
   const sym = resolveSymbolFuzzy(raw);
-  if (!sym) return { ok: false, error: `No NSE stock matching "${raw}". Try search_stocks.` };
+  if (!sym) return { ok: false, error: noListing(raw) };
   try {
     const [q, fund] = await Promise.all([
       getQuote(sym),
@@ -230,7 +255,7 @@ async function execGetStockPrice(input) {
     // users Zomato was at ₹1,386.89 while ETERNAL closed at ₹323.45, and that
     // it was "definitely on the app". Never quote an invented number.
     if (q.source === "synthetic") {
-      return { ok: false, error: `No real price for "${raw}" — NSE has no listing under ${sym} (it may be renamed, delisted or misspelt). Do not quote any price; call search_stocks with the company name.` };
+      return { ok: false, error: `No real price for "${raw}". Do not quote any price. ${noListing(raw, sym)}` };
     }
     return {
       ok: true,
@@ -743,8 +768,7 @@ async function callLLM({ apiKey, system, messages, tools, profile = "fast", reas
     model: MODEL,
     temperature: 0.5,
     messages: openaiMessages,
-    tools,
-    tool_choice: "auto",
+    ...(tools ? { tools, tool_choice: "auto" } : {}),
     // Default profile is "fast" (Gemini Flash). Flash is ~3× faster than
     // Pro on conversational chat because it doesn't run deep chain-of-thought
     // on every message — and for a "hi, what's TCS at?" interaction Flash
@@ -1026,6 +1050,14 @@ export async function runAgent({ apiKey, system, messages, onStep, onText, profi
   }
 
   console.warn("Agent: hit MAX_TOOL_LOOPS");
+  // Never leave the student with nothing: one last turn with no tools,
+  // answering from whatever the tools did return.
+  try {
+    conv.push({ role: "user", content: "[app] No more lookups are possible this turn. Answer the question now using only what the tools returned above. If something could not be found, say so plainly in one sentence. Do not mention tools." });
+    const last = await callLLM({ apiKey, system: split.system, messages: conv, tools: undefined, profile, reasoningEffort: "minimal" });
+    const text = stripToolCallScaffolding(String(last?.choices?.[0]?.message?.content || "")).trim();
+    if (text) return text;
+  } catch (e) { console.warn("Agent: final answer failed:", e?.message || e); }
   return null;
 }
 
