@@ -188,7 +188,7 @@ export function mountNav() {
               <span class="label">Portfolio</span>
               <span class="val tabular">${formatRupees(pfValue, { compact: true })}</span>
             </div>
-            ${state.user?.isAdmin ? `<span id="nav-bell-slot" class="nav-bell-slot"></span>` : ""}
+            <span id="nav-bell-slot" class="nav-bell-slot"></span>
             <div class="dropdown" id="user-dd">
               <button class="nav-avatar" id="user-avatar" aria-label="Account menu" aria-expanded="false">
                 ${initials(state.user.displayName || state.user.username)}

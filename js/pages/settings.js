@@ -52,7 +52,7 @@ export function renderSettings(main) {
           </div>
         </div>
 
-        ${state.user?.isAdmin ? `<div class="card" id="notifications" style="margin-top: var(--sp-4);">
+        ${state.isAuthed ? `<div class="card" id="notifications" style="margin-top: var(--sp-4);">
           <h3 style="margin-bottom: var(--sp-4);">Notifications</h3>
           <div id="notif-settings"><p class="muted text-sm">Loading…</p></div>
         </div>` : ""}

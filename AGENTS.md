@@ -151,10 +151,11 @@ our problem — retry next tick. MF pricing: `mf_master`, falling back to
 New features ship to the owner accounts first: `public.admin_users` +
 `is_admin()` (migration `2026-10-19c`; the function also pins the two owner
 ids, aliarbab2009 and admin). Client: `getState().user.isAdmin`, read through
-`js/features/preview.js::isPreview()`. Never a `profiles` column (users can
+`js/features/preview.js::isOwner()` (`isPreview()` now returns true: the chat preview
+was approved for everyone on 19 Oct). Never a `profiles` column (users can
 update their own profile row).
 
-## Coach chat (preview: ChatGPT-style)
+## Coach chat (ChatGPT-style; live for everyone since 19 Oct)
 
 - Conversations are documents in `chat_threads` (`doc.messages`, full branch
   tree); `coach_messages` stays a flat per-turn log for analytics. The chat page
@@ -193,7 +194,7 @@ reads/updates to `auth.uid()`; only the service role inserts. Used for the
 order-backfill apology. Grants are `authenticated: SELECT, UPDATE` only —
 do not let Supabase's default grants hand `anon` TRUNCATE, which bypasses RLS.
 
-## Notifications (preview: bell + web push)
+## Notifications (bell + web push; every signed-in user since 19 Oct)
 
 - Inbox: `public.notifications`, written ONLY by the database: trigger on
   `limit_orders` (non-MF fill) and a mirror of every `user_notices` insert
