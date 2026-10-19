@@ -44,3 +44,6 @@ werkzeug/
 # Price cache for scripts/build_dip_stats.py
 scripts/.dipcache/
 scripts/.device-shots/
+
+# Session handoff notes (local only, not shipped)
+docs/HANDOFF_claude-session-*.md

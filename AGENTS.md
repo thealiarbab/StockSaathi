@@ -4,7 +4,7 @@ Vanilla-JS SPA + Python serverless (Vercel) + Postgres (Supabase). Virtual-money
 
 ## RESUME HERE (paused 19 Oct 2026, continuing the next week)
 
-Read `docs/HANDOFF_2026-10-19.md` first: owner's standing rules, his UX
+Handoff notes were kept OUTSIDE git (`docs/HANDOFF_claude-session-jolly-ptolemy_chat-notifications-portfolio_2026-10-19.md`, gitignored, owner has a copy). Summary: owner's standing rules, his UX
 decisions, the pending queue IN HIS ORDER (#1 bias/panic-sell rewrite with
 option-C UX → #2 report card algorithm → #3 achievements 80+/seasonal; #6
 Settings only when he asks — he said "LEAVE SETTINGS"), what shipped, root
