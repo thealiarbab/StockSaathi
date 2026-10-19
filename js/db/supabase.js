@@ -145,7 +145,28 @@ function sbFetch(input, init = {}) {
     else outer.addEventListener("abort", () => ctrl.abort(outer.reason), { once: true });
   }
   const timer = setTimeout(() => ctrl.abort(), SB_FETCH_TIMEOUT_MS);
-  return fetch(input, { ...init, signal: ctrl.signal }).finally(() => clearTimeout(timer));
+  const go = (u) => fetch(u === url ? input : u, { ...init, signal: ctrl.signal });
+  const proxied = viaOwnDomain(url);
+  if (proxied && useProxy()) return go(proxied).finally(() => clearTimeout(timer));
+  return go(url).catch((err) => {
+    // "Failed to fetch": the phone cannot reach *.supabase.co at all. Indian
+    // ISPs DNS-blocked it in Feb 2026 and some school and mobile networks
+    // still do (57 failed logins, a student unable to sign up, 17-18 Oct).
+    // Retry through /sb on our own domain (a Vercel rewrite to the same
+    // project) and stay on that route for the rest of the visit.
+    if (!proxied || err?.name === "AbortError" || ctrl.signal.aborted) throw err;
+    rememberProxy();
+    return go(proxied);
+  }).finally(() => clearTimeout(timer));
+}
+
+const PROXY_KEY = "ss.sb.viaOwnDomain";
+function useProxy() { try { return sessionStorage.getItem(PROXY_KEY) === "1"; } catch { return false; } }
+function rememberProxy() { try { sessionStorage.setItem(PROXY_KEY, "1"); } catch {} }
+function viaOwnDomain(url) {
+  const base = _config?.supabaseUrl;
+  if (!base || !url.startsWith(base) || typeof location === "undefined") return null;
+  return location.origin + "/sb" + url.slice(base.replace(/\/$/, "").length);
 }
 
 async function createSb() {
