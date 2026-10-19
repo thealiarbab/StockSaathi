@@ -145,6 +145,30 @@ coverage, so every MF order was guaranteed to be destroyed. A missing price is
 our problem — retry next tick. MF pricing: `mf_master`, falling back to
 `js/data/mfFull.json` (the same file the browser uses).
 
+## Owner previews (admin flag)
+
+New features ship to the owner accounts first: `public.admin_users` +
+`is_admin()` (migration `2026-10-19c`; the function also pins the two owner
+ids, aliarbab2009 and admin). Client: `getState().user.isAdmin`, read through
+`js/features/preview.js::isPreview()`. Never a `profiles` column (users can
+update their own profile row).
+
+## Coach chat (preview: ChatGPT-style)
+
+- Conversations are documents in `chat_threads` (`doc.messages`, full branch
+  tree); `coach_messages` stays a flat per-turn log for analytics. The chat page
+  overlays the cloud copy after the coach_messages rebuild (`syncFromCloud`).
+- Branching: `js/features/chatBranches.js` (`vers`/`vi` on a branch point).
+  Messages moved off screen are tombstoned in `session.pruned` so the
+  cross-tab merge in chatSessions.js cannot bring them back.
+- Slash commands and cards: `js/features/chatCards.js` (/chart /compare
+  /whatif /portfolio /explain /help); real exchange data only.
+- Share links: `chat_shares` + `get_shared_chat()`, public page `/share/<id>`
+  (`js/pages/sharedChat.js`, vercel rewrite). Feedback: `chat_feedback`.
+- Supabase connector: statements containing DROP/DELETE wait for a
+  confirmation that never reaches an agent session and time out. Write
+  migrations without them (CREATE OR REPLACE, flags instead of deletes).
+
 ## User notices
 
 `public.user_notices` + `ack_notice()` RPC + `js/components/noticeModal.js`

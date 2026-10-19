@@ -41,7 +41,7 @@
       "destination": "/app-shell"
     },
     {
-      "source": "/:route(stocks|crash-replay|a)/:param",
+      "source": "/:route(stocks|crash-replay|a|share)/:param",
       "destination": "/app-shell"
     }
   ],

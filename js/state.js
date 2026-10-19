@@ -183,6 +183,7 @@ export function getState() {
       id: user?.id || null,
       username: user?.username || null,
       displayName: user?.displayName || null,
+      isAdmin: !!user?.isAdmin,
       email: user?.email || null,
       avatarColor: user?.avatarColor || "green",
       age: user?.age ?? us.profile.age,

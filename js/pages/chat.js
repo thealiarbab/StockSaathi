@@ -16,8 +16,13 @@ import {
   createNewSession, deleteSessionById, touchActive, clearActiveMessages,
   renameSession, togglePin,
   formatRelative, SESSIONS_KEY,
-  displayOrder,
+  displayOrder, setArchived, notePruned,
 } from "../features/chatSessions.js";
+import { isPreview } from "../features/preview.js";
+import { forkAt, showVersion, branchInfo, stripVers } from "../features/chatBranches.js";
+import { pushThread, pullThreads, upsertShare, listShares, revokeShare, sendFeedback } from "../features/chatCloud.js";
+import { COMMANDS, isCommand, runCommand, cardHtml, hydrateCards } from "../features/chatCards.js";
+import { toast } from "../components/toast.js";
 
 // Defense-in-depth: strip any prompt-scaffolding patterns the model might
 // leak into its visible reply.
@@ -144,10 +149,14 @@ window.addEventListener("ss:coach-sync", () => {
   try {
     sessionsData = loadSessions();
     chatLog = getActiveSession(sessionsData).messages;
-    if (document.getElementById("chat-messages")) {
+    const repaint = () => {
+      if (!document.getElementById("chat-messages")) return;
       const main = document.getElementById("main");
       if (main) renderChat(main);
-    }
+    };
+    repaint();
+    // The DB rebuild is one flat line per chat; put the branches back.
+    if (isPreview()) syncFromCloud().then((changed) => { if (changed) repaint(); });
   } catch (e) { console.warn("[chat] ss:coach-sync failed:", e); }
 });
 
@@ -231,6 +240,11 @@ export function renderChat(main) {
               <h1 class="cc-title">${chatLog.length ? escapeHtml(active.title || "Saathi") : "Saathi"}</h1>
             </div>
             <button class="cc-chip-btn coach-lang ${state.settings.hinglish ? "is-on" : ""}" id="cc-lang" type="button" aria-pressed="${state.settings.hinglish ? "true" : "false"}" title="Reply language">${state.settings.hinglish ? "Hinglish" : "English"}</button>
+            ${isPreview() ? `
+            <button class="cc-chip-btn cc-head-share" id="cc-share" type="button" aria-label="Share this chat">
+              <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><path d="m16 6-4-4-4 4"/><path d="M12 2v13"/></svg><span>Share</span>
+            </button>
+            <button class="cc-chip-btn cc-head-more" id="cc-more" type="button" aria-label="More chat options" aria-haspopup="menu">&middot;&middot;&middot;</button>` : ""}
             <button class="cc-chip-btn cc-new cc-head-new" id="chat-new-btn-2" type="button" aria-label="New chat">+</button>
           </header>
 
@@ -239,6 +253,7 @@ export function renderChat(main) {
               ${renderMessages()}
             </div>
 
+            <div class="cc-slash" id="cc-slash" role="listbox" aria-label="Commands" hidden></div>
             <form id="chat-form" class="composer cc-composer">
               <div class="composer-shell ${m_pending ? "is-busy" : ""}">
                 <textarea
@@ -304,12 +319,14 @@ export function renderChat(main) {
       input.value = "";
       fit();
       main.querySelector(".cc-panel")?.classList.remove("is-empty");
+      closeSlash();
       pushUser(text);
       rerender();
       refreshSide();
-      await sendAndReply(text);
+      await produceReply(text);
       rerender();
       refreshSide();
+      cloudSave(true);
       const cur = getActiveSession(sessionsData);
       const h = main.querySelector(".cc-title"), sub = main.querySelector(".cc-sub");
       if (h && cur?.messages?.length) h.textContent = cur.title || "Saathi";
@@ -338,6 +355,183 @@ export function renderChat(main) {
       jump.hidden = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight < 160;
     }, { passive: true });
     jump.addEventListener("click", () => { messagesEl.scrollTop = messagesEl.scrollHeight; });
+
+    // ---- Preview controls (owner accounts first; see features/preview.js) ----
+    if (isPreview()) {
+      afterPaint(messagesEl);
+      if (!syncFromCloud._started) {
+        syncFromCloud._started = true;
+        syncFromCloud().then((changed) => { if (changed && document.getElementById("chat-messages")) render(); });
+      }
+
+      messagesEl.addEventListener("click", async (e) => {
+        const t = e.target.closest("[data-edit],[data-regen],[data-ver],[data-fb],[data-speak],[data-fb-why]");
+        if (!t) return;
+        const sess = getActiveSession(sessionsData);
+        if (t.dataset.speak != null) { speakText(chatLog[+t.dataset.speak]?.text, t); return; }
+        if (t.dataset.fbWhy) {
+          const m = chatLog[+t.dataset.idx];
+          sendFeedback({ threadId: sess.id, ts: m?.ts, rating: -1, reason: t.dataset.fbWhy, reply: m?.text });
+          t.closest(".cc-fb-why")?.replaceWith(Object.assign(document.createElement("div"), { className: "cc-fb-thanks", textContent: "Thanks. That helps Saathi get better." }));
+          return;
+        }
+        if (t.dataset.fb != null) {
+          const i = +t.dataset.idx, val = +t.dataset.fb, m = chatLog[i];
+          if (!m) return;
+          m.fb = m.fb === val ? 0 : val;
+          if (m.fb) sendFeedback({ threadId: sess.id, ts: m.ts, rating: val, reply: m.text });
+          saveChat(); cloudSave();
+          const row = t.closest(".cc-actions-row");
+          row.querySelectorAll("[data-fb]").forEach((b) => { const on = +b.dataset.fb === m.fb; b.classList.toggle("is-on", on); b.setAttribute("aria-pressed", on); });
+          row.parentElement.querySelector(".cc-fb-why")?.remove();
+          if (m.fb === -1) {
+            row.insertAdjacentHTML("afterend", `<div class="cc-fb-why" role="group" aria-label="What was wrong?">${["Wrong numbers", "Didn't answer my question", "Too long", "Sounded like a tip", "Something else"]
+              .map((r) => `<button type="button" data-fb-why="${escapeAttr(r)}" data-idx="${i}">${escapeHtml(r)}</button>`).join("")}</div>`);
+          }
+          return;
+        }
+        if (m_pending) return;
+        if (t.dataset.ver != null) {
+          const i = +t.dataset.ver, b = branchInfo(chatLog, i);
+          if (!b) return;
+          const removed = showVersion(chatLog, i, b.cur - 1 + +t.dataset.dir);
+          notePruned(sess, removed, chatLog);
+          saveChat(); rerender(); cloudSave();
+          return;
+        }
+        if (t.dataset.regen != null) { await regenerate(+t.dataset.regen); return; }
+        if (t.dataset.edit != null) startEdit(+t.dataset.edit);
+      });
+
+      main.querySelector("#cc-share")?.addEventListener("click", () => {
+        const sess = getActiveSession(sessionsData);
+        if (!(sess.messages || []).length) { toast({ kind: "info", message: "Send a message first, then share the chat." }); return; }
+        openShare(sess);
+      });
+      main.querySelector("#cc-more")?.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const btn = e.currentTarget;
+        const had = document.querySelector(".cc-head-menu");
+        had?.remove();
+        if (had) return;
+        const sess = getActiveSession(sessionsData);
+        btn.insertAdjacentHTML("afterend", `<div class="cc-item-menu cc-head-menu" role="menu">
+          <button type="button" role="menuitem" data-head="md">Export as Markdown</button>
+          <button type="button" role="menuitem" data-head="pdf">Print or save as PDF</button>
+          <button type="button" role="menuitem" data-head="links">Shared links</button>
+          <button type="button" role="menuitem" data-head="archive">${sess.archived ? "Unarchive" : "Archive"} chat</button>
+        </div>`);
+        const menu = btn.parentElement.querySelector(".cc-head-menu");
+        menu.querySelector("button")?.focus();
+        menu.addEventListener("click", (ev) => {
+          const a = ev.target.closest("[data-head]")?.dataset.head;
+          menu.remove();
+          if (a === "md") downloadText(`${(sess.title || "chat").replace(/[^a-z0-9]+/gi, "-").slice(0, 40)}.md`, chatMarkdown(sess));
+          else if (a === "pdf") printChat(sess);
+          else if (a === "links") openSharedLinks();
+          else if (a === "archive") {
+            setArchived(sessionsData, sess.id, !sess.archived);
+            pushThread(sess, { now: true });
+            toast({ kind: "success", message: sess.archived ? "Chat archived. Find it under Archived in the chat list." : "Chat unarchived." });
+            if (sess.archived) newChat(); else render();
+          }
+        });
+        setTimeout(() => document.addEventListener("click", () => menu.remove(), { once: true }), 0);
+      });
+
+      // Slash commands: a menu while the box starts with "/".
+      const slash = main.querySelector("#cc-slash");
+      let slashSel = 0;
+      const slashItems = () => {
+        const v = input.value;
+        if (!v.startsWith("/") || /\s/.test(v)) return [];
+        return COMMANDS.filter((c) => c.cmd.startsWith(v.toLowerCase()));
+      };
+      const drawSlash = () => {
+        const items = slashItems();
+        if (!items.length) { closeSlash(); return; }
+        slashSel = Math.min(slashSel, items.length - 1);
+        slash.hidden = false;
+        slash.innerHTML = items.map((c, k) => `<button type="button" role="option" aria-selected="${k === slashSel}" data-slash="${escapeAttr(c.cmd)}"><b>${escapeHtml(c.cmd)}</b> <span>${escapeHtml(c.args)}</span><em>${escapeHtml(c.hint)}</em></button>`).join("");
+      };
+      const pickSlash = (cmd) => { input.value = cmd + " "; closeSlash(); fit(); input.focus(); };
+      input.addEventListener("input", drawSlash);
+      input.addEventListener("keydown", (e) => {
+        if (slash.hidden) return;
+        const items = slashItems();
+        if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); slashSel = (slashSel + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length; drawSlash(); }
+        else if (e.key === "Tab" || (e.key === "Enter" && items[slashSel] && input.value.trim() !== items[slashSel].cmd)) { e.preventDefault(); e.stopImmediatePropagation(); if (items[slashSel]) pickSlash(items[slashSel].cmd); }
+        else if (e.key === "Escape") closeSlash();
+      }, true);
+      slash.addEventListener("mousedown", (e) => { const b = e.target.closest("[data-slash]"); if (b) { e.preventDefault(); pickSlash(b.dataset.slash); } });
+
+      // Shortcuts: Ctrl/Cmd+Shift+O new chat, Shift+Esc focus the box.
+      const onShort = (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "o") { e.preventDefault(); newChat(); }
+        else if (e.shiftKey && e.key === "Escape") { e.preventDefault(); input.focus(); }
+      };
+      document.addEventListener("keydown", onShort);
+      window.addEventListener("ss:navigate", () => document.removeEventListener("keydown", onShort), { once: true });
+    }
+
+    function closeSlash() {
+      const el = main.querySelector("#cc-slash");
+      if (el) { el.hidden = true; el.innerHTML = ""; }
+    }
+
+    // Edit a question: an editor in place of the bubble; Send forks the chat.
+    function startEdit(i) {
+      const m = chatLog[i];
+      const row = messagesEl.querySelector(`.cc-row[data-i="${i}"]`);
+      if (!m || !row) return;
+      const col = row.querySelector(".cc-user-col");
+      col.innerHTML = `<div class="cc-edit"><textarea class="cc-edit-box" rows="2" aria-label="Edit your message">${escapeHtml(m.text)}</textarea>
+        <div class="cc-edit-actions"><button type="button" class="cc-btn cc-btn-ghost" data-edit-cancel>Cancel</button><button type="button" class="cc-btn cc-btn-primary" data-edit-send>Send</button></div></div>`;
+      const box = col.querySelector("textarea");
+      const grow = () => { box.style.height = "auto"; box.style.height = Math.min(box.scrollHeight, 240) + "px"; };
+      grow(); box.focus(); box.setSelectionRange(box.value.length, box.value.length);
+      box.addEventListener("input", grow);
+      const send = async () => {
+        const text = box.value.trim();
+        if (!text || text === m.text) { rerender(); return; }
+        const sess = getActiveSession(sessionsData);
+        const removed = forkAt(chatLog, i, { role: "user", text, ts: Date.now() });
+        notePruned(sess, removed, chatLog);
+        saveChat(); rerender(); refreshSide();
+        await produceReply(text);
+        notePruned(sess, [], chatLog);
+        saveChat(); rerender(); refreshSide(); cloudSave(true);
+      };
+      col.querySelector("[data-edit-cancel]").addEventListener("click", () => rerender());
+      col.querySelector("[data-edit-send]").addEventListener("click", send);
+      box.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); }
+        if (e.key === "Escape") rerender();
+      });
+    }
+
+    // Regenerate: the old answer becomes version n-1 of a branch point.
+    async function regenerate(i) {
+      const head = chatLog[i];
+      const q = chatLog[i - 1];
+      if (!head || head.role !== "assistant" || !q || q.role !== "user") return;
+      const sess = getActiveSession(sessionsData);
+      const vers = Array.isArray(head.vers) && head.vers.length ? head.vers.slice() : [];
+      const vi = Number.isInteger(head.vi) && vers.length ? head.vi : 0;
+      vers[vi] = [stripVers(head), ...chatLog.slice(i + 1)];
+      const removed = chatLog.splice(i);
+      notePruned(sess, removed, []);
+      saveChat(); rerender();
+      await produceReply(q.text);
+      const nh = chatLog[i];
+      if (nh && nh.role === "assistant") {
+        vers.push([stripVers(nh), ...chatLog.slice(i + 1)]);
+        nh.vers = vers;
+        nh.vi = vers.length - 1;
+      }
+      notePruned(sess, [], chatLog);
+      saveChat(); rerender(); cloudSave(true);
+    }
 
     main.querySelector("#cc-chart-btn")?.addEventListener("click", () => {
       if (!/chart/i.test(input.value)) input.value = "Read the 3-month chart of " + input.value.trimStart();
@@ -398,11 +592,18 @@ export function renderChat(main) {
         const sess = sessionsData.sessions.find(x => x.id === id);
         closeMenus();
         if (!sess) return;
-        if (act.dataset.act === "pin") { togglePin(sessionsData, id); refreshSide(); }
+        if (act.dataset.act === "pin") { togglePin(sessionsData, id); refreshSide(); if (isPreview()) pushThread(sess); }
+        else if (act.dataset.act === "share") openShare(sess);
+        else if (act.dataset.act === "archive") {
+          setArchived(sessionsData, id, !sess.archived);
+          pushThread(sess, { now: true });
+          if (sess.archived && sessionsData.activeId === id) newChat(); else refreshSide();
+        }
         else if (act.dataset.act === "rename") startRename(id);
         else if (act.dataset.act === "delete") {
           if (!confirm(`Delete "${sess.title || "this chat"}"? This can't be undone.`)) return;
           if (sessionsData.activeId === id) stopStream();
+          if (isPreview()) pushThread({ ...sess, trashed: true }, { now: true });
           deleteSessionById(sessionsData, id);
           rebindActiveChatLog();
           render();
@@ -421,6 +622,8 @@ export function renderChat(main) {
           <div class="cc-item-menu" role="menu">
             <button type="button" role="menuitem" data-act="pin" data-id="${escapeAttr(id)}">${sess?.pinned ? "Unpin" : "Pin"}</button>
             <button type="button" role="menuitem" data-act="rename" data-id="${escapeAttr(id)}">Rename</button>
+            ${isPreview() ? `<button type="button" role="menuitem" data-act="share" data-id="${escapeAttr(id)}">Share</button>
+            <button type="button" role="menuitem" data-act="archive" data-id="${escapeAttr(id)}">${sess?.archived ? "Unarchive" : "Archive"}</button>` : ""}
             <button type="button" role="menuitem" data-act="delete" data-id="${escapeAttr(id)}" class="is-danger">Delete</button>
           </div>`);
         row.querySelector(".cc-item-menu button")?.focus();
@@ -466,6 +669,7 @@ export function renderChat(main) {
       const finish = (save) => {
         if (done) return; done = true;
         if (save) renameSession(sessionsData, id, inp.value);
+        if (save && isPreview()) pushThread(sessionsData.sessions.find(x => x.id === id));
         render();
       };
       inp.addEventListener("keydown", (ev) => {
@@ -484,7 +688,9 @@ export function renderChat(main) {
   // Chat list: pinned first, then grouped by last activity.
   function renderChatList() {
     const q = sideQuery.trim().toLowerCase();
+    const archived = sessionsData.sessions.filter(x => x.archived && (x.messages || []).length);
     const all = sessionsData.sessions
+      .filter(x => !x.archived)
       .filter(x => (x.messages || []).length || x.id === sessionsData.activeId)
       .slice()
       .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
@@ -517,7 +723,11 @@ export function renderChat(main) {
       <div class="cc-group">
         <h2 class="cc-group-name">${name}</h2>
         ${xs.map(x => chatItem(x)).join("")}
-      </div>`).join("");
+      </div>`).join("") + (archived.length ? `
+      <details class="cc-group cc-archived">
+        <summary class="cc-group-name">Archived (${archived.length})</summary>
+        ${archived.map(x => chatItem(x)).join("")}
+      </details>` : "");
   }
 
   function chatItem(x, snip = "") {
@@ -538,6 +748,7 @@ export function renderChat(main) {
     if (messagesEl) {
       messagesEl.innerHTML = renderMessages();
       messagesEl.scrollTop = messagesEl.scrollHeight;
+      afterPaint(messagesEl);
     }
   }
 
@@ -552,7 +763,7 @@ export function renderChat(main) {
         </div>
       `;
     }
-    return displayOrder(chatLog).map(m => renderBubble(m)).join("") +
+    return bubbleOrder(chatLog).map(m => renderBubble(m)).join("") +
       (m_pending ? renderTyping() : "");
   }
 }
@@ -563,16 +774,265 @@ let sideQuery = "";
 let drawerOpen = false;
 let cleanupSide = null;
 
+// ---- Messages ------------------------------------------------------------------
+// Preview accounts (isPreview) get the ChatGPT-style controls: edit a question,
+// regenerate an answer, ‹ 1/2 › versions (chatBranches.js), feedback, read
+// aloud, cards from slash commands (chatCards.js). Everyone else sees the same
+// chat as before.
+
+const I = {
+  copy: '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="3"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>',
+  edit: '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
+  regen: '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>',
+  up: '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v11H4V10z"/><path d="M7 10l4-8a3 3 0 0 1 3 3v4h5.5a2 2 0 0 1 2 2.3l-1.3 8A2 2 0 0 1 18.2 21H7"/></svg>',
+  down: '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 14V3h3v11z"/><path d="M17 14l-4 8a3 3 0 0 1-3-3v-4H4.5a2 2 0 0 1-2-2.3l1.3-8A2 2 0 0 1 5.8 3H17"/></svg>',
+  speak: '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>',
+};
+
+// Preview: the stored order IS the conversation (branches need it). Others:
+// displayOrder() repairs pre-19-Oct out-of-order pairs, as before.
+function bubbleOrder(messages) {
+  return isPreview() ? (messages || []) : displayOrder(messages);
+}
+
+function verNav(i) {
+  const b = branchInfo(chatLog, i);
+  if (!b) return "";
+  return `<span class="cc-ver" role="group" aria-label="Version ${b.cur} of ${b.n}">
+    <button type="button" class="cc-act cc-ver-btn" data-ver="${i}" data-dir="-1" aria-label="Previous version" ${b.cur === 1 ? "disabled" : ""}>&lsaquo;</button>
+    <span class="cc-ver-n">${b.cur}/${b.n}</span>
+    <button type="button" class="cc-act cc-ver-btn" data-ver="${i}" data-dir="1" aria-label="Next version" ${b.cur === b.n ? "disabled" : ""}>&rsaquo;</button>
+  </span>`;
+}
+
 function renderBubble(m) {
   const streamAttr = m.streaming ? ` data-streaming="1"` : "";
+  const preview = isPreview();
+  const i = preview ? chatLog.indexOf(m) : -1;
   if (m.role === "user") {
-    return `<div class="cc-row cc-row-user"${streamAttr}><div class="cc-user-col">${m.chart ? chartCard(m.chart) : ""}<div class="cc-bubble cc-user"><span class="msg-body">${escapeHtml(m.text)}</span></div></div></div>`;
+    const acts = preview && i >= 0 && !m.streaming ? `
+      <div class="cc-actions-row cc-actions-user">
+        ${verNav(i)}
+        <button type="button" class="cc-act" data-copy aria-label="Copy message">${I.copy}</button>
+        <button type="button" class="cc-act" data-edit="${i}" aria-label="Edit message">${I.edit}<span>Edit</span></button>
+      </div>` : "";
+    return `<div class="cc-row cc-row-user"${streamAttr} data-i="${i}"><div class="cc-user-col">${m.chart ? chartCard(m.chart) : ""}<div class="cc-bubble cc-user"><span class="msg-body">${escapeHtml(m.text)}</span></div>${acts}</div></div>`;
   }
-  const actions = m.streaming || m.status || !m.text ? "" : `
+  const done = !(m.streaming || m.status || !m.text);
+  const actions = !done ? "" : preview && i >= 0 ? `
     <div class="cc-actions-row">
-      <button type="button" class="cc-act" data-copy aria-label="Copy reply"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="3"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><span>Copy</span></button>
+      ${verNav(i)}
+      <button type="button" class="cc-act" data-copy aria-label="Copy reply">${I.copy}<span>Copy</span></button>
+      <button type="button" class="cc-act" data-regen="${i}" aria-label="Regenerate reply">${I.regen}</button>
+      <button type="button" class="cc-act ${m.fb === 1 ? "is-on" : ""}" data-fb="1" data-idx="${i}" aria-pressed="${m.fb === 1}" aria-label="Good reply">${I.up}</button>
+      <button type="button" class="cc-act ${m.fb === -1 ? "is-on" : ""}" data-fb="-1" data-idx="${i}" aria-pressed="${m.fb === -1}" aria-label="Bad reply">${I.down}</button>
+      <button type="button" class="cc-act" data-speak="${i}" aria-label="Read aloud">${I.speak}</button>
+    </div>` : `
+    <div class="cc-actions-row">
+      <button type="button" class="cc-act" data-copy aria-label="Copy reply">${I.copy}<span>Copy</span></button>
     </div>`;
-  return `<div class="cc-row cc-row-bot"${streamAttr}><div class="cc-bot-col"><div class="cc-bubble cc-bot"><span class="msg-body">${m.status ? statusHtml(m.text) : renderMarkdown(m.text)}</span></div>${actions}</div></div>`;
+  const card = m.card ? cardHtml(m.card) : "";
+  const body = m.status ? statusHtml(m.text) : renderMarkdown(m.text);
+  // With a card, the text summary (what the AI and share links read) is for
+  // screen readers only: the card already shows it.
+  const textCls = card ? "cc-bubble cc-bot sr-only" : "cc-bubble cc-bot";
+  return `<div class="cc-row cc-row-bot"${streamAttr} data-i="${i}"><div class="cc-bot-col">${card}${m.text ? `<div class="${textCls}"><span class="msg-body">${body}</span></div>` : ""}${actions}</div></div>`;
+}
+
+// Cards draw after paint; their "ask" buttons send a question.
+function afterPaint(el) {
+  if (!el || !isPreview()) return;
+  hydrateCards(el, { onAsk: askFromCard });
+}
+function askFromCard(q) {
+  const input = document.getElementById("chat-input");
+  const form = document.getElementById("chat-form");
+  if (!input || !form || m_pending) return;
+  input.value = q;
+  form.requestSubmit();
+}
+
+function cloudSave(now = false) {
+  if (!isPreview()) return;
+  try { pushThread(getActiveSession(sessionsData), { now }); } catch {}
+}
+
+// The cloud copy (chat_threads) wins for every chat it has; chats only this
+// device has are uploaded. Returns true when anything on screen changed.
+let _cloudSyncing = null;
+function syncFromCloud() {
+  if (_cloudSyncing) return _cloudSyncing;
+  _cloudSyncing = (async () => {
+    const threads = await pullThreads();
+    let changed = false;
+    const byId = new Map(sessionsData.sessions.map((x) => [x.id, x]));
+    const cloudIds = new Set();
+    for (const t of threads) {
+      cloudIds.add(t.id);
+      const local = byId.get(t.id);
+      if (t.trashed) {
+        if (local) { deleteSessionById(sessionsData, t.id); changed = true; }
+        continue;
+      }
+      if (local && (local.updatedAt || 0) > t.updatedAt + 2000 && (local.messages || []).length >= t.messages.length) {
+        pushThread(local);            // this device is newer: send it up
+        continue;
+      }
+      const next = { ...(local || {}), id: t.id, title: t.title, pinned: t.pinned, archived: t.archived,
+        messages: t.messages, pruned: t.pruned, createdAt: t.createdAt, updatedAt: t.updatedAt };
+      if (local) {
+        if (JSON.stringify(local.messages) !== JSON.stringify(t.messages) || local.archived !== t.archived || local.pinned !== t.pinned || local.title !== t.title) {
+          Object.assign(local, next);
+          changed = true;
+        }
+      } else { sessionsData.sessions.push(next); changed = true; }
+    }
+    for (const x of sessionsData.sessions) {
+      if (!cloudIds.has(x.id) && (x.messages || []).length) pushThread(x);
+    }
+    if (changed) {
+      saveSessions(sessionsData);
+      rebindActiveChatLog();
+    }
+    return changed;
+  })().finally(() => { setTimeout(() => { _cloudSyncing = null; }, 0); });
+  return _cloudSyncing;
+}
+
+// A typed question or a slash command.
+async function produceReply(text) {
+  if (isPreview() && isCommand(text)) return runCommandReply(text);
+  return sendAndReply(text);
+}
+
+async function runCommandReply(text) {
+  m_pending = true;
+  const sess = getActiveSession(sessionsData);
+  const typing = document.getElementById("chat-messages");
+  typing?.insertAdjacentHTML("beforeend", renderTyping());
+  try {
+    const res = await runCommand(text);
+    if (res.text == null && res.ask) { m_pending = false; return sendAndReply(res.ask); }
+    sess.messages.push({ role: "assistant", text: res.text || "I didn't catch that command. Type /help to see them.", card: res.card || undefined, ts: Date.now() });
+    saveChat();
+    logChatTurn({ userText: text, assistantText: res.text || "", model: "command", sessionId: sess.id, surface: "chat_page" });
+  } catch (e) {
+    console.warn("[chat] command failed:", e);
+    sess.messages.push({ role: "assistant", text: "That command didn't work just now. Try again in a moment.", ts: Date.now() });
+    saveChat();
+  } finally {
+    m_pending = false;
+  }
+}
+
+// ---- Read aloud ------------------------------------------------------------------
+function speakText(text, btn) {
+  const synth = window.speechSynthesis;
+  if (!synth) { toast({ kind: "info", message: "Read aloud isn't supported in this browser." }); return; }
+  if (synth.speaking) { synth.cancel(); document.querySelectorAll(".cc-act.is-speaking").forEach((b) => b.classList.remove("is-speaking")); return; }
+  const plain = String(text || "").replace(/[*_`#>]/g, "").replace(/\s+/g, " ").trim();
+  const u = new SpeechSynthesisUtterance(plain);
+  u.lang = getState()?.settings?.hinglish ? "hi-IN" : "en-IN";
+  u.rate = 1.02;
+  u.onend = u.onerror = () => btn?.classList.remove("is-speaking");
+  btn?.classList.add("is-speaking");
+  synth.speak(u);
+}
+
+// ---- Export --------------------------------------------------------------------
+function chatMarkdown(sess) {
+  const lines = [`# ${sess.title || "StockSaathi chat"}`, "", `_Exported from StockSaathi on ${new Date().toLocaleString("en-IN")}_`, ""];
+  for (const m of sess.messages || []) {
+    if (!m?.text || m.status) continue;
+    lines.push(m.role === "user" ? `**You:** ${m.text}` : `**Saathi:** ${m.text}`, "");
+  }
+  lines.push("---", "Practice only, not investment advice.");
+  return lines.join("\n");
+}
+function downloadText(name, text, type = "text/markdown") {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type: type + ";charset=utf-8" }));
+  a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+function printChat(sess) {
+  const w = window.open("", "_blank", "noopener=no");
+  if (!w) { toast({ kind: "info", message: "Allow pop-ups to save as PDF." }); return; }
+  const body = (sess.messages || []).filter((m) => m?.text && !m.status).map((m) =>
+    `<div class="m ${m.role}"><b>${m.role === "user" ? "You" : "Saathi"}</b>${m.role === "user" ? `<p>${escapeHtml(m.text)}</p>` : renderMarkdown(m.text)}</div>`).join("");
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(sess.title || "StockSaathi chat")}</title>
+    <style>body{font:15px/1.6 system-ui,sans-serif;max-width:720px;margin:32px auto;padding:0 20px;color:#141414}h1{font-size:22px}
+    .m{margin:0 0 18px}.m b{display:block;font-size:12px;color:#5B6170;margin-bottom:2px}.m.user p{background:#E6F7F1;border-radius:12px;padding:8px 12px;margin:0}
+    footer{margin-top:32px;font-size:12px;color:#5B6170}</style></head><body><h1>${escapeHtml(sess.title || "StockSaathi chat")}</h1>${body}
+    <footer>StockSaathi · practice only, not investment advice · ${escapeHtml(new Date().toLocaleString("en-IN"))}</footer></body></html>`);
+  w.document.close();
+  setTimeout(() => { try { w.focus(); w.print(); } catch {} }, 300);
+}
+
+// ---- Modals (share, shared links) ---------------------------------------------
+function openModal(html, onWire) {
+  document.querySelector(".cc-modal-wrap")?.remove();
+  const wrap = document.createElement("div");
+  wrap.className = "cc-modal-wrap";
+  wrap.innerHTML = `<div class="cc-modal" role="dialog" aria-modal="true">${html}</div>`;
+  document.body.appendChild(wrap);
+  const close = () => { wrap.remove(); document.removeEventListener("keydown", onEsc); };
+  const onEsc = (e) => { if (e.key === "Escape") close(); };
+  document.addEventListener("keydown", onEsc);
+  wrap.addEventListener("click", (e) => { if (e.target === wrap || e.target.closest("[data-close]")) close(); });
+  onWire?.(wrap.querySelector(".cc-modal"), close);
+  wrap.querySelector("button, input")?.focus();
+}
+
+async function openShare(sess) {
+  const existing = (await listShares()).find((x) => x.thread_id === sess.id);
+  openModal(`
+    <div class="cc-modal-head"><h2>Share this chat</h2><button type="button" class="cc-x" data-close aria-label="Close">&times;</button></div>
+    <p class="cc-modal-sub">Anyone with the link can read this chat as it is now. Messages you add later stay private until you update the link.</p>
+    <label class="cc-check"><input type="checkbox" id="cc-hide-amt" ${existing?.hide_amounts ? "checked" : ""}> Hide ₹ amounts (your portfolio numbers)</label>
+    <div class="cc-link-row" ${existing ? "" : "hidden"}><input id="cc-link" readonly value="${existing ? escapeAttr(`${location.origin}/share/${existing.id}`) : ""}" aria-label="Share link"><button type="button" class="cc-btn" id="cc-copy-link">Copy</button></div>
+    <div class="cc-modal-actions">
+      ${existing ? `<button type="button" class="cc-btn cc-btn-ghost" id="cc-unshare">Stop sharing</button>` : ""}
+      <button type="button" class="cc-btn cc-btn-primary" id="cc-make-link">${existing ? "Update link" : "Create link"}</button>
+    </div>`, (box, close) => {
+    let shareId = existing?.id || null;
+    box.querySelector("#cc-make-link").addEventListener("click", async (e) => {
+      const b = e.currentTarget; b.disabled = true;
+      try {
+        const r = await upsertShare({ threadId: sess.id, title: sess.title, messages: sess.messages, hideAmounts: box.querySelector("#cc-hide-amt").checked, existingId: shareId });
+        shareId = r.id;
+        box.querySelector(".cc-link-row").hidden = false;
+        box.querySelector("#cc-link").value = r.url;
+        b.textContent = "Update link";
+        try { await navigator.clipboard.writeText(r.url); toast({ kind: "success", message: "Link copied" }); } catch {}
+      } catch (err) { toast({ kind: "error", message: err?.message || "Couldn't create the link." }); }
+      b.disabled = false;
+    });
+    box.querySelector("#cc-copy-link").addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(box.querySelector("#cc-link").value); toast({ kind: "success", message: "Link copied" }); } catch {}
+    });
+    box.querySelector("#cc-unshare")?.addEventListener("click", async () => {
+      if (await revokeShare(shareId)) { toast({ kind: "success", message: "Link turned off" }); close(); }
+    });
+  });
+}
+
+async function openSharedLinks() {
+  const rows = await listShares();
+  openModal(`
+    <div class="cc-modal-head"><h2>Shared links</h2><button type="button" class="cc-x" data-close aria-label="Close">&times;</button></div>
+    ${rows.length ? `<ul class="cc-share-list">${rows.map((r) => `<li data-id="${escapeAttr(r.id)}"><a href="/share/${encodeURIComponent(r.id)}" target="_blank" rel="noopener">${escapeHtml(r.title)}</a>
+      <span>${escapeHtml(new Date(r.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" }))} · ${r.views} view${r.views === 1 ? "" : "s"}</span>
+      <button type="button" class="cc-btn cc-btn-ghost" data-revoke="${escapeAttr(r.id)}">Turn off</button></li>`).join("")}</ul>`
+      : `<p class="cc-modal-sub">You haven't shared any chats.</p>`}`, (box) => {
+    box.addEventListener("click", async (e) => {
+      const b = e.target.closest("[data-revoke]");
+      if (!b) return;
+      b.disabled = true;
+      if (await revokeShare(b.dataset.revoke)) b.closest("li")?.remove();
+    });
+  });
 }
 
 // ---- Starter questions from today's market and news ----------------------
@@ -706,7 +1166,7 @@ CHART DATA: ${sym}, ${label} daily chart from NSE, ${day(first.t)} to ${day(last
 HOW TO ANSWER: this is the chart the student is looking at; it is attached above their message. Read it for them using only these numbers. Say what the overall shape was (rise, fall, sideways, or a dip and recovery), where the high and low came, and what being above or below the averages means, in plain words for a teenager, in 4 to 6 short sentences. Do not say you cannot see the chart, do not offer to look anything up, no predictions, no buy or sell views, no price targets, and do not end with a question about what happens next. Write the answer in ${getState()?.settings?.hinglish ? "Hinglish (Hindi in Roman script), keeping finance terms in English" : "English"}.`;
 }
 
-function chartCard(c) {
+export function chartCard(c) {
   const pts = c.pts || [];
   if (pts.length < 2) return "";
   const W = 300, H = 72, min = Math.min(...pts), max = Math.max(...pts), span = max - min || 1;
@@ -730,7 +1190,7 @@ function statusHtml(text) {
 // Paragraph spacing is handled by CSS white-space: pre-wrap on the bubble.
 // Shared markdown renderer body — written once, injected into both
 // chat.js and coachPanel.js by patch-md.py.
-function renderMarkdown(text) {
+export function renderMarkdown(text) {
   if (!text) return "";
   const esc = (x) => { const d = document.createElement("div"); d.textContent = String(x ?? ""); return d.innerHTML; };
 
@@ -857,9 +1317,10 @@ async function sendAndReply(userText) {
     const messagesEl = outer?.querySelector("#chat-messages");
     if (messagesEl) {
       messagesEl.innerHTML = "";
-      for (const m of displayOrder(ownerMessages)) messagesEl.innerHTML += renderBubble(m);
+      for (const m of bubbleOrder(ownerMessages)) messagesEl.innerHTML += renderBubble(m);
       if (m_pending && !ownerMessages.at(-1)?.streaming) messagesEl.innerHTML += renderTyping();
       messagesEl.scrollTop = messagesEl.scrollHeight;
+      afterPaint(messagesEl);
     }
   };
 
@@ -885,8 +1346,9 @@ async function sendAndReply(userText) {
       const active = getActiveSession(sessionsData);
       if (!active || active.id !== ownerSessionId) return;
       el.innerHTML = "";
-      for (const m of displayOrder(active.messages)) el.innerHTML += renderBubble(m);
+      for (const m of bubbleOrder(active.messages)) el.innerHTML += renderBubble(m);
       el.scrollTop = el.scrollHeight;
+      afterPaint(el);
     } catch (e) {
       console.warn("[chat] finalPaint failed:", e);
     }

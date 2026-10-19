@@ -611,7 +611,13 @@ export async function refreshCurrentUser() {
       return _cachedUser;   // return cached if any; never null on timeout
     }
     if (!u) { _cachedUser = null; return null; }
-    const { data: profile } = await client.from("profiles").select("*").eq("id", u.id).maybeSingle();
+    const [{ data: profile }, adminRes] = await Promise.all([
+      client.from("profiles").select("*").eq("id", u.id).maybeSingle(),
+      // Owner previews (admin_users + is_admin(), 2026-10-19). New features
+      // ship to these accounts first; the database checks the same function.
+      client.rpc("is_admin").then((r) => r, () => ({ data: false })),
+    ]);
+    const isAdmin = adminRes?.data === true;
     if (!profile) {
       _cachedUser = {
         id: u.id, email: u.email, username: u.email?.split("@")[0] || "user",
@@ -632,6 +638,7 @@ export async function refreshCurrentUser() {
       riskProfile: profile.risk_profile,
       onboarded: profile.onboarded,
       createdAt: profile.created_at,
+      isAdmin,
       _supabase: true,
     };
     _cachedAt = Date.now();
