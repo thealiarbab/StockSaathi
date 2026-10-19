@@ -218,30 +218,38 @@ export async function loadAllFromDb() {
 // Write-side helpers — called by state.js / features when user mutates data.
 // ---------------------------------------------------------------------------
 
+// The signed-in user's id from the local session. These writes used to call
+// auth.getUser(), a network round trip to Supabase Auth before every insert
+// (8,801 /auth/v1/user calls in a day; two per coach turn). The server checks
+// the token on the insert itself (RLS), so the local id gives nothing away.
+async function sessionUserId(client) {
+  try { return (await client.auth.getSession())?.data?.session?.user?.id || null; } catch { return null; }
+}
+
 /** Add a stock to watchlist */
 export async function dbAddWatchlist(symbol) {
   const client = await sb();
   if (!client) return;
-  const { data: u } = await client.auth.getUser();
-  if (!u?.user) return;
-  await client.from("watchlist").upsert({ user_id: u.user.id, symbol }).select();
+  const uid = await sessionUserId(client);
+  if (!uid) return;
+  await client.from("watchlist").upsert({ user_id: uid, symbol }).select();
 }
 
 export async function dbRemoveWatchlist(symbol) {
   const client = await sb();
   if (!client) return;
-  const { data: u } = await client.auth.getUser();
-  if (!u?.user) return;
-  await client.from("watchlist").delete().eq("user_id", u.user.id).eq("symbol", symbol);
+  const uid = await sessionUserId(client);
+  if (!uid) return;
+  await client.from("watchlist").delete().eq("user_id", uid).eq("symbol", symbol);
 }
 
 export async function dbAddCoachMessage(msg) {
   const client = await sb();
   if (!client) return;
-  const { data: u } = await client.auth.getUser();
-  if (!u?.user) return;
+  const uid = await sessionUserId(client);
+  if (!uid) return;
   const row = {
-    user_id: u.user.id,
+    user_id: uid,
     event_type: msg.eventType,
     trigger_symbol: msg.triggerSymbol || null,
     payload: msg.payload || {},

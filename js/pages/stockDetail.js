@@ -1899,21 +1899,39 @@ async function queuedSellQty(symbol) {
     .reduce((sum, o) => sum + Number(o.qty || 0), 0);
 }
 
-// Fresh quote straight through /api/live-quote, which also rewrites the
-// server's quote_cache row that apply_trade books from. "live" mirrors the
-// server's rule: not the exchange's previous-close row, and from a trade
-// made today (IST). Without this the market path could only discover a
-// stale price after the user had confirmed.
+// The price a market order will book, and whether it is live. apply_trade
+// books the server's quote_cache row, which /api/live-quote keeps within 5 s
+// of Yahoo during market hours and which this page's own 12 s poll keeps
+// warm. So the quote the page already holds is the one the server has, and
+// fetching again is only needed when it is older than 20 s.
+//
+// Until 19 Oct this always called /api/live-quote with nocache=1 (a forced
+// Yahoo round trip from Mumbai) BEFORE the confirm box, again at execute,
+// with a fake 400-900 ms "exchange latency" wait between. Measured over 7
+// days: market orders took 5.7 s median (11.6 s p90) against 0.47 s for the
+// one-RPC after-hours path, and 335 users cancelled while waiting.
+// "live" mirrors the server's rule: not the exchange's previous-close row,
+// and from a trade made today (IST).
 const _istDay = (ms) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date(ms));
-async function freshTradeQuote(inst) {
+async function freshTradeQuote(inst, { force = false } = {}) {
   const wire = inst.exchange === "BSE" && !inst.symbol.includes(".") ? `${inst.symbol}.BO` : inst.symbol;
+  const held = force ? null : (getFreshCachedQuote(inst.symbol, 20_000) || getFreshCachedQuote(wire, 20_000));
+  if (held && held.source !== "synthetic" && held.pricePaise > 0 && held.ts) {
+    return {
+      pricePaise: held.pricePaise,
+      live: held.source !== "nse_eod" && _istDay(held.ts) === _istDay(Date.now()),
+    };
+  }
   // Bounded: while this awaits, _tradeInFlight is set and every further tap
   // on Buy is ignored. 8 s, then the order goes on without a fresh quote
-  // (the server checks the price again either way).
+  // (the server checks the price again either way). Cache-first: a row the
+  // server refreshed in the last 5 s is as fresh as Yahoo gets.
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 8000);
   try {
-    const r = await fetch(`/api/live-quote?symbols=${encodeURIComponent(wire)}&nocache=1&_=${Date.now()}`, { cache: "no-store", signal: ctrl.signal });
+    // force: the server said its copy is over a minute old (apply_trade's
+    // rule), so skip every cache and ask the source.
+    const r = await fetch(`/api/live-quote?symbols=${encodeURIComponent(wire)}${force ? "&nocache=1" : ""}`, { cache: "no-store", signal: ctrl.signal });
     const d = await r.json();
     const q = d?.quotes?.[wire];
     if (!q || !(q.price > 0)) return null;
@@ -2331,13 +2349,11 @@ async function executeTrade(inst, side, qty, pricePaise, biasResult) {
     const clickTs = Date.now();
     const idempotencyKey = `${clickTs}_${inst.symbol}_${side}_${qty}`;
 
-    toast({ kind: "info", message: `Routing ${side.toLowerCase()} order…`, duration: 900 });
-    // Simulate exchange latency + matching
-    await new Promise(r => setTimeout(r, 400 + Math.random() * 500));
+    toast({ kind: "info", message: `Placing ${side.toLowerCase()} order…`, duration: 900 });
 
-    // Fresh quote at execution (may have ticked since review). This also
-    // refreshes the server row apply_trade books from, so a confirm modal
-    // left open for minutes doesn't fail as "price more than 5 minutes old".
+    // The price may have ticked while the confirm box was open. Free when
+    // the page's quote is under 20 s old (see freshTradeQuote); otherwise
+    // this also refreshes the server row apply_trade books from.
     let fillPrice = pricePaise;
     const fresh = await freshTradeQuote(inst);
     if (fresh) fillPrice = fresh.pricePaise;
@@ -2352,10 +2368,22 @@ async function executeTrade(inst, side, qty, pricePaise, biasResult) {
 
     // The coach's detectors need the holding as it was BEFORE this trade.
     const holdingBefore = getState().holdings[inst.symbol];
-    const txn = await applyTrade({
+    const place = () => applyTrade({
       symbol: inst.symbol, side, qty, pricePaise: fillPrice, idempotencyKey,
       biasFlags: biasResult ? [biasResult] : [],
     });
+    let txn;
+    try {
+      txn = await place();
+    } catch (e) {
+      // The server's price is over a minute old (nobody has had this stock
+      // open lately): refresh it once and place the same order again. The
+      // idempotency key makes a double booking impossible.
+      if (!/more than a minute old/.test(String(e?.message || ""))) throw e;
+      const again = await freshTradeQuote(inst, { force: true });
+      if (again?.pricePaise > 0) fillPrice = again.pricePaise;
+      txn = await place();
+    }
     const bookedPaise = Number(txn?.pricePaise) > 0 ? txn.pricePaise : fillPrice;
     const movedText = txn?.priceAdjusted
       ? ` (price moved from ${formatRupees(txn.shownPaise)})`
