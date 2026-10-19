@@ -177,6 +177,10 @@ update their own profile row).
 - The coach pop-up (coachPanel.js) has commands, cards, the guide, copy,
   feedback, regenerate/edit of the last turn (tombstones: ss.coachchat.pruned.v1).
 - No read-aloud (removed 19 Oct at the owner's request; do not add TTS back).
+- New SQL functions: Supabase grants EXECUTE to anon and authenticated by
+  default. Revoke it (`from public, anon, authenticated`) for trigger
+  functions and internal helpers; grant only the roles a client RPC needs.
+  Give every function `set search_path`. (Cleanup: migration `2026-10-19h`.)
 - Supabase connector: statements containing DROP/DELETE wait for a
   confirmation that never reaches an agent session and time out. Write
   migrations without them (CREATE OR REPLACE, flags instead of deletes).
