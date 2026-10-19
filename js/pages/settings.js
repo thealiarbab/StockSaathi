@@ -126,12 +126,26 @@ export function renderSettings(main) {
         btn.textContent = "Reset portfolio";
       }
     });
-    main.querySelector("#delete-account-btn").addEventListener("click", () => {
-      if (confirm("This will permanently delete your StockSaathi account. Are you sure?")) {
-        deleteCurrentAccount();
-        switchUser();
-        navigate("/");
+    main.querySelector("#delete-account-btn").addEventListener("click", async (e) => {
+      const btn = e.currentTarget;
+      const typed = prompt("This permanently deletes your StockSaathi account: your login, portfolio, trades, watchlist, coach chats and activity. It cannot be undone.\n\nType DELETE to confirm.");
+      if ((typed || "").trim().toUpperCase() !== "DELETE") {
+        if (typed !== null) toast({ kind: "info", message: "Not deleted. Type DELETE exactly to confirm." });
+        return;
       }
+      btn.disabled = true;
+      btn.textContent = "Deleting…";
+      try {
+        await deleteCurrentAccount();
+      } catch (err) {
+        toast({ kind: "error", message: err.message, duration: 10000 });
+        btn.disabled = false;
+        btn.textContent = "Delete account";
+        return;
+      }
+      toast({ kind: "success", message: "Your account and its data have been deleted." });
+      switchUser();
+      navigate("/");
     });
 
     // Profile section handlers

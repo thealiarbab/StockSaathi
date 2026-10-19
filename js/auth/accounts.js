@@ -714,12 +714,20 @@ export async function changePassword({ currentPassword, newPassword }) {
 export async function deleteCurrentAccount() {
   const client = await sb();
   if (client) {
-    // Supabase doesn't allow client-side delete of auth user; sign out + flag profile
-    try {
-      const user = await (await client.auth.getUser()).data?.user;
-      if (user) await client.from("profiles").update({ onboarded: false }).eq("id", user.id);
-    } catch {}
-    await client.auth.signOut();
+    // This used to sign out and set profiles.onboarded = false, which erased
+    // nothing while the privacy policy promises erasure (found 2026-10-19).
+    // delete_my_account() (migration 2026-10-19c) erases the caller's login
+    // and every row keyed to it, for the signed-in user only, with guards
+    // that roll back unless exactly one account goes. Any failure is thrown
+    // so the page never tells a student their data is gone when it is not.
+    const { error } = await client.rpc("delete_my_account");
+    if (error) {
+      const missing = error.code === "PGRST202" || /could not find the function/i.test(error.message || "");
+      throw new Error(missing
+        ? "Account deletion isn't available right now. Email grievance@stocksaathi.co.in and we'll erase your data within 30 days."
+        : "Couldn't delete your account: " + (error.message || "unknown error") + ". Nothing was deleted. Try again, or email grievance@stocksaathi.co.in.");
+    }
+    try { await client.auth.signOut({ scope: "local" }); } catch {}
     _cachedUser = null;
     return;
   }
@@ -739,7 +747,7 @@ export async function listAccountsPublic() {
   const client = await sb();
   if (client) {
     const { data } = await client.from("profiles")
-      .select("id, username, display_name, email, avatar_color, school")
+      .select("id, username, display_name, avatar_color, school")   // never other users' emails
       .limit(200);
     return (data || []).map(r => ({
       id: r.id, username: r.username, displayName: r.display_name,
@@ -758,7 +766,7 @@ export async function findAccountByHandle(handleOrEmail) {
   if (client) {
     // Try both username and email
     const { data } = await client.from("profiles")
-      .select("id, username, display_name, email, avatar_color, school")
+      .select("id, username, display_name, avatar_color, school")   // never other users' emails
       .or(`username.ilike."${_likeExact(q).replace(/"/g, "")}",email.ilike."${_likeExact(q).replace(/"/g, "")}"`)
       .limit(1)
       .maybeSingle();
