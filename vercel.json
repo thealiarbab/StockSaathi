@@ -28,6 +28,10 @@
   ],
   "rewrites": [
     {
+      "source": "/sb/:path*",
+      "destination": "https://hwlmwraowcylxzdpumca.supabase.co/:path*"
+    },
+    {
       "source": "/api/:path((?!ai$|chat$).*)",
       "destination": "/api/index?__path=:path"
     },

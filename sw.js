@@ -5,7 +5,7 @@
 // Bump this on every deploy so old cached JS/HTML isn't served forever. The
 // activate step below deletes any cache whose name doesn't match. Include a
 // date so it is obvious in DevTools which build is live.
-const CACHE_NAME = "stocksaathi-v410-20261019f";
+const CACHE_NAME = "stocksaathi-v411-20261019a";
 const STATIC = [
   "./",
   "./app-shell",
@@ -178,6 +178,8 @@ self.addEventListener("fetch", (event) => {
   // Previously these were cache-first and could return stale config / health
   // responses on subsequent loads.
   if (url.pathname.startsWith("/api/")) return;
+  // /sb/* is the database relay (vercel.json rewrite to Supabase): never cache.
+  if (url.pathname.startsWith("/sb/")) return;
 
   // Network-first for HTML shell so users get new builds fast. Fallback
   // to cache on offline. This combines with the new CACHE_NAME bump so
