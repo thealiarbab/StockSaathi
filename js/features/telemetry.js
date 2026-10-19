@@ -375,6 +375,9 @@ function onError(e) {
     try {
       const x = new URL(u);
       if (BLOCKED_HOSTS.test(x.hostname)) return;
+      // Google sign-in's script: googleButton.js falls back to the redirect
+      // button when it is blocked, so a failed load is handled, not a fault.
+      if (x.hostname === "accounts.google.com" && x.pathname.startsWith("/gsi/")) return;
       u = x.hostname === location.hostname ? x.pathname : x.hostname + x.pathname;
     } catch {}
     return logError(`load failed: ${t.tagName.toLowerCase()} ${u}`.slice(0, 200), {});
@@ -383,14 +386,25 @@ function onError(e) {
   // "Script error." with no file is a cross-origin script (ads, extensions)
   // hiding its details; there is nothing in it to act on.
   if (EXTENSION_NOISE.test(m) || (m === "Script error." && !e.filename)) return;
+  // An error thrown inside an ad or analytics script (e.g. adsbygoogle.js cut
+  // off mid-download on Safari: "Unexpected end of script").
+  try { if (e.filename && BLOCKED_HOSTS.test(new URL(e.filename).hostname)) return; } catch {}
   let src = e.filename || "";
   try { src = new URL(src).pathname; } catch {}
-  logError(String(e.message || "error").slice(0, 200), { src: `${src}:${e.lineno || 0}:${e.colno || 0}`.slice(0, 120), st: String(e.error?.stack || "").slice(0, 600) });
+  logError(String(e.message || "error").slice(0, 200), { src: `${src}:${e.lineno || 0}:${e.colno || 0}`.slice(0, 120), st: ourStack(e.error?.stack) });
 }
 function onRejection(e) {
   const r = e.reason;
   if (EXTENSION_NOISE.test(String(r?.message || r || ""))) return;
-  logError(`unhandled: ${String(r?.message || r || "rejection")}`.slice(0, 200), { st: String(r?.stack || "").slice(0, 600) });
+  // A bare "rejection" (Safari, 19 Oct) said nothing about its cause: record
+  // what kind of value was rejected.
+  const what = r == null ? String(r) : (r.constructor?.name || Object.prototype.toString.call(r));
+  logError(`unhandled: ${String(r?.message || (r != null && typeof r !== "object" ? r : "") || "rejection (" + what + ")")}`.slice(0, 200), { st: ourStack(r?.stack) });
+}
+// Browser-extension frames (an ad blocker wrapping fetch, 19 Oct) filled the
+// 600 characters and cut off the frame of ours that made the call.
+function ourStack(st) {
+  return String(st || "").split("\n").filter(l => !/(chrome|moz|safari(-web)?)-extension:\/\//.test(l)).join("\n").slice(0, 600);
 }
 function logError(msg, props) {
   const n = (errSeen.get(msg) || 0) + 1;
