@@ -368,9 +368,10 @@ export function renderRegister(main) {
       const { sb } = await import("../db/supabase.js");
       const client = await sb();
       if (!client) return;
-      const { data } = client.auth.onAuthStateChange(async (event, session) => {
+      // Deferred: never run Supabase calls inside this callback (see db/sync.js).
+      const { data } = client.auth.onAuthStateChange((event, session) => {
         if ((event === "SIGNED_IN" || event === "USER_UPDATED") && session?.user) {
-          onSignedIn();
+          setTimeout(onSignedIn, 0);
         }
       });
       authUnsub = () => data?.subscription?.unsubscribe?.();

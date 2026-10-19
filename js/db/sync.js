@@ -46,16 +46,29 @@ export async function bootSync() {
   // Now: on SIGNED_OUT, explicitly call switchUser() — which fires
   // emit() on all subscribers, so the nav (and every other subscribed
   // component) re-renders with isAuthed=false.
-  client.auth.onAuthStateChange(async (event, session) => {
-    await refreshCurrentUser();
-    if (session?.user) {
-      await loadAllFromDb();
-    } else if (event === "SIGNED_OUT") {
+  //
+  // THE CALLBACK MUST NOT AWAIT ANY SUPABASE CALL. supabase-js runs it while
+  // holding its auth lock and waits for it before releasing (TOKEN_REFRESHED
+  // from the refresh tick, SIGNED_IN from _recoverAndRefresh every time the
+  // tab becomes visible again). This used to `await refreshCurrentUser()`
+  // (getUser, which needs that same lock) and then `await loadAllFromDb()`:
+  // the call queued behind the operation that was waiting for it, and every
+  // later request in the tab queued behind both. On 19 Oct an admin came back
+  // to the tab and NOTHING reached Supabase again (no order, not even
+  // telemetry): "The server didn't answer in time". Supabase's docs say the
+  // same: defer the work with setTimeout. So the callback only schedules.
+  client.auth.onAuthStateChange((event, session) => {
+    setTimeout(async () => {
       try {
-        const { switchUser } = await import("../state.js");
-        switchUser();
-      } catch {}
-    }
+        await refreshCurrentUser();
+        if (session?.user) {
+          await loadAllFromDb();
+        } else if (event === "SIGNED_OUT") {
+          const { switchUser } = await import("../state.js");
+          switchUser();
+        }
+      } catch (e) { console.warn("[sync] auth change handling failed:", e?.message || e); }
+    }, 0);
   });
 
   // Initial boot — if already logged in, load everything. Bounded

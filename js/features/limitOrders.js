@@ -313,9 +313,13 @@ export function startOrderEvents() {
   document.addEventListener("visibilitychange", _onVisible);
   if (currentUser()?.id) listPendingOrders();
   sb().then((client) => {
+    // Deferred: supabase-js holds its auth lock while this runs (see the
+    // onAuthStateChange note in db/sync.js). Never call it from inside.
     client?.auth?.onAuthStateChange?.((event) => {
-      if (event === "SIGNED_OUT") { _hasPending = false; _pendingIds = new Set(); _syncChannel(); }
-      else if (event === "SIGNED_IN") listPendingOrders();
+      setTimeout(() => {
+        if (event === "SIGNED_OUT") { _hasPending = false; _pendingIds = new Set(); _syncChannel(); }
+        else if (event === "SIGNED_IN") listPendingOrders();
+      }, 0);
     });
   }).catch(() => {});
 }

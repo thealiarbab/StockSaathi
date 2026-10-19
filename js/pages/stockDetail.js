@@ -1303,7 +1303,12 @@ function render(inst, symbol) {
       qtySelectorHandle = mountQuantitySelector(qtyContainer, {
         side: ui.side,
         kind: inst.kind,
-        pricePaise: curPrice,
+        // An at-the-open buy holds 120% of the price (place_limit_order,
+        // AMO_MARKET), so Max must divide cash by that, not by the price.
+        // Max used to offer a quantity the order then refused with "Not
+        // enough cash: an order at the open holds 20% extra".
+        pricePaise: !marketStatus().open && ui.orderType !== "LIMIT" && ui.side === "BUY" && inst.kind !== "MF"
+          ? Math.round(curPrice * 1.2) : curPrice,
         cashPaise: state.portfolio?.cashPaise ?? 0,
         holdingQty: holding?.qty || 0,
         initialQty: ui.qty,

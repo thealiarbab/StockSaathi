@@ -39,10 +39,6 @@ export function renderSettings(main) {
             <div class="label-wrap"><div class="title">Coach panel docked</div><div class="desc">Pin the coach as a persistent right rail — desktop only. On mobile the coach opens from the floating chat button in the corner.</div></div>
             <label class="switch"><input type="checkbox" id="toggle-coach" ${state.settings.coachPanelOpen ? "checked" : ""} /><span class="slider"></span></label>
           </div>
-          <div class="settings-row">
-            <div class="label-wrap"><div class="title">Hinglish mode</div><div class="desc">Light Hinglish turns-of-phrase in coach responses.</div></div>
-            <label class="switch"><input type="checkbox" id="toggle-hinglish" ${state.settings.hinglish ? "checked" : ""} /><span class="slider"></span></label>
-          </div>
         </div>
 
         <div class="card" style="margin-top: var(--sp-4);">
@@ -92,7 +88,7 @@ export function renderSettings(main) {
     main.querySelector("[data-theme='dark']").addEventListener("click", () => { setSettings({ theme: "dark", themeChosen: true }); });
     // Desktop-only; safe-navigated because the row is display:none on mobile.
     main.querySelector("#toggle-coach")?.addEventListener("change", (e) => setSetting("coachPanelOpen", e.target.checked));
-    main.querySelector("#toggle-hinglish").addEventListener("change", (e) => setSetting("hinglish", e.target.checked));
+    // Hinglish lives on the English/Hinglish switch in the coach and /chat headers.
 
     main.querySelector("#reset-pf-btn").addEventListener("click", async () => {
       if (!confirm("Reset your portfolio, trades and coach messages? Your account stays.")) return;
