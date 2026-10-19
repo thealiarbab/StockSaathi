@@ -1513,6 +1513,10 @@ table.compare { min-width: 560px; }
   color: var(--text-dim);
 }
 .pf-split strong { font-family: var(--font-mono); font-weight: 700; }
+.pf-unpriced { color: var(--text-dim); font-weight: 500; font-size: var(--text-sm); }
+.pf-day { margin-top: 4px; font-size: var(--text-sm); color: var(--text-muted); }
+.pf-day strong { font-family: var(--font-mono); font-weight: 700; }
+.pf-capital { margin-top: 6px; max-width: 52ch; line-height: 1.5; }
 /* Recent activity: the amount column must never wrap its sign onto its own
    line ("+" above "₹9,827" on a phone). */
 .pf-act-row {

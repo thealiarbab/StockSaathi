@@ -40,6 +40,7 @@
 // =============================================================================
 
 import { getState } from "../state.js";
+import { computeTradeStats, returnSummary } from "../data/tradeStats.js";
 import { getInstrument } from "../data/universe.js";
 import { getQuoteBatch, getCachedQuotes } from "../data/marketData.js";
 import { sb } from "../db/supabase.js";
@@ -247,7 +248,8 @@ export async function buildDossier() {
     const last = q && q.source !== "synthetic" && Number.isFinite(q.pricePaise) ? q.pricePaise : null;
     const cost = Math.round(h.avgCostPaise * h.qty);
     costBasisTotal += cost;
-    if (last == null) { unpriced++; rows.push({ sym, h, last: null, mkt: null, pl: null, plPct: null }); continue; }
+    // No real price: counted at cost in the total (as the portfolio page does).
+    if (last == null) { unpriced++; holdingsValue += cost; rows.push({ sym, h, last: null, mkt: null, pl: null, plPct: null }); continue; }
     const mkt = Math.round(last * h.qty);
     holdingsValue += mkt;
     rows.push({ sym, h, last, mkt, pl: mkt - cost, plPct: cost > 0 ? ((mkt - cost) / cost) * 100 : 0 });
@@ -258,8 +260,12 @@ export async function buildDossier() {
   const unrealised = priced.reduce((n, r) => n + r.pl, 0);
   const unrealisedPct = costBasisTotal > 0 ? (unrealised / costBasisTotal) * 100 : 0;
   const realised = realisedPaise(txns);
-  const vsStart = started > 0 ? total - started : null;
-  const vsStartPct = started > 0 ? ((total - started) / started) * 100 : null;
+  // Profit since the start = booked + on paper, over the money put in;
+  // cash that arrived outside a trade is not profit (data/tradeStats.js).
+  const ret = returnSummary({ cashPaise: cash, reservedPaise: reserved, startingCashPaise: started,
+    stats: computeTradeStats(txns), paperPaise: unrealised });
+  const vsStart = started > 0 ? ret.plPaise : null;
+  const vsStartPct = started > 0 ? ret.pct * 100 : null;
 
   const best = priced.length ? priced.reduce((a, b) => (b.plPct > a.plPct ? b : a)) : null;
   const worst = priced.length ? priced.reduce((a, b) => (b.plPct < a.plPct ? b : a)) : null;
@@ -293,7 +299,8 @@ export async function buildDossier() {
       : `Do not invent positions. If asked what they own, say they have not bought anything yet.`);
   } else {
     L.push(`Cash ${inr(cash)}${reserved > 0 ? ` (${inr(reserved)} reserved by pending orders)` : ""} · Holdings ${inr(holdingsValue)} · TOTAL ${inr(total)}`);
-    if (vsStart != null) L.push(`Started ${inr(started)} → ${signed(vsStart)} (${pct(vsStartPct)})`);
+    if (vsStart != null) L.push(`Profit since the start (booked + on paper): ${signed(vsStart)} (${pct(vsStartPct)} on ${inr(ret.capitalPaise)} put in` +
+      (ret.outsidePaise > 100 ? `: the ${inr(started)} start plus ${inr(ret.outsidePaise)} received outside trades, which is NOT profit)` : `)`));
     L.push(`Unrealised ${signed(unrealised)} (${pct(unrealisedPct)}) · Realised to date ${signed(realised)}`);
 
     L.push(`Positions (${priced.length + unpriced}) — qty · avg cost · LAST PRICE · market value · P&L:`);

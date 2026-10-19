@@ -473,40 +473,22 @@ function applyLocalTradeEffect(txn) {
 
 // --- Derived selectors ----------------------------------------------------
 import { getPriceAt } from "./data/prices.js";
-// Hotfix57a: pull live /api/live-quote prices from the marketData cache
-// FIRST, then fall back to getPriceAt. Without this, every caller of
-// getHoldingsValue (report card "your portfolio is worth ₹X" displays,
-// admin dashboard, coach payload) was reading the seeded stub-walk
-// instead of the real Yahoo price for any Tier-2 equity (Tier-2 rows
-// leave inst.price=null because the real price comes from /api/live-
-// quote into _quoteCache). State derived stays stub-walk for the
-// (rare) case where the quote cache hasn't seen the symbol yet, which
-// is still better than 0 — and for MFs getPriceAt now correctly uses
-// inst.nav directly per the same hotfix.
+// Hotfix57a: live /api/live-quote prices come from the marketData cache
+// (Tier-2 rows leave inst.price=null; the real price arrives there).
 import { getCachedQuotes } from "./data/marketData.js";
+import { computeTradeStats, returnSummary } from "./data/tradeStats.js";
 
-// Best-known current price in paise. Order of preference:
-//   1. _quoteCache via getCachedQuotes — populated by /api/live-quote
-//      polling on portfolio / stocks / stock detail pages, lasts up to
-//      PERSIST_MAX_AGE_MS in localStorage too.
-//   2. getPriceAt(sym, 0) — for MFs returns inst.nav*100 directly; for
-//      equities/ETFs falls through to the seeded stub-walk only when
-//      no live quote has been observed yet (genuine cold first paint).
+// The price a holding is valued at: a real quote (the newest the app has,
+// stale or not), a fund's NAV, else null. It used to fall back to the seeded
+// chart walk (getPriceAt), which put invented prices into the portfolio
+// total, the nav badge and the return. A holding with no real price is now
+// counted at what was paid for it (see getHoldingsValue): neutral, not made up.
 function _bestKnownPxPaise(sym) {
   const cached = getCachedQuotes([sym])[sym];
-  // Hotfix66b: skip cached entries flagged stale during market hours.
-  // localStorage hydration force-flags every persisted quote stale (in
-  // marketData.loadPersistedQuotes), so a hard reload during market
-  // hours can otherwise feed 48-hour-old prices into portfolio totals
-  // until the first /api/live-quote tick lands. User's mum reported
-  // ₹5-20 drift vs Groww — this is one of the contributing leaks. MFs
-  // are exempt (NAV is daily, "stale" is meaningless for them).
-  if (cached && Number.isFinite(cached.pricePaise) && cached.pricePaise > 0
-      && !(cached.stale && !sym.startsWith("MF_"))) {
+  if (cached && cached.source !== "synthetic" && Number.isFinite(cached.pricePaise) && cached.pricePaise > 0) {
     return cached.pricePaise;
   }
-  const px = getPriceAt(sym, 0);
-  return Number.isFinite(px) ? px : null;
+  return getRealPricePaise(sym);
 }
 
 // Real price only: a cached live quote, or a fund's NAV. null when neither
@@ -528,10 +510,10 @@ export function getHoldingsValue(state = getState()) {
   let total = 0;
   for (const [sym, h] of Object.entries(state.holdings)) {
     const px = _bestKnownPxPaise(sym);
-    // Number.isFinite catches NaN (which `!= null` does not). A Tier-2
-    // holding with no price source must contribute 0, not NaN-poison the
-    // entire portfolio total — that would break the hero card with "₹NaN".
-    if (Number.isFinite(px)) total += Math.round(h.qty * px);
+    // No real price yet: count it at cost. 0 would read as a loss of the
+    // whole position; an invented price is worse.
+    const at = Number.isFinite(px) ? px : Number(h.avgCostPaise) || 0;
+    if (Number.isFinite(at)) total += Math.round(h.qty * at);
   }
   return total;
 }
@@ -567,10 +549,27 @@ export function setReservedCashPaise(paise) {
   if (getReservedCashPaise(st) === n) return;   // no-op, don't churn subscribers
   setState({ portfolio: { ...st.portfolio, reservedCashPaise: n } });
 }
+/**
+ * Profit since the start (booked + on paper) and the return on the money put
+ * in. See returnSummary in data/tradeStats.js: cash that arrived outside a
+ * trade is capital, not profit.
+ */
+export function getReturnSummary(state = getState()) {
+  let paper = 0;
+  for (const [sym, h] of Object.entries(state.holdings || {})) {
+    const px = _bestKnownPxPaise(sym);
+    if (Number.isFinite(px)) paper += Math.round((px - h.avgCostPaise) * h.qty);
+  }
+  return returnSummary({
+    cashPaise: state.portfolio.cashPaise,
+    reservedPaise: getReservedCashPaise(state),
+    startingCashPaise: state.portfolio.startingCashPaise,
+    stats: computeTradeStats(state.transactions || []),
+    paperPaise: paper,
+  });
+}
 export function getPortfolioReturnPct(state = getState()) {
-  const total = getPortfolioValue(state);
-  const start = state.portfolio.startingCashPaise;
-  return start ? (total - start) / start : 0;
+  return getReturnSummary(state).pct;
 }
 export function getHoldingPLPaise(symbol, state = getState()) {
   const h = state.holdings[symbol];

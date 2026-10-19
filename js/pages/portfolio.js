@@ -9,7 +9,7 @@
 // producing hero values that disagreed with the holdings-table sum. We now
 // derive these locally from the same quoteCache-first holdings array the
 // table displays, so the two views AGREE.
-import { getState, subscribe, setReservedCashPaise } from "../state.js";
+import { getState, subscribe, setReservedCashPaise, getReturnSummary } from "../state.js";
 import { formatRupees, formatPct, deltaClass, formatQty } from "../money.js";
 import { getInstrument } from "../data/universe.js";
 // Hotfix57a: portfolio holdings of MFs were rendering bare-stub names
@@ -21,7 +21,7 @@ import { getInstrument } from "../data/universe.js";
 // on portfolio mount and re-render on the loaded events. Same pattern
 // stockDetail.js uses (Hotfix52a) so MF detail and portfolio agree.
 import { ensureUniverseLoaded, ensureMfUniverseLoaded } from "../data/universeLoader.js";
-import { getPriceAt, getTodayChange, marketStatus } from "../data/prices.js";
+import { marketStatus } from "../data/prices.js";
 import { getQuoteBatch, getDataSource, subscribeToQuotes, getCachedQuotes } from "../data/marketData.js";
 import { listPendingOrders, cancelOrder, onOrdersChanged } from "../features/limitOrders.js";
 import { go } from "../navigation.js";
@@ -29,7 +29,7 @@ import { getNews, fmtRelativeTime, labelSentiment } from "../data/news.js";
 import { stockChart, attachStockChartHover } from "../components/charts.js";
 import { attachChartZoom } from "../components/chartZoom.js";
 import { fetchDigest, cachedDigest } from "../features/portfolioDigest.js";
-import { computeTradeStats } from "../data/tradeStats.js";
+import { computeTradeStats, returnSummary } from "../data/tradeStats.js";
 
 let newsItems = [];
 let quoteCache = {};
@@ -380,16 +380,10 @@ export function renderPortfolio(main) {
       // before AMFI loads. Skip pending MFs from the digest entirely;
       // the prompt asks for "your portfolio's holdings" which is fine
       // to be partial — the AI will simply describe what we know.
-      let curPx = quote?.pricePaise;
-      if (curPx == null) {
-        if (sym.startsWith("MF_")) {
-          if (inst && typeof inst.nav === "number" && inst.nav > 0) {
-            curPx = Math.round(inst.nav * 100);
-          }
-        } else {
-          const px = getPriceAt(sym, 0);
-          if (typeof px === "number" && px > 0) curPx = px;
-        }
+      // Real prices only: the AI must not narrate a chart walk.
+      let curPx = quote && quote.source !== "synthetic" ? quote.pricePaise : null;
+      if (curPx == null && sym.startsWith("MF_") && inst && typeof inst.nav === "number" && inst.nav > 0) {
+        curPx = Math.round(inst.nav * 100);
       }
       if (curPx == null) return null;
       return {
@@ -399,7 +393,7 @@ export function renderPortfolio(main) {
         qty: h.qty,
         avgRupees: h.avgCostPaise / 100,
         curRupees: curPx / 100,
-        dayPct: ((quote?.changePct) ?? (sym.startsWith("MF_") ? 0 : getTodayChange(sym))) * 100,
+        dayPct: (quote && quote.source !== "synthetic" && Number.isFinite(quote.changePct) ? quote.changePct : 0) * 100,
         plPct: h.avgCostPaise > 0 ? (curPx - h.avgCostPaise) / h.avgCostPaise : 0,
       };
     }).filter(Boolean);
@@ -411,10 +405,8 @@ export function renderPortfolio(main) {
     let holdingsRupees = 0;
     for (const h of holdings) holdingsRupees += h.qty * h.curRupees;
     const totalRupees = state.portfolio.cashPaise / 100 + holdingsRupees;
-    const startRupees = state.portfolio.startingCashPaise / 100;
-    const deltaPct = startRupees > 0
-      ? ((totalRupees - startRupees) / startRupees) * 100
-      : 0;
+    // Return on the money put in (cash from outside a trade is not profit).
+    const deltaPct = getReturnSummary(state).pct * 100;
     const payload = {
       totalRupees,
       deltaPct,
@@ -450,7 +442,8 @@ export function renderPortfolio(main) {
       .map(([sym, h]) => {
         const inst = getInstrument(sym);
         if (!inst) return null;
-        const quote = quoteCache[sym];
+        // A "synthetic" quote is the chart walk, not a price.
+        const quote = quoteCache[sym]?.source === "synthetic" ? null : quoteCache[sym];
 
         // Hotfix57a: separate "have a real price" from "fall through to
         // the seeded walk anchor". For MFs, the synthetic walk produces
@@ -474,26 +467,30 @@ export function renderPortfolio(main) {
               priceReady = true;
             }
           } else {
-            // Equity / ETF: getPriceAt is fine — the seeded walk for
-            // these IS a believable price line until /api/live-quote
-            // lands, and Tier-2 stubs still produce a coherent walk.
-            const px = getPriceAt(sym, 0);
-            if (typeof px === "number" && px > 0) {
-              curPx = px;
+            // Equity / ETF with no quote yet: the newest real price this
+            // device has seen (stale is still real). Never the seeded walk:
+            // it used to stand in here as "a believable price line" and went
+            // straight into the total and the P&L.
+            const seen = getCachedQuotes([sym])[sym];
+            if (seen && seen.source !== "synthetic" && seen.pricePaise > 0) {
+              curPx = seen.pricePaise;
               priceReady = true;
             }
           }
         }
 
-        const value = priceReady ? Math.round(h.qty * curPx) : null;
+        // No real price at all: valued at what was paid (atCost), so the
+        // total stays whole without an invented number. Shown as such.
+        const atCost = !priceReady;
+        const value = priceReady ? Math.round(h.qty * curPx) : Math.round(h.qty * h.avgCostPaise);
         const pl = priceReady ? Math.round((curPx - h.avgCostPaise) * h.qty) : null;
         const plPct = priceReady && h.avgCostPaise > 0
           ? (curPx - h.avgCostPaise) / h.avgCostPaise
           : null;
-        const dayChange = quote?.changePct ?? (priceReady ? getTodayChange(sym) : null);
+        const dayChange = Number.isFinite(quote?.changePct) ? quote.changePct : null;
 
         return {
-          sym, inst, h, curPx, value, pl, plPct, dayChange,
+          sym, inst, h, curPx, value, pl, plPct, dayChange, atCost,
           source: quote?.source,
           priceReady, isMf, isBareStub,
         };
@@ -520,7 +517,7 @@ export function renderPortfolio(main) {
     // portfolio. Fixed by deriving locally.
     let holdValue = 0;
     for (const h of holdings) {
-      if (h.priceReady && Number.isFinite(h.value)) holdValue += h.value;
+      if (Number.isFinite(h.value)) holdValue += h.value;   // at cost when unpriced
     }
     // Cash reserved against pending BUY orders belongs in the total.
     // place_limit_order deducts it from cash_paise the moment an order is
@@ -531,9 +528,6 @@ export function renderPortfolio(main) {
     const reserved = pendingOrders.reduce(
       (sum, o) => sum + (o.side === "BUY" ? Number(o.reserved_cash || 0) : 0), 0);
     const pfValue = cash + holdValue + reserved;
-    const start = state.portfolio.startingCashPaise;
-    const deltaPaise = pfValue - start;
-    const returnPct = start ? deltaPaise / start : 0;
     // The "since start" number mixes two different things a teenager needs
     // kept apart: profit/loss already BOOKED by selling (it is in cash now)
     // and profit/loss ON PAPER in what they still hold. A sell's proceeds
@@ -542,6 +536,17 @@ export function renderPortfolio(main) {
     const tradeStats = computeTradeStats(state.transactions);
     const bookedPaise = tradeStats.realisedPaise;
     const paperPaise = holdings.reduce((n, h) => n + (h.priceReady && Number.isFinite(h.pl) ? h.pl : 0), 0);
+    // Since the start = booked + on paper, over the money put in. The old
+    // "value minus starting cash" counted cash received from other accounts
+    // as profit (see returnSummary in data/tradeStats.js).
+    const ret = returnSummary({ cashPaise: cash, reservedPaise: reserved, startingCashPaise: state.portfolio.startingCashPaise, stats: tradeStats, paperPaise });
+    const deltaPaise = ret.plPaise;
+    const returnPct = ret.pct;
+    const unpriced = holdings.filter((h) => h.atCost).length;
+    // The day's move on what is held, from real quotes only: shares held
+    // before today move from yesterday's close; shares bought today move
+    // from their buy price. Unknown (null) until every holding has a quote.
+    const dayPaise = dayChangePaise(holdings, state.transactions);
 
     const src = getDataSource();
     // Hotfix66a: state.portfolioHistory is populated by sync.js with
@@ -583,8 +588,10 @@ export function renderPortfolio(main) {
           </div>
           <div class="pf-value tabular">${formatRupees(pfValue)}</div>
           <div class="pf-delta tabular ${deltaClass(deltaPaise)}">
-            ${formatRupees(deltaPaise, { sign: true })} (${formatPct(returnPct, { sign: true })}) since start
+            ${formatRupees(deltaPaise, { sign: true })} (${formatPct(returnPct, { sign: true })}) since start${unpriced ? `<span class="pf-unpriced" title="No live price yet for ${unpriced} holding${unpriced === 1 ? "" : "s"}: counted at what you paid until one arrives."> · ${unpriced} without a price yet</span>` : ""}
           </div>
+          ${dayPaise != null && holdings.length ? `<div class="pf-day tabular">${marketStatus().open ? "Today" : "Last session"} <strong class="${deltaClass(dayPaise)}">${formatRupees(dayPaise, { sign: true })}</strong> on what you hold</div>` : ""}
+          ${ret.outsidePaise > 100 ? `<div class="pf-capital dim text-xs">Return is on ${formatRupees(ret.capitalPaise, { compact: true })} put in: your ${formatRupees(state.portfolio.startingCashPaise, { compact: true })} start plus ${formatRupees(ret.outsidePaise, { compact: true })} that came in outside trades. Money received is not profit.</div>` : ""}
           ${state.transactions.length ? `
           <div class="pf-split tabular">
             <span title="Profit or loss you locked in by selling. It is already in your cash.">Booked by selling <strong class="${deltaClass(bookedPaise)}">${formatRupees(bookedPaise, { sign: true })}</strong></span>
@@ -943,7 +950,7 @@ function renderHoldingsTable(holdings) {
               : `<span class="dim">—</span>`;
             const valueCell = h.priceReady
               ? formatRupees(h.value, { compact: true })
-              : `<span class="dim">—</span>`;
+              : `<span class="dim" title="No live price yet. Counted at what you paid.">${formatRupees(h.value, { compact: true })}<br><small>at cost</small></span>`;
             const plCell = h.priceReady
               ? `<div class="${deltaClass(h.pl)}">${formatRupees(h.pl, { sign: true, compact: true })}</div>
                  <div class="${deltaClass(h.pl)}" style="font-size: 11px;">${formatPct(h.plPct, { sign: true })}</div>`
@@ -1086,4 +1093,29 @@ function renderAmoBanner(pendingOrders) {
       </div>
     </div>
   `;
+}
+
+// Today's move in rupees on what is held. null when any holding lacks a real
+// day change (a partial number would read as the whole day).
+function dayChangePaise(holdings, transactions) {
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+  const boughtToday = {};
+  for (const t of transactions || []) {
+    if (t.side !== "BUY") continue;
+    if (new Date(t.ts).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }) !== today) continue;
+    (boughtToday[t.symbol] ||= []).push(t);
+  }
+  let sum = 0;
+  for (const h of holdings) {
+    if (!h.priceReady || !Number.isFinite(h.dayChange)) return null;
+    const prev = h.curPx / (1 + h.dayChange);
+    let qty = h.h.qty;
+    for (const t of boughtToday[h.sym] || []) {
+      const q = Math.min(qty, Number(t.qty) || 0);
+      sum += q * (h.curPx - t.pricePaise);
+      qty -= q;
+    }
+    sum += qty * (h.curPx - prev);
+  }
+  return Math.round(sum);
 }

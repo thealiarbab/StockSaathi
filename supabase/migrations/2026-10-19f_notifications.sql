@@ -198,3 +198,16 @@ revoke execute on function public.admin_flush_deferred_pushes() from public, ano
 select cron.schedule('notify-morning', '35 1 * * *', 'select public.admin_flush_deferred_pushes()');
 
 alter publication supabase_realtime add table public.notifications;
+
+-- The push-dispatch Edge Function reads its keys from Vault through this
+-- (service_role only), so no secret has to be pasted into the dashboard.
+-- Vault holds push_hook_secret and vapid_private_jwk (created by hand, not
+-- in this file).
+create or replace function public.admin_push_config() returns jsonb
+language sql stable security definer set search_path to 'public' as $$
+  select jsonb_build_object(
+    'hook',  (select decrypted_secret from vault.decrypted_secrets where name = 'push_hook_secret'),
+    'vapid', (select decrypted_secret from vault.decrypted_secrets where name = 'vapid_private_jwk'));
+$$;
+revoke execute on function public.admin_push_config() from public, anon, authenticated;
+grant execute on function public.admin_push_config() to service_role;

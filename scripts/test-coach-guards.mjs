@@ -25,7 +25,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = fs.readFileSync(path.join(ROOT, "js/coach/agent.js"), "utf8");
@@ -138,9 +138,10 @@ const CASES = [
 async function dossierChecks() {
   let src = fs.readFileSync(path.join(ROOT, "js/coach/dossier.js"), "utf8");
   src = src.replace(/^import .*$/gm, "").replace(/export (async )?function/g, "$1function");
+  const { computeTradeStats, returnSummary } = await import(pathToFileURL(path.join(ROOT, "js/data/tradeStats.js")).href);
   const mk = (getState, getInstrument, getQuoteBatch, getCachedQuotes = () => ({})) =>
-    new Function("getState", "getInstrument", "getQuoteBatch", "getCachedQuotes",
-      src + "; return { buildDossier, realisedPaise, isCorrupt };")(getState, getInstrument, getQuoteBatch, getCachedQuotes);
+    new Function("getState", "getInstrument", "getQuoteBatch", "getCachedQuotes", "computeTradeStats", "returnSummary",
+      src + "; return { buildDossier, realisedPaise, isCorrupt };")(getState, getInstrument, getQuoteBatch, getCachedQuotes, computeTradeStats, returnSummary);
 
   const state = {
     isAuthed: true, username: "aarav", profile: { age: 15, riskProfile: "balanced" },
@@ -161,7 +162,10 @@ async function dossierChecks() {
   const quotes = { VEDL: { pricePaise: 43820 }, IDEA: { pricePaise: 980 } };
   const m = mk(() => state, (x) => ({ name: x + " Ltd" }), async () => quotes);
 
-  const expectedTotal = 4210000 + 40 * 43820 + 500 * 980;   // cash + market values
+  // cash + market values + the unpriced NOPX at cost (19 Oct: a holding with
+  // no real price counts at what was paid, as on the portfolio page, rather
+  // than dropping out of the total). The corrupt GHOST row stays out.
+  const expectedTotal = 4210000 + 40 * 43820 + 500 * 980 + 5 * 10000;
   const totalStr = (expectedTotal / 100).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   const text = await m.buildDossier();
@@ -185,6 +189,8 @@ async function dossierChecks() {
     ["corrupt row flagged, not narrated as free shares", text.includes("GHOST") && text.includes("CORRUPT"), true],
     ["unpriced row refuses estimation", text.includes("NOPX") && text.includes("NO PRICE AVAILABLE"), true],
     ["realised P&L walk: (1000-1200)*500 paise", m.realisedPaise(state.transactions), -100000],
+    // Profit = booked + on paper, not value minus starting cash.
+    ["profit since start = booked + on paper", text.includes("Profit since the start"), true],
     ["signed out yields no dossier at all", emptyText, ""],
   ];
 }
@@ -279,7 +285,7 @@ for (const [name, got, want] of LANG_CASES) {
 // (13 Oct): ABSLAMC +12.10, TATACAP +11.05, ANGELONE +5.70, 63MOONS sold in
 // two parts (+406.50, +78.20) = 4 winning round trips, realised +Rs 513.55.
 // -----------------------------------------------------------------------------
-const { computeTradeStats } = await import(new URL("../js/data/tradeStats.js", import.meta.url));
+const { computeTradeStats, returnSummary } = await import(new URL("../js/data/tradeStats.js", import.meta.url));
 const YASHRAJ = [{"ts":1791776710862,"symbol":"ABSLAMC","side":"BUY","qty":1,"pricePaise":100100},{"ts":1791776711547,"symbol":"TATACAP","side":"BUY","qty":1,"pricePaise":31800},{"ts":1791776718690,"symbol":"AAYUSHBULL","side":"BUY","qty":2,"pricePaise":128200},{"ts":1791779454835,"symbol":"ABSLAMC","side":"SELL","qty":1,"pricePaise":101310},{"ts":1791781226491,"symbol":"TATACAP","side":"SELL","qty":1,"pricePaise":32905},{"ts":1791784088910,"symbol":"TMPV","side":"BUY","qty":1,"pricePaise":27900},{"ts":1791792814727,"symbol":"ANGELONE","side":"BUY","qty":1,"pricePaise":30440},{"ts":1791863112643,"symbol":"63MOONS","side":"BUY","qty":6,"pricePaise":82370},{"ts":1791868945310,"symbol":"AAYUSHBULL","side":"BUY","qty":5,"pricePaise":129495},{"ts":1791869107310,"symbol":"AAYUSHBULL","side":"BUY","qty":3,"pricePaise":129495},{"ts":1791884401994,"symbol":"ANGELONE","side":"SELL","qty":1,"pricePaise":31010},{"ts":1791884712962,"symbol":"63MOONS","side":"SELL","qty":5,"pricePaise":90500},{"ts":1791885577946,"symbol":"63MOONS","side":"SELL","qty":1,"pricePaise":90190}];
 const y = computeTradeStats(YASHRAJ);
 const DAY = 86400000;
@@ -298,6 +304,11 @@ const STAT_CASES = [
   ["yashraj: AAYUSHBULL and TMPV still open", Object.keys(y.openPositions).sort().join(","), "AAYUSHBULL,TMPV"],
   ["one position sold in 3 parts = 1 win, not 3", threeParts.wins, 1],
   ["reopened position is its own round trip (a loss)", threeParts.losses, 1],
+  ["sold at the price paid is even, not a win or a loss",
+    computeTradeStats([{ ts: 0, symbol: "E", side: "BUY", qty: 10, pricePaise: 50000 }, { ts: DAY, symbol: "E", side: "SELL", qty: 10, pricePaise: 50050 }]).evens, 1],
+  ["cash from outside a trade is capital, not profit",
+    returnSummary({ cashPaise: 1000000, startingCashPaise: 10000000, paperPaise: -500000,
+      stats: computeTradeStats([{ ts: 0, symbol: "G", side: "BUY", qty: 100, pricePaise: 290000, valuePaise: 29000000 }]) }).capitalPaise, 30000000],
   ["hold days restart on reopen: (3 + 2) / 2", threeParts.avgHoldDays, 2.5],
 ];
 let tPass = 0;

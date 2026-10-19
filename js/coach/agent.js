@@ -11,7 +11,7 @@ import { getInstrument, getAllInstruments, STOCKS, MUTUAL_FUNDS } from "../data/
 import { getQuote, getQuoteBatch, getFundamentals } from "../data/marketData.js";
 import { listPendingOrders, listAllOrders } from "../features/limitOrders.js";
 import { getNews } from "../data/news.js";
-import { getState, getPortfolioValue } from "../state.js";
+import { getState, getPortfolioValue, getReturnSummary } from "../state.js";
 import { SYSTEM_PROMPT, NO_TOOLS_NOTE } from "./persona.js";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
@@ -413,7 +413,6 @@ async function execGetUserPortfolio() {
     } catch {}
   }
   const total = getPortfolioValue(state);
-  const start = state.portfolio.startingCashPaise;
 
   // Sanity guard. A corrupted account (seeded/admin rows with qty in the
   // billions and a zero average cost) produced a portfolio worth more than
@@ -431,7 +430,8 @@ async function execGetUserPortfolio() {
     ok: true,
     cash_inr: +(state.portfolio.cashPaise / 100).toFixed(2),
     total_value_inr: +totalInr.toFixed(2),
-    return_pct: +(((total - start) / start) * 100).toFixed(2),
+    // On the money put in; cash received outside trades is not a return.
+    return_pct: +(getReturnSummary(state).pct * 100).toFixed(2),
     holdings, holdings_count: holdings.length,
     trade_count: state.transactions.length,
   };
