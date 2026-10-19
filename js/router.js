@@ -21,6 +21,7 @@ import { renderResetPasswordRequest } from "./pages/resetPasswordRequest.js";
 import { renderResetPassword } from "./pages/resetPassword.js";
 import { renderNews } from "./pages/news.js";
 import { renderChat } from "./pages/chat.js";
+import { renderSharedChat } from "./pages/sharedChat.js";
 import { renderAdmin, renderAdminClean } from "./pages/admin.js";
 import { renderPrivacy } from "./pages/privacy.js";
 import { renderTerms } from "./pages/terms.js";
@@ -108,6 +109,8 @@ const ROUTES = [
   { name: "friends",       match: /^\/friends\/?$/,                        render: () => go("/portfolio", { replace: true }), public: true },
   { name: "news",          match: /^\/news\/?$/,                           render: renderNews, public: true },
   { name: "chat",          match: /^\/chat\/?$/,                           render: renderChat, public: true },
+  // A chat someone shared (chat_shares). Public, read-only, works signed out.
+  { name: "shared-chat",   match: /^\/share\/([a-f0-9]{8,40})\/?$/,          render: renderSharedChat, param: "id", public: true },
   { name: "settings",      match: /^\/settings\/?$/,                       render: renderSettings, needsAuth: true },
   { name: "privacy",       match: /^\/privacy\/?$/,                        render: renderPrivacy, public: true },
   { name: "terms",         match: /^\/terms\/?$/,                          render: renderTerms, public: true },

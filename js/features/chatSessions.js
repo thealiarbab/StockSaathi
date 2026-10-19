@@ -37,6 +37,7 @@ function applyMeta(data) {
     if (!m) continue;
     if (m.title) x.title = m.title;
     x.pinned = !!m.pinned;
+    x.archived = !!m.archived;
   }
 }
 const LEGACY_LOG_KEY = "ss.chatlog.v1";
@@ -140,10 +141,15 @@ function mergeStored(data) {
         if ((s.messages[i]?.ts || 0) <= clearedAt) s.messages.splice(i, 1);
       }
     }
+    // Branch tombstones (chatBranches.js): a message moved off screen by an
+    // edit or a regenerate lives in its branch point's `vers`, not in the
+    // flat list. Without this, the copy still in storage came straight back.
+    const pruned = new Set([...(s.pruned || []), ...(other.pruned || [])]);
+    if (pruned.size) s.pruned = [...pruned].slice(-500);
     const have = new Set(s.messages.map(msgKey));
     let added = false;
     for (const m of other.messages) {
-      if (!m || (m.ts || 0) <= clearedAt || have.has(msgKey(m))) continue;
+      if (!m || (m.ts || 0) <= clearedAt || have.has(msgKey(m)) || pruned.has(msgKey(m))) continue;
       s.messages.push(m);
       added = true;
     }
@@ -249,6 +255,23 @@ export function togglePin(data, id) {
   s.pinned = !s.pinned;
   patchMeta(id, { pinned: s.pinned || undefined });
   saveSessions(data);
+}
+
+export function setArchived(data, id, archived) {
+  const s = data.sessions.find((x) => x.id === id);
+  if (!s) return;
+  s.archived = !!archived;
+  patchMeta(id, { archived: s.archived || undefined });
+  saveSessions(data);
+}
+
+/** Record messages that left the screen, and clear ones that came back. */
+export function notePruned(session, removed, visible) {
+  if (!session) return;
+  const set = new Set(session.pruned || []);
+  for (const m of removed || []) set.add(msgKey(m));
+  for (const m of visible || []) set.delete(msgKey(m));
+  session.pruned = [...set].slice(-500);
 }
 
 // Clear all messages in the active session (keeps the session, wipes history).
