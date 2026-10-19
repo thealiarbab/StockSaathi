@@ -82,6 +82,29 @@ let liveHistory = null;
 let liveFundamentals = null;
 let qtySelectorHandle = null;
 let _cancelToken = { cancelled: false };    // shared per-mount token
+// Why a stock cannot be traded (suspended, delisted, an expired rights
+// entitlement), from the database's instrument_status, or null. The database
+// refuses the order either way (trigger on transactions/limit_orders); this
+// only stops the page offering a trade it will refuse. One lookup per symbol
+// per tab.
+const _blockReason = new Map();          // symbol -> string | null
+async function loadBlockReason(symbol) {
+  if (_blockReason.has(symbol)) return _blockReason.get(symbol);
+  _blockReason.set(symbol, null);
+  try {
+    const { sb } = await import("../db/supabase.js");
+    const client = await sb();
+    if (!client) return null;
+    const { data, error } = await client.rpc("instrument_block_reason", { p_symbol: symbol });
+    if (!error && typeof data === "string" && data) { _blockReason.set(symbol, data); return data; }
+  } catch {}
+  return null;
+}
+// Rights entitlements (-RE / -RE1) are temporary: say so while they trade.
+function isRightsEntitlement(inst) {
+  return /-RE\d*$/.test(inst?.symbol || "") || inst?.series === "R";
+}
+
 let _stockWhyKey = null;                     // "SYMBOL_day" — prevents refire on live-quote refresh
 let _stockWhyLast = null;                    // last explanation rendered for this mount
 let _historyAbortCtrl = null;                // cancel a previous in-flight refresh
@@ -306,6 +329,10 @@ export function renderStockDetail(main, params) {
   // this plus a quote fetch, before the RPC). Load it now, in the background,
   // for anything the user holds.
   if (getState().holdings?.[symbol] && inst.kind !== "MF") primeRealCloses(symbol);
+
+  if (inst.kind !== "MF" && !_blockReason.has(symbol)) {
+    loadBlockReason(symbol).then((why) => { if (why && location.pathname.includes(encodeURIComponent(symbol))) render(activeInst || inst, symbol); });
+  }
 
   // Cancel any previous mount's pending work
   _cancelToken.cancelled = true;
@@ -1168,7 +1195,17 @@ function render(inst, symbol) {
 
       <aside>
         <div class="card trade-box">
-          ${inst.kind === "MF" ? renderMfInvestBox(inst, symbol, curPrice, holding) : `
+          ${_blockReason.get(symbol) ? `
+            <div class="trade-blocked" role="status">
+              <div class="trade-blocked-title">Can't be traded</div>
+              <p>${escapeHtml(_blockReason.get(symbol))}</p>
+              ${holding ? `<p class="dim">Your ${formatQty(holding.qty, inst.kind)} stay in your portfolio at the last traded price.</p>` : ""}
+              <a href="/stocks" class="btn btn-ghost btn-sm">Browse other stocks</a>
+            </div>` : inst.kind === "MF" ? renderMfInvestBox(inst, symbol, curPrice, holding) : `
+          ${isRightsEntitlement(inst) ? `
+            <div class="trade-note-re">
+              <strong>Rights entitlement.</strong> A temporary security issued during a rights issue. It trades for a couple of weeks and then stops for good; it has no company fundamentals of its own.
+            </div>` : ""}
           ${!ms.open ? `
             <div class="amo-banner" style="margin-bottom: var(--sp-3); padding: var(--sp-3); border-radius: var(--r-md); background: color-mix(in srgb, var(--brand) 7%, var(--bg-soft)); border: 1px solid color-mix(in srgb, var(--brand) 35%, var(--border)); font-size: var(--text-xs); line-height: 1.45;">
               <div style="font-weight: 600; color: var(--text-strong); margin-bottom: 2px;">🕗 Market closed: after-market order</div>

@@ -329,4 +329,6 @@ def test_eod_ingest_parses_rupees_to_paise_and_prefers_equity_series(monkeypatch
     assert out["stored"] == 2 and set(stored) == {"ADISOFT", "DUAL"}
     assert stored["ADISOFT"]["close_paise"] == 25950
     assert stored["DUAL"]["series"] == "EQ" and stored["DUAL"]["close_paise"] == 1060
-    assert posted[-1][0] == "rpc/apply_nse_eod"
+    calls = [path for path, _ in posted]
+    assert calls[-2:] == ["rpc/apply_nse_eod", "rpc/admin_refresh_instrument_status"], \
+        "prices are applied, then expired rights entitlements are marked (2026-10-19b)"

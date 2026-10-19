@@ -167,6 +167,86 @@ jobs:
           print("sanity gate passed")
           PY
 
+      # Listing status -> instrument_status (migration 2026-10-19b). A stock
+      # that is suspended or delisted cannot be traded in the app: a database
+      # trigger refuses it, its pending orders close with a refund and holders
+      # are told. Until 19 Oct nothing tracked this and an order was taken for
+      # TUNTEX-RE1 after its trading window had ended.
+      #   BSE: the exchange's own Suspended and Delisted lists (same API as the
+      #        Active list the build reads), applied to BSE-only stocks.
+      #   NSE: a stock in yesterday's universe that is gone from today's
+      #        EQUITY_L / SME list is delisted. Skipped if more than 60 vanish
+      #        at once (that is a partial download, not delistings).
+      #   Everything still in the universe is sent as active, which lifts an
+      #   old suspension; active rows never create new table rows.
+      # Never blocks the universe commit.
+      - name: Push listing status
+        continue-on-error: true
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          [ -n "$CRON_SECRET" ] || { echo "::warning::CRON_SECRET not set; listing status not pushed"; exit 0; }
+          git show HEAD:js/data/universeFull.json > /tmp/universe_prev.json 2>/dev/null || echo "[]" > /tmp/universe_prev.json
+          python3 - <<'PY'
+          import datetime as dt, http.cookiejar, json, os, urllib.request
+
+          IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
+          today = dt.datetime.now(IST).date().isoformat()
+          new = json.load(open("js/data/universeFull.json"))
+          old = json.load(open("/tmp/universe_prev.json"))
+          new_syms = {r["symbol"] for r in new}
+          rows = {}
+
+          # BSE suspended / delisted, matched to BSE-only stocks by scrip code or ISIN.
+          jar = http.cookiejar.CookieJar()
+          op = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
+          hdr = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131 Safari/537.36",
+                 "Referer": "https://www.bseindia.com/", "Accept": "application/json, text/plain, */*"}
+          try:
+              op.open(urllib.request.Request("https://www.bseindia.com/", headers=hdr), timeout=30).read()
+          except Exception as e:
+              print("warm bseindia:", e)
+          by_code = {str(r.get("bseScripCd")): r["symbol"] for r in new + old if r.get("exchange") == "BSE" and r.get("bseScripCd")}
+          by_isin = {r.get("isin"): r["symbol"] for r in new + old if r.get("exchange") == "BSE" and r.get("isin")}
+          for status_q, status in (("Suspended", "suspended"), ("Delisted", "delisted")):
+              url = ("https://api.bseindia.com/BseIndiaAPI/api/ListofScripData/w?Group=&Scripcode=&industry="
+                     f"&segment=Equity&status={status_q}")
+              try:
+                  txt = op.open(urllib.request.Request(url, headers=hdr), timeout=60).read().decode("utf-8", "replace")
+                  arr = json.loads(txt) if txt.strip().startswith("[") else []
+              except Exception as e:
+                  print(f"BSE {status_q} list failed: {e}")
+                  arr = []
+              hit = 0
+              for r in arr:
+                  sym = by_code.get(str(r.get("SCRIP_CD") or "").strip()) or by_isin.get(str(r.get("ISIN_NUMBER") or "").strip().upper())
+                  if sym:
+                      rows[sym] = {"symbol": sym, "status": status, "source": f"bse_{status}_list",
+                                   "reason": f"BSE lists it as {status_q}", "effective_date": today}
+                      hit += 1
+              print(f"BSE {status_q}: {len(arr)} listed, {hit} in our universe")
+
+          # NSE: gone from the exchange master since yesterday.
+          gone = [r["symbol"] for r in old
+                  if r.get("exchange") in ("NSE", "NSE_SME") and r["symbol"] not in new_syms]
+          print(f"NSE symbols gone since the last build: {len(gone)} {gone[:20]}")
+          if len(gone) <= 60:
+              for s in gone:
+                  rows.setdefault(s, {"symbol": s, "status": "delisted", "source": "nse_master",
+                                      "reason": "removed from the NSE equity list", "effective_date": today})
+
+          for s in new_syms:
+              rows.setdefault(s, {"symbol": s, "status": "active", "source": "universe"})
+
+          req = urllib.request.Request(
+              "https://stocksaathi.co.in/api/admin-ingest-eod",
+              data=json.dumps({"kind": "status", "rows": list(rows.values())}).encode(),
+              headers={"Authorization": "Bearer " + os.environ["CRON_SECRET"], "Content-Type": "application/json"},
+              method="POST")
+          with urllib.request.urlopen(req, timeout=120) as r:
+              print("status push:", r.status, r.read().decode()[:600])
+          PY
+
       # The pre-rendered stock pages, markets hub and sitemap are built from
       # universeFull.json (scripts/prerender.py). Regenerate them from the new
       # data so a listing, delisting or index change reaches search engines the

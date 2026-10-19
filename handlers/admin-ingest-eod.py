@@ -18,6 +18,15 @@ Yahoo price disagrees with the exchange close by more than 15%.
 With "exchange": "BSE" (bse-eod.yml) the rows are BSE closes for our
 BSE-only stocks and go to bse_eod_prices only (see ingest_bse).
 
+After every import, admin_refresh_instrument_status() marks rights
+entitlements that have stopped trading as expired (migration 2026-10-19b).
+
+With "kind": "status" the body is the exchanges' listing status instead
+(universe-refresh.yml): {"kind": "status", "rows": [{"symbol", "status":
+"suspended"|"delisted"|"active", "effective_date", "reason", "source"}]}.
+A stock that is not active can no longer be traded (trigger on transactions
+and limit_orders); its pending orders are closed and holders are told.
+
 Auth: Authorization: Bearer <CRON_SECRET> (or ADMIN_TOKEN). Stdlib only.
 """
 
@@ -100,7 +109,20 @@ def ingest_bse(trade_date, rows):
     for i in range(0, len(records), CHUNK):
         _post("bse_eod_prices?on_conflict=symbol,trade_date", records[i:i + CHUNK],
               prefer="resolution=merge-duplicates,return=minimal")
-    return {"ok": True, "exchange": "BSE", "stored": len(records)}
+    return {"ok": True, "exchange": "BSE", "stored": len(records), "status": refresh_status()}
+
+
+def refresh_status():
+    """Rights entitlements that stopped trading -> expired. Never fails an import."""
+    try:
+        return _post("rpc/admin_refresh_instrument_status", {}, timeout=30)
+    except Exception as e:
+        return {"ok": False, "error": str(e)[:200]}
+
+
+def set_status(rows):
+    clean = [r for r in rows if isinstance(r, dict) and _SYM_RE.match(str(r.get("symbol") or "").strip().upper())]
+    return _post("rpc/admin_set_instrument_status", {"p_rows": clean}, timeout=40)
 
 
 def ingest(trade_date, rows):
@@ -132,7 +154,7 @@ def ingest(trade_date, rows):
         _post("nse_eod_prices?on_conflict=symbol,trade_date", records[i:i + CHUNK],
               prefer="resolution=merge-duplicates,return=minimal")
     applied = _post("rpc/apply_nse_eod", {"p_trade_date": trade_date}, timeout=40)
-    return {"ok": True, "stored": len(records), **(applied or {})}
+    return {"ok": True, "stored": len(records), **(applied or {}), "status": refresh_status()}
 
 
 class handler(BaseHTTPRequestHandler):
@@ -155,8 +177,15 @@ class handler(BaseHTTPRequestHandler):
             data = json.loads(self.rfile.read(length).decode("utf-8") or "{}")
         except Exception:
             return self._respond(400, {"ok": False, "error": "bad_json"})
-        trade_date = str(data.get("trade_date") or "")
         rows = data.get("rows")
+        if data.get("kind") == "status":
+            if not isinstance(rows, list):
+                return self._respond(400, {"ok": False, "error": "need rows"})
+            try:
+                return self._respond(200, set_status(rows))
+            except Exception as e:
+                return self._respond(500, {"ok": False, "error": str(e)[:300]})
+        trade_date = str(data.get("trade_date") or "")
         if not _DATE_RE.match(trade_date) or not isinstance(rows, list) or not rows:
             return self._respond(400, {"ok": False, "error": "need trade_date YYYY-MM-DD and rows"})
         try:
