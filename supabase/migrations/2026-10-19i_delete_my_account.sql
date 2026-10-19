@@ -1,3 +1,7 @@
+-- NOT YET APPLIED to production (2026-10-19): the Supabase connector cannot
+-- run SQL containing DELETE/DROP. Paste this file into Supabase -> SQL Editor.
+-- It also removes the harmless probe function left by a connector test.
+--
 -- Settings -> Delete account used to sign the student out and set
 -- profiles.onboarded = false. Nothing was erased: login, email, profile,
 -- trades and activity all stayed, while privacy.html promises erasure
@@ -6,7 +10,7 @@
 -- delete_my_account() erases the caller and nothing else:
 --   * takes no argument; the only id it ever uses is auth.uid() from the
 --     caller's own JWT, so it cannot be pointed at another account
---   * refuses anonymous callers and admin accounts
+--   * refuses anonymous callers, the two owner accounts and admin_users
 --   * every DELETE is keyed on that one uid; if the auth.users delete
 --     touches anything but exactly one row, or the account total drops by
 --     anything but one, it raises and the whole call rolls back
@@ -34,7 +38,10 @@ begin
   if uid is null then
     raise exception 'not_signed_in' using errcode = '28000';
   end if;
-  if exists (select 1 from public.admin_users where user_id = uid) then
+  -- Owner accounts (the ids is_admin() pins, 2026-10-19c) and anyone in
+  -- admin_users can never self-delete.
+  if uid in ('63aee5be-4eaa-409d-9c1e-f60c4daa5823'::uuid, '73c89104-24ab-47c0-9c71-5fe7c82323dc'::uuid)
+     or exists (select 1 from public.admin_users where user_id = uid) then
     raise exception 'admin_accounts_cannot_self_delete' using errcode = '42501';
   end if;
   if not exists (select 1 from auth.users where id = uid) then
@@ -62,3 +69,6 @@ $$;
 
 revoke all on function public.delete_my_account() from public, anon;
 grant execute on function public.delete_my_account() to authenticated;
+
+-- Leftover from a connector test on 2026-10-19 (returns 1, harmless).
+drop function if exists public.zz_ddl_probe();

@@ -47,3 +47,6 @@ scripts/.device-shots/
 
 # Session handoff notes (local only, not shipped)
 docs/HANDOFF_claude-session-*.md
+
+# Private agent session memory (names students; repo is public). Never commit.
+/.memory/

@@ -716,7 +716,7 @@ export async function deleteCurrentAccount() {
   if (client) {
     // This used to sign out and set profiles.onboarded = false, which erased
     // nothing while the privacy policy promises erasure (found 2026-10-19).
-    // delete_my_account() (migration 2026-10-19c) erases the caller's login
+    // delete_my_account() (migration 2026-10-19i) erases the caller's login
     // and every row keyed to it, for the signed-in user only, with guards
     // that roll back unless exactly one account goes. Any failure is thrown
     // so the page never tells a student their data is gone when it is not.
