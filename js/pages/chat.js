@@ -18,10 +18,11 @@ import {
   formatRelative, SESSIONS_KEY,
   displayOrder, setArchived, notePruned,
 } from "../features/chatSessions.js";
+import { nextTs, repairTurnOrder } from "../features/chatOrder.js";
 import { isPreview } from "../features/preview.js";
 import { forkAt, showVersion, branchInfo, stripVers } from "../features/chatBranches.js";
 import { pushThread, pullThreads, upsertShare, listShares, revokeShare, sendFeedback } from "../features/chatCloud.js";
-import { COMMANDS, isCommand, runCommand, cardHtml, hydrateCards } from "../features/chatCards.js";
+import { COMMANDS, isCommand, runCommand, cardHtml, hydrateCards, guideHtml } from "../features/chatCards.js";
 import { toast } from "../components/toast.js";
 
 // Defense-in-depth: strip any prompt-scaffolding patterns the model might
@@ -209,6 +210,12 @@ export function renderChat(main) {
   function render() {
     const state = getState();
     const active = getActiveSession(sessionsData);
+    // A repaint of the chat on screen (cloud sync, another tab, the language
+    // switch) keeps the reader's place; opening a chat starts at the end.
+    const prevEl = main.querySelector("#chat-messages");
+    const keep = prevEl && prevEl._follow === false && main.dataset.chatId === active.id
+      ? prevEl.scrollTop : null;
+    main.dataset.chatId = active.id;
 
     main.innerHTML = `
       <div class="cc cc-has-side ${drawerOpen ? "is-drawer-open" : ""}">
@@ -260,7 +267,7 @@ export function renderChat(main) {
                   id="chat-input"
                   class="composer-input"
                   rows="1"
-                  placeholder="${m_pending ? "Type your next message…" : "Ask Saathi anything"}"
+                  placeholder="${m_pending ? "Type your next message…" : composerHint()}"
                   autocomplete="off"
                   maxlength="2000"
                   aria-label="Message Saathi"
@@ -291,10 +298,13 @@ export function renderChat(main) {
       e.currentTarget.textContent = on ? "Hinglish" : "English";
       e.currentTarget.classList.toggle("is-on", on);
       e.currentTarget.setAttribute("aria-pressed", on ? "true" : "false");
+      // The empty-chat guide is written in the chosen language.
+      if (!chatLog.length && isPreview()) { rerender(); fillStarters(main, (q) => { if (m_pending) return; input.value = q; form.requestSubmit(); }); }
     });
     if (!chatLog.length) fillStarters(main, (q) => { if (m_pending) return; input.value = q; form.requestSubmit(); });
     const messagesEl = main.querySelector("#chat-messages");
-    if (chatLog.length) messagesEl.scrollTop = messagesEl.scrollHeight;
+    if (keep != null) { messagesEl._follow = false; messagesEl.scrollTop = keep; }
+    else if (chatLog.length) stickBottom(messagesEl, true);
     // Desktop: auto-focus so the user can start typing. Mobile: don't —
     // focusing an input pops the soft keyboard, and the user hasn't
     // asked for it yet. They can tap the input themselves to start.
@@ -321,6 +331,7 @@ export function renderChat(main) {
       main.querySelector(".cc-panel")?.classList.remove("is-empty");
       closeSlash();
       pushUser(text);
+      messagesEl._follow = true;    // sending always goes back to the end
       rerender();
       refreshSide();
       await produceReply(text);
@@ -352,9 +363,15 @@ export function renderChat(main) {
     });
     const jump = main.querySelector("#cc-jump");
     messagesEl.addEventListener("scroll", () => {
-      jump.hidden = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight < 160;
+      const gap = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight;
+      // Scrolled up to read: stop following new text until back at the end.
+      messagesEl._follow = gap < 80;
+      jump.hidden = gap < 160;
     }, { passive: true });
-    jump.addEventListener("click", () => { messagesEl.scrollTop = messagesEl.scrollHeight; });
+    jump.addEventListener("click", () => {
+      messagesEl._follow = true;
+      messagesEl.scrollTo({ top: messagesEl.scrollHeight, behavior: "smooth" });
+    });
 
     // ---- Preview controls (owner accounts first; see features/preview.js) ----
     if (isPreview()) {
@@ -365,10 +382,9 @@ export function renderChat(main) {
       }
 
       messagesEl.addEventListener("click", async (e) => {
-        const t = e.target.closest("[data-edit],[data-regen],[data-ver],[data-fb],[data-speak],[data-fb-why]");
+        const t = e.target.closest("[data-edit],[data-regen],[data-ver],[data-fb],[data-fb-why]");
         if (!t) return;
         const sess = getActiveSession(sessionsData);
-        if (t.dataset.speak != null) { speakText(chatLog[+t.dataset.speak]?.text, t); return; }
         if (t.dataset.fbWhy) {
           const m = chatLog[+t.dataset.idx];
           sendFeedback({ threadId: sess.id, ts: m?.ts, rating: -1, reason: t.dataset.fbWhy, reply: m?.text });
@@ -452,7 +468,7 @@ export function renderChat(main) {
         if (!items.length) { closeSlash(); return; }
         slashSel = Math.min(slashSel, items.length - 1);
         slash.hidden = false;
-        slash.innerHTML = items.map((c, k) => `<button type="button" role="option" aria-selected="${k === slashSel}" data-slash="${escapeAttr(c.cmd)}"><b>${escapeHtml(c.cmd)}</b> <span>${escapeHtml(c.args)}</span><em>${escapeHtml(c.hint)}</em></button>`).join("");
+        slash.innerHTML = items.map((c, k) => `<button type="button" role="option" aria-selected="${k === slashSel}" data-slash="${escapeAttr(c.cmd)}"><b>${escapeHtml(c.cmd)}</b> <span>${escapeHtml(c.args)}</span><em>${escapeHtml(getState().settings.hinglish ? c.hintHi : c.hint)}</em></button>`).join("");
       };
       const pickSlash = (cmd) => { input.value = cmd + " "; closeSlash(); fit(); input.focus(); };
       input.addEventListener("input", drawSlash);
@@ -745,11 +761,7 @@ export function renderChat(main) {
 
   function rerender() {
     const messagesEl = main.querySelector("#chat-messages");
-    if (messagesEl) {
-      messagesEl.innerHTML = renderMessages();
-      messagesEl.scrollTop = messagesEl.scrollHeight;
-      afterPaint(messagesEl);
-    }
+    if (messagesEl) paintList(messagesEl, renderMessages());
   }
 
   function renderMessages() {
@@ -760,6 +772,7 @@ export function renderChat(main) {
           <div class="cc-starters">
             ${STARTER_QUESTIONS.map(q => `<button type="button" class="cc-starter" data-q="${escapeAttr(q)}">${escapeHtml(q)}</button>`).join("")}
           </div>
+          ${isPreview() ? `<div class="cc-guide-wrap">${guideHtml()}</div>` : ""}
         </div>
       `;
     }
@@ -776,8 +789,8 @@ let cleanupSide = null;
 
 // ---- Messages ------------------------------------------------------------------
 // Preview accounts (isPreview) get the ChatGPT-style controls: edit a question,
-// regenerate an answer, ‹ 1/2 › versions (chatBranches.js), feedback, read
-// aloud, cards from slash commands (chatCards.js). Everyone else sees the same
+// regenerate an answer, ‹ 1/2 › versions (chatBranches.js), feedback,
+// cards from slash commands (chatCards.js). Everyone else sees the same
 // chat as before.
 
 const I = {
@@ -786,7 +799,6 @@ const I = {
   regen: '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>',
   up: '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v11H4V10z"/><path d="M7 10l4-8a3 3 0 0 1 3 3v4h5.5a2 2 0 0 1 2 2.3l-1.3 8A2 2 0 0 1 18.2 21H7"/></svg>',
   down: '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 14V3h3v11z"/><path d="M17 14l-4 8a3 3 0 0 1-3-3v-4H4.5a2 2 0 0 1-2-2.3l1.3-8A2 2 0 0 1 5.8 3H17"/></svg>',
-  speak: '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>',
 };
 
 // Preview: the stored order IS the conversation (branches need it). Others:
@@ -826,7 +838,6 @@ function renderBubble(m) {
       <button type="button" class="cc-act" data-regen="${i}" aria-label="Regenerate reply">${I.regen}</button>
       <button type="button" class="cc-act ${m.fb === 1 ? "is-on" : ""}" data-fb="1" data-idx="${i}" aria-pressed="${m.fb === 1}" aria-label="Good reply">${I.up}</button>
       <button type="button" class="cc-act ${m.fb === -1 ? "is-on" : ""}" data-fb="-1" data-idx="${i}" aria-pressed="${m.fb === -1}" aria-label="Bad reply">${I.down}</button>
-      <button type="button" class="cc-act" data-speak="${i}" aria-label="Read aloud">${I.speak}</button>
     </div>` : `
     <div class="cc-actions-row">
       <button type="button" class="cc-act" data-copy aria-label="Copy reply">${I.copy}<span>Copy</span></button>
@@ -839,10 +850,44 @@ function renderBubble(m) {
   return `<div class="cc-row cc-row-bot"${streamAttr} data-i="${i}"><div class="cc-bot-col">${card}${m.text ? `<div class="${textCls}"><span class="msg-body">${body}</span></div>` : ""}${actions}</div></div>`;
 }
 
-// Cards draw after paint; their "ask" buttons send a question.
+// ---- Scrolling -------------------------------------------------------------------
+// The list follows new text only while the reader is at the bottom
+// (`_follow`, kept by the scroll listener in render()). Sending a message
+// always returns to the bottom. Repaints keep the reader's place.
+function composerHint() {
+  return isPreview() ? "Ask Saathi anything, or type / for tools" : "Ask Saathi anything";
+}
+function stickBottom(el, force = false) {
+  if (!el) return;
+  if (force) el._follow = true;
+  if (el._follow !== false) el.scrollTop = el.scrollHeight;
+}
+function paintList(el, html) {
+  const top = el.scrollTop;
+  el.innerHTML = html;
+  if (el._follow !== false) el.scrollTop = el.scrollHeight;
+  else el.scrollTop = top;
+  afterPaint(el);
+}
+
+// Cards draw after paint; their "ask" buttons send a question. A card grows
+// when its chart arrives, so the list re-sticks to the bottom as it does.
 function afterPaint(el) {
-  if (!el || !isPreview()) return;
-  hydrateCards(el, { onAsk: askFromCard });
+  if (!el) return;
+  if (typeof ResizeObserver === "function") {
+    const ro = el._ro || (el._ro = new ResizeObserver(() => stickBottom(el)));
+    el.querySelectorAll(".ss-card").forEach((c) => ro.observe(c));
+  }
+  if (!isPreview()) return;
+  hydrateCards(el, { onAsk: askFromCard, onRun: askFromCard, onFill: fillComposer });
+}
+function fillComposer(text) {
+  const input = document.getElementById("chat-input");
+  if (!input) return;
+  input.value = text;
+  input.focus();
+  input.setSelectionRange(text.length, text.length);
+  input.dispatchEvent(new Event("input"));
 }
 function askFromCard(q) {
   const input = document.getElementById("chat-input");
@@ -870,14 +915,20 @@ function syncFromCloud() {
     for (const t of threads) {
       cloudIds.add(t.id);
       const local = byId.get(t.id);
+      if (repairTurnOrder(t.messages)) pushThread(t);   // stored flipped before 19 Oct
       if (t.trashed) {
         if (local) { deleteSessionById(sessionsData, t.id); changed = true; }
         continue;
       }
-      if (local && (local.updatedAt || 0) > t.updatedAt + 2000 && (local.messages || []).length >= t.messages.length) {
+      // A chat rebuilt from the flat coach_messages log (fromLog) never beats
+      // the cloud document: it has no cards or versions, and before 19 Oct
+      // its order came from insert times. Uploading it is how replies ended
+      // up above their questions in chat_threads.
+      if (local && !local.fromLog && (local.updatedAt || 0) > t.updatedAt + 2000 && (local.messages || []).length >= t.messages.length) {
         pushThread(local);            // this device is newer: send it up
         continue;
       }
+      if (local) delete local.fromLog;
       const next = { ...(local || {}), id: t.id, title: t.title, pinned: t.pinned, archived: t.archived,
         messages: t.messages, pruned: t.pruned, createdAt: t.createdAt, updatedAt: t.updatedAt };
       if (local) {
@@ -888,7 +939,7 @@ function syncFromCloud() {
       } else { sessionsData.sessions.push(next); changed = true; }
     }
     for (const x of sessionsData.sessions) {
-      if (!cloudIds.has(x.id) && (x.messages || []).length) pushThread(x);
+      if (!cloudIds.has(x.id) && (x.messages || []).length) { repairTurnOrder(x.messages); pushThread(x); }
     }
     if (changed) {
       saveSessions(sessionsData);
@@ -913,30 +964,18 @@ async function runCommandReply(text) {
   try {
     const res = await runCommand(text);
     if (res.text == null && res.ask) { m_pending = false; return sendAndReply(res.ask); }
-    sess.messages.push({ role: "assistant", text: res.text || "I didn't catch that command. Type /help to see them.", card: res.card || undefined, ts: Date.now() });
+    sess.messages.push({ role: "assistant", text: res.text || "I didn't catch that command. Type /help to see them.", card: res.card || undefined, ts: nextTs(sess.messages) });
+    sess.updatedAt = Date.now();
     saveChat();
-    logChatTurn({ userText: text, assistantText: res.text || "", model: "command", sessionId: sess.id, surface: "chat_page" });
+    const reply = sess.messages.at(-1), q = sess.messages.at(-2);
+    logChatTurn({ userText: text, assistantText: res.text || "", model: "command", sessionId: sess.id, surface: "chat_page", userTs: q?.ts, replyTs: reply?.ts });
   } catch (e) {
     console.warn("[chat] command failed:", e);
-    sess.messages.push({ role: "assistant", text: "That command didn't work just now. Try again in a moment.", ts: Date.now() });
+    sess.messages.push({ role: "assistant", text: "That command didn't work just now. Try again in a moment.", ts: nextTs(sess.messages) });
     saveChat();
   } finally {
     m_pending = false;
   }
-}
-
-// ---- Read aloud ------------------------------------------------------------------
-function speakText(text, btn) {
-  const synth = window.speechSynthesis;
-  if (!synth) { toast({ kind: "info", message: "Read aloud isn't supported in this browser." }); return; }
-  if (synth.speaking) { synth.cancel(); document.querySelectorAll(".cc-act.is-speaking").forEach((b) => b.classList.remove("is-speaking")); return; }
-  const plain = String(text || "").replace(/[*_`#>]/g, "").replace(/\s+/g, " ").trim();
-  const u = new SpeechSynthesisUtterance(plain);
-  u.lang = getState()?.settings?.hinglish ? "hi-IN" : "en-IN";
-  u.rate = 1.02;
-  u.onend = u.onerror = () => btn?.classList.remove("is-speaking");
-  btn?.classList.add("is-speaking");
-  synth.speak(u);
 }
 
 // ---- Export --------------------------------------------------------------------
@@ -1256,11 +1295,13 @@ function renderTyping() {
 }
 
 function pushUser(text) {
-  chatLog.push({ role: "user", text, ts: Date.now() });
+  const sess = getActiveSession(sessionsData);
+  if (sess) delete sess.fromLog;   // this device is writing it now
+  chatLog.push({ role: "user", text, ts: nextTs(chatLog) });
   saveChat();
 }
 function pushAssistant(text) {
-  chatLog.push({ role: "assistant", text, ts: Date.now() });
+  chatLog.push({ role: "assistant", text, ts: nextTs(chatLog) });
   saveChat();
 }
 
@@ -1316,11 +1357,8 @@ async function sendAndReply(userText) {
     if (!isOwnerActive()) return;
     const messagesEl = outer?.querySelector("#chat-messages");
     if (messagesEl) {
-      messagesEl.innerHTML = "";
-      for (const m of bubbleOrder(ownerMessages)) messagesEl.innerHTML += renderBubble(m);
-      if (m_pending && !ownerMessages.at(-1)?.streaming) messagesEl.innerHTML += renderTyping();
-      messagesEl.scrollTop = messagesEl.scrollHeight;
-      afterPaint(messagesEl);
+      paintList(messagesEl, bubbleOrder(ownerMessages).map(renderBubble).join("") +
+        (m_pending && !ownerMessages.at(-1)?.streaming ? renderTyping() : ""));
     }
   };
 
@@ -1345,10 +1383,7 @@ async function sendAndReply(userText) {
       if (!el) return;
       const active = getActiveSession(sessionsData);
       if (!active || active.id !== ownerSessionId) return;
-      el.innerHTML = "";
-      for (const m of bubbleOrder(active.messages)) el.innerHTML += renderBubble(m);
-      el.scrollTop = el.scrollHeight;
-      afterPaint(el);
+      paintList(el, bubbleOrder(active.messages).map(renderBubble).join(""));
     } catch (e) {
       console.warn("[chat] finalPaint failed:", e);
     }
@@ -1367,7 +1402,7 @@ async function sendAndReply(userText) {
     if (inputNow) {
       inputNow.removeAttribute("readonly");
       inputNow.removeAttribute("disabled");
-      inputNow.placeholder = "Ask Saathi anything";
+      inputNow.placeholder = composerHint();
       // Same rationale as above — desktop auto-focus is fine, mobile
       // pops a keyboard the user didn't ask for.
       if (window.innerWidth >= 1024) inputNow.focus();
@@ -1427,7 +1462,7 @@ async function sendAndReply(userText) {
   // network work, so it saves the LLM call and the dossier build as intended.
   if (isOffTopic(userText)) {
     try {
-      ownerMessages.push({ role: "assistant", text: offTopicRedirect(userText), ts: Date.now() });
+      ownerMessages.push({ role: "assistant", text: offTopicRedirect(userText), ts: nextTs(ownerMessages) });
       if (isOwnerActive()) chatLog = ownerMessages;
       saveSessions(sessionsData);
       finalPaint();
@@ -1480,7 +1515,7 @@ Reply in English.`;
     let live = null;
     const showLive = (t, isStatus) => {
       if (!live) {
-        live = { role: "assistant", text: "", ts: Date.now(), streaming: true };
+        live = { role: "assistant", text: "", ts: nextTs(ownerMessages), streaming: true };
         ownerMessages.push(live);
         reRenderOuter();
       }
@@ -1505,7 +1540,7 @@ Reply in English.`;
       if (!bubble) { reRenderOuter(); return; }
       bubble.innerHTML = live.status ? statusHtml(live.text) : renderMarkdown(live.text);
       const msgs = outer?.querySelector("#chat-messages");
-      if (msgs) msgs.scrollTop = msgs.scrollHeight;
+      stickBottom(msgs);
     };
     // DECLARED HERE, NOT INSIDE THE try BELOW.
     //
@@ -1632,6 +1667,7 @@ You already offered to look this up and the user already asked. Do NOT ask again
       logChatTurn({
         userText, assistantText: finalText, model: "gemini-chat",
         sessionId: ownerSession.id, surface: "chat_page",
+        userTs: qIdx >= 0 ? ownerMessages[qIdx]?.ts : undefined, replyTs,
       });
     }
     if (isOwnerActive()) reRenderOuter();
@@ -1644,7 +1680,7 @@ You already offered to look this up and the user already asked. Do NOT ask again
   // SESSION, then append each token as it arrives. Even if the user
   // switches sessions mid-stream, tokens land in the right chat.
   const placeholderIdx = ownerMessages.length;
-  ownerMessages.push({ role: "assistant", text: "", ts: Date.now(), streaming: true });
+  ownerMessages.push({ role: "assistant", text: "", ts: nextTs(ownerMessages), streaming: true });
   reRenderOuter();
 
   // Typewriter drip — decouples Gemini's burst-y token arrivals (can
@@ -1681,7 +1717,7 @@ You already offered to look this up and the user already asked. Do NOT ask again
     if (streamBubble) {
       streamBubble.innerHTML = renderMarkdown(displayedText);
       const msgs = outerEl?.querySelector("#chat-messages");
-      if (msgs) msgs.scrollTop = msgs.scrollHeight;
+      stickBottom(msgs);
     } else {
       // Placeholder bubble's data-streaming flag not painted yet — fall
       // back to full re-render on the first couple of ticks.
@@ -1861,6 +1897,7 @@ Your earlier draft stated prices, moves or events that were not looked up. Call 
       logChatTurn({
         userText, assistantText: entry.text, model: "gemini-chat",
         sessionId: ownerSession.id, surface: "chat_page",
+        userTs: ownerMessages[placeholderIdx - 1]?.ts, replyTs: entry.ts,
       });
     }
   }

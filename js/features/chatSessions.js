@@ -14,6 +14,7 @@
 // so it stays meaningful even if the user deletes the original prompt.
 // =============================================================================
 
+import { byTurn, repairTurnOrder } from "./chatOrder.js";
 export const SESSIONS_KEY = "ss.chat.sessions.v1";
 // Renames, pins and deletions live in their own key. For a signed-in user the
 // sessions envelope is rebuilt from coach_messages on every boot, which used
@@ -76,6 +77,8 @@ export function loadSessions() {
       if (data && Array.isArray(data.sessions) && data.sessions.length) {
         // Repair: ensure every session has required fields + activeId exists
         data.sessions = data.sessions.filter(s => s && s.id && Array.isArray(s.messages));
+        // Chats stored with a reply above its question (chatOrder.js).
+        for (const s of data.sessions) repairTurnOrder(s.messages);
         applyMeta(data);
         if (!data.sessions.length) data.sessions = [createBlank()];
         if (!data.sessions.find(s => s.id === data.activeId)) {
@@ -154,7 +157,8 @@ function mergeStored(data) {
       added = true;
     }
     if (added) {
-      s.messages.sort((a, b) => (a?.ts || 0) - (b?.ts || 0));
+      s.messages.sort(byTurn);
+      repairTurnOrder(s.messages);
       if (!s.title || s.title === "New chat") s.title = deriveTitle(s.messages);
     }
     s.updatedAt = Math.max(s.updatedAt || 0, other.updatedAt || 0);

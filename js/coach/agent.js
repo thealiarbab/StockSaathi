@@ -1279,25 +1279,31 @@ function isPreambleBlock(block) {
 // missing values fall back to the 30-min time-gap session heuristic for
 // legacy rows. Fire-and-forget: any DB error never affects the chat UX.
 // -----------------------------------------------------------------------------
-export async function logChatTurn({ userText, assistantText, model, sessionId, surface }) {
+// The two rows go in one after the other, and each carries the client's own
+// timestamp (payload.ts). Sent in parallel, the reply's row often reached the
+// server first and got the earlier created_at, so the chat rebuilt from these
+// rows showed the answer above its question (see features/chatOrder.js).
+export async function logChatTurn({ userText, assistantText, model, sessionId, surface, userTs, replyTs }) {
   try {
     const mod = await import("../db/sync.js");
     if (!mod?.dbAddCoachMessage) return;
+    const rTs = replyTs || Date.now();
+    const uTs = userTs && userTs < rTs ? userTs : rTs - 1;
     if (userText && userText.trim()) {
-      mod.dbAddCoachMessage({
+      await mod.dbAddCoachMessage({
         eventType: "chat_user",
         triggerSymbol: null,
-        payload: { text: String(userText).slice(0, 4000) },
+        payload: { text: String(userText).slice(0, 4000), ts: uTs },
         model: null,
         sessionId: sessionId || null,
         surface: surface || null,
       }).catch(() => {});
     }
     if (assistantText && assistantText.trim()) {
-      mod.dbAddCoachMessage({
+      await mod.dbAddCoachMessage({
         eventType: "chat_assistant",
         triggerSymbol: null,
-        payload: { text: String(assistantText).slice(0, 8000) },
+        payload: { text: String(assistantText).slice(0, 8000), ts: rTs },
         model: model || null,
         sessionId: sessionId || null,
         surface: surface || null,

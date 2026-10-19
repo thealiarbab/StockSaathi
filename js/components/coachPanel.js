@@ -6,6 +6,7 @@
 
 import { getState, subscribe, setSetting } from "../state.js";
 import { track } from "../features/track.js";
+import { nextTs, byTurn, repairTurnOrder } from "../features/chatOrder.js";
 import { getInstrument } from "../data/universe.js";
 import { getNews } from "../data/news.js";
 import { formatRupees, formatPct } from "../money.js";
@@ -41,7 +42,12 @@ const SAATHI_NO_TOOLS = `${SYSTEM_PROMPT}\n\n${NO_TOOLS_NOTE}`;
 const SAATHI_SYSTEM = `${SYSTEM_PROMPT}\n\n# TOOL USE\nYou have tools for live data: get_stock_price, get_crypto_price, search_stocks, get_market_news, get_user_portfolio, get_trade_history, get_watchlist, get_limit_orders, get_fundamentals. USE them whenever the user asks about any specific stock, crypto, market state, company fundamentals (profit, EPS, ROE, P/E, debt, market cap), or their portfolio. Never guess numbers — always call the tool.`;
 
 function loadChat() {
-  try { const raw = localStorage.getItem(CHAT_LOG_KEY); return raw ? JSON.parse(raw) : []; }
+  try {
+    const raw = localStorage.getItem(CHAT_LOG_KEY);
+    const log = raw ? JSON.parse(raw) : [];
+    if (Array.isArray(log)) repairTurnOrder(log);
+    return Array.isArray(log) ? log : [];
+  }
   catch { return []; }
 }
 
@@ -68,7 +74,7 @@ function saveChat() {
       for (const m of stored) {
         if (m && !have.has(`${m.role}:${m.ts}`)) { chatHistory.push(m); added = true; }
       }
-      if (added) chatHistory.sort((a, b) => (a?.ts || 0) - (b?.ts || 0));
+      if (added) { chatHistory.sort(byTurn); repairTurnOrder(chatHistory); }
     }
   } catch {}
   // Cap to the last 80 messages. On QuotaExceededError, progressively halve
@@ -524,7 +530,7 @@ function render() {
     const text = input.value.trim();
     if (!text || pending) return;
     input.value = "";
-    chatHistory.push({ role: "user", text, ts: Date.now() });
+    chatHistory.push({ role: "user", text, ts: nextTs(chatHistory) });
     saveChat();
     pending = true;
     render();
@@ -541,7 +547,7 @@ function render() {
     if (!deictic && !needsLiveData(text, chatHistory.slice(-9, -1))) {
       abortController = new AbortController();
       const placeholderIdx = chatHistory.length;
-      chatHistory.push({ role: "assistant", text: "", ts: Date.now(), streaming: true });
+      chatHistory.push({ role: "assistant", text: "", ts: nextTs(chatHistory), streaming: true });
       render();
       const dossier = await buildDossier();
       const newsContext = newsSnap.slice(0, 5).map(n => `- ${n.headline} (${n.source}) [${n.sentiment}]`).join("\n");
@@ -679,7 +685,7 @@ function render() {
       logChatTurn({ userText: text, assistantText: reply, model: "gemini-chat-tools", surface: "side_panel" });
     }
 
-    chatHistory.push({ role: "assistant", text: reply, ts: Date.now() });
+    chatHistory.push({ role: "assistant", text: reply, ts: nextTs(chatHistory) });
     saveChat();
     pending = false;
     render();

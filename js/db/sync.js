@@ -9,6 +9,7 @@ import { sb, isSupabaseEnabled } from "./supabase.js";
 import { getState, setState, subscribe as subscribeState } from "../state.js";
 import { refreshCurrentUser, currentUser } from "../auth/accounts.js";
 import { go } from "../navigation.js";
+import { byTurn, repairTurnOrder } from "../features/chatOrder.js";
 
 let _booted = false;
 let _syncing = false;
@@ -348,6 +349,28 @@ const usableMsg = (m) => m && !m.streaming && (m.role === "user" || m.role === "
  * a chat started a moment ago whose first turn is still in flight.
  * Call only after enforceChatCacheOwner(), so the cache is this user's.
  */
+// The DB log is one flat line of text per turn. The copy on this device may
+// hold more: command cards, edited and regenerated versions, feedback, pins.
+// Where this device's chat has at least as many messages as the log, keep
+// it; the rebuild used to replace it with the flat text, which dropped every
+// card and put the log's (then misordered) turns on screen. A chat taken
+// from the log is marked fromLog, so the cloud copy (chat_threads) wins over
+// it on the chat page.
+function keepRicherLocal(sessions) {
+  const local = readLocalJson(SESSIONS_LS_KEY);
+  const byId = new Map((local?.sessions || []).filter(x => x?.id && Array.isArray(x.messages)).map(x => [x.id, x]));
+  for (let i = 0; i < sessions.length; i++) {
+    const db = sessions[i], ls = byId.get(db.id);
+    if (ls && ls.messages.filter(usableMsg).length >= db.messages.length) {
+      repairTurnOrder(ls.messages);
+      sessions[i] = { ...ls, updatedAt: Math.max(ls.updatedAt || 0, db.updatedAt || 0) };
+      delete sessions[i].fromLog;
+    } else {
+      db.fromLog = true;
+    }
+  }
+}
+
 function mergeLocalChatTail(sessions, coachLog) {
   const SKEW_MS = 2_000;
 
@@ -463,7 +486,12 @@ export function rebuildChatSessionsFromDb(coachMessagesRows, userId = null) {
   const chatRows = coachMessagesRows
     .filter(r => r && typeof r.event_type === "string" &&
       (r.event_type === "chat_user" || r.event_type === "chat_assistant"))
-    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    // The client's own timestamp when the row has one (payload.ts, since
+    // 19 Oct): created_at is when the insert landed, and the reply's insert
+    // used to land before its question's. On a tie the question goes first.
+    .map(r => ({ ...r, _ts: Number(r.payload?.ts) || new Date(r.created_at).getTime() }))
+    .sort((a, b) => byTurn({ ts: a._ts, role: a.event_type === "chat_user" ? "user" : "assistant" },
+                           { ts: b._ts, role: b.event_type === "chat_user" ? "user" : "assistant" }));
   if (!chatRows.length) return;
 
   // Split by surface. Legacy rows (surface=NULL, pre-v142) belong to the
@@ -489,7 +517,7 @@ export function rebuildChatSessionsFromDb(coachMessagesRows, userId = null) {
   let cur = null;
   let lastTs = 0;
   for (const r of chatPageRows) {
-    const ts = new Date(r.created_at).getTime();
+    const ts = r._ts;
     const rowSid = r.session_id || null;
     let startNew = false;
     if (!cur) startNew = true;
@@ -528,8 +556,10 @@ export function rebuildChatSessionsFromDb(coachMessagesRows, userId = null) {
   const coachLog = sidePanelRows.map(r => ({
     role: r.event_type === "chat_user" ? "user" : "assistant",
     text: r.payload?.text || "",
-    ts: new Date(r.created_at).getTime(),
+    ts: r._ts,
   }));
+  for (const s of sessions) repairTurnOrder(s.messages);
+  repairTurnOrder(coachLog);
 
   // Keep the turns this device has that the DB does not yet. This rebuild
   // used to REPLACE the local cache with the DB snapshot fetched at boot, so
@@ -539,6 +569,7 @@ export function rebuildChatSessionsFromDb(coachMessagesRows, userId = null) {
   // newest DB row are carried over, so cleaned-up local copies of turns the
   // DB already holds are not duplicated.
   mergeLocalChatTail(sessions, coachLog);
+  keepRicherLocal(sessions);
 
   let touched = false;
   if (sessions.length) {
