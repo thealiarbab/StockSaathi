@@ -116,7 +116,7 @@ async function orderLandedAfterTimeout(symbol, side, qty) {
       && new Date(o.created_at).getTime() >= since);
   } catch { return false; }
 }
-const ORDER_TIMEOUT_MS = 35_000;
+const ORDER_TIMEOUT_MS = 30_000;
 const ORDER_TIMEOUT_MSG = "The server didn't answer in time, so we couldn't confirm this order. Check pending orders on your Portfolio before placing it again.";
 
 // Compute today's IST market session boundaries (09:15 → 15:30) as ms
@@ -300,6 +300,12 @@ export function renderStockDetail(main, params) {
     main.innerHTML = `<div class="empty-state"><span class="emoji">🔍</span><h3>Instrument not found</h3><p>Symbol "${symbol}" isn't in the universe.</p><a href="/stocks" class="btn btn-primary">Back</a></div>`;
     return;
   }
+
+  // The panic-sell pause reads a year of real closes. Fetched only on the
+  // Sell tap, it sat in front of the order (11 s of a 19 Oct limit sell was
+  // this plus a quote fetch, before the RPC). Load it now, in the background,
+  // for anything the user holds.
+  if (getState().holdings?.[symbol] && inst.kind !== "MF") primeRealCloses(symbol);
 
   // Cancel any previous mount's pending work
   _cancelToken.cancelled = true;

@@ -143,24 +143,15 @@ export async function placeLimitOrder({ symbol, side, qty, limitPricePaise, orde
     throw new Error("Limit price must be greater than ₹0.");
   }
   if (side !== "BUY" && side !== "SELL") throw new Error("Side must be BUY or SELL.");
-  // Give the server its own price for this symbol before placing. Since
-  // 2026-09-27 place_limit_order refuses a symbol with no quote_cache row —
-  // the same rule the matcher fills by — because the page falls back to an
-  // INVENTED price (prices.js synthetic walk) when it has none, and orders at
-  // invented prices sat forever with cash reserved. The stock page itself
-  // reads /api/quote, which does not write quote_cache; /api/live-quote does.
-  // Best-effort: a failure here just lets the RPC give the real answer.
-  //
-  // Capped at 6 s. It used to be unbounded and shared the caller's 25 s
-  // budget with the RPC: a cold /api/live-quote plus Yahoo's 8 s batch on an
-  // SME stock (ALKOSIGN, 19 Oct) ate the whole budget, the RPC was never
-  // sent, and the user was told "Supabase may be unreachable".
-  if (!symbol.startsWith("MF_")) {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 6_000);
-    try { await fetch(`/api/live-quote?symbols=${encodeURIComponent(symbol)}`, { signal: ctrl.signal }); } catch {}
-    finally { clearTimeout(timer); }
-  }
+  // Placing an order is ONE database call. There used to be an awaited
+  // fetch('/api/live-quote') here, so place_limit_order would find a
+  // quote_cache row. On 19 Oct that round trip to our API took 23.7 s on a
+  // user's phone (Vercel ran it in under 0.5 s; Supabase saw nothing until
+  // the insert) and the order died on the 25 s timeout as "Supabase may be
+  // unreachable". The RPC now takes its reference price from quote_cache or
+  // the exchange's own close (migration 2026-10-19a), so it needs nothing
+  // from the browser but the order. Never put another network hop in front
+  // of this RPC.
   // NO pre-flight getSession in v136 — see the block comment above.
   // The RPC call itself enforces auth via RLS; missing/expired JWT
   // bubbles back as a PostgREST error we can catch below.
@@ -174,7 +165,7 @@ export async function placeLimitOrder({ symbol, side, qty, limitPricePaise, orde
       p_limit_price_paise: Math.round(limitPricePaise),
       p_order_type: orderType,
     }),
-    22_000,
+    25_000,
     "place_limit_order"
   ).catch((e) => {
     const err = new Error("The server didn't answer in time, so we couldn't confirm this order. Check pending orders on your Portfolio before placing it again.");
