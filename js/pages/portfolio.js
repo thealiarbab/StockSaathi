@@ -29,6 +29,7 @@ import { getNews, fmtRelativeTime, labelSentiment } from "../data/news.js";
 import { stockChart, attachStockChartHover } from "../components/charts.js";
 import { attachChartZoom } from "../components/chartZoom.js";
 import { fetchDigest, cachedDigest } from "../features/portfolioDigest.js";
+import { computeTradeStats } from "../data/tradeStats.js";
 
 let newsItems = [];
 let quoteCache = {};
@@ -533,6 +534,14 @@ export function renderPortfolio(main) {
     const start = state.portfolio.startingCashPaise;
     const deltaPaise = pfValue - start;
     const returnPct = start ? deltaPaise / start : 0;
+    // The "since start" number mixes two different things a teenager needs
+    // kept apart: profit/loss already BOOKED by selling (it is in cash now)
+    // and profit/loss ON PAPER in what they still hold. A sell's proceeds
+    // are not a gain -- selling ₹12,593 of stock at a ₹28/share loss is a
+    // loss, even though cash went up by ₹12,593.
+    const tradeStats = computeTradeStats(state.transactions);
+    const bookedPaise = tradeStats.realisedPaise;
+    const paperPaise = holdings.reduce((n, h) => n + (h.priceReady && Number.isFinite(h.pl) ? h.pl : 0), 0);
 
     const src = getDataSource();
     // Hotfix66a: state.portfolioHistory is populated by sync.js with
@@ -576,6 +585,11 @@ export function renderPortfolio(main) {
           <div class="pf-delta tabular ${deltaClass(deltaPaise)}">
             ${formatRupees(deltaPaise, { sign: true })} (${formatPct(returnPct, { sign: true })}) since start
           </div>
+          ${state.transactions.length ? `
+          <div class="pf-split tabular">
+            <span title="Profit or loss you locked in by selling. It is already in your cash.">Booked by selling <strong class="${deltaClass(bookedPaise)}">${formatRupees(bookedPaise, { sign: true })}</strong></span>
+            <span title="Profit or loss on shares you still hold, at today's price. It changes until you sell.">On paper (still holding) <strong class="${allPriced ? deltaClass(paperPaise) : ""}">${allPriced ? formatRupees(paperPaise, { sign: true }) : "…"}</strong></span>
+          </div>` : ""}
         </div>
         <div class="flex gap-2 wrap">
           <a href="/stocks" class="btn btn-primary">+ Invest</a>
@@ -973,16 +987,34 @@ function renderActivity(state) {
   if (!txns.length) {
     return `<p class="muted text-sm" style="text-align: center; padding: var(--sp-4);">No activity yet. Your trades will show here.</p>`;
   }
+  // Realised P&L per SELL, from the same running-average-cost walk the
+  // report card and the coach use. The amount column used to show a SELL's
+  // proceeds as a green "+₹12,593", which read as a ₹12,593 profit on a sale
+  // that actually lost ₹196. Proceeds are cash moving, not a gain.
+  const plById = new Map(computeTradeStats(state.transactions).sells.map(x => [x.id, x]));
   const rows = [];
   for (const t of txns) {
     const inst = getInstrument(t.symbol);
+    const sell = t.side === "SELL" ? plById.get(t.id) : null;
+    let amount, ac, cashLine, label;
+    if (sell) {
+      amount = formatRupees(sell.plPaise, { sign: true, compact: true });
+      ac = deltaClass(sell.plPaise);
+      label = sell.plPaise > 0 ? "profit" : sell.plPaise < 0 ? "loss" : "no gain";
+      cashLine = `${formatRupees(t.valuePaise, { compact: true })} back to cash · avg cost ${formatRupees(sell.avgCostPaise)}`;
+    } else if (t.side === "SELL") {
+      amount = formatRupees(t.valuePaise, { compact: true });
+      ac = ""; label = "to cash"; cashLine = "";
+    } else {
+      amount = formatRupees(t.valuePaise, { compact: true });
+      ac = ""; label = "invested"; cashLine = "";
+    }
     rows.push({
       type: "trade",
       ts: t.ts,
       left: `<span class="pill ${t.side === "BUY" ? "pill-green" : "pill-red"}">${t.side}</span> ${inst ? escapeHtml(inst.name) : t.symbol}`,
       right: `${formatQty(t.qty, inst?.kind)} @ ${formatRupees(t.pricePaise)}`,
-      amount: (t.side === "BUY" ? "−" : "+") + formatRupees(t.valuePaise, { compact: true }),
-      ac: t.side === "BUY" ? "down" : "up",
+      amount, ac, cashLine, label,
     });
   }
   rows.sort((a, b) => b.ts - a.ts);
@@ -993,12 +1025,16 @@ function renderActivity(state) {
         const d = new Date(r.ts);
         const when = d.toLocaleDateString("en-IN", { day: "2-digit", month: "short" }) + " · " + d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
         return `
-          <div class="flex items-center justify-between" style="padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r); background: var(--surface);">
-            <div>
+          <div class="pf-act-row">
+            <div class="pf-act-main">
               <div class="text-md">${r.left}</div>
               <div class="dim text-xs">${when} · ${r.right}</div>
+              ${r.cashLine ? `<div class="dim text-xs">${r.cashLine}</div>` : ""}
             </div>
-            <div class="num font-bold ${r.ac}">${r.amount}</div>
+            <div class="pf-act-amt">
+              <div class="num font-bold ${r.ac}">${r.amount}</div>
+              <div class="dim text-xs">${r.label}</div>
+            </div>
           </div>
         `;
       }).join("")}

@@ -150,8 +150,16 @@ export async function placeLimitOrder({ symbol, side, qty, limitPricePaise, orde
   // invented prices sat forever with cash reserved. The stock page itself
   // reads /api/quote, which does not write quote_cache; /api/live-quote does.
   // Best-effort: a failure here just lets the RPC give the real answer.
+  //
+  // Capped at 6 s. It used to be unbounded and shared the caller's 25 s
+  // budget with the RPC: a cold /api/live-quote plus Yahoo's 8 s batch on an
+  // SME stock (ALKOSIGN, 19 Oct) ate the whole budget, the RPC was never
+  // sent, and the user was told "Supabase may be unreachable".
   if (!symbol.startsWith("MF_")) {
-    try { await fetch(`/api/live-quote?symbols=${encodeURIComponent(symbol)}`); } catch {}
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 6_000);
+    try { await fetch(`/api/live-quote?symbols=${encodeURIComponent(symbol)}`, { signal: ctrl.signal }); } catch {}
+    finally { clearTimeout(timer); }
   }
   // NO pre-flight getSession in v136 — see the block comment above.
   // The RPC call itself enforces auth via RLS; missing/expired JWT
@@ -166,9 +174,14 @@ export async function placeLimitOrder({ symbol, side, qty, limitPricePaise, orde
       p_limit_price_paise: Math.round(limitPricePaise),
       p_order_type: orderType,
     }),
-    25_000,
+    22_000,
     "place_limit_order"
-  );
+  ).catch((e) => {
+    const err = new Error("The server didn't answer in time, so we couldn't confirm this order. Check pending orders on your Portfolio before placing it again.");
+    err.isTimeout = /timed out/.test(String(e?.message));
+    if (!err.isTimeout) throw e;
+    throw err;
+  });
   console.info(`[limit] RPC done in ${Date.now() - t0}ms`, { ok: !error, hasData: !!data });
   if (error) {
     console.error("[limit] RPC error:", error);

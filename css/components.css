@@ -462,6 +462,45 @@
   border: 2px solid var(--surface);
 }
 
+/* Dragged bubble: placed by top, snapped to a side, or tucked into the edge
+   as a small tab (js/components/coachPanel.js wireFabDrag). */
+.coach-fab { touch-action: none; user-select: none; -webkit-user-select: none; }
+.coach-fab.is-placed { bottom: auto !important; }
+.coach-fab.is-left { right: auto; left: calc(var(--sp-5) + env(safe-area-inset-left)); }
+.coach-fab.is-dragging { transition: none; transform: scale(1.06); box-shadow: var(--sh-lg); }
+.coach-fab.is-tucked { right: 0; opacity: 0.9; transform: translateX(62%); }
+.coach-fab.is-tucked.is-left { right: auto; left: 0; transform: translateX(-62%); }
+.coach-fab.is-tucked:hover, .coach-fab.is-tucked:focus-visible { transform: translateX(50%); }
+.coach-fab.is-tucked.is-left:hover, .coach-fab.is-tucked.is-left:focus-visible { transform: translateX(-50%); }
+
+/* Panel, /chat look: the cc-* message and composer styles come from the
+   chat page; these only fit them into a narrow drawer. */
+.coach-header-actions { display: flex; align-items: center; gap: 6px; }
+.coach-header-name { font-size: var(--text-md); font-weight: 700; color: var(--text-strong); line-height: 1.2; }
+.coach-header-sub { font-size: 11px; font-weight: 400; color: var(--text-dim); }
+.coach-full { width: 36px; height: 36px; padding: 0; justify-content: center; color: var(--text-muted); }
+.coach-panel .coach-close.cc-chip-btn { height: 36px; }
+.coach-panel .coach-messages.cc-messages { background: var(--bg-soft); gap: 18px; padding: var(--sp-4); }
+.coach-panel .cc-bubble { font-size: var(--text-md); }
+.coach-panel .cc-user { max-width: 85%; }
+.coach-panel .cc-bot-col { max-width: 100%; }
+.coach-panel .cc-typing { padding: 6px 0; }
+.coach-empty-cc { margin: auto; padding: var(--sp-6) var(--sp-2); }
+.coach-empty-title { font-size: var(--text-xl); }
+.coach-panel .cc-starter { text-align: left; font-size: var(--text-xs); }
+.coach-composer.cc-composer.composer { flex-direction: column; align-items: stretch; gap: 6px; padding: 8px 12px calc(10px + env(safe-area-inset-bottom)); }
+.coach-composer .composer-shell { padding: 6px 6px 6px 16px; }
+.coach-composer .composer-input { font-size: 16px; }
+.coach-foot { margin: 0; text-align: center; font-size: 11px; color: var(--text-dim); }
+.coach-trade-card {
+  padding: 10px 14px; border-radius: 14px;
+  background: var(--surface-elev); border: 1px solid var(--border);
+  font-size: var(--text-md); line-height: 1.55; color: var(--text);
+}
+.coach-trade-card.caution { border-color: var(--warning); background: var(--warning-soft); }
+.coach-trade-card.strong-caution { border-color: var(--negative); background: var(--negative-soft); }
+.coach-trade-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: var(--text-xs); color: var(--text-dim); }
+
 @media (min-width: 1280px) { .coach-fab { display: none; } }
 @media (max-width: 1279px) {
   body.coach-docked { padding-right: 0; }
@@ -1465,6 +1504,29 @@ table.compare { min-width: 560px; }
   margin-top: 6px;
   font-weight: 600;
 }
+.pf-split {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px var(--sp-4);
+  margin-top: 8px;
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+}
+.pf-split strong { font-family: var(--font-mono); font-weight: 700; }
+/* Recent activity: the amount column must never wrap its sign onto its own
+   line ("+" above "₹9,827" on a phone). */
+.pf-act-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  background: var(--surface);
+}
+.pf-act-main { flex: 1 1 auto; min-width: 0; }
+.pf-act-amt { text-align: right; flex: 0 0 auto; white-space: nowrap; }
 .portfolio-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -5887,3 +5949,4 @@ body.chat-app { overflow: hidden; }
 @keyframes btn-nudge { 0%, 100% { transform: scale(1); } 40% { transform: scale(1.04); box-shadow: 0 0 0 4px var(--accent-soft, rgba(16,185,129,.25)); } }
 .nudge { animation: btn-nudge .6s var(--ease, ease) 2; }
 @media (prefers-reduced-motion: reduce) { .nudge { animation: none; outline: 2px solid currentColor; } }
+.coach-full svg { width: 18px; height: 18px; flex: 0 0 auto; }

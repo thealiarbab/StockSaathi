@@ -104,6 +104,21 @@ async function withRequestTimeout(promiseFactory, { timeoutMs, timeoutMessage })
   }
 }
 
+// A placeLimitOrder that timed out may still have landed: the RPC can commit
+// after the browser gave up on it. Look before telling the user it failed,
+// so they neither re-place a duplicate nor think a real order vanished.
+async function orderLandedAfterTimeout(symbol, side, qty) {
+  try {
+    const list = await listPendingOrders();
+    const since = Date.now() - 2 * 60_000;
+    return Array.isArray(list) && list.some(o =>
+      o.symbol === symbol && o.side === side && Math.abs(Number(o.qty) - qty) < 1e-6
+      && new Date(o.created_at).getTime() >= since);
+  } catch { return false; }
+}
+const ORDER_TIMEOUT_MS = 35_000;
+const ORDER_TIMEOUT_MSG = "The server didn't answer in time, so we couldn't confirm this order. Check pending orders on your Portfolio before placing it again.";
+
 // Compute today's IST market session boundaries (09:15 → 15:30) as ms
 // timestamps. Using an explicit "+05:30" offset string makes this work
 // regardless of the user's machine timezone — pacific, eastern,
@@ -1964,11 +1979,11 @@ async function _reviewTrade(inst, symbol, curPrice, holding) {
       // that hasn't come back is genuinely broken.
       const res = await withRequestTimeout(
         () => placeLimitOrder({ symbol, side: ui.side, qty, limitPricePaise: limitPaise, orderType: atOpen ? "AMO_MARKET" : "LIMIT" }),
-        {
-          timeoutMs: 25_000,
-          timeoutMessage: "This is taking too long. Check Orders before trying again: it may already be queued.",
-        },
-      );
+        { timeoutMs: ORDER_TIMEOUT_MS, timeoutMessage: ORDER_TIMEOUT_MSG },
+      ).catch(async (e) => {
+        if ((e?.isTimeout || e?.message === ORDER_TIMEOUT_MSG) && await orderLandedAfterTimeout(symbol, ui.side, qty)) return { recovered: true };
+        throw e;
+      });
       console.log("[AMO] placed", res);
       toast({
         kind: "success",
@@ -2050,11 +2065,11 @@ async function _reviewTrade(inst, symbol, curPrice, holding) {
     try {
       await withRequestTimeout(
         () => placeLimitOrder({ symbol, side: ui.side, qty, limitPricePaise: limitPaise }),
-        {
-          timeoutMs: 25_000,
-          timeoutMessage: "Limit order timed out after 25s — Supabase may be unreachable. Check console.",
-        },
-      );
+        { timeoutMs: ORDER_TIMEOUT_MS, timeoutMessage: ORDER_TIMEOUT_MSG },
+      ).catch(async (e) => {
+        if ((e?.isTimeout || e?.message === ORDER_TIMEOUT_MSG) && await orderLandedAfterTimeout(symbol, ui.side, qty)) return { recovered: true };
+        throw e;
+      });
       toast({ kind: "success", message: `${ui.side} limit placed: ${formatQty(qty, inst.kind)} ${symbol} @ ₹${limitRupees.toFixed(2)}. Fills automatically when market crosses.` });
     } catch (e) {
       console.error("[limit] placeLimitOrder failed:", e);
@@ -2072,7 +2087,13 @@ async function _reviewTrade(inst, symbol, curPrice, holding) {
   // one. Stocks with no feed today (mostly SME) can only take limit orders.
   const fresh = await freshTradeQuote(inst);
   if (fresh && !fresh.live) {
-    toast({ kind: "error", message: `No live price for ${symbol} right now: it hasn't traded yet today. Switch to Limit and set your price.`, duration: 7000 });
+    // Do the switch for them. The old toast said "Switch to Limit" and
+    // stayed up for 7 s, so a user who did switch saw it sitting over the
+    // Limit tab and read it as the Limit order failing too.
+    ui.orderType = "LIMIT";
+    ui.limitPrice = (fresh.pricePaise / 100).toFixed(2);
+    render(inst, symbol);
+    toast({ kind: "info", message: `${symbol} hasn't traded yet today, so there's no live price for a market order. Switched to Limit at the last price (₹${ui.limitPrice}). Check the price, then place it.`, duration: 7000 });
     return;
   }
   if (fresh) curPrice = fresh.pricePaise;

@@ -225,11 +225,16 @@ export function mountCoachPanel() {
   fab.setAttribute("aria-label", "Open coach");
   fab.innerHTML = `<span>💬</span>`;
   fab.addEventListener("click", () => {
+    if (fabDrag.suppressClick) { fabDrag.suppressClick = false; return; }
+    if (fabPos.tucked) { fabPos.tucked = false; saveFabPos(); placeFab(); return; }
     const opening = !getState().settings.coachPanelOpen;
     setSetting("coachPanelOpen", opening);
     if (opening) track("coach_open", location.pathname.startsWith("/a/") ? "/a/[redacted]" : location.pathname);
   });
   document.body.appendChild(fab);
+  wireFabDrag();
+  placeFab();
+  window.addEventListener("resize", placeFab);
 
   let wasOpenLastTick = false;
   let wasDrawerLastTick = false;
@@ -266,7 +271,8 @@ export function mountCoachPanel() {
   const applyVisibility = () => {
     const allowed = isCoachAllowed();
     const state = getState();
-    fab.style.display = allowed ? "" : "none";
+    // Not on /chat: that page IS Saathi, and the bubble sat on its Send button.
+    fab.style.display = allowed && !/^\/chat\/?$/.test(location.pathname) ? "" : "none";
     if (!allowed) {
       document.body.classList.remove("coach-docked");
       root.classList.remove("open");
@@ -315,6 +321,105 @@ export function mountCoachPanel() {
   subscribe(applyVisibility);
 }
 
+// ---- Draggable bubble ------------------------------------------------------
+// The bubble sat bottom-right on every page and covered whatever was there
+// (the Send button on /chat, the last row of a list). Drag it anywhere up or
+// down; let go and it snaps to the nearer side. Fling it into the side and it
+// tucks away as a small tab at the edge; tap the tab to bring it back.
+const FAB_POS_KEY = "ss.coachfab.v1";
+const FAB_SIZE = 52;
+let fabPos = loadFabPos();          // { side: "left"|"right", y: 0..1 | null, tucked: bool }
+const fabDrag = { active: false, moved: false, suppressClick: false };
+
+function loadFabPos() {
+  try {
+    const p = JSON.parse(localStorage.getItem(FAB_POS_KEY) || "null");
+    if (p && (p.side === "left" || p.side === "right")) {
+      return { side: p.side, y: Number.isFinite(p.y) ? Math.min(1, Math.max(0, p.y)) : null, tucked: !!p.tucked };
+    }
+  } catch {}
+  return { side: "right", y: null, tucked: false };
+}
+function saveFabPos() {
+  try { localStorage.setItem(FAB_POS_KEY, JSON.stringify(fabPos)); } catch {}
+}
+
+// Vertical room the bubble may use: below the top nav, above the bottom tab bar.
+function fabBounds() {
+  const top = 72;
+  const bottomBar = window.innerWidth <= 820 ? 84 : 16;
+  const bottom = Math.max(top + 1, window.innerHeight - bottomBar - FAB_SIZE);
+  return { top, bottom };
+}
+
+function placeFab() {
+  if (!fab) return;
+  fab.classList.toggle("is-left", fabPos.side === "left");
+  fab.classList.toggle("is-tucked", !!fabPos.tucked);
+  fab.setAttribute("aria-label", fabPos.tucked ? "Show coach button" : "Open coach");
+  if (fabPos.y == null && fabPos.side === "right") {
+    fab.classList.remove("is-placed");
+    fab.style.top = "";
+    return;
+  }
+  const { top, bottom } = fabBounds();
+  const y = fabPos.y == null ? bottom : top + fabPos.y * (bottom - top);
+  fab.classList.add("is-placed");
+  fab.style.top = `${Math.round(y)}px`;
+}
+
+function wireFabDrag() {
+  let startX = 0, startY = 0, startTop = 0, lastX = 0, lastT = 0, vx = 0;
+  fab.style.touchAction = "none";
+  fab.addEventListener("pointerdown", (e) => {
+    if (e.button != null && e.button !== 0) return;
+    fabDrag.active = true; fabDrag.moved = false;
+    startX = lastX = e.clientX; startY = e.clientY; lastT = e.timeStamp; vx = 0;
+    startTop = fab.getBoundingClientRect().top;
+    try { fab.setPointerCapture(e.pointerId); } catch {}
+  });
+  fab.addEventListener("pointermove", (e) => {
+    if (!fabDrag.active) return;
+    const dx = e.clientX - startX, dy = e.clientY - startY;
+    if (!fabDrag.moved && Math.hypot(dx, dy) < 8) return;
+    if (!fabDrag.moved) {
+      fabDrag.moved = true;
+      fab.classList.add("is-dragging", "is-placed");
+      fab.classList.remove("is-tucked");
+    }
+    const dt = Math.max(1, e.timeStamp - lastT);
+    vx = (e.clientX - lastX) / dt;          // px per ms, for the fling
+    lastX = e.clientX; lastT = e.timeStamp;
+    const { top, bottom } = fabBounds();
+    const y = Math.min(bottom, Math.max(top, startTop + dy));
+    fab.style.top = `${Math.round(y)}px`;
+    // Follow the finger sideways too, so the snap reads as a snap.
+    fab.style.left = `${Math.round(e.clientX - FAB_SIZE / 2)}px`;
+    fab.style.right = "auto";
+  });
+  const end = (e) => {
+    if (!fabDrag.active) return;
+    fabDrag.active = false;
+    if (!fabDrag.moved) return;
+    fabDrag.suppressClick = true;
+    setTimeout(() => { fabDrag.suppressClick = false; }, 400);
+    fab.classList.remove("is-dragging");
+    fab.style.left = ""; fab.style.right = "";
+    const x = e.clientX, w = window.innerWidth;
+    const side = x < w / 2 ? "left" : "right";
+    // Tuck when let go hard against the edge, or flung toward it.
+    const nearEdge = side === "left" ? x < 36 : x > w - 36;
+    const flung = side === "left" ? vx < -0.9 : vx > 0.9;
+    const { top, bottom } = fabBounds();
+    const y = Math.min(bottom, Math.max(top, fab.getBoundingClientRect().top));
+    fabPos = { side, y: bottom > top ? (y - top) / (bottom - top) : 1, tucked: nearEdge || flung };
+    saveFabPos();
+    placeFab();
+  };
+  fab.addEventListener("pointerup", end);
+  fab.addEventListener("pointercancel", end);
+}
+
 // U13: render() is subscribed to every state change (quote ticks
 // included) and rebuilt the whole chat, Markdown and all, on every page
 // while the panel sat closed: ~530 ms of a throttled /stocks load. Closed,
@@ -329,43 +434,64 @@ function render() {
   const messages = renderMessagesHtml(state);
   const usingLLM = !!state.settings.llmApiKey;
 
+  // Same look as /chat (cc-* classes): avatar rows, your messages in a tinted
+  // bubble, Saathi's as plain text, one rounded composer that grows.
   root.innerHTML = `
     <div class="coach-header">
       <div class="coach-header-title">
-        <div class="coach-avatar-sm">SS</div>
-        <div>
-          <div style="font-size: var(--text-md);">Saathi</div>
-          <div class="dim" style="font-size: 11px; font-weight: 400;">${usingLLM ? "Your key · finance only" : "Server LLM · finance only"}</div>
+        <span class="cc-avatar" aria-hidden="true">S</span>
+        <div style="min-width: 0;">
+          <div class="coach-header-name">Saathi</div>
+          <div class="coach-header-sub">${usingLLM ? "Your key · finance only" : "Your money coach · finance only"}</div>
         </div>
       </div>
-      <button class="btn btn-ghost coach-close" id="coach-close-btn" aria-label="Close coach"><span aria-hidden="true">✕</span><span class="coach-close-label">Close</span></button>
+      <div class="coach-header-actions">
+        <a href="/chat" class="cc-chip-btn coach-full" title="Open the full chat page" aria-label="Open full chat">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+        </a>
+        <button class="cc-chip-btn coach-close" id="coach-close-btn" type="button" aria-label="Close coach"><span aria-hidden="true">✕</span><span class="coach-close-label">Close</span></button>
+      </div>
     </div>
 
-    <div class="coach-messages" id="coach-messages-scroll">
+    <div class="coach-messages cc-messages" id="coach-messages-scroll">
       ${messages}
     </div>
 
-    <form class="composer" id="coach-form" autocomplete="off">
+    <form class="composer cc-composer coach-composer" id="coach-form" autocomplete="off">
       <div class="composer-shell ${pending ? "is-busy" : ""}">
-        ${pending
-          ? `<span class="composer-dots" aria-live="polite"><span>Thinking</span><i></i><i></i><i></i></span>`
-          : ""}
-        <input id="coach-input" class="composer-input"
-               placeholder="${pending ? "" : "Ask about any stock, crypto, or concept…"}"
-               maxlength="300" aria-label="Message Saathi" ${pending ? "disabled" : ""} />
+        <textarea id="coach-input" class="composer-input" rows="1"
+               placeholder="${pending ? "Saathi is replying…" : "Ask Saathi anything"}"
+               maxlength="300" aria-label="Message Saathi" ${pending ? "disabled" : ""}></textarea>
         ${pending
           ? `<button type="button" class="composer-btn is-stop" id="coach-stop" title="Stop generating" aria-label="Stop generating">&#9632;</button>`
           : `<button type="submit" class="composer-btn" id="coach-send" title="Send" aria-label="Send message">&#8593;</button>`}
       </div>
+      <p class="coach-foot">Saathi can make mistakes. Practice only, not investment advice.</p>
     </form>
-
-    <div class="coach-footer">
-      Grounded in live prices + your portfolio + real news
-    </div>
   `;
+
+  const coachInput = root.querySelector("#coach-input");
+  if (coachInput) {
+    const fit = () => { coachInput.style.height = "auto"; coachInput.style.height = Math.min(coachInput.scrollHeight, 140) + "px"; coachInput.style.overflowY = coachInput.scrollHeight > 140 ? "auto" : "hidden"; };
+    coachInput.addEventListener("input", fit);
+    coachInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+        e.preventDefault();
+        if (!pending) root.querySelector("#coach-form")?.requestSubmit();
+      }
+    });
+  }
 
   const ms = root.querySelector("#coach-messages-scroll");
   if (ms) ms.scrollTop = ms.scrollHeight;
+  root.querySelectorAll("[data-suggest]").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault(); e.stopPropagation();
+      if (pending || !coachInput) return;
+      coachInput.value = btn.dataset.suggest;
+      root.querySelector("#coach-form")?.requestSubmit();
+    });
+  });
 
   root.querySelector("#coach-close-btn")?.addEventListener("click", () => {
     setSetting("coachPanelOpen", false);
@@ -561,67 +687,58 @@ function renderMessagesHtml(state) {
     symbol: m.triggerSymbol, ts: m.ts, isTrade: true,
   })).filter(m => m.text);
 
-  const chat = chatHistory.slice(-20).map(m => ({ ...m, isTrade: false }));
+  // An empty streaming placeholder shows as the typing dots, not a blank row.
+  const chat = chatHistory.slice(-20).filter(m => m.role === "user" || String(m.text || "").trim()).map(m => ({ ...m, isTrade: false }));
   const all = [...trade, ...chat].sort((a, b) => a.ts - b.ts).slice(-25);
 
   if (!all.length && !pending) {
     return `
-      <div class="coach-empty">
-        <span class="emoji">🎓</span>
-        <div class="font-semi" style="color: var(--text-strong); font-size: var(--text-md);">Hi — I'm Saathi</div>
-        <div class="text-sm">I talk about one thing: money. Ask me any stock or crypto price, any concept, or a trade you're thinking about. I explain — I don't give tips.</div>
-        <div class="flex-col gap-2" style="margin-top: var(--sp-3); width: 100%;">
+      <div class="cc-empty coach-empty-cc">
+        <span class="cc-avatar cc-avatar-lg" aria-hidden="true">S</span>
+        <h2 class="cc-empty-title coach-empty-title">Hi, I'm Saathi</h2>
+        <p class="cc-empty-text">Ask me about any stock, fund or idea, or a trade you're thinking about. I explain; I don't give tips.</p>
+        <div class="cc-starters">
           ${STARTER_QUESTIONS.slice(0, 4).map(q =>
-            `<button type="button" class="filter-pill" data-suggest="${escapeAttr(q)}" style="text-align: left; font-size: 11px;">💬 ${escapeHtml(q)}</button>`
+            `<button type="button" class="cc-starter" data-suggest="${escapeAttr(q)}">${escapeHtml(q)}</button>`
           ).join("")}
         </div>
       </div>
     `;
   }
 
-  setTimeout(() => {
-    root?.querySelectorAll("[data-suggest]").forEach(btn => {
-      btn.addEventListener("click", (e) => {
-        e.preventDefault(); e.stopPropagation();
-        const input = root.querySelector("#coach-input");
-        if (input) { input.value = btn.dataset.suggest; input.focus(); }
-      });
-    });
-  }, 0);
-
   return all.map(m => {
     if (m.role === "user") {
-      return `<div class="coach-user-msg">${escapeHtml(m.text)}</div>`;
+      return `<div class="cc-row cc-row-user"><div class="cc-bubble cc-user"><span class="msg-body">${escapeHtml(m.text)}</span></div></div>`;
     }
     if (m.isTrade) {
       const lvl = m.warning === "strong_caution" ? "strong-caution" : m.warning === "caution" ? "caution" : "";
       return `
-        <div class="coach-message">
-          <div class="coach-bubble ${lvl}">
-            <div class="coach-bubble-head">
-              <span>${timeAgo(m.ts)}</span>
-              ${m.symbol ? `<span class="pill pill-neutral" style="font-size: 10px;">${m.symbol}</span>` : ""}
+        <div class="cc-row cc-row-bot">
+          <span class="cc-avatar" aria-hidden="true">S</span>
+          <div class="cc-bot-col">
+            <div class="coach-trade-card ${lvl}">
+              <div class="coach-trade-head">
+                ${m.symbol ? `<span class="pill pill-neutral" style="font-size: 10px;">${escapeHtml(m.symbol)}</span>` : ""}
+                <span>On your trade · ${timeAgo(m.ts)}</span>
+              </div>
+              <div>${escapeHtml(m.text)}</div>
+              ${m.context ? `<div class="coach-context">${escapeHtml(m.context)}</div>` : ""}
+              ${m.question ? `<div class="coach-question">${escapeHtml(m.question)}</div>` : ""}
             </div>
-            <div>${escapeHtml(m.text)}</div>
-            ${m.context ? `<div class="coach-context">${escapeHtml(m.context)}</div>` : ""}
-            ${m.question ? `<div class="coach-question">${escapeHtml(m.question)}</div>` : ""}
           </div>
         </div>
       `;
     }
     return `
-      <div class="coach-message">
-        <div class="coach-bubble">
-          <div class="coach-bubble-head"><span>${timeAgo(m.ts)}</span></div>
-          <div style="white-space: pre-wrap; word-wrap: break-word;">${renderMarkdown(m.text)}</div>
-        </div>
+      <div class="cc-row cc-row-bot">
+        <span class="cc-avatar" aria-hidden="true">S</span>
+        <div class="cc-bot-col"><div class="cc-bubble cc-bot"><span class="msg-body">${renderMarkdown(m.text)}</span></div></div>
       </div>
     `;
-  }).join("") + (pending ? `
-    <div class="coach-message">
-      <div class="coach-bubble">
-        <div class="coach-typing"><span></span><span></span><span></span></div>
-      </div>
+  }).join("") + (pending && !all.some(m => m.streaming) ? `
+    <div class="cc-row cc-row-bot">
+      <span class="cc-avatar" aria-hidden="true">S</span>
+      <div class="cc-typing"><i></i><i></i><i></i></div>
     </div>
   ` : "");
 }
