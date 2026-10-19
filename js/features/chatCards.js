@@ -242,12 +242,15 @@ export function cardHtml(card) {
  */
 /** The empty chat's version: one row of commands, each a tap away. */
 export function guideCompactHtml() {
+  let open = false;
+  try { open = localStorage.getItem("ss.guide.open") === "1"; } catch {}
   const chips = COMMANDS.filter((c) => c.cmd !== "/help").map((c) =>
     `<button type="button" class="ss-gc-chip" data-card-fill="${esc(c.cmd + (c.args ? " " : ""))}" title="${esc(hi() ? c.whatHi : c.what)}"><code>${esc(c.cmd)}</code><span>${esc(hi() ? c.hintHi : c.hint)}</span></button>`).join("");
   return `<div class="ss-guide-compact">
     <div class="ss-gc-head"><span>${L("Type / for tools with real market data", "/ likho: asli market data wale tools")}</span>
-      <button type="button" class="ss-gc-more" data-open-guide>${L("What each does", "Har ek kya karta hai")}</button></div>
+      <button type="button" class="ss-gc-more" data-toggle-guide aria-expanded="${open}">${open ? L("Hide details", "Details chhupao") : L("What each does", "Har ek kya karta hai")} <span aria-hidden="true">${open ? "▴" : "▾"}</span></button></div>
     <div class="ss-gc-chips">${chips}</div>
+    ${open ? `<div class="ss-gc-full">${guideHtml()}</div>` : ""}
   </div>`;
 }
 

@@ -6185,3 +6185,5 @@ body.chat-app { overflow: hidden; }
 .cc-side-guide:hover { background: var(--bg-soft); color: var(--text); }
 .cc-modal.cc-modal-guide { width: min(640px, 100%); }
 .cc-modal-guide .ss-card-guide { border: 0; padding: 0; margin: 0; background: transparent; width: 100%; }
+.ss-gc-full { max-height: min(48vh, 420px); overflow-y: auto; overscroll-behavior: contain; border: 1px solid var(--border); border-radius: 16px; }
+.ss-gc-full .ss-card-guide { border: 0; margin: 0; width: 100%; }

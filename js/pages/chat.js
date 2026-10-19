@@ -1022,6 +1022,16 @@ function openGuide() {
 document.addEventListener("click", (e) => {
   if (e.target.closest("[data-open-guide]") && document.getElementById("chat-messages")) { e.preventDefault(); openGuide(); }
 });
+// The empty chat's tools row expands in place (remembered per device).
+document.addEventListener("click", (e) => {
+  const t = e.target.closest("[data-toggle-guide]");
+  const wrap = t?.closest(".cc-guide-wrap");
+  if (!wrap) return;
+  e.preventDefault();
+  try { localStorage.setItem("ss.guide.open", t.getAttribute("aria-expanded") === "true" ? "0" : "1"); } catch {}
+  wrap.innerHTML = guideCompactHtml();
+  wrap.querySelector(".ss-gc-full")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+});
 
 function fillComposer(text) {
   const input = document.getElementById("chat-input");
