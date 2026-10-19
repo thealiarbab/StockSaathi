@@ -6185,9 +6185,6 @@ body.chat-app { overflow: hidden; }
 .cc-side-guide:hover { background: var(--bg-soft); color: var(--text); }
 .cc-modal.cc-modal-guide { width: min(640px, 100%); }
 .cc-modal-guide .ss-card-guide { border: 0; padding: 0; margin: 0; background: transparent; width: 100%; }
-.ss-gc-full { max-height: min(48vh, 420px); overflow-y: auto; overscroll-behavior: contain; border: 1px solid var(--border); border-radius: 16px; }
-.ss-gc-full .ss-card-guide { border: 0; margin: 0; width: 100%; }
 /* "What each does": a real button, not a faint text link. */
 .ss-gc-head .ss-gc-more { font-size: var(--text-sm); padding: 7px 14px; border-radius: var(--r-full); background: color-mix(in srgb, var(--brand) 14%, transparent); border: 1px solid color-mix(in srgb, var(--brand) 45%, transparent); color: var(--brand); }
 .ss-gc-head .ss-gc-more:hover { background: color-mix(in srgb, var(--brand) 24%, transparent); }
-.ss-gc-head .ss-gc-more[aria-expanded="true"] { background: var(--brand); color: #fff; border-color: var(--brand); }
