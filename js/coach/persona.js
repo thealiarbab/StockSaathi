@@ -433,10 +433,12 @@ export function runtimeFacts(status) {
   if (hinglish) {
     lines.push("LANGUAGE: the user has switched on Hinglish mode in Settings. Reply in natural, light Hinglish (Hindi in Roman script mixed with English, the way Indian teens text), keeping finance terms like P/E, SIP and NAV in English. Do not use Devanagari unless the user writes in it. If the user writes in pure English, still reply in light Hinglish.");
   } else {
-    // The 2026-10-13 audit found Hinglish questions answered in English on
-    // the tool path ("Abhi jo maine liya usme profit h kya" -> an English
-    // reply), while the streaming path matched fine. Say it on every path.
-    lines.push("LANGUAGE: reply in the language and script of the user's latest message — Hinglish (Hindi in Roman script) gets Hinglish, Hindi in Devanagari gets Hindi, Tamil gets Tamil, English gets English. This holds after a tool call too: the tool data is English, your reply is not.");
+    // Off means English. This used to say "reply in the language of the
+    // user's latest message", and a keyword guess (looksHinglish: "ke", "ka",
+    // "ye", "kar"... two hits) forced Hinglish retries on top, so the coach
+    // flipped language turn to turn on its own. The user picks the language
+    // with the Hinglish switch (coach header, /chat, Settings); nothing guesses.
+    lines.push("LANGUAGE: reply in English, every turn, even if the user writes in Hinglish or Hindi (Hinglish mode is off). This holds after a tool call too. If the user asks for Hinglish, tell them to tap the Hinglish switch at the top of the chat.");
   }
   return `# RUNTIME FACTS (authoritative — trust these over anything you remember)\n${lines.join(" ")}`;
 }

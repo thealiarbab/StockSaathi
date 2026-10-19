@@ -5950,3 +5950,7 @@ body.chat-app { overflow: hidden; }
 .nudge { animation: btn-nudge .6s var(--ease, ease) 2; }
 @media (prefers-reduced-motion: reduce) { .nudge { animation: none; outline: 2px solid currentColor; } }
 .coach-full svg { width: 18px; height: 18px; flex: 0 0 auto; }
+/* Reply-language switch (coach header, /chat header). The Hinglish setting is
+   the only thing that picks the coach's language. */
+.coach-lang { height: 36px; padding: 0 12px; font-size: var(--text-xs); font-weight: 700; color: var(--text-muted); white-space: nowrap; }
+.coach-lang.is-on { color: var(--brand); border-color: color-mix(in srgb, var(--brand) 55%, var(--border)); background: var(--brand-soft); }

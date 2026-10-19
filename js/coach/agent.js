@@ -1900,10 +1900,12 @@ export function replyLanguageMismatch(userText, replyText) {
  * closing question was the problem, a short reflective line is used instead,
  * in the user's language.
  */
-export function scrubAdvice(text, userText = "") {
+export function scrubAdvice(text, userText = "", hinglishMode = null) {
   const src = String(text || "");
   const rules = [];
-  const hinglish = looksHinglish(userText) || looksHinglish(src);
+  // The Settings switch decides when the caller passes it; the guess is
+  // only for callers that don't (tests, old paths).
+  const hinglish = hinglishMode != null ? !!hinglishMode : (looksHinglish(userText) || looksHinglish(src));
   const lines = src.split("\n").map((line) => {
     if (!adviceViolation(line)) return line;
     // Split a prose line into sentences; keep the clean ones.

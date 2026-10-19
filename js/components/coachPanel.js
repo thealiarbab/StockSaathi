@@ -11,7 +11,7 @@ import { getNews } from "../data/news.js";
 import { formatRupees, formatPct } from "../money.js";
 import { SYSTEM_PROMPT, matchTemplate, isOffTopic, offTopicRedirect, STARTER_QUESTIONS, runtimeFacts, NO_TOOLS_NOTE } from "../coach/persona.js";
 import { marketStatus } from "../data/prices.js";
-import { runAgent, streamChat, needsLiveData, logChatTurn, isToolCallOnly, looksLikeLookupOffer, looksLikeFetchPromise, looksLikePricelessList, scrubAdvice, looksHinglish, replyLanguageMismatch, prefetchNewsBlock, unsourcedFigures, figureSources, dropFigureSentences } from "../coach/agent.js";
+import { runAgent, streamChat, needsLiveData, logChatTurn, isToolCallOnly, looksLikeLookupOffer, looksLikeFetchPromise, looksLikePricelessList, scrubAdvice, looksHinglish, prefetchNewsBlock, unsourcedFigures, figureSources, dropFigureSentences } from "../coach/agent.js";
 import { getFreshCachedQuote } from "../data/marketData.js";
 import { buildDossier } from "../coach/dossier.js";
 
@@ -137,10 +137,16 @@ function currentScreen() {
 const DEICTIC_RE = /\b(?:this|isme|iska|iski|iske|ye|yeh)\b/i;
 function onInstrumentPage() { return /^\/stocks\/[^/]+\/?$/.test(location.pathname || ""); }
 
-function turnLanguage(userText) {
-  return looksHinglish(userText)
-    ? "\n\n# THIS TURN: LANGUAGE\nThe user wrote in Hinglish (Hindi in Roman script). Reply in Hinglish, the way they wrote, keeping finance terms like P/E and NAV in English."
-    : "";
+// The Hinglish switch (header, /chat, Settings) is the only thing that picks
+// the language. runtimeFacts() states it; this repeats it last in the prompt,
+// where it holds better (C28). No guessing from the user's words.
+function hinglishOn() {
+  try { return !!getState().settings.hinglish; } catch { return false; }
+}
+function turnLanguage() {
+  return hinglishOn()
+    ? "\n\n# THIS TURN: LANGUAGE\nHinglish mode is on. Reply in Hinglish (Hindi in Roman script), keeping finance terms like P/E and NAV in English."
+    : "\n\n# THIS TURN: LANGUAGE\nReply in English.";
 }
 
 const FIGURE_RETRY_NOTE = `
@@ -148,19 +154,20 @@ const FIGURE_RETRY_NOTE = `
 # THIS TURN
 Your earlier draft stated prices, moves or events that were not looked up. Call the tool for every figure you give (get_stock_price for a price or today's move, get_market_news for news), or leave the figure out.`;
 
-const LANG_RETRY_NOTE = "\n\n# THIS TURN\nYour last draft was in English. The user wrote in Hinglish: answer again in Hinglish (Roman script).";
+const LANG_RETRY_NOTE = "\n\n# THIS TURN\nYour last draft was in English. Hinglish mode is on: answer again in Hinglish (Roman script).";
 
 // Same last step as /chat: one bounded language retry, then remove any
 // sentence that picks, praises/judges, nudges or times the market.
 async function finishPanelReply(text, userText, retryAgent) {
   let out = text;
-  if (replyLanguageMismatch(userText, out) && retryAgent) {
+  const hi = hinglishOn();
+  if (hi && !looksHinglish(out) && retryAgent) {
     try {
       const again = await Promise.race([retryAgent(), new Promise((r) => setTimeout(() => r(null), 12_000))]);
-      if (again && again.trim() && !replyLanguageMismatch(userText, again)) out = again.trim();
+      if (again && again.trim() && looksHinglish(again)) out = again.trim();
     } catch (e) { console.warn("[coach] language retry failed:", e?.message || e); }
   }
-  return scrubAdvice(out, userText).text;
+  return scrubAdvice(out, userText, hi).text;
 }
 
 async function callLlmAgent(apiKey, history, state, extraSystem = "") {
@@ -179,7 +186,7 @@ async function callLlmAgent(apiKey, history, state, extraSystem = "") {
   const lastUser = [...history].reverse().find((m) => m.role === "user")?.text || "";
   // News-shaped question: fresh headlines fetched by the app (C5).
   const newsBlock = await prefetchNewsBlock(lastUser);
-  const system = `${SAATHI_SYSTEM}\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# RUNTIME CONTEXT\n${screen ? screen + "\n" : ""}## Latest market headlines\n${newsContext || "(none loaded)"}\n\n# TONE\nKeep replies short by default (1–3 sentences). Go longer only when asked for depth.` + newsBlock + turnLanguage(lastUser) + extraSystem;
+  const system = `${SAATHI_SYSTEM}\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# RUNTIME CONTEXT\n${screen ? screen + "\n" : ""}## Latest market headlines\n${newsContext || "(none loaded)"}\n\n# TONE\nKeep replies short by default (1–3 sentences). Go longer only when asked for depth.` + newsBlock + turnLanguage() + extraSystem;
 
   // Steps of 8 so the start of the history (the cacheable part) holds still.
   const messages = history.slice(Math.floor(Math.max(0, history.length - 12) / 8) * 8).map(m => ({
@@ -442,10 +449,12 @@ function render() {
         <span class="cc-avatar" aria-hidden="true">S</span>
         <div style="min-width: 0;">
           <div class="coach-header-name">Saathi</div>
-          <div class="coach-header-sub">${usingLLM ? "Your key · finance only" : "Your money coach · finance only"}</div>
+          <div class="coach-header-sub">${usingLLM ? "Your key · finance only" : "Your money coach"}</div>
         </div>
       </div>
       <div class="coach-header-actions">
+        <button type="button" class="cc-chip-btn coach-lang ${state.settings.hinglish ? "is-on" : ""}" id="coach-lang-btn"
+                aria-pressed="${state.settings.hinglish ? "true" : "false"}" title="Reply language">${state.settings.hinglish ? "Hinglish" : "English"}</button>
         <a href="/chat" class="cc-chip-btn coach-full" title="Open the full chat page" aria-label="Open full chat">
           <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
         </a>
@@ -493,6 +502,10 @@ function render() {
     });
   });
 
+  root.querySelector("#coach-lang-btn")?.addEventListener("click", () => {
+    setSetting("hinglish", !getState().settings.hinglish);
+  });
+
   root.querySelector("#coach-close-btn")?.addEventListener("click", () => {
     setSetting("coachPanelOpen", false);
   });
@@ -533,7 +546,7 @@ function render() {
       const dossier = await buildDossier();
       const newsContext = newsSnap.slice(0, 5).map(n => `- ${n.headline} (${n.source}) [${n.sentiment}]`).join("\n");
       const screen = currentScreen();
-      const system = `${SAATHI_NO_TOOLS}\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# RUNTIME CONTEXT\n${screen ? screen + "\n" : ""}## Latest market headlines\n${newsContext || "(none loaded)"}\n\n# TONE\nKeep replies short by default (1–3 sentences). Go longer only when asked for depth.\n\nAnswer only the latest message. Do not restate prices or facts from earlier turns unless the user asks for them again.` + turnLanguage(text);
+      const system = `${SAATHI_NO_TOOLS}\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# RUNTIME CONTEXT\n${screen ? screen + "\n" : ""}## Latest market headlines\n${newsContext || "(none loaded)"}\n\n# TONE\nKeep replies short by default (1–3 sentences). Go longer only when asked for depth.\n\nAnswer only the latest message. Do not restate prices or facts from earlier turns unless the user asks for them again.` + turnLanguage();
       const messages = chatHistory.slice(Math.floor(Math.max(0, chatHistory.length - 13) / 8) * 8).filter(m => !m.streaming || m === chatHistory[placeholderIdx]).slice(0, -1).map(m => ({
         role: m.role === "user" ? "user" : "assistant",
         content: m.text,

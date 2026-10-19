@@ -4,11 +4,11 @@
 // as fallback.
 // =============================================================================
 
-import { getState } from "../state.js";
+import { getState, setSetting } from "../state.js";
 import { getInstrument, STOCKS } from "../data/universe.js";
 import { SYSTEM_PROMPT, matchTemplate, isOffTopic, offTopicRedirect, STARTER_QUESTIONS, runtimeFacts, NO_TOOLS_NOTE } from "../coach/persona.js";
 import { marketStatus } from "../data/prices.js";
-import { runAgent, streamChat, needsLiveData, logChatTurn, stripToolCallScaffolding, isToolCallOnly, looksLikeLookupOffer, looksLikeFetchPromise, looksLikePricelessList, isDiscoveryQuery, scrubAdvice, looksHinglish, replyLanguageMismatch, prefetchNewsBlock, unsourcedFigures, figureSources, dropFigureSentences } from "../coach/agent.js";
+import { runAgent, streamChat, needsLiveData, logChatTurn, stripToolCallScaffolding, isToolCallOnly, looksLikeLookupOffer, looksLikeFetchPromise, looksLikePricelessList, isDiscoveryQuery, scrubAdvice, looksHinglish, prefetchNewsBlock, unsourcedFigures, figureSources, dropFigureSentences } from "../coach/agent.js";
 import { buildDossier } from "../coach/dossier.js";
 import { getNews } from "../data/news.js";
 import {
@@ -42,21 +42,22 @@ import {
 // nudges the next trade or times the market (C19-C21, scrubAdvice).
 async function finishReply(text, userText, system, messages) {
   let out = text;
-  if (replyLanguageMismatch(userText, out)) {
+  const hi = !!getState().settings.hinglish;
+  if (hi && !looksHinglish(out)) {
     try {
       const again = await withDeadline(runAgent({
         apiKey: getState().settings.llmApiKey || null,
         system: `${system}
 
 # THIS TURN
-Your last draft was in English. The user wrote in Hinglish: answer again in Hinglish (Roman script).`,
+Your last draft was in English. Hinglish mode is on: answer again in Hinglish (Roman script).`,
         messages, profile: "fast",
       }), 12_000);
       const clean = stripScaffolding(again);
-      if (clean && clean.trim() && !replyLanguageMismatch(userText, clean)) out = clean.trim();
+      if (clean && clean.trim() && looksHinglish(clean)) out = clean.trim();
     } catch (e) { console.warn("[chat] language retry failed:", e?.message || e); }
   }
-  return scrubAdvice(out, userText).text;
+  return scrubAdvice(out, userText, hi).text;
 }
 
 // One short line per tool round, shown while the data loads.
@@ -229,6 +230,7 @@ export function renderChat(main) {
             <div class="cc-id">
               <h1 class="cc-title">${chatLog.length ? escapeHtml(active.title || "Saathi") : "Saathi"}</h1>
             </div>
+            <button class="cc-chip-btn coach-lang ${state.settings.hinglish ? "is-on" : ""}" id="cc-lang" type="button" aria-pressed="${state.settings.hinglish ? "true" : "false"}" title="Reply language">${state.settings.hinglish ? "Hinglish" : "English"}</button>
             <button class="cc-chip-btn cc-new cc-head-new" id="chat-new-btn-2" type="button" aria-label="New chat">+</button>
           </header>
 
@@ -268,6 +270,13 @@ export function renderChat(main) {
 
     const input = main.querySelector("#chat-input");
     const form = main.querySelector("#chat-form");
+    main.querySelector("#cc-lang")?.addEventListener("click", (e) => {
+      const on = !getState().settings.hinglish;
+      setSetting("hinglish", on);
+      e.currentTarget.textContent = on ? "Hinglish" : "English";
+      e.currentTarget.classList.toggle("is-on", on);
+      e.currentTarget.setAttribute("aria-pressed", on ? "true" : "false");
+    });
     if (!chatLog.length) fillStarters(main, (q) => { if (m_pending) return; input.value = q; form.requestSubmit(); });
     const messagesEl = main.querySelector("#chat-messages");
     if (chatLog.length) messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -694,7 +703,7 @@ CHART DATA: ${sym}, ${label} daily chart from NSE, ${day(first.t)} to ${day(last
 - Up days: ${ups} of ${bars.length - 1}. Biggest one-day move: ${big.d >= 0 ? "+" : ""}${big.d.toFixed(2)}% on ${day(big.t)}.
 - Average volume in the last 5 sessions is ${volRatio.toFixed(1)}x the period's average.
 
-HOW TO ANSWER: this is the chart the student is looking at; it is attached above their message. Read it for them using only these numbers. Say what the overall shape was (rise, fall, sideways, or a dip and recovery), where the high and low came, and what being above or below the averages means, in plain words for a teenager, in 4 to 6 short sentences. Do not say you cannot see the chart, do not offer to look anything up, no predictions, no buy or sell views, no price targets, and do not end with a question about what happens next. Write the answer in ${looksHinglish(text) || getState()?.settings?.hinglish ? "Hinglish (Hindi in Roman script), keeping finance terms in English" : "English"}.`;
+HOW TO ANSWER: this is the chart the student is looking at; it is attached above their message. Read it for them using only these numbers. Say what the overall shape was (rise, fall, sideways, or a dip and recovery), where the high and low came, and what being above or below the averages means, in plain words for a teenager, in 4 to 6 short sentences. Do not say you cannot see the chart, do not offer to look anything up, no predictions, no buy or sell views, no price targets, and do not end with a question about what happens next. Write the answer in ${getState()?.settings?.hinglish ? "Hinglish (Hindi in Roman script), keeping finance terms in English" : "English"}.`;
 }
 
 function chartCard(c) {
@@ -986,14 +995,18 @@ async function sendAndReply(userText) {
     if (owner) owner.chartText = chartBlock.split("\n\nHOW TO ANSWER")[0];
   }
   const wantTools = !chartBlock && needsLiveData(userText, chatLog.slice(-8, -1));
-  // C28: the general language rule in runtimeFacts still lost to English
-  // replies; a line about THIS message, last in the prompt, holds better.
-  const turnLang = looksHinglish(userText)
+  // C28: the language rule in runtimeFacts holds better repeated last in the
+  // prompt. The Hinglish switch picks the language; nothing guesses it from
+  // the user's words (that made the coach flip language turn to turn).
+  const turnLang = getState().settings.hinglish
     ? `
 
 # THIS TURN: LANGUAGE
-The user wrote in Hinglish (Hindi in Roman script). Reply in Hinglish, the way they wrote, keeping finance terms like P/E and NAV in English.`
-    : "";
+Hinglish mode is on. Reply in Hinglish (Hindi in Roman script), keeping finance terms like P/E and NAV in English.`
+    : `
+
+# THIS TURN: LANGUAGE
+Reply in English.`;
 
   if (wantTools) {
     // Tool-use path: non-streaming, standard runAgent with TOOLS.
