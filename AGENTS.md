@@ -2,6 +2,15 @@
 
 Vanilla-JS SPA + Python serverless (Vercel) + Postgres (Supabase). Virtual-money Indian stock-trading simulator for teens. Live at https://stocksaathi.co.in.
 
+## RESUME HERE (paused 19 Oct 2026, continuing the next week)
+
+Read `docs/HANDOFF_2026-10-19.md` first: owner's standing rules, his UX
+decisions, the pending queue IN HIS ORDER (#1 bias/panic-sell rewrite with
+option-C UX → #2 report card algorithm → #3 achievements 80+/seasonal; #6
+Settings only when he asks — he said "LEAVE SETTINGS"), what shipped, root
+causes, and tooling traps. Commit 27b1c155 still needs his approval for a
+history rewrite.
+
 ## Stack
 - **Frontend:** vanilla JS modules (no framework, no build step), SW-cached,
   History-API router with clean URLs (`js/router.js` + `js/navigation.js`;
