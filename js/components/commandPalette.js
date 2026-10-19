@@ -100,11 +100,14 @@ function render() {
   });
   root.querySelector("[data-cmdk-action='open-search']")?.addEventListener("click", () => {
     // Go to stocks page with the search query pre-filled via hash param
+    // close() below clears state.result, so read the query now: the timer
+    // used to read state.result.query after it was null (19 Oct 2026).
+    const q = state.result?.query || "";
     navigate("/stocks");
     setTimeout(() => {
       const s = document.querySelector("#stocks-search");
       if (s) {
-        s.value = state.result.query || "";
+        s.value = q;
         s.dispatchEvent(new Event("input", { bubbles: true }));
         document.querySelector("#ask-saathi-btn")?.click();
       }
