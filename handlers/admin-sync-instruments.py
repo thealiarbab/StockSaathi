@@ -150,7 +150,9 @@ def _load_universe_json():
     for c in candidates:
         try:
             with open(c, "r", encoding="utf-8") as f:
-                return json.load(f)
+                # listed:false rows are kept for their holders only (see
+                # build-universe.mjs); they are not instruments to sync.
+                return [r for r in json.load(f) if r.get("listed") is not False]
         except FileNotFoundError:
             continue
     raise RuntimeError("universeFull.json not found in the deployment")

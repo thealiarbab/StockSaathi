@@ -942,6 +942,9 @@ function renderHoldingsTable(holdings) {
             const sectorPart = h.inst.sector && h.inst.sector !== "Unknown"
               ? " · " + escapeHtml(h.inst.sector)
               : "";
+            // Dropped from the exchange lists (build-universe.mjs keeps the
+            // row for its holders): say so instead of a silent bare ticker.
+            const unlistedTag = h.inst.listed === false ? ` <span class="pill pill-neutral pf-unlisted" title="No longer on the NSE / BSE lists StockSaathi follows">Not listed</span>` : "";
             const ltpCell = h.priceReady
               ? formatRupees(h.curPx)
               : `<span class="dim">—</span>`;
@@ -959,7 +962,7 @@ function renderHoldingsTable(holdings) {
             <tr class="clickable" data-sym="${h.sym}">
               <td><div class="stock-avatar" style="width: 32px; height: 32px; font-size: 10px;">${escapeHtml(h.inst.logo || h.sym.slice(0, 3))}</div></td>
               <td>
-                <div class="font-semi" style="color: var(--text-strong);">${displayName}</div>
+                <div class="font-semi" style="color: var(--text-strong);">${displayName}${unlistedTag}</div>
                 <div class="dim text-xs">${escapeHtml(h.sym)}${sectorPart}</div>
               </td>
               <td class="num">${formatQty(h.h.qty, h.inst.kind)}</td>

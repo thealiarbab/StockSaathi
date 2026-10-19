@@ -125,7 +125,8 @@ def fetch_one(symbol, kind="stock"):
 def _read_universe(repo_root):
     """Returns (stock_syms, etf_syms) from js/data/universeFull.json."""
     p = os.path.join(repo_root, "js", "data", "universeFull.json")
-    data = json.load(open(p, "r", encoding="utf-8"))
+    # Rows kept only for their holders (listed: false) have no quotes to fetch.
+    data = [r for r in json.load(open(p, "r", encoding="utf-8")) if r.get("listed") is not False]
     stocks = sorted({r["symbol"] for r in data if r.get("kind") == "EQUITY"})
     etfs   = sorted({r["symbol"] for r in data if r.get("kind") == "ETF"})
     return stocks, etfs

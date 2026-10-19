@@ -1202,6 +1202,10 @@ function render(inst, symbol) {
               ${holding ? `<p class="dim">Your ${formatQty(holding.qty, inst.kind)} stay in your portfolio at the last traded price.</p>` : ""}
               <a href="/stocks" class="btn btn-ghost btn-sm">Browse other stocks</a>
             </div>` : inst.kind === "MF" ? renderMfInvestBox(inst, symbol, curPrice, holding) : `
+          ${inst.listed === false ? `
+            <div class="trade-note-re">
+              <strong>Not on StockSaathi's stock list${inst.unlistedSince ? ` since ${escapeHtml(new Date(inst.unlistedSince).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }))}` : ""}.</strong> It dropped out of the NSE / BSE files the app follows (a delisting, a suspension or a move to a restricted segment). It is kept so you can still see what you hold; it trades here only while the exchange still gives a real price.
+            </div>` : ""}
           ${isRightsEntitlement(inst) ? `
             <div class="trade-note-re">
               <strong>Rights entitlement.</strong> A temporary security issued during a rights issue. It trades for a couple of weeks and then stops for good; it has no company fundamentals of its own.

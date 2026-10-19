@@ -9,7 +9,18 @@ import { toast } from "../components/toast.js";
 
 export function renderSettings(main) {
   render();
-  const unsub = subscribe(render);
+  // Re-render only when something this page shows changes. It used to
+  // re-render on EVERY state change (a price tick, the order poll), which
+  // replaced the inputs and wiped whatever was being typed.
+  const shown = (st) => JSON.stringify([st.settings, st.user]);
+  let last = shown(getState());
+  const unsub = subscribe((st) => {
+    const now = shown(st);
+    if (now === last) return;
+    last = now;
+    if (main.contains(document.activeElement) && document.activeElement.matches("input, textarea")) return;
+    render();
+  });
   window.addEventListener("ss:navigate", () => unsub?.(), { once: true });
 
   function render() {
@@ -157,15 +168,19 @@ export function renderSettings(main) {
     });
 
     // Profile section handlers
-    main.querySelector("#profile-save")?.addEventListener("click", async () => {
+    main.querySelector("#profile-save")?.addEventListener("click", async (e) => {
+      const btn = e.currentTarget;
       const displayName = main.querySelector("#profile-name").value.trim();
       const school = main.querySelector("#profile-school").value.trim();
+      btn.disabled = true;
       try {
-        updateProfile({ displayName, school });
+        // Awaited: it said "Profile saved." before the save had run, even
+        // when it then failed.
+        await updateProfile({ displayName, school });
         toast({ kind: "success", message: "Profile saved." });
-      } catch (e) {
-        toast({ kind: "error", message: e.message });
-      }
+      } catch (err) {
+        toast({ kind: "error", message: `Couldn't save: ${err.message}` });
+      } finally { btn.disabled = false; }
     });
 
     main.querySelector("#logout-btn2")?.addEventListener("click", async (e) => {

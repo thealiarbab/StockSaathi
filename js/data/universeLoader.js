@@ -23,6 +23,7 @@ export { ONBOARDING_PORTFOLIOS, FEATURED_SYMBOLS, FEATURED_MF_CODES, LEGACY_MF_A
 let _fullBySymbol = null;          // populated after ensureUniverseLoaded resolves
 let _mfBySymbol = null;            // populated after AMFI mfFull.json lands
 let _mergedBySymbol = null;        // lazy: full ∪ MF placeholders ∪ AMFI MFs
+let _unlistedBySymbol = null;      // listed:false rows, lookup only
 let _mergedList = null;            // Object.values(_mergedBySymbol), built once (U13)
 let _sectorsCache = null;          // lazy: union of sectors
 let _categoriesCache = null;       // lazy: MF category bucket list
@@ -93,6 +94,8 @@ export function getInstrument(symbol) {
   if (_mfBySymbol && _mfBySymbol[symbol]) return _mfBySymbol[symbol];
   // 2) Tier 2 equity universe (lazy-loaded NSE + ETF rows).
   if (_fullBySymbol && _fullBySymbol[symbol]) return _fullBySymbol[symbol];
+  // 2b) A stock no longer listed, kept so its holders still see what it is.
+  if (_unlistedBySymbol && _unlistedBySymbol[symbol]) return _unlistedBySymbol[symbol];
   // 3) Featured fund before the AMFI catalogue has loaded.
   if (_featuredMfsByS[symbol]) return _featuredMfsByS[symbol];
   // 4) Stub — pages render stub-tolerant skeletons + kick Tier-3 enrichment
@@ -133,9 +136,14 @@ export function ensureUniverseLoaded() {
       if (!Array.isArray(rows)) return false;
 
       const byS = {};
+      const unlisted = {};
       for (const r of rows) {
         if (!r || !r.symbol) continue;
-        byS[r.symbol] = {
+        // No longer on the exchange lists (build-universe.mjs carries these
+        // for a year): resolvable by symbol for whoever holds it, never
+        // browsable, searchable or counted.
+        const target = r.listed === false ? unlisted : byS;
+        target[r.symbol] = {
           kind: r.kind || "EQUITY",
           // No hand-typed defaults — these come from /api/fundamentals
           // when the user opens a stock detail page or scrolls a card
@@ -151,6 +159,7 @@ export function ensureUniverseLoaded() {
         };
       }
       _fullBySymbol = byS;
+      _unlistedBySymbol = unlisted;
       _mergedBySymbol = null; _mergedList = null;
       _sectorsCache = null;
 

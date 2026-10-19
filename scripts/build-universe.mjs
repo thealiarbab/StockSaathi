@@ -885,13 +885,19 @@ async function main() {
     console.log("[check] OK");
   }
 
+  // Live rows only, counted BEFORE carrying anything forward: the drop check
+  // below exists to refuse a build whose download failed, and carried rows
+  // would hide exactly that (a failed fetch would carry every stock as
+  // unlisted instead of being rejected).
+  const liveCount = out.length;
+
   // 6b. Compare vs existing artifact — warn on >10% row-count drop
   try {
-    const existing = JSON.parse(await fs.readFile(OUT_JSON, "utf8"));
-    const delta = out.length - existing.length;
+    const existing = JSON.parse(await fs.readFile(OUT_JSON, "utf8")).filter(r => r?.listed !== false);
+    const delta = liveCount - existing.length;
     const pct = existing.length ? (delta / existing.length) * 100 : 0;
     if (existing.length > 100 && delta / existing.length < -0.1) {
-      console.error(`[check] FAIL: row count dropped ${Math.abs(pct).toFixed(1)}% (${existing.length} → ${out.length})`);
+      console.error(`[check] FAIL: row count dropped ${Math.abs(pct).toFixed(1)}% (${existing.length} → ${liveCount})`);
       console.error("[check] Aborting write. Pass --force to override.");
       if (!process.argv.includes("--force")) process.exit(5);
     } else if (Math.abs(pct) > 2) {
@@ -899,6 +905,31 @@ async function main() {
     }
   } catch (_) {
     // No existing artifact yet — fine, first build.
+  }
+
+  // 6c. Carry forward what left the lists. A stock that stops appearing in the
+  // NSE / BSE files (delisted, suspended, moved to a series this build skips)
+  // used to vanish from the artifact, so anyone holding it saw a bare ticker
+  // with no name, sector or explanation (7NR, ADCINDIA, BMW, KEL on 19 Oct).
+  // It stays for a year as listed:false: getInstrument still resolves it,
+  // universeLoader keeps it out of browsing and search, idx 0 keeps it off
+  // the prerendered pages. A row that comes back is simply listed again.
+  try {
+    const prior = JSON.parse(await fs.readFile(OUT_JSON, "utf8"));
+    const live = new Set(out.map(r => r.symbol));
+    const today = new Date().toISOString().slice(0, 10);
+    const cutoff = new Date(Date.now() - 365 * 864e5).toISOString().slice(0, 10);
+    let carried = 0;
+    for (const r of prior) {
+      if (!r?.symbol || live.has(r.symbol)) continue;
+      const since = r.unlistedSince || today;
+      if (since < cutoff) continue;
+      out.push({ ...r, idx: 0, listed: false, unlistedSince: since });
+      carried++;
+    }
+    if (carried) console.log(`[build] carried forward ${carried} unlisted row(s) as listed:false`);
+  } catch (_) {
+    // No previous artifact: nothing to carry.
   }
 
   // 7. Write — produces FOUR artifacts so the front-end can opt into the

@@ -180,7 +180,7 @@ def quality(rows, sym=""):
 def main():
     refresh = "--refresh" in sys.argv
     universe = json.loads((ROOT / "js" / "data" / "universeFull.json").read_text(encoding="utf-8"))
-    equities = [r for r in universe if r.get("kind") == "EQUITY"]
+    equities = [r for r in universe if r.get("kind") == "EQUITY" and r.get("listed") is not False]
     data, since, now, reasons = {}, {}, {}, {}
 
     def work(r):
