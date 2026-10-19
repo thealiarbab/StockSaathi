@@ -41,6 +41,11 @@ export function renderSettings(main) {
           </div>
         </div>
 
+        ${state.user?.isAdmin ? `<div class="card" id="notifications" style="margin-top: var(--sp-4);">
+          <h3 style="margin-bottom: var(--sp-4);">Notifications</h3>
+          <div id="notif-settings"><p class="muted text-sm">Loading…</p></div>
+        </div>` : ""}
+
         <div class="card" style="margin-top: var(--sp-4);">
           <h3 style="margin-bottom: var(--sp-3);">Danger zone</h3>
           <div class="settings-row">
@@ -81,6 +86,9 @@ export function renderSettings(main) {
         </div>
       </div>
     `;
+
+    const notifBox = main.querySelector("#notif-settings");
+    if (notifBox) drawNotifSettings(notifBox);
 
     // Theme
     main.querySelector("[data-theme='system']").addEventListener("click", () => { setSettings({ themeChosen: false }); });
@@ -241,3 +249,40 @@ function initials(n) {
 }
 function escapeAttr(s) { return String(s ?? "").replace(/"/g, "&quot;").replace(/</g, "&lt;"); }
 function escapeHtml(s) { const d = document.createElement("div"); d.textContent = String(s ?? ""); return d.innerHTML; }
+
+// ---- Notifications (owner preview; features/notifications.js) -----------------
+// Push is per device: this lists what THIS phone or browser receives. The bell
+// inbox always has everything.
+async function drawNotifSettings(box) {
+  const N = await import("../features/notifications.js");
+  const state = await N.pushState();
+  const cats = state === "on" ? await N.pushCategories() : [];
+  if (!box.isConnected) return;
+  const head = state === "unsupported"
+    ? `<p class="muted text-sm">This browser can't receive push alerts. The bell at the top still shows everything.</p>`
+    : state === "blocked"
+    ? `<p class="muted text-sm">Alerts are blocked for this site. Allow notifications in your browser's site settings, then come back here.</p>`
+    : N.needsHomeScreen()
+    ? `<p class="muted text-sm">On iPhone and iPad, alerts only work in the app added to your Home Screen: tap Share, then "Add to Home Screen", and open StockSaathi from there.</p>`
+    : `<div class="settings-row">
+        <div class="label-wrap"><div class="title">Alerts on this device</div><div class="desc">Order fills and other updates, even with the app closed. Nothing is sent between 10 pm and 7 am; those arrive at 7.</div></div>
+        <label class="switch"><input type="checkbox" id="push-toggle" ${state === "on" ? "checked" : ""} /><span class="slider"></span></label>
+      </div>`;
+  box.innerHTML = head + (state === "on" ? N.CATEGORIES.map((c) => `
+      <div class="settings-row settings-sub">
+        <div class="label-wrap"><div class="title">${c.label}</div><div class="desc">${c.hint}</div></div>
+        <label class="switch"><input type="checkbox" data-cat="${c.key}" ${cats.includes(c.key) ? "checked" : ""} /><span class="slider"></span></label>
+      </div>`).join("") : "");
+  box.querySelector("#push-toggle")?.addEventListener("change", async (e) => {
+    e.target.disabled = true;
+    try {
+      const st = e.target.checked ? await N.enablePush() : await N.disablePush();
+      if (e.target.checked && st !== "on") toast({ kind: "info", message: st === "blocked" ? "Notifications are blocked for this site in your browser settings." : "Alerts weren't turned on." });
+    } catch (err) { toast({ kind: "error", message: `Couldn't change alerts: ${err?.message || err}` }); }
+    drawNotifSettings(box);
+  });
+  box.querySelectorAll("[data-cat]").forEach((el) => el.addEventListener("change", async () => {
+    const on = [...box.querySelectorAll("[data-cat]")].filter((x) => x.checked).map((x) => x.dataset.cat);
+    try { await N.setPushCategories(on); } catch (err) { toast({ kind: "error", message: `Couldn't save: ${err?.message || err}` }); }
+  }));
+}

@@ -5,7 +5,7 @@
 // Bump this on every deploy so old cached JS/HTML isn't served forever. The
 // activate step below deletes any cache whose name doesn't match. Include a
 // date so it is obvious in DevTools which build is live.
-const CACHE_NAME = "stocksaathi-v415-20261019o";
+const CACHE_NAME = "stocksaathi-v416-20261019p";
 const STATIC = [
   "./",
   "./app-shell",
@@ -69,6 +69,8 @@ const STATIC = [
   "./js/features/chatCards.js",
   "./js/features/chatOrder.js",
   "./js/features/chatProjects.js",
+  "./js/features/notifications.js",
+  "./js/components/bell.js",
   "./js/features/preview.js",
   "./js/features/aiExplainer.js",
   "./js/data/glossary.js",
@@ -223,4 +225,35 @@ self.addEventListener("fetch", (event) => {
 // Let the page tell the SW to activate a new build immediately.
 self.addEventListener("message", (event) => {
   if (event.data === "SKIP_WAITING") self.skipWaiting();
+});
+
+// ---- Web push (owner preview; migration 2026-10-19f, push-dispatch) ---------
+// The payload is the notification row: { id, title, body, url, kind, tag }.
+// Tapping it focuses an open StockSaathi tab and moves it to `url`, or opens
+// one there.
+self.addEventListener("push", (event) => {
+  let d = {};
+  try { d = event.data ? event.data.json() : {}; } catch { d = { title: "StockSaathi", body: event.data?.text() || "" }; }
+  event.waitUntil(self.registration.showNotification(d.title || "StockSaathi", {
+    body: d.body || "",
+    icon: "/images/icon-192.png",
+    badge: "/images/badge-96.png",
+    tag: d.tag || d.id,
+    data: { url: d.url || "/", id: d.id },
+  }));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = new URL(event.notification.data?.url || "/", self.location.origin).href;
+  event.waitUntil((async () => {
+    const tabs = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    const tab = tabs.find((c) => c.url.startsWith(self.location.origin));
+    if (tab) {
+      await tab.focus();
+      try { await tab.navigate(url); } catch { tab.postMessage({ type: "ss:open", url }); }
+      return;
+    }
+    await self.clients.openWindow(url);
+  })());
 });

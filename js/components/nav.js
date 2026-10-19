@@ -188,6 +188,7 @@ export function mountNav() {
               <span class="label">Portfolio</span>
               <span class="val tabular">${formatRupees(pfValue, { compact: true })}</span>
             </div>
+            ${state.user?.isAdmin ? `<span id="nav-bell-slot" class="nav-bell-slot"></span>` : ""}
             <div class="dropdown" id="user-dd">
               <button class="nav-avatar" id="user-avatar" aria-label="Account menu" aria-expanded="false">
                 ${initials(state.user.displayName || state.user.username)}
@@ -220,6 +221,10 @@ export function mountNav() {
     ensureDrawer();
     renderDrawer(state, allLinks, seg, pfValue, ms);
 
+    // Notification bell (owner preview): loaded only for those accounts.
+    const bellSlot = root.querySelector("#nav-bell-slot");
+    if (bellSlot) import("./bell.js").then((m) => m.mountBell(bellSlot)).catch(() => {});
+
     const avatar = root.querySelector("#user-avatar");
     const dd = root.querySelector("#user-dd");
     avatar?.addEventListener("click", (e) => {
@@ -241,6 +246,7 @@ export function mountNav() {
       try {
         await logoutAccount();
       } finally {
+        import("../features/notifications.js").then((m) => m.resetInbox()).catch(() => {});
         switchUser();
         navigate("/");
         // Best-effort restore (the nav re-renders on navigate so this

@@ -189,6 +189,21 @@ reads/updates to `auth.uid()`; only the service role inserts. Used for the
 order-backfill apology. Grants are `authenticated: SELECT, UPDATE` only —
 do not let Supabase's default grants hand `anon` TRUNCATE, which bypasses RLS.
 
+## Notifications (preview: bell + web push)
+
+- Inbox: `public.notifications`, written ONLY by the database: trigger on
+  `limit_orders` (non-MF fill) and a mirror of every `user_notices` insert
+  except `whats_new` (migration `2026-10-19f`). Client: `js/features/notifications.js`
+  (Realtime + `mark_notifications_read`), bell `js/components/bell.js`.
+- Push: `push_subscriptions` (via `save_push_subscription`), Edge Function
+  `supabase/functions/push-dispatch` (WebCrypto RFC 8291/8292, no npm). A
+  new row pokes it through `_push_poke` (pg_net, bearer = Vault
+  `push_hook_secret`). Keys come from Vault via `admin_push_config()`
+  (service_role); VAPID public key is in notifications.js. 22:00-07:00 IST
+  pushes are `deferred`; cron `notify-morning` flushes them at 07:05 IST.
+- To notify a user from SQL: insert into `public.notifications` (category
+  orders/account/coach/achievements). Push follows automatically.
+
 ## Key endpoints
 - `/api/live-quote?symbols=A,B,C` — **primary quote path**, cache-first Supabase + Dhan→Yahoo fallback
 - `/api/history?symbol=X&range=1mo&interval=1d` — OHLC for charts
