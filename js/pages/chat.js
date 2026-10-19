@@ -23,7 +23,7 @@ import { isPreview } from "../features/preview.js";
 import { listProjects, getProject, createProject, renameProject, setInstructions, removeProject, syncProjects, projectNote } from "../features/chatProjects.js";
 import { forkAt, showVersion, branchInfo, stripVers } from "../features/chatBranches.js";
 import { pushThread, pullThreads, upsertShare, listShares, revokeShare, sendFeedback } from "../features/chatCloud.js";
-import { COMMANDS, isCommand, runCommand, cardHtml, hydrateCards, guideHtml, CHART_TOOL_NOTE, hideChartMarkers, extractChartMarker } from "../features/chatCards.js";
+import { COMMANDS, isCommand, runCommand, cardHtml, hydrateCards, guideHtml, guideCompactHtml, CHART_TOOL_NOTE, hideChartMarkers, extractChartMarker } from "../features/chatCards.js";
 import { toast } from "../components/toast.js";
 
 // Defense-in-depth: strip any prompt-scaffolding patterns the model might
@@ -234,6 +234,9 @@ export function renderChat(main) {
             <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
             <input id="cc-search" type="search" placeholder="Search chats" autocomplete="off" value="${escapeAttr(sideQuery)}" />
           </label>
+          ${isPreview() ? `<button type="button" class="cc-side-guide" data-open-guide>
+            <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 8-4 4 4 4"/><path d="m17 8 4 4-4 4"/><path d="m14 4-4 16"/></svg>
+            Commands guide</button>` : ""}
           <nav class="cc-list" id="cc-list">${renderChatList()}</nav>
         </aside>
         <button class="cc-scrim" id="cc-scrim" type="button" aria-label="Close chat list" tabindex="-1"></button>
@@ -892,7 +895,7 @@ export function renderChat(main) {
           <div class="cc-starters">
             ${STARTER_QUESTIONS.map(q => `<button type="button" class="cc-starter" data-q="${escapeAttr(q)}">${escapeHtml(q)}</button>`).join("")}
           </div>
-          ${isPreview() ? `<div class="cc-guide-wrap">${guideHtml()}</div>` : ""}
+          ${isPreview() ? `<div class="cc-guide-wrap">${guideCompactHtml()}</div>` : ""}
         </div>
       `;
     }
@@ -1005,6 +1008,21 @@ function afterPaint(el) {
   if (!isPreview()) return;
   hydrateCards(el, { onAsk: askFromCard, onRun: askFromCard, onFill: fillComposer });
 }
+// The full command guide in a dialog (sidebar "Commands guide", and "What
+// each does" on the empty chat's compact row).
+function openGuide() {
+  openModal(`<div class="cc-modal-head"><h2>Commands</h2><button type="button" class="cc-x" data-close aria-label="Close">&times;</button></div>${guideHtml()}`, (box, close) => {
+    box.classList.add("cc-modal-guide");
+    hydrateCards(box, {
+      onRun: (q) => { close(); askFromCard(q); },
+      onFill: (t) => { close(); fillComposer(t); },
+    });
+  });
+}
+document.addEventListener("click", (e) => {
+  if (e.target.closest("[data-open-guide]") && document.getElementById("chat-messages")) { e.preventDefault(); openGuide(); }
+});
+
 function fillComposer(text) {
   const input = document.getElementById("chat-input");
   if (!input) return;

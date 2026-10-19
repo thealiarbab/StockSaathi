@@ -240,6 +240,17 @@ export function cardHtml(card) {
  * for /help, for an unknown "/word", and on an empty chat. Buttons carry
  * data-card-run (sends the example) or data-card-fill (puts it in the box).
  */
+/** The empty chat's version: one row of commands, each a tap away. */
+export function guideCompactHtml() {
+  const chips = COMMANDS.filter((c) => c.cmd !== "/help").map((c) =>
+    `<button type="button" class="ss-gc-chip" data-card-fill="${esc(c.cmd + (c.args ? " " : ""))}" title="${esc(hi() ? c.whatHi : c.what)}"><code>${esc(c.cmd)}</code><span>${esc(hi() ? c.hintHi : c.hint)}</span></button>`).join("");
+  return `<div class="ss-guide-compact">
+    <div class="ss-gc-head"><span>${L("Type / for tools with real market data", "/ likho: asli market data wale tools")}</span>
+      <button type="button" class="ss-gc-more" data-open-guide>${L("What each does", "Har ek kya karta hai")}</button></div>
+    <div class="ss-gc-chips">${chips}</div>
+  </div>`;
+}
+
 export function guideHtml(card = {}) {
   const rows = COMMANDS.filter((c) => c.cmd !== "/help").map((c) => `
     <div class="ss-guide-row">
