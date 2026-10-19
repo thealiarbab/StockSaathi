@@ -16,6 +16,7 @@
 
 import { sb } from "../db/supabase.js";
 import { presentWhatsNew } from "./whatsNew.js";
+import { onBackdropClick } from "./backdrop.js";
 
 // Guard state.
 //
@@ -258,7 +259,7 @@ function presentOne(client, notice, index = 0, total = 1) {
     document.addEventListener("keydown", onKey, true);
     okBtn?.addEventListener("click", close);
     ctaBtn?.addEventListener("click", () => { close(); });
-    overlay?.addEventListener("click", (e) => { if (e.target === overlay) close(); });
+    if (overlay) onBackdropClick(overlay, close);
   });
 }
 

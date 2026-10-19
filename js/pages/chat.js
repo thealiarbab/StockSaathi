@@ -25,6 +25,7 @@ import { forkAt, showVersion, branchInfo, stripVers } from "../features/chatBran
 import { pushThread, pullThreads, upsertShare, listShares, revokeShare, sendFeedback } from "../features/chatCloud.js";
 import { COMMANDS, isCommand, runCommand, cardHtml, hydrateCards, guideHtml, guideCompactHtml, CHART_TOOL_NOTE, hideChartMarkers, extractChartMarker } from "../features/chatCards.js";
 import { toast } from "../components/toast.js";
+import { onBackdropClick } from "../components/backdrop.js";
 
 // Defense-in-depth: strip any prompt-scaffolding patterns the model might
 // leak into its visible reply.
@@ -1174,7 +1175,8 @@ function openModal(html, onWire) {
   const close = () => { wrap.remove(); document.removeEventListener("keydown", onEsc); };
   const onEsc = (e) => { if (e.key === "Escape") close(); };
   document.addEventListener("keydown", onEsc);
-  wrap.addEventListener("click", (e) => { if (e.target === wrap || e.target.closest("[data-close]")) close(); });
+  onBackdropClick(wrap, close);
+  wrap.addEventListener("click", (e) => { if (e.target.closest("[data-close]")) close(); });
   onWire?.(wrap.querySelector(".cc-modal"), close);
   wrap.querySelector("button, input")?.focus();
 }

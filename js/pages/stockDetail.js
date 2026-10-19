@@ -27,6 +27,7 @@ import { termHtml } from "../features/aiExplainer.js";
 import { go } from "../navigation.js";
 import { bootTitleFor } from "./staticPage.js";
 import { aiLang } from "../features/aiLang.js";
+import { onBackdropClick } from "../components/backdrop.js";
 
 // Timeframe → Yahoo range/interval. Granularity tuned to match Groww/
 // Zerodha density at every TF the user lives in (1D, 1W, 1M).
@@ -1847,7 +1848,7 @@ function askChoice({ title, body, okLabel, cancelLabel }) {
     };
     const onKey = (e) => { if (e.key === "Escape") done("dismiss"); };
     document.addEventListener("keydown", onKey);
-    overlay.addEventListener("click", (e) => { if (e.target === overlay) done("dismiss"); });
+    onBackdropClick(overlay, () => done("dismiss"));
     modalRoot.querySelector("#choice-cancel").addEventListener("click", () => done("cancel"));
     modalRoot.querySelector("#choice-ok").addEventListener("click", () => done("ok"));
     setTimeout(() => modalRoot.querySelector("#choice-ok")?.focus(), 50);
@@ -2272,7 +2273,7 @@ function showConfirm(inst, symbol, curPrice, qty, biasResult) {
     orderEnd("cancelled", { at: "confirm_" + how });
     close();
   };
-  overlay.addEventListener("click", (e) => { if (e.target === overlay) dismiss("backdrop"); });
+  onBackdropClick(overlay, () => dismiss("backdrop"));
   modalRoot.querySelector("#cancel-btn").addEventListener("click", () => dismiss("cancel"));
   modalRoot.querySelector("#confirm-btn").addEventListener("click", () => {
     track("trade_modal", symbol, { action: "confirm", side });
@@ -2724,7 +2725,7 @@ function _openCustomRangeModal({ initialFrom, initialTo, onSubmit }) {
   const close = () => { root.innerHTML = ""; document.removeEventListener("keydown", onKey); };
   const onKey = (e) => { if (e.key === "Escape") close(); };
   document.addEventListener("keydown", onKey);
-  overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
+  onBackdropClick(overlay, close);
   root.querySelector("#custom-range-cancel").addEventListener("click", close);
   root.querySelector("#custom-range-apply").addEventListener("click", () => {
     const from = fromEl.value;
