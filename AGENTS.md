@@ -166,6 +166,17 @@ update their own profile row).
   /whatif /portfolio /explain /help); real exchange data only.
 - Share links: `chat_shares` + `get_shared_chat()`, public page `/share/<id>`
   (`js/pages/sharedChat.js`, vercel rewrite). Feedback: `chat_feedback`.
+- Message order: `js/features/chatOrder.js` (nextTs / byTurn /
+  repairTurnOrder). logChatTurn writes question then reply, sequentially, with
+  the client ts in `payload.ts`; the boot rebuild orders by it. A chat rebuilt
+  from coach_messages is `fromLog` and never overwrites chat_threads.
+- Charts in answers: the model writes `[[chart SYM 6m]]` / `[[compare A B 1y]]`
+  (CHART_TOOL_NOTE, preview only); `extractChartMarker` turns it into a card.
+- Projects: `chat_projects` (migration `2026-10-19e`) + `chat_threads.folder`;
+  `js/features/chatProjects.js`. Project instructions go into the prompt.
+- The coach pop-up (coachPanel.js) has commands, cards, the guide, copy,
+  feedback, regenerate/edit of the last turn (tombstones: ss.coachchat.pruned.v1).
+- No read-aloud (removed 19 Oct at the owner's request; do not add TTS back).
 - Supabase connector: statements containing DROP/DELETE wait for a
   confirmation that never reaches an agent session and time out. Write
   migrations without them (CREATE OR REPLACE, flags instead of deletes).

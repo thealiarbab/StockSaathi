@@ -5,7 +5,7 @@
 // Bump this on every deploy so old cached JS/HTML isn't served forever. The
 // activate step below deletes any cache whose name doesn't match. Include a
 // date so it is obvious in DevTools which build is live.
-const CACHE_NAME = "stocksaathi-v414-20261019n";
+const CACHE_NAME = "stocksaathi-v415-20261019o";
 const STATIC = [
   "./",
   "./app-shell",
@@ -68,6 +68,7 @@ const STATIC = [
   "./js/features/chatCloud.js",
   "./js/features/chatCards.js",
   "./js/features/chatOrder.js",
+  "./js/features/chatProjects.js",
   "./js/features/preview.js",
   "./js/features/aiExplainer.js",
   "./js/data/glossary.js",

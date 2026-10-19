@@ -16,13 +16,14 @@ import {
   createNewSession, deleteSessionById, touchActive, clearActiveMessages,
   renameSession, togglePin,
   formatRelative, SESSIONS_KEY,
-  displayOrder, setArchived, notePruned,
+  displayOrder, setArchived, notePruned, setFolder,
 } from "../features/chatSessions.js";
 import { nextTs, repairTurnOrder } from "../features/chatOrder.js";
 import { isPreview } from "../features/preview.js";
+import { listProjects, getProject, createProject, renameProject, setInstructions, removeProject, syncProjects, projectNote } from "../features/chatProjects.js";
 import { forkAt, showVersion, branchInfo, stripVers } from "../features/chatBranches.js";
 import { pushThread, pullThreads, upsertShare, listShares, revokeShare, sendFeedback } from "../features/chatCloud.js";
-import { COMMANDS, isCommand, runCommand, cardHtml, hydrateCards, guideHtml } from "../features/chatCards.js";
+import { COMMANDS, isCommand, runCommand, cardHtml, hydrateCards, guideHtml, CHART_TOOL_NOTE, hideChartMarkers, extractChartMarker } from "../features/chatCards.js";
 import { toast } from "../components/toast.js";
 
 // Defense-in-depth: strip any prompt-scaffolding patterns the model might
@@ -378,7 +379,7 @@ export function renderChat(main) {
       afterPaint(messagesEl);
       if (!syncFromCloud._started) {
         syncFromCloud._started = true;
-        syncFromCloud().then((changed) => { if (changed && document.getElementById("chat-messages")) render(); });
+        Promise.all([syncFromCloud(), syncProjects()]).then(([a, b]) => { if ((a || b) && document.getElementById("chat-messages")) render(); });
       }
 
       messagesEl.addEventListener("click", async (e) => {
@@ -569,19 +570,22 @@ export function renderChat(main) {
       m_abortController = null;
       m_pending = false;
     };
-    const newChat = () => {
+    const newChat = (folder = null) => {
       stopStream();
       // Reuse an empty chat instead of piling up blank ones.
       const blank = sessionsData.sessions.find(x => !(x.messages || []).length);
       if (blank) setActiveSession(sessionsData, blank.id);
       else createNewSession(sessionsData);
+      const fresh = getActiveSession(sessionsData);
+      if ((fresh.folder || null) !== (typeof folder === "string" ? folder : null)) setFolder(sessionsData, fresh.id, typeof folder === "string" ? folder : null);
+      if (fresh.folder) openProjects.add(fresh.folder);
       rebindActiveChatLog();
       sideQuery = "";
       drawerOpen = false;
       render();
     };
-    main.querySelector("#chat-new-btn")?.addEventListener("click", newChat);
-    main.querySelector("#chat-new-btn-2")?.addEventListener("click", newChat);
+    main.querySelector("#chat-new-btn")?.addEventListener("click", () => newChat());
+    main.querySelector("#chat-new-btn-2")?.addEventListener("click", () => newChat());
 
     // Drawer (phones and narrow windows).
     const setDrawer = (open) => {
@@ -599,6 +603,58 @@ export function renderChat(main) {
     const list = main.querySelector("#cc-list");
     const closeMenus = () => list?.querySelectorAll(".cc-item-menu").forEach(m => m.remove());
     list?.addEventListener("click", (e) => {
+      // ---- Projects (preview) ----
+      const pj = e.target.closest("[data-proj-new],[data-proj-chat],[data-proj-more],[data-proj-act],[data-move],[data-proj-toggle]");
+      if (pj) {
+        e.preventDefault(); e.stopPropagation();
+        if (pj.dataset.projToggle) {
+          const id = pj.dataset.projToggle;
+          const isOpen = pj.getAttribute("aria-expanded") === "true";
+          if (isOpen) openProjects.delete(id); else openProjects.add(id);
+          // The open chat's project stays open; collapsing it means "not now".
+          if (isOpen) collapsed.add(id); else collapsed.delete(id);
+          refreshSide();
+          return;
+        }
+        if (pj.dataset.projNew != null) { askProjectName("New project", "", (name) => { const p = createProject(name); if (p) { openProjects.add(p.id); refreshSide(); } }); return; }
+        if (pj.dataset.projChat) { newChat(pj.dataset.projChat); return; }
+        if (pj.dataset.projMore) {
+          const head = pj.closest(".cc-proj-head");
+          const had = head.parentElement.querySelector(":scope > .cc-item-menu");
+          closeMenus();
+          if (had) return;
+          const id = pj.dataset.projMore;
+          head.insertAdjacentHTML("afterend", `<div class="cc-item-menu cc-proj-menu" role="menu">
+            <button type="button" role="menuitem" data-proj-act="instr" data-id="${escapeAttr(id)}">Instructions</button>
+            <button type="button" role="menuitem" data-proj-act="rename" data-id="${escapeAttr(id)}">Rename</button>
+            <button type="button" role="menuitem" data-proj-act="remove" data-id="${escapeAttr(id)}" class="is-danger">Delete project</button>
+          </div>`);
+          return;
+        }
+        if (pj.dataset.projAct) {
+          const id = pj.dataset.id, p = getProject(id);
+          closeMenus();
+          if (!p) return;
+          if (pj.dataset.projAct === "rename") askProjectName("Rename project", p.name, (name) => { renameProject(id, name); refreshSide(); });
+          else if (pj.dataset.projAct === "instr") openInstructions(p);
+          else if (pj.dataset.projAct === "remove") {
+            if (!confirm(`Delete the project "${p.name}"? Its chats stay, back in your chat list.`)) return;
+            for (const x of sessionsData.sessions) if (x.folder === id) { setFolder(sessionsData, x.id, null); pushThread(x); }
+            removeProject(id);
+            refreshSide();
+          }
+          return;
+        }
+        if (pj.dataset.move != null) {
+          const sid = pj.dataset.id, sess = sessionsData.sessions.find(x => x.id === sid);
+          closeMenus();
+          if (!sess) return;
+          const apply = (folder) => { setFolder(sessionsData, sid, folder); pushThread(sess); if (folder) openProjects.add(folder); refreshSide(); };
+          if (pj.dataset.move === "__new") askProjectName("New project", "", (name) => { const p = createProject(name); if (p) apply(p.id); });
+          else apply(pj.dataset.move || null);
+          return;
+        }
+      }
       const openBtn = e.target.closest("[data-open]");
       const moreBtn = e.target.closest("[data-more]");
       const act = e.target.closest("[data-act]");
@@ -616,6 +672,16 @@ export function renderChat(main) {
           if (sess.archived && sessionsData.activeId === id) newChat(); else refreshSide();
         }
         else if (act.dataset.act === "rename") startRename(id);
+        else if (act.dataset.act === "move") {
+          const row = list.querySelector(`.cc-item[data-id="${CSS.escape(id)}"]`);
+          const ps = listProjects();
+          row?.insertAdjacentHTML("beforeend", `<div class="cc-item-menu" role="menu" aria-label="Move to project">
+            ${ps.map(p => `<button type="button" role="menuitem" data-move="${escapeAttr(p.id)}" data-id="${escapeAttr(id)}" ${sess.folder === p.id ? 'aria-checked="true"' : ""}>${escapeHtml(p.name)}${sess.folder === p.id ? " ✓" : ""}</button>`).join("")}
+            <button type="button" role="menuitem" data-move="__new" data-id="${escapeAttr(id)}">+ New project</button>
+            ${sess.folder ? `<button type="button" role="menuitem" data-move="" data-id="${escapeAttr(id)}">Remove from project</button>` : ""}
+          </div>`);
+          row?.querySelector(".cc-item-menu button")?.focus();
+        }
         else if (act.dataset.act === "delete") {
           if (!confirm(`Delete "${sess.title || "this chat"}"? This can't be undone.`)) return;
           if (sessionsData.activeId === id) stopStream();
@@ -639,6 +705,7 @@ export function renderChat(main) {
             <button type="button" role="menuitem" data-act="pin" data-id="${escapeAttr(id)}">${sess?.pinned ? "Unpin" : "Pin"}</button>
             <button type="button" role="menuitem" data-act="rename" data-id="${escapeAttr(id)}">Rename</button>
             ${isPreview() ? `<button type="button" role="menuitem" data-act="share" data-id="${escapeAttr(id)}">Share</button>
+            <button type="button" role="menuitem" data-act="move" data-id="${escapeAttr(id)}">Move to project</button>
             <button type="button" role="menuitem" data-act="archive" data-id="${escapeAttr(id)}">${sess?.archived ? "Unarchive" : "Archive"}</button>` : ""}
             <button type="button" role="menuitem" data-act="delete" data-id="${escapeAttr(id)}" class="is-danger">Delete</button>
           </div>`);
@@ -673,6 +740,33 @@ export function renderChat(main) {
     cleanupSide = off;
     window.addEventListener("ss:navigate", off, { once: true });
 
+    function askProjectName(title, value, done) {
+      openModal(`
+        <div class="cc-modal-head"><h2>${escapeHtml(title)}</h2><button type="button" class="cc-x" data-close aria-label="Close">&times;</button></div>
+        <p class="cc-modal-sub">Keep related chats together, like a school project or a stock you're tracking.</p>
+        <input class="cc-modal-input" id="cc-proj-name" maxlength="60" placeholder="e.g. Banking stocks" value="${escapeAttr(value)}" aria-label="Project name">
+        <div class="cc-modal-actions"><button type="button" class="cc-btn cc-btn-ghost" data-close>Cancel</button><button type="button" class="cc-btn cc-btn-primary" id="cc-proj-ok">Save</button></div>`, (box, close) => {
+        const inp = box.querySelector("#cc-proj-name");
+        const ok = () => { const v = inp.value.trim(); if (!v) { inp.focus(); return; } close(); done(v); };
+        box.querySelector("#cc-proj-ok").addEventListener("click", ok);
+        inp.addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); ok(); } });
+        setTimeout(() => { inp.focus(); inp.select(); }, 0);
+      });
+    }
+    function openInstructions(p) {
+      openModal(`
+        <div class="cc-modal-head"><h2>Instructions for ${escapeHtml(p.name)}</h2><button type="button" class="cc-x" data-close aria-label="Close">&times;</button></div>
+        <p class="cc-modal-sub">Saathi follows these in every chat in this project. For example: "I'm 15 and new to this, keep it simple" or "Compare everything with HDFC Bank".</p>
+        <textarea class="cc-modal-input cc-modal-area" id="cc-proj-ins" maxlength="1500" rows="5" aria-label="Project instructions">${escapeHtml(p.instructions || "")}</textarea>
+        <div class="cc-modal-actions"><button type="button" class="cc-btn cc-btn-ghost" data-close>Cancel</button><button type="button" class="cc-btn cc-btn-primary" id="cc-proj-save">Save</button></div>`, (box, close) => {
+        box.querySelector("#cc-proj-save").addEventListener("click", () => {
+          setInstructions(p.id, box.querySelector("#cc-proj-ins").value);
+          close();
+          toast({ kind: "success", message: `Saved. Saathi will follow these in "${p.name}".` });
+        });
+      });
+    }
+
     function startRename(id) {
       const row = list.querySelector(`.cc-item[data-id="${CSS.escape(id)}"]`);
       const sess = sessionsData.sessions.find(x => x.id === id);
@@ -705,6 +799,9 @@ export function renderChat(main) {
   function renderChatList() {
     const q = sideQuery.trim().toLowerCase();
     const archived = sessionsData.sessions.filter(x => x.archived && (x.messages || []).length);
+    const projects = isPreview() ? listProjects() : [];
+    const live = new Set(projects.map(p => p.id));
+    const inProject = (x) => x.folder && live.has(x.folder);
     const all = sessionsData.sessions
       .filter(x => !x.archived)
       .filter(x => (x.messages || []).length || x.id === sessionsData.activeId)
@@ -726,16 +823,39 @@ export function renderChat(main) {
       }
       return hits.length ? hits.join("") : `<p class="cc-list-empty">No chats match "${escapeHtml(sideQuery.trim())}".</p>`;
     }
+    const projHtml = !isPreview() ? "" : `
+      <div class="cc-group cc-projects">
+        <div class="cc-group-row"><h2 class="cc-group-name">Projects</h2><button type="button" class="cc-proj-add" data-proj-new aria-label="New project">+ New</button></div>
+        ${projects.length ? projects.map(p => {
+          const chats = all.filter(x => x.folder === p.id);
+          const open = openProjects.has(p.id) || (!collapsed.has(p.id) && getActiveSession(sessionsData)?.folder === p.id);
+          return `<div class="cc-project ${open ? "is-open" : ""}" data-proj="${escapeAttr(p.id)}">
+            <div class="cc-proj-head">
+              <button type="button" class="cc-proj-toggle" data-proj-toggle="${escapeAttr(p.id)}" aria-expanded="${open}">
+                <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                <span class="cc-proj-name">${escapeHtml(p.name)}</span><span class="cc-proj-n">${chats.length}</span>
+              </button>
+              <button type="button" class="cc-item-more" data-proj-more="${escapeAttr(p.id)}" aria-label="Options for ${escapeAttr(p.name)}" aria-haspopup="menu">&middot;&middot;&middot;</button>
+            </div>
+            ${open ? `<div class="cc-proj-body">
+              <button type="button" class="cc-proj-newchat" data-proj-chat="${escapeAttr(p.id)}">+ New chat in ${escapeHtml(p.name)}</button>
+              ${chats.map(x => chatItem(x)).join("")}
+              ${p.instructions ? "" : `<button type="button" class="cc-proj-hint" data-proj-act="instr" data-id="${escapeAttr(p.id)}">Add instructions Saathi follows here</button>`}
+            </div>` : ""}
+          </div>`;
+        }).join("") : `<p class="cc-list-empty cc-proj-empty">Group chats by topic. Saathi follows each project's instructions.</p>`}
+      </div>`;
     const day = 86400000;
     const start = new Date(); start.setHours(0, 0, 0, 0);
     const today = start.getTime();
     const groups = [["Pinned", []], ["Today", []], ["Yesterday", []], ["Previous 7 days", []], ["Previous 30 days", []], ["Older", []]];
     for (const x of all) {
+      if (inProject(x)) continue;          // listed under its project
       const t = x.updatedAt || x.createdAt || 0;
       const g = x.pinned ? 0 : t >= today ? 1 : t >= today - day ? 2 : t >= today - 7 * day ? 3 : t >= today - 30 * day ? 4 : 5;
       groups[g][1].push(x);
     }
-    return groups.filter(([, xs]) => xs.length).map(([name, xs]) => `
+    return projHtml + groups.filter(([, xs]) => xs.length).map(([name, xs]) => `
       <div class="cc-group">
         <h2 class="cc-group-name">${name}</h2>
         ${xs.map(x => chatItem(x)).join("")}
@@ -783,6 +903,8 @@ export function renderChat(main) {
 
 let m_pending = false;
 let m_abortController = null;
+const openProjects = new Set();   // projects expanded in the sidebar
+const collapsed = new Set();      // ...and ones the user closed
 let sideQuery = "";
 let drawerOpen = false;
 let cleanupSide = null;
@@ -843,11 +965,13 @@ function renderBubble(m) {
       <button type="button" class="cc-act" data-copy aria-label="Copy reply">${I.copy}<span>Copy</span></button>
     </div>`;
   const card = m.card ? cardHtml(m.card) : "";
-  const body = m.status ? statusHtml(m.text) : renderMarkdown(m.text);
-  // With a card, the text summary (what the AI and share links read) is for
-  // screen readers only: the card already shows it.
-  const textCls = card ? "cc-bubble cc-bot sr-only" : "cc-bubble cc-bot";
-  return `<div class="cc-row cc-row-bot"${streamAttr} data-i="${i}"><div class="cc-bot-col">${card}${m.text ? `<div class="${textCls}"><span class="msg-body">${body}</span></div>` : ""}${actions}</div></div>`;
+  const body = m.status ? statusHtml(m.text) : renderMarkdown(hideChartMarkers(m.text));
+  // A command card already shows its text summary (what the AI and share
+  // links read), so that text is for screen readers only. A chart Saathi
+  // put under an answer (cardWithText) goes below the answer.
+  const textCls = card && !m.cardWithText ? "cc-bubble cc-bot sr-only" : "cc-bubble cc-bot";
+  const textHtml = m.text ? `<div class="${textCls}"><span class="msg-body">${body}</span></div>` : "";
+  return `<div class="cc-row cc-row-bot"${streamAttr} data-i="${i}"><div class="cc-bot-col">${m.cardWithText ? textHtml + card : card + textHtml}${actions}</div></div>`;
 }
 
 // ---- Scrolling -------------------------------------------------------------------
@@ -929,11 +1053,14 @@ function syncFromCloud() {
         continue;
       }
       if (local) delete local.fromLog;
-      const next = { ...(local || {}), id: t.id, title: t.title, pinned: t.pinned, archived: t.archived,
+      const next = { ...(local || {}), id: t.id, title: t.title, pinned: t.pinned, archived: t.archived, folder: t.folder,
         messages: t.messages, pruned: t.pruned, createdAt: t.createdAt, updatedAt: t.updatedAt };
       if (local) {
-        if (JSON.stringify(local.messages) !== JSON.stringify(t.messages) || local.archived !== t.archived || local.pinned !== t.pinned || local.title !== t.title) {
+        if (JSON.stringify(local.messages) !== JSON.stringify(t.messages) || local.archived !== t.archived || local.pinned !== t.pinned || local.title !== t.title || (local.folder || null) !== (t.folder || null)) {
+          const moved = (local.folder || null) !== (t.folder || null);
           Object.assign(local, next);
+          // The device's meta copy would put the old project back on reload.
+          if (moved) setFolder(sessionsData, t.id, t.folder);
           changed = true;
         }
       } else { sessionsData.sessions.push(next); changed = true; }
@@ -1504,6 +1631,8 @@ Hinglish mode is on. Reply in Hinglish (Hindi in Roman script), keeping finance 
 
 # THIS TURN: LANGUAGE
 Reply in English.`;
+  // Preview: Saathi can put an interactive chart under any answer (chatCards.js).
+  const chartNote = isPreview() ? CHART_TOOL_NOTE + projectNote(ownerSession.folder) : "";
 
   if (wantTools) {
     // Tool-use path: non-streaming, standard runAgent with TOOLS.
@@ -1538,7 +1667,7 @@ Reply in English.`;
       if (!isOwnerActive() || !live) return;
       const bubble = outer?.querySelector('#chat-messages [data-streaming="1"] .msg-body');
       if (!bubble) { reRenderOuter(); return; }
-      bubble.innerHTML = live.status ? statusHtml(live.text) : renderMarkdown(live.text);
+      bubble.innerHTML = live.status ? statusHtml(live.text) : renderMarkdown(hideChartMarkers(live.text));
       const msgs = outer?.querySelector("#chat-messages");
       stickBottom(msgs);
     };
@@ -1578,7 +1707,7 @@ This is a discovery question. Search for the instruments AND call get_stock_pric
     // model answered "latest news on oil and Iran" from memory on 6 Oct
     // with the news tool right there.
     const newsBlock = await prefetchNewsBlock(userText);
-    const system = `${SYSTEM_PROMPT}\n\n# TOOL USE\nYou have tools for live data: get_stock_price, get_crypto_price, search_stocks, get_market_news, get_user_portfolio, get_trade_history, get_watchlist, get_limit_orders, get_fundamentals. USE them whenever the user asks about any specific stock, crypto, market state, company fundamentals (profit, EPS, ROE, P/E, debt, market cap), or their portfolio. Never guess numbers — always call the tool.\n\nCRITICAL: Call tools via the STRUCTURED tool_calls API only. NEVER write literal text like 'CALL search_stocks(...)' or '[Tool call: ...]' or fenced ` + "```tool_calls```" + ` JSON in your visible response. Those are internal scaffolding the user must never see. If you want to call a tool, emit the tool_call JSON block and let the system handle it. Your visible reply either (a) answers the user's question with real data you just received from a tool, or (b) says you'll look it up — never describes the mechanics of looking it up.\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# TONE\nKeep replies conversational and short by default (1–3 sentences). Only go longer when the user asks for explanation or depth.` + newsBlock + discoveryNudge + turnLang;
+    const system = `${SYSTEM_PROMPT}\n\n# TOOL USE\nYou have tools for live data: get_stock_price, get_crypto_price, search_stocks, get_market_news, get_user_portfolio, get_trade_history, get_watchlist, get_limit_orders, get_fundamentals. USE them whenever the user asks about any specific stock, crypto, market state, company fundamentals (profit, EPS, ROE, P/E, debt, market cap), or their portfolio. Never guess numbers — always call the tool.\n\nCRITICAL: Call tools via the STRUCTURED tool_calls API only. NEVER write literal text like 'CALL search_stocks(...)' or '[Tool call: ...]' or fenced ` + "```tool_calls```" + ` JSON in your visible response. Those are internal scaffolding the user must never see. If you want to call a tool, emit the tool_call JSON block and let the system handle it. Your visible reply either (a) answers the user's question with real data you just received from a tool, or (b) says you'll look it up — never describes the mechanics of looking it up.\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# TONE\nKeep replies conversational and short by default (1–3 sentences). Only go longer when the user asks for explanation or depth.` + newsBlock + discoveryNudge + chartNote + turnLang;
     try {
       replyText = await runAgent({
         apiKey: state.settings.llmApiKey || null,
@@ -1640,7 +1769,10 @@ You already offered to look this up and the user already asked. Do NOT ask again
       } catch (e) { console.warn("[chat] lookup-offer retry failed:", e?.message || e); }
     }
     cleanedReply = await finishReply(cleanedReply, userText, system, messages);
-    const finalText = (cleanedReply && cleanedReply.trim()) ? cleanedReply : (errorText || "Saathi couldn't answer that. Try rephrasing or asking again.");
+    let finalText = (cleanedReply && cleanedReply.trim()) ? cleanedReply : (errorText || "Saathi couldn't answer that. Try rephrasing or asking again.");
+    const ex = extractChartMarker(finalText);
+    finalText = ex.text || finalText;
+    const chartExtra = ex.card && isPreview() ? { card: ex.card, cardWithText: true } : {};
     // Stamp the reply just after ITS question, not when it finished: chats
     // are re-sorted by ts on sync, so a slow answer used to land below a
     // later question's answer.
@@ -1652,9 +1784,10 @@ You already offered to look this up and the user already asked. Do NOT ask again
     if (live) {
       if (liveTimer) { clearInterval(liveTimer); liveTimer = null; }
       live.text = finalText; live.streaming = false; live.status = false; live.ts = replyTs;
+      Object.assign(live, chartExtra);
     }
-    else if (qIdx >= 0) ownerMessages.splice(qIdx + 1, 0, { role: "assistant", text: finalText, ts: replyTs });
-    else ownerMessages.push({ role: "assistant", text: finalText, ts: replyTs });
+    else if (qIdx >= 0) ownerMessages.splice(qIdx + 1, 0, { role: "assistant", text: finalText, ts: replyTs, ...chartExtra });
+    else ownerMessages.push({ role: "assistant", text: finalText, ts: replyTs, ...chartExtra });
     // Title/timestamp refresh on the owner session
     ownerSession.updatedAt = Date.now();
     if (!ownerSession.title || ownerSession.title === "New chat") {
@@ -1715,7 +1848,7 @@ You already offered to look this up and the user already asked. Do NOT ask again
     const outerEl = document.getElementById("main");
     const streamBubble = outerEl?.querySelector('#chat-messages [data-streaming="1"] .msg-body');
     if (streamBubble) {
-      streamBubble.innerHTML = renderMarkdown(displayedText);
+      streamBubble.innerHTML = renderMarkdown(hideChartMarkers(displayedText));
       const msgs = outerEl?.querySelector("#chat-messages");
       stickBottom(msgs);
     } else {
@@ -1737,7 +1870,7 @@ You already offered to look this up and the user already asked. Do NOT ask again
   // means a stray reference is a loud ReferenceError, not a silent no-op.
   const streamSystem = `${SYSTEM_PROMPT}\n\n${NO_TOOLS_NOTE}\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# TONE\nKeep replies conversational and short by default (1–3 sentences). Only go longer when the user asks for explanation or depth.
 
-Answer only the latest message. Do not restate prices or facts from earlier turns unless the user asks for them again.` + turnLang;
+Answer only the latest message. Do not restate prices or facts from earlier turns unless the user asks for them again.` + chartNote + turnLang;
   let result = null;
   try {
     result = await streamChat({
@@ -1881,6 +2014,11 @@ Your earlier draft stated prices, moves or events that were not looked up. Call 
     }
     if (!result?.aborted && entry.text && !entry.text.startsWith("Hmm")) {
       entry.text = await finishReply(entry.text, userText, streamSystem, messages);
+    }
+    {
+      const ex = extractChartMarker(entry.text);
+      if (ex.text) entry.text = ex.text;
+      if (ex.card && isPreview()) { entry.card = ex.card; entry.cardWithText = true; }
     }
     // Save the OWNER session (refresh its timestamp + title)
     ownerSession.updatedAt = Date.now();

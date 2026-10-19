@@ -7,6 +7,9 @@
 import { getState, subscribe, setSetting } from "../state.js";
 import { track } from "../features/track.js";
 import { nextTs, byTurn, repairTurnOrder } from "../features/chatOrder.js";
+import { isPreview } from "../features/preview.js";
+import { isCommand, runCommand, cardHtml, hydrateCards, guideHtml, CHART_TOOL_NOTE, hideChartMarkers, extractChartMarker } from "../features/chatCards.js";
+import { sendFeedback } from "../features/chatCloud.js";
 import { getInstrument } from "../data/universe.js";
 import { getNews } from "../data/news.js";
 import { formatRupees, formatPct } from "../money.js";
@@ -17,6 +20,19 @@ import { getFreshCachedQuote } from "../data/marketData.js";
 import { buildDossier } from "../coach/dossier.js";
 
 const CHAT_LOG_KEY = "ss.coachchat.v1";
+// Turns taken off the panel by edit / regenerate. Without these, the merge in
+// saveChat (another tab's copy) and the boot rebuild from coach_messages
+// would bring them straight back.
+const PRUNED_KEY = "ss.coachchat.pruned.v1";
+const turnKey = (m) => `${m?.role}:${m?.ts}`;
+function readPruned() {
+  try { return new Set(JSON.parse(localStorage.getItem(PRUNED_KEY) || "[]")); } catch { return new Set(); }
+}
+function addPruned(msgs) {
+  const set = readPruned();
+  for (const m of msgs) set.add(turnKey(m));
+  try { localStorage.setItem(PRUNED_KEY, JSON.stringify([...set].slice(-300))); } catch {}
+}
 
 let chatHistory = loadChat();
 let pending = false;
@@ -44,9 +60,12 @@ const SAATHI_SYSTEM = `${SYSTEM_PROMPT}\n\n# TOOL USE\nYou have tools for live d
 function loadChat() {
   try {
     const raw = localStorage.getItem(CHAT_LOG_KEY);
-    const log = raw ? JSON.parse(raw) : [];
-    if (Array.isArray(log)) repairTurnOrder(log);
-    return Array.isArray(log) ? log : [];
+    const pruned = readPruned();
+    const log = (raw ? JSON.parse(raw) : []);
+    if (!Array.isArray(log)) return [];
+    const kept = pruned.size ? log.filter((m) => !pruned.has(turnKey(m))) : log;
+    repairTurnOrder(kept);
+    return kept;
   }
   catch { return []; }
 }
@@ -192,7 +211,7 @@ async function callLlmAgent(apiKey, history, state, extraSystem = "") {
   const lastUser = [...history].reverse().find((m) => m.role === "user")?.text || "";
   // News-shaped question: fresh headlines fetched by the app (C5).
   const newsBlock = await prefetchNewsBlock(lastUser);
-  const system = `${SAATHI_SYSTEM}\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# RUNTIME CONTEXT\n${screen ? screen + "\n" : ""}## Latest market headlines\n${newsContext || "(none loaded)"}\n\n# TONE\nKeep replies short by default (1–3 sentences). Go longer only when asked for depth.` + newsBlock + turnLanguage() + extraSystem;
+  const system = `${SAATHI_SYSTEM}\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# RUNTIME CONTEXT\n${screen ? screen + "\n" : ""}## Latest market headlines\n${newsContext || "(none loaded)"}\n\n# TONE\nKeep replies short by default (1–3 sentences). Go longer only when asked for depth.` + newsBlock + (isPreview() ? CHART_TOOL_NOTE : "") + turnLanguage() + extraSystem;
 
   // Steps of 8 so the start of the history (the cacheable part) holds still.
   const messages = history.slice(Math.floor(Math.max(0, history.length - 12) / 8) * 8).map(m => ({
@@ -475,7 +494,7 @@ function render() {
     <form class="composer cc-composer coach-composer" id="coach-form" autocomplete="off">
       <div class="composer-shell ${pending ? "is-busy" : ""}">
         <textarea id="coach-input" class="composer-input" rows="1"
-               placeholder="${pending ? "Saathi is replying…" : "Ask Saathi anything"}"
+               placeholder="${pending ? "Saathi is replying…" : isPreview() ? "Ask anything, or type / for tools" : "Ask Saathi anything"}"
                maxlength="300" aria-label="Message Saathi" ${pending ? "disabled" : ""}></textarea>
         ${pending
           ? `<button type="button" class="composer-btn is-stop" id="coach-stop" title="Stop generating" aria-label="Stop generating">&#9632;</button>`
@@ -498,7 +517,19 @@ function render() {
   }
 
   const ms = root.querySelector("#coach-messages-scroll");
-  if (ms) ms.scrollTop = ms.scrollHeight;
+  if (ms) {
+    // Follow new text only while the reader is at the end (same rule as /chat).
+    if (panelFollow) ms.scrollTop = ms.scrollHeight; else ms.scrollTop = panelScroll;
+    ms.addEventListener("scroll", () => {
+      panelScroll = ms.scrollTop;
+      panelFollow = ms.scrollHeight - ms.scrollTop - ms.clientHeight < 80;
+    }, { passive: true });
+    if (typeof ResizeObserver === "function") {
+      const ro = new ResizeObserver(() => { if (panelFollow) ms.scrollTop = ms.scrollHeight; });
+      ms.querySelectorAll(".ss-card").forEach((c) => ro.observe(c));
+    }
+    if (isPreview()) wirePanelExtras(ms, coachInput);
+  }
   root.querySelectorAll("[data-suggest]").forEach(btn => {
     btn.addEventListener("click", (e) => {
       e.preventDefault(); e.stopPropagation();
@@ -533,7 +564,28 @@ function render() {
     chatHistory.push({ role: "user", text, ts: nextTs(chatHistory) });
     saveChat();
     pending = true;
+    panelFollow = true;      // sending always goes back to the end
     render();
+
+    // Slash commands (preview): answered from the app's own data, no AI call.
+    if (isPreview() && isCommand(text)) {
+      let res = null;
+      try { res = await runCommand(text); } catch (e) { console.warn("[coach] command failed:", e); }
+      if (res && res.text == null && res.ask) {
+        // "/explain <word>" the glossary lacks: ask Saathi instead.
+        chatHistory[chatHistory.length - 1].text = res.ask;
+      } else {
+        const q = chatHistory[chatHistory.length - 1];
+        const reply = { role: "assistant", text: res?.text || "That command didn't work just now. Try again in a moment.", ts: nextTs(chatHistory) };
+        if (res?.card) reply.card = res.card;
+        chatHistory.push(reply);
+        saveChat();
+        pending = false;
+        logChatTurn({ userText: text, assistantText: reply.text, model: "command", surface: "side_panel", userTs: q.ts, replyTs: reply.ts });
+        render();
+        return;
+      }
+    }
 
     const s = getState();
 
@@ -552,7 +604,7 @@ function render() {
       const dossier = await buildDossier();
       const newsContext = newsSnap.slice(0, 5).map(n => `- ${n.headline} (${n.source}) [${n.sentiment}]`).join("\n");
       const screen = currentScreen();
-      const system = `${SAATHI_NO_TOOLS}\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# RUNTIME CONTEXT\n${screen ? screen + "\n" : ""}## Latest market headlines\n${newsContext || "(none loaded)"}\n\n# TONE\nKeep replies short by default (1–3 sentences). Go longer only when asked for depth.\n\nAnswer only the latest message. Do not restate prices or facts from earlier turns unless the user asks for them again.` + turnLanguage();
+      const system = `${SAATHI_NO_TOOLS}\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# RUNTIME CONTEXT\n${screen ? screen + "\n" : ""}## Latest market headlines\n${newsContext || "(none loaded)"}\n\n# TONE\nKeep replies short by default (1–3 sentences). Go longer only when asked for depth.\n\nAnswer only the latest message. Do not restate prices or facts from earlier turns unless the user asks for them again.` + (isPreview() ? CHART_TOOL_NOTE : "") + turnLanguage();
       const messages = chatHistory.slice(Math.floor(Math.max(0, chatHistory.length - 13) / 8) * 8).filter(m => !m.streaming || m === chatHistory[placeholderIdx]).slice(0, -1).map(m => ({
         role: m.role === "user" ? "user" : "assistant",
         content: m.text,
@@ -577,7 +629,7 @@ function render() {
                 const ms = root?.querySelector("#coach-messages-scroll");
                 if (ms) {
                   ms.innerHTML = renderMessagesHtml(getState());
-                  ms.scrollTop = ms.scrollHeight;
+                  if (panelFollow) ms.scrollTop = ms.scrollHeight;
                 }
               });
             }
@@ -645,6 +697,11 @@ function render() {
             () => callLlmAgent(s.settings.llmApiKey || null, chatHistory.filter((m) => m !== entry), s, LANG_RETRY_NOTE));
         }
       }
+      if (entry && entry.text) {
+        const ex = extractChartMarker(entry.text);
+        if (ex.text) entry.text = ex.text;
+        if (ex.card && isPreview()) { entry.card = ex.card; entry.cardWithText = true; }
+      }
       saveChat();
       pending = false;
       abortController = null;
@@ -654,7 +711,7 @@ function render() {
       if (!result?.aborted && !result?.error && entry && entry.text && !entry.text.startsWith("Hmm")) {
         logChatTurn({
           userText: text, assistantText: entry.text, model: "gemini-chat",
-          surface: "side_panel",
+          surface: "side_panel", userTs: chatHistory[placeholderIdx - 1]?.ts, replyTs: entry.ts,
         });
       }
       render();
@@ -674,18 +731,24 @@ function render() {
         if (again && again.trim() && !stillBad) reply = again;
       } catch (e) { console.warn("coach panel lookup-offer retry:", e); }
     }
+    let ok = false;
     if (!reply || !reply.trim()) {
       reply = "Hmm, I can't reach my brain right now. Give it a sec and try again?";
     } else {
       reply = await finishPanelReply(reply, text,
         () => callLlmAgent(s.settings.llmApiKey || null, chatHistory, s, LANG_RETRY_NOTE));
-      // Successful tool-use turn — log to DB for admin review.
-      // surface is required: without it rebuildChatSessionsFromDb filed these
-      // turns under the /chat page, so they vanished from this panel on reload.
-      logChatTurn({ userText: text, assistantText: reply, model: "gemini-chat-tools", surface: "side_panel" });
+      ok = true;
     }
 
-    chatHistory.push({ role: "assistant", text: reply, ts: nextTs(chatHistory) });
+    const ex = extractChartMarker(reply);
+    const msg = { role: "assistant", text: ex.text || reply, ts: nextTs(chatHistory) };
+    if (ex.card && isPreview()) { msg.card = ex.card; msg.cardWithText = true; }
+    const asked = [...chatHistory].reverse().find((m) => m.role === "user");
+    chatHistory.push(msg);
+    // Successful tool-use turn — log to DB for admin review.
+    // surface is required: without it rebuildChatSessionsFromDb filed these
+    // turns under the /chat page, so they vanished from this panel on reload.
+    if (ok) logChatTurn({ userText: text, assistantText: msg.text, model: "gemini-chat-tools", surface: "side_panel", userTs: asked?.ts, replyTs: msg.ts });
     saveChat();
     pending = false;
     render();
@@ -698,6 +761,67 @@ function render() {
   // now does a single focus on the closed → open transition instead.
 }
 
+let panelFollow = true;   // at the end of the panel's messages
+let panelScroll = 0;
+
+const ICON = {
+  copy: '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="3"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>',
+  edit: '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
+  regen: '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>',
+  up: '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v11H4V10z"/><path d="M7 10l4-8a3 3 0 0 1 3 3v4h5.5a2 2 0 0 1 2 2.3l-1.3 8A2 2 0 0 1 18.2 21H7"/></svg>',
+  down: '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 14V3h3v11z"/><path d="M17 14l-4 8a3 3 0 0 1-3-3v-4H4.5a2 2 0 0 1-2-2.3l1.3-8A2 2 0 0 1 5.8 3H17"/></svg>',
+};
+
+// Preview controls in the panel: cards, the command guide, copy, feedback,
+// regenerate the last reply, edit the last question. The panel keeps one
+// flat log (no versions), so regenerate replaces the last reply and edit
+// takes the last question back into the box.
+function wirePanelExtras(ms, input) {
+  const send = (text) => {
+    if (pending || !input) return;
+    input.value = text;
+    root.querySelector("#coach-form")?.requestSubmit();
+  };
+  hydrateCards(ms, {
+    onAsk: send, onRun: send,
+    onFill: (t) => { if (!input) return; input.value = t; input.focus(); input.setSelectionRange(t.length, t.length); },
+  });
+  ms.addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-pc]");
+    if (!b) return;
+    const kind = b.dataset.pc;
+    if (kind === "copy") {
+      const m = chatHistory.find((x) => String(x.ts) === b.dataset.ts);
+      try { await navigator.clipboard.writeText(m?.text || ""); b.classList.add("is-done"); setTimeout(() => b.classList.remove("is-done"), 1200); } catch {}
+      return;
+    }
+    if (kind === "fb") {
+      const m = chatHistory.find((x) => String(x.ts) === b.dataset.ts);
+      if (!m) return;
+      const v = +b.dataset.v;
+      m.fb = m.fb === v ? 0 : v;
+      if (m.fb) sendFeedback({ threadId: "side_panel", ts: m.ts, rating: v, reply: m.text });
+      saveChat();
+      render();
+      return;
+    }
+    if (pending) return;
+    // Both act on the last turn: drop the last question (and its reply).
+    let qi = -1;
+    for (let i = chatHistory.length - 1; i >= 0; i--) if (chatHistory[i]?.role === "user") { qi = i; break; }
+    if (qi < 0) return;
+    const q = chatHistory[qi].text;
+    addPruned(chatHistory.splice(qi));
+    saveChat();
+    if (kind === "regen") { render(); send(q); }
+    else if (kind === "edit") {
+      render();
+      const box = root.querySelector("#coach-input");
+      if (box) { box.value = q; box.focus(); box.setSelectionRange(q.length, q.length); box.dispatchEvent(new Event("input")); }
+    }
+  });
+}
+
 function renderMessagesHtml(state) {
   const trade = (state.coachMessages || []).slice(-5).map(m => ({
     role: "assistant", text: m.payload?.reflection || "",
@@ -708,7 +832,10 @@ function renderMessagesHtml(state) {
 
   // An empty streaming placeholder shows as the typing dots, not a blank row.
   const chat = chatHistory.slice(-20).filter(m => m.role === "user" || String(m.text || "").trim()).map(m => ({ ...m, isTrade: false }));
-  const all = [...trade, ...chat].sort((a, b) => a.ts - b.ts).slice(-25);
+  const all = [...trade, ...chat].sort(byTurn).slice(-25);
+  const preview = isPreview();
+  const lastUser = [...chat].reverse().find((m) => m.role === "user");
+  const lastBot = [...chat].reverse().find((m) => m.role === "assistant" && !m.streaming);
 
   if (!all.length && !pending) {
     return `
@@ -721,13 +848,16 @@ function renderMessagesHtml(state) {
             `<button type="button" class="cc-starter" data-suggest="${escapeAttr(q)}">${escapeHtml(q)}</button>`
           ).join("")}
         </div>
+        ${preview ? `<div class="cc-guide-wrap coach-guide">${guideHtml()}</div>` : ""}
       </div>
     `;
   }
 
   return all.map(m => {
     if (m.role === "user") {
-      return `<div class="cc-row cc-row-user"><div class="cc-bubble cc-user"><span class="msg-body">${escapeHtml(m.text)}</span></div></div>`;
+      const acts = preview && m.ts === lastUser?.ts && !pending
+        ? `<div class="cc-actions-row cc-actions-user"><button type="button" class="cc-act" data-pc="edit" aria-label="Edit message">${ICON.edit}<span>Edit</span></button></div>` : "";
+      return `<div class="cc-row cc-row-user"><div class="cc-user-col"><div class="cc-bubble cc-user"><span class="msg-body">${escapeHtml(m.text)}</span></div>${acts}</div></div>`;
     }
     if (m.isTrade) {
       const lvl = m.warning === "strong_caution" ? "strong-caution" : m.warning === "caution" ? "caution" : "";
@@ -748,10 +878,18 @@ function renderMessagesHtml(state) {
         </div>
       `;
     }
+    const card = preview && m.card ? cardHtml(m.card) : "";
+    const textHtml = `<div class="cc-bubble cc-bot ${card && !m.cardWithText ? "sr-only" : ""}"><span class="msg-body">${renderMarkdown(hideChartMarkers(m.text))}</span></div>`;
+    const acts = preview && !m.streaming && m.text ? `<div class="cc-actions-row">
+        <button type="button" class="cc-act" data-pc="copy" data-ts="${m.ts}" aria-label="Copy reply">${ICON.copy}</button>
+        ${m.ts === lastBot?.ts && !pending ? `<button type="button" class="cc-act" data-pc="regen" aria-label="Regenerate reply">${ICON.regen}</button>` : ""}
+        <button type="button" class="cc-act ${m.fb === 1 ? "is-on" : ""}" data-pc="fb" data-v="1" data-ts="${m.ts}" aria-pressed="${m.fb === 1}" aria-label="Good reply">${ICON.up}</button>
+        <button type="button" class="cc-act ${m.fb === -1 ? "is-on" : ""}" data-pc="fb" data-v="-1" data-ts="${m.ts}" aria-pressed="${m.fb === -1}" aria-label="Bad reply">${ICON.down}</button>
+      </div>` : "";
     return `
       <div class="cc-row cc-row-bot">
         <span class="cc-avatar" aria-hidden="true">S</span>
-        <div class="cc-bot-col"><div class="cc-bubble cc-bot"><span class="msg-body">${renderMarkdown(m.text)}</span></div></div>
+        <div class="cc-bot-col">${m.cardWithText ? textHtml + card : card + textHtml}${acts}</div>
       </div>
     `;
   }).join("") + (pending && !all.some(m => m.streaming) ? `

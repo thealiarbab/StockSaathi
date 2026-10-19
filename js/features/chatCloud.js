@@ -24,6 +24,7 @@ function threadRow(s) {
     pinned: !!s.pinned,
     archived: !!s.archived,
     trashed: !!s.trashed,
+    folder: s.folder || null,
     doc: { v: 1, messages: s.messages || [], pruned: (s.pruned || []).slice(-500) },
     created_at: new Date(s.createdAt || Date.now()).toISOString(),
     updated_at: new Date(s.updatedAt || Date.now()).toISOString(),
@@ -54,7 +55,7 @@ export async function pullThreads() {
     const client = await sb();
     if (!client) return [];
     const { data, error } = await client.from("chat_threads")
-      .select("id,title,pinned,archived,trashed,doc,created_at,updated_at")
+      .select("id,title,pinned,archived,trashed,folder,doc,created_at,updated_at")
       .order("updated_at", { ascending: false }).limit(300);
     if (error) { console.warn("[chat-cloud] load failed:", error.message); return []; }
     return (data || []).map((r) => ({
@@ -63,6 +64,7 @@ export async function pullThreads() {
       pinned: !!r.pinned,
       archived: !!r.archived,
       trashed: !!r.trashed,
+      folder: r.folder || null,
       messages: Array.isArray(r.doc?.messages) ? r.doc.messages : [],
       pruned: Array.isArray(r.doc?.pruned) ? r.doc.pruned : [],
       createdAt: Date.parse(r.created_at) || Date.now(),
@@ -88,6 +90,7 @@ export function shareSnapshot(messages, { hideAmounts = false } = {}) {
       if (hideAmounts) text = text.replace(AMOUNT_RE, "₹•••");
       const out = { role: x.role, text, ts: x.ts };
       if (x.card && !hideAmounts) out.card = x.card;
+      if (out.card && x.cardWithText) out.cardWithText = true;
       if (x.chart && !hideAmounts) out.chart = x.chart;
       return out;
     });

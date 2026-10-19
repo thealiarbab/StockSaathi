@@ -416,3 +416,45 @@ export function hydrateCards(root, { onAsk, onRun, onFill } = {}) {
     }
   });
 }
+
+// ---- Charts inside Saathi's own answers ---------------------------------------
+// The model asks for a chart by writing a marker on its own line:
+//   [[chart TCS 6m]]   or   [[compare INFY TCS 1y]]
+// The app turns the first valid one into the same interactive card /chart
+// draws (real exchange data only) and removes every marker from the text.
+// An unknown symbol just drops the marker: no card is better than a wrong one.
+
+export const CHART_TOOL_NOTE = `
+
+# CHARTS IN YOUR ANSWER
+You can show the user an interactive price chart under your reply. When a chart would help (how a stock moved, a trend, comparing two stocks, "show me"), put ONE marker on its own line at the end of your reply:
+[[chart SYMBOL RANGE]]  for one stock, e.g. [[chart TCS 6m]]
+[[compare SYMBOL SYMBOL RANGE]]  for two, e.g. [[compare INFY TCS 1y]]
+RANGE is one of 1m, 3m, 6m, 1y, 5y. Use NSE symbols. The app draws the chart from real exchange data, so do not describe numbers you have not been given; refer to "the chart below" instead. Never show a marker for crypto or a mutual fund. At most one marker per reply.`;
+
+const MARKER_RE = /\[\[\s*(chart|compare)\s+([^\]]{1,60})\]\]/gi;
+
+/** Text as shown while it streams: markers (and a half-typed one) hidden. */
+export function hideChartMarkers(text) {
+  return String(text || "").replace(MARKER_RE, "").replace(/\[\[[^\]]{0,60}$/, "").replace(/\n{3,}/g, "\n\n").trimEnd();
+}
+
+/** { text, card } for a finished reply: the first valid marker becomes a card. */
+export function extractChartMarker(text) {
+  let card = null;
+  for (const m of String(text || "").matchAll(MARKER_RE)) {
+    if (card) break;
+    const kind = m[1].toLowerCase();
+    const toks = m[2].trim().split(/\s+/);
+    const rangeTok = toks.find((t) => /^\d+\s*[a-z]+$/i.test(t));
+    const names = toks.filter((t) => t !== rangeTok);
+    if (kind === "chart") {
+      const sym = resolveSymbol(names.join(" ")) || resolveSymbol(names[0]);
+      if (sym) card = { type: "chart", sym, range: parseRange(rangeTok, "3mo") };
+    } else {
+      const a = resolveSymbol(names[0]), b = resolveSymbol(names[1]);
+      if (a && b && a !== b) card = { type: "compare", syms: [a, b], range: parseRange(rangeTok, "1y") };
+    }
+  }
+  return { text: hideChartMarkers(text), card };
+}

@@ -39,6 +39,7 @@ function applyMeta(data) {
     if (m.title) x.title = m.title;
     x.pinned = !!m.pinned;
     x.archived = !!m.archived;
+    if ("folder" in m) x.folder = m.folder || null;
   }
 }
 const LEGACY_LOG_KEY = "ss.chatlog.v1";
@@ -266,6 +267,15 @@ export function setArchived(data, id, archived) {
   if (!s) return;
   s.archived = !!archived;
   patchMeta(id, { archived: s.archived || undefined });
+  saveSessions(data);
+}
+
+/** Put a chat in a project (chatProjects.js), or take it out with null. */
+export function setFolder(data, id, folder) {
+  const s = data.sessions.find((x) => x.id === id);
+  if (!s) return;
+  s.folder = folder || null;
+  patchMeta(id, { folder: s.folder });
   saveSessions(data);
 }
 

@@ -24,7 +24,7 @@ export async function renderSharedChat(main, params) {
   const when = new Date(data.updated_at || data.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
   const msgs = (data.messages || []).map((m) => m.role === "user"
     ? `<div class="cc-row cc-row-user"><div class="cc-user-col">${m.chart ? chartCard(m.chart) : ""}<div class="cc-bubble cc-user"><span class="msg-body">${esc(m.text)}</span></div></div></div>`
-    : `<div class="cc-row cc-row-bot"><div class="cc-bot-col">${m.card ? cardHtml(m.card) : ""}<div class="cc-bubble cc-bot"><span class="msg-body">${renderMarkdown(m.text)}</span></div></div></div>`).join("");
+    : `<div class="cc-row cc-row-bot"><div class="cc-bot-col">${m.cardWithText ? "" : m.card ? cardHtml(m.card) : ""}<div class="cc-bubble cc-bot"><span class="msg-body">${renderMarkdown(m.text)}</span></div>${m.cardWithText && m.card ? cardHtml(m.card) : ""}</div></div>`).join("");
   const authed = !!getState()?.isAuthed;
   main.innerHTML = `
     <div class="share-page">
