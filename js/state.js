@@ -273,14 +273,16 @@ export function resolvedTheme(settings = _settings) {
 }
 
 export function setSetting(key, value) {
+  const prev = getState();
   _settings = { ..._settings, [key]: value };
   writeSettings(_settings);
-  emit(getState());
+  emit(prev);
 }
 export function setSettings(patch) {
+  const prev = getState();
   _settings = { ..._settings, ...patch };
   writeSettings(_settings);
-  emit(getState());
+  emit(prev);
 }
 
 export function switchUser() {

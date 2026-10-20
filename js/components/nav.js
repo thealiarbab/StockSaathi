@@ -33,7 +33,9 @@ export function mountNav() {
   const root = document.getElementById("nav-root");
   if (!root) return;
   render();
-  subscribe(render);
+  subscribe((state, prev) => {
+    if (!isHinglishOnlyChange(state, prev)) render();
+  });
   window.addEventListener("ss:navigate", render);
 
   // Click-outside closes user dropdown
@@ -302,6 +304,20 @@ function ensureDrawer() {
   `;
   document.body.appendChild(drawer);
   drawer.querySelector("[data-close]").addEventListener("click", closeDrawer);
+}
+
+function isHinglishOnlyChange(state, prev) {
+  if (!prev || state.settings.hinglish === prev.settings.hinglish) return false;
+  if (state.isAuthed !== prev.isAuthed
+      || state.user?.displayName !== prev.user?.displayName
+      || state.user?.username !== prev.user?.username
+      || state.portfolio !== prev.portfolio
+      || state.holdings !== prev.holdings) return false;
+  const keys = new Set([...Object.keys(state.settings), ...Object.keys(prev.settings)]);
+  for (const key of keys) {
+    if (key !== "hinglish" && state.settings[key] !== prev.settings[key]) return false;
+  }
+  return true;
 }
 
 function renderDrawer(state, allLinks, active, pfValue, ms) {
