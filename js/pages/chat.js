@@ -1752,6 +1752,7 @@ This is a discovery question. Search for the instruments AND call get_stock_pric
     });
     m_pending = false;
     m_abortController = null;
+    restoreForm();
     // Write into the OWNER session's messages directly so a mid-stream
     // session switch doesn't land the reply in the wrong chat.
     let cleanedReply = stripScaffolding(replyText);
@@ -1937,6 +1938,7 @@ Answer only the latest message. Do not restate prices or facts from earlier turn
   });
   m_pending = false;
   m_abortController = null;
+  restoreForm();
   const entry = ownerMessages[placeholderIdx];
   // True while the bubble still holds the stream's own text (no retry ran),
   // which is what the figure check below applies to.
