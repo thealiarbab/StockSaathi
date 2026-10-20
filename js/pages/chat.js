@@ -246,7 +246,7 @@ export function renderChat(main) {
     main.dataset.chatId = active.id;
 
     main.innerHTML = `
-      <div class="cc cc-has-side ${drawerOpen ? "is-drawer-open" : ""}">
+      <div class="cc cc-has-side ${drawerOpen ? "is-drawer-open" : ""} ${sidebarHidden ? "is-side-hidden" : ""}">
         <aside class="cc-side" id="cc-side" aria-label="Your chats">
           <div class="cc-side-top">
             <span class="cc-side-name">Saathi</span>
@@ -270,7 +270,7 @@ export function renderChat(main) {
 
         <section class="cc-main">
           <header class="cc-head">
-            <button class="cc-chip-btn cc-menu-btn" id="cc-open-side" type="button" aria-controls="cc-side" aria-label="Open chat list">
+            <button class="cc-chip-btn cc-menu-btn" id="cc-open-side" type="button" aria-controls="cc-side" aria-expanded="${window.innerWidth <= 900 ? drawerOpen : !sidebarHidden}" aria-label="${window.innerWidth <= 900 ? (drawerOpen ? "Close chat list" : "Open chat list") : (sidebarHidden ? "Show chat list" : "Hide chat list")}">
               <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
               Chats
             </button>
@@ -662,9 +662,21 @@ export function renderChat(main) {
     const setDrawer = (open) => {
       drawerOpen = open;
       main.querySelector(".cc")?.classList.toggle("is-drawer-open", open);
+      const toggle = main.querySelector("#cc-open-side");
+      toggle?.setAttribute("aria-expanded", open ? "true" : "false");
+      toggle?.setAttribute("aria-label", open ? "Close chat list" : "Open chat list");
       if (open) main.querySelector("#cc-search")?.focus();
     };
-    main.querySelector("#cc-open-side")?.addEventListener("click", () => setDrawer(true));
+    main.querySelector("#cc-open-side")?.addEventListener("click", (e) => {
+      if (window.innerWidth <= 900) {
+        setDrawer(!drawerOpen);
+        return;
+      }
+      sidebarHidden = !sidebarHidden;
+      main.querySelector(".cc")?.classList.toggle("is-side-hidden", sidebarHidden);
+      e.currentTarget.setAttribute("aria-expanded", sidebarHidden ? "false" : "true");
+      e.currentTarget.setAttribute("aria-label", sidebarHidden ? "Show chat list" : "Hide chat list");
+    });
     main.querySelector("#cc-side-close")?.addEventListener("click", () => setDrawer(false));
     main.querySelector("#cc-scrim")?.addEventListener("click", () => setDrawer(false));
 
@@ -978,6 +990,7 @@ const openProjects = new Set();   // projects expanded in the sidebar
 const collapsed = new Set();      // ...and ones the user closed
 let sideQuery = "";
 let drawerOpen = false;
+let sidebarHidden = false;
 let cleanupSide = null;
 
 // ---- Messages ------------------------------------------------------------------

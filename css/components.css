@@ -5702,7 +5702,7 @@ button.ss-pill-x:hover { border-color: var(--brand); }
   .cc-has-side .cc-title { font-size: var(--text-xl); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .cc-side, .cc-scrim { transition: none; }
+  .cc.cc-has-side, .cc-side, .cc-scrim { transition: none; }
 }
 
 /* ---- Coach chat, ChatGPT-style pass ------------------------------------ */
@@ -5820,6 +5820,22 @@ button.ss-pill-x:hover { border-color: var(--brand); }
   position: static; height: 100%; max-height: none;
   border: 0; border-right: 1px solid var(--divider); border-radius: 0;
   background: var(--bg); padding: 10px 8px; gap: 2px;
+}
+.cc-menu-btn { display: inline-flex; flex: 0 0 auto; }
+@media (min-width: 901px) {
+  .cc.cc-has-side { transition: grid-template-columns var(--dur-2) var(--ease); }
+  .cc-side {
+    min-width: 0; overflow: hidden;
+    transition: transform var(--dur-2) var(--ease), opacity var(--dur-1) ease, padding var(--dur-2) var(--ease);
+  }
+  .cc.cc-has-side.is-side-hidden { grid-template-columns: 0 minmax(0, 1fr); }
+  .cc.is-side-hidden .cc-side {
+    transform: translateX(-100%);
+    opacity: 0;
+    padding-left: 0;
+    padding-right: 0;
+    pointer-events: none;
+  }
 }
 .cc-side-top { align-items: center; justify-content: space-between; padding: 6px 10px 10px; }
 .cc-side-name { font-size: var(--text-lg); font-weight: 700; color: var(--text-strong); letter-spacing: -0.01em; }
