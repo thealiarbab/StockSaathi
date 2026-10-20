@@ -32,9 +32,10 @@ const DESKTOP_TOP_AUTH = ["portfolio", "stocks", "news", "chat", "crash-replay"]
 export function mountNav() {
   const root = document.getElementById("nav-root");
   if (!root) return;
+  let lastStateKey = null;
   render();
-  subscribe((state, prev) => {
-    if (!isHinglishOnlyChange(state, prev)) render();
+  subscribe((state) => {
+    if (navStateKey(state) !== lastStateKey) render();
   });
   window.addEventListener("ss:navigate", render);
 
@@ -62,6 +63,7 @@ export function mountNav() {
 
   function render() {
     const state = getState();
+    lastStateKey = navStateKey(state);
     const active = currentRoute().name;
     // U3: tabs match on the first path segment. Matching the route NAME
     // never lit Home (route "") and never lit Markets on /stocks/TCS
@@ -306,18 +308,16 @@ function ensureDrawer() {
   drawer.querySelector("[data-close]").addEventListener("click", closeDrawer);
 }
 
-function isHinglishOnlyChange(state, prev) {
-  if (!prev || state.settings.hinglish === prev.settings.hinglish) return false;
-  if (state.isAuthed !== prev.isAuthed
-      || state.user?.displayName !== prev.user?.displayName
-      || state.user?.username !== prev.user?.username
-      || state.portfolio !== prev.portfolio
-      || state.holdings !== prev.holdings) return false;
-  const keys = new Set([...Object.keys(state.settings), ...Object.keys(prev.settings)]);
-  for (const key of keys) {
-    if (key !== "hinglish" && state.settings[key] !== prev.settings[key]) return false;
-  }
-  return true;
+function navStateKey(state) {
+  return JSON.stringify([
+    state.isAuthed,
+    state.user?.id,
+    state.user?.displayName,
+    state.user?.username,
+    state.portfolio?.cashPaise,
+    computeHoldingsValue(state),
+    resolvedTheme(state.settings),
+  ]);
 }
 
 function renderDrawer(state, allLinks, active, pfValue, ms) {
