@@ -6012,6 +6012,9 @@ body.chat-app { overflow: hidden; }
 .cc-btn:disabled { opacity: .6; cursor: default; }
 
 .cc-head-share { gap: 6px; }
+@media (min-width: 901px) {
+  .cc-head-share { margin-left: auto; }
+}
 .cc-head { position: relative; }
 .cc-head-menu { position: absolute; right: 48px; top: calc(100% + 4px); z-index: 30; min-width: 210px; }
 
