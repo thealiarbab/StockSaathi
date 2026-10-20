@@ -110,6 +110,15 @@ export function getActiveEvents() {
 
 let _mounted = false;
 let _root = null;
+let _heightObserver = null;
+
+function _syncMarqueeHeight() {
+  if (!_root || _root.style.display === "none") {
+    document.documentElement.style.setProperty("--event-marquee-h", "0px");
+    return;
+  }
+  document.documentElement.style.setProperty("--event-marquee-h", `${_root.getBoundingClientRect().height}px`);
+}
 
 export function mountEventMarquee() {
   if (_mounted) { _refresh(); return; }
@@ -123,11 +132,19 @@ export function mountEventMarquee() {
     _root.id = "event-marquee-root";
     _root.style.cssText = "display:none;";  // hidden until events exist
     nav.parentNode.insertBefore(_root, nav);
+    window.addEventListener("resize", _refresh);
+    if (typeof ResizeObserver !== "undefined") {
+      _heightObserver = new ResizeObserver(_syncMarqueeHeight);
+      _heightObserver.observe(_root);
+    }
     _refresh();
     // Re-poll when the universe finishes loading so a late-arriving MF
     // termination surfaces on this mount instead of the next.
     window.addEventListener("ss:mf-universe-loaded", _refresh);
     window.addEventListener("ss:universe-loaded", _refresh);
+    const motionPreference = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+    if (motionPreference?.addEventListener) motionPreference.addEventListener("change", _refresh);
+    else motionPreference?.addListener?.(_refresh);
     // Re-evaluate on hashchange (date might have crossed midnight if the
     // user keeps the tab open through midnight IST).
     window.addEventListener("ss:navigate", _refresh);
@@ -140,6 +157,7 @@ function _refresh() {
   if (events.length === 0) {
     _root.style.display = "none";
     _root.innerHTML = "";
+    _syncMarqueeHeight();
     return;
   }
   _root.style.display = "";
@@ -147,16 +165,17 @@ function _refresh() {
   // so the eye can break between them as they scroll past.
   const SEP = " • ";
   const text = events.map(e => e.text).join(SEP);
-  // Repeat the text so the loop appears continuous as it scrolls.
-  // Without the repeat, there's a visible gap when the first copy exits
-  // the viewport before the next starts.
-  const repeated = text + SEP + text;
+  // Repeat only for the scrolling version; reduced-motion users get one
+  // readable, static copy instead of a taller duplicate announcement.
+  const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  const repeated = reducedMotion ? text : text + SEP + text;
   const severity = events.some(e => e.severity === "warning") ? "warning" : "info";
   _root.innerHTML = `
     <div class="event-marquee event-marquee--${severity}" role="status" aria-live="polite">
       <div class="event-marquee-track">${escapeHtml(repeated)}</div>
     </div>
   `;
+  _syncMarqueeHeight();
 }
 
 function escapeHtml(s) {

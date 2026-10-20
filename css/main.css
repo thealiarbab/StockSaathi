@@ -139,6 +139,8 @@
 
   /* ---------- Layout ---------- */
   --nav-h: 64px;
+  --event-marquee-h: 0px;
+  --page-top-h: calc(var(--nav-h) + var(--event-marquee-h) + env(safe-area-inset-top) + 1px);
   --coach-w: 380px;
   --max-w: 1280px;
 }
@@ -335,8 +337,8 @@ hr { border: none; border-top: 1px solid var(--divider); margin: var(--sp-4) 0; 
   margin: 0 auto;
   padding: var(--sp-6) var(--sp-6) var(--sp-24);
   padding-bottom: calc(var(--sp-24) + env(safe-area-inset-bottom));
-  min-height: calc(100vh - var(--nav-h));
-  min-height: calc(100dvh - var(--nav-h));
+  min-height: calc(100vh - var(--page-top-h));
+  min-height: calc(100dvh - var(--page-top-h));
 }
 .container {
   max-width: var(--max-w);
