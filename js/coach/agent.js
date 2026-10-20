@@ -758,7 +758,7 @@ function resolveCryptoId(q) {
 // -----------------------------------------------------------------------------
 // Transport — client-direct OR via backend proxy
 // -----------------------------------------------------------------------------
-async function callLLM({ apiKey, system, messages, tools, profile = "fast", reasoningEffort, onText }) {
+async function callLLM({ apiKey, system, messages, tools, profile = "fast", reasoningEffort, onText, signal }) {
   // Convert chat history (role/content string) to OpenAI format
   const openaiMessages = [
     { role: "system", content: system },
@@ -815,6 +815,7 @@ async function callLLM({ apiKey, system, messages, tools, profile = "fast", reas
           "Authorization": `Bearer ${apiKey}`,
         },
         body: JSON.stringify(body),
+        signal,
       });
       if (!res.ok) {
         console.warn("Groq direct HTTP", res.status);
@@ -822,7 +823,7 @@ async function callLLM({ apiKey, system, messages, tools, profile = "fast", reas
       }
       return await res.json();
     } catch (e) {
-      console.warn("Groq direct failed:", e);
+      if (!signal?.aborted) console.warn("Groq direct failed:", e);
       return null;
     }
   }
@@ -835,6 +836,7 @@ async function callLLM({ apiKey, system, messages, tools, profile = "fast", reas
       method: "POST",
       headers: { "Content-Type": "application/json", ...(onText ? { "Accept": "text/event-stream" } : {}) },
       body: JSON.stringify(body),
+      signal,
     });
     if (!res.ok) {
       const txt = await res.text().catch(() => "");
@@ -842,11 +844,11 @@ async function callLLM({ apiKey, system, messages, tools, profile = "fast", reas
       return null;
     }
     if (onText && res.body && /event-stream/.test(res.headers.get("Content-Type") || "")) {
-      return await readToolStream(res, onText);
+      return await readToolStream(res, onText, signal);
     }
     return await res.json();
   } catch (e) {
-    console.warn("Backend /api/chat failed:", e);
+    if (!signal?.aborted) console.warn("Backend /api/chat failed:", e);
     return null;
   }
 }
@@ -854,45 +856,67 @@ async function callLLM({ apiKey, system, messages, tools, profile = "fast", reas
 // Rebuilds one chat-completion reply from an SSE stream. Text goes to onText
 // (the whole cleaned text so far) until the first tool call shows up; tool
 // calls arrive in pieces keyed by index, with arguments split across chunks.
-async function readToolStream(res, onText) {
+async function readToolStream(res, onText, signal) {
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "", text = "", finish = null, usage = null;
   const calls = [];
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split(String.fromCharCode(10));
-    buffer = lines.pop() ?? "";
-    for (const raw of lines) {
-      const line = raw.trim();
-      if (!line.startsWith("data:")) continue;
-      const data = line.slice(5).trim();
-      if (!data || data === "[DONE]") continue;
-      let chunk;
-      try { chunk = JSON.parse(data); } catch { continue; }
-      if (chunk.usage) usage = chunk.usage;
-      const ch = chunk.choices?.[0];
-      if (!ch) continue;
-      if (ch.finish_reason) finish = ch.finish_reason;
-      const d = ch.delta || {};
-      for (const tc of d.tool_calls || []) {
-        const i = Number.isInteger(tc.index) ? tc.index : calls.length;
-        const cur = calls[i] || (calls[i] = { type: "function", function: { name: "", arguments: "" } });
-        for (const [k, v] of Object.entries(tc)) {
-          if (k === "index") continue;
-          if (k === "function") {
-            if (v?.name) cur.function.name = v.name;
-            if (v?.arguments) cur.function.arguments += v.arguments;
-          } else cur[k] = v;
+  const cancelReader = () => { reader.cancel().catch((e) => console.warn("tool stream cancel:", e)); };
+  const onAbort = () => cancelReader();
+  if (signal?.aborted) cancelReader();
+  else signal?.addEventListener("abort", onAbort, { once: true });
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split(String.fromCharCode(10));
+      buffer = lines.pop() ?? "";
+      let complete = false;
+      for (const raw of lines) {
+        const line = raw.trim();
+        if (!line.startsWith("data:")) continue;
+        const data = line.slice(5).trim();
+        if (!data) continue;
+        if (data === "[DONE]") {
+          finish ||= "stop";
+          complete = true;
+          break;
         }
+        let chunk;
+        try { chunk = JSON.parse(data); } catch { continue; }
+        if (chunk.usage) usage = chunk.usage;
+        const ch = chunk.choices?.[0];
+        if (!ch) continue;
+        if (ch.finish_reason) {
+          finish = ch.finish_reason;
+          complete = true;
+        }
+        const d = ch.delta || {};
+        for (const tc of d.tool_calls || []) {
+          const i = Number.isInteger(tc.index) ? tc.index : calls.length;
+          const cur = calls[i] || (calls[i] = { type: "function", function: { name: "", arguments: "" } });
+          for (const [k, v] of Object.entries(tc)) {
+            if (k === "index") continue;
+            if (k === "function") {
+              if (v?.name) cur.function.name = v.name;
+              if (v?.arguments) cur.function.arguments += v.arguments;
+            } else cur[k] = v;
+          }
+        }
+        if (d.content) {
+          text += d.content;
+          if (!calls.length) onText(stripToolCallScaffolding(text));
+        }
+        if (complete) break;
       }
-      if (d.content) {
-        text += d.content;
-        if (!calls.length) onText(stripToolCallScaffolding(text));
+      if (complete) {
+        cancelReader();
+        break;
       }
     }
+  } finally {
+    signal?.removeEventListener("abort", onAbort);
   }
   const tool_calls = calls.filter(Boolean);
   return {
@@ -907,7 +931,31 @@ async function readToolStream(res, onText) {
 // -----------------------------------------------------------------------------
 // Main agent loop (OpenAI-style tool_calls)
 // -----------------------------------------------------------------------------
-export async function runAgent({ apiKey, system, messages, onStep, onText, profile = "fast" }) {
+function waitForSignal(promise, signal) {
+  if (!signal) return promise;
+  if (signal.aborted) {
+    const error = new Error("The operation was aborted");
+    error.name = "AbortError";
+    return Promise.reject(error);
+  }
+  return new Promise((resolve, reject) => {
+    const cleanup = () => signal.removeEventListener("abort", onAbort);
+    const onAbort = () => {
+      cleanup();
+      const error = new Error("The operation was aborted");
+      error.name = "AbortError";
+      reject(error);
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+    if (signal.aborted) { onAbort(); return; }
+    Promise.resolve(promise).then(
+      (value) => { cleanup(); resolve(value); },
+      (error) => { cleanup(); reject(error); },
+    );
+  });
+}
+
+export async function runAgent({ apiKey, system, messages, onStep, onText, profile = "fast", signal }) {
   let loops = 0;
   const conv = messages.map(m => ({ ...m }));
 
@@ -919,12 +967,15 @@ export async function runAgent({ apiKey, system, messages, onStep, onText, profi
   let figureNudged = false;
 
   while (loops < MAX_TOOL_LOOPS) {
+    if (signal?.aborted) return null;
     loops++;
     const resp = await callLLM({
       apiKey, system, messages: conv, tools: TOOLS, profile,
       reasoningEffort: lastTurnRanTools ? "minimal" : undefined,
       onText,
+      signal,
     });
+    if (signal?.aborted) return null;
     if (!resp) {
       console.warn("LLM unreachable (attempt", loops, ")");
       return null;
@@ -963,7 +1014,7 @@ export async function runAgent({ apiKey, system, messages, onStep, onText, profi
       });
 
       // Execute tools in parallel, collect results
-      const results = await Promise.all(toolCalls.map(async (tc) => {
+      const results = await waitForSignal(Promise.all(toolCalls.map(async (tc) => {
         const name = tc.function?.name || "";
         let args = {};
         const rawArgs = tc.function?.arguments ?? "{}";
@@ -986,7 +1037,8 @@ export async function runAgent({ apiKey, system, messages, onStep, onText, profi
           tool_call_id: tc.id,
           content: JSON.stringify(result).slice(0, 4000),   // cap large payloads
         };
-      }));
+      })), signal);
+      if (signal?.aborted) return null;
 
       conv.push(...results);
       lastTurnRanTools = true;
@@ -1024,11 +1076,12 @@ export async function runAgent({ apiKey, system, messages, onStep, onText, profi
   }
 
   console.warn("Agent: hit MAX_TOOL_LOOPS");
+  if (signal?.aborted) return null;
   // Never leave the student with nothing: one last turn with no tools,
   // answering from whatever the tools did return.
   try {
     conv.push({ role: "user", content: "[app] No more lookups are possible this turn. Answer the question now using only what the tools returned above. If something could not be found, say so plainly in one sentence. Do not mention tools." });
-    const last = await callLLM({ apiKey, system: split.system, messages: conv, tools: undefined, profile, reasoningEffort: "minimal" });
+    const last = await callLLM({ apiKey, system: split.system, messages: conv, tools: undefined, profile, reasoningEffort: "minimal", signal });
     const text = stripToolCallScaffolding(String(last?.choices?.[0]?.message?.content || "")).trim();
     if (text) return text;
   } catch (e) { console.warn("Agent: final answer failed:", e?.message || e); }

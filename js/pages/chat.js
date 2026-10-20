@@ -1456,6 +1456,7 @@ function pushAssistant(text) {
 async function sendAndReply(userText) {
   m_pending = true;
   m_abortController = new AbortController();
+  const signal = m_abortController.signal;
 
   // Off-topic gate. FIRES BEFORE THE LLM CALL. User-reported 2026-05-05:
   // "help me cook maggi" was bypassing this entirely (it was imported
@@ -1735,6 +1736,7 @@ This is a discovery question. Search for the instruments AND call get_stock_pric
         system,
         messages,
         profile: "fast",
+        signal,
         onText: (t) => showLive(t || "", false),
         onStep: (st) => {
           if (st.action === "tool_calls") showLive(toolStatus(st.calls), true);
@@ -1742,9 +1744,12 @@ This is a discovery question. Search for the instruments AND call get_stock_pric
         },
       });
     } catch (e) {
-      console.warn("coach chat tool path error:", e);
-      errorText = "Couldn't reach Saathi right now. Try again in a moment.";
+      if (!signal.aborted) console.warn("coach chat tool path error:", e);
+      errorText = signal.aborted
+        ? "No worries — I stopped that reply."
+        : "Couldn't reach Saathi right now. Try again in a moment.";
     }
+    if (signal.aborted) errorText = "No worries — I stopped that reply.";
     // Let the typing finish (at most 2 s) before the final text lands.
     if (liveTimer) await new Promise((done) => {
       const until = Date.now() + 2000;
