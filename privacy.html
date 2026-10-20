@@ -55,7 +55,7 @@ footer{margin-top:48px;padding-top:20px;border-top:1px solid #1F2937;color:#9CA3
 
 <main>
 <h1>Privacy Policy</h1>
-<p class="muted">Last updated: 18 October 2026 &middot; Effective immediately.</p>
+<p class="muted">Last updated: 20 October 2026 &middot; Effective immediately.</p>
 
 <p>StockSaathi (&ldquo;we&rdquo;, &ldquo;us&rdquo;) is an educational paper-trading simulator operated as a personal / student project at no charge to users. This policy explains what personal data we collect, why we collect it, how long we keep it, who we share it with, and the rights you have under India&rsquo;s Digital Personal Data Protection Act, 2023 (&ldquo;DPDP Act&rdquo;) and the DPDP Rules, 2025.</p>
 
@@ -94,7 +94,7 @@ footer{margin-top:48px;padding-top:20px;border-top:1px solid #1F2937;color:#9CA3
 <ul>
   <li><strong>Supabase Inc.</strong> (US) &mdash; stores your account, profile, simulated trades.</li>
   <li><strong>Vercel Inc.</strong> (US) &mdash; hosts the app and its serverless functions.</li>
-  <li><strong>Google (Gemini via Vertex AI)</strong> &mdash; the LLM that generates coach responses. Coach messages are sent to Google and subject to Google&rsquo;s enterprise data-retention terms.</li>
+  <li><strong>Google Vertex AI</strong> &mdash; runs the AI models that generate coach responses: Anthropic&rsquo;s Claude, with Google&rsquo;s Gemini as a fallback. Coach messages are sent to Google Cloud and processed under Google&rsquo;s enterprise data-retention terms; Anthropic provides the Claude model through Vertex AI.</li>
   <li><strong>Anthropic</strong> (optional, only if the user brings their own key) &mdash; alternative LLM backend.</li>
   <li><strong>Yahoo Finance, CoinGecko, AMFI/MFAPI</strong> &mdash; public price feeds we query anonymously on your behalf; no personal data is shared with them.</li>
   <li><strong>Google AdSense</strong> (US) &mdash; serves the ads shown on the site and sets its own advertising cookies (see section 2).</li>
@@ -109,7 +109,7 @@ footer{margin-top:48px;padding-top:20px;border-top:1px solid #1F2937;color:#9CA3
 <h2>8. Teen users</h2>
 <p>StockSaathi is an educational tool designed to be usable by teenagers learning about markets. Any user can delete their account and all associated data from Settings, or ask the grievance officer below to erase it.</p>
 <p>StockSaathi does not use your account, trade or coach data for advertising. The behavioural coach operates on the user&rsquo;s own simulated trades and their own activity inside this app &mdash; and nothing else &mdash; and exists solely to return educational reflection to that same user. It is never used to build a profile for anyone else, and it is never shared with advertisers or data brokers.</p>
-<p>A summary of that data &mdash; your portfolio figures, recent trades, and a short summary of your recent in-app activity &mdash; is included in the request sent to our AI provider (Google, via Vertex AI) so the coach can answer questions about your own account. Under Vertex AI&rsquo;s enterprise terms Google does not use that content to train its models.</p>
+<p>A summary of that data &mdash; your portfolio figures, recent trades, and a short summary of your recent in-app activity &mdash; is included in the request sent to our AI provider (Google Vertex AI, running Anthropic&rsquo;s Claude or Google&rsquo;s Gemini) so the coach can answer questions about your own account. Under Vertex AI&rsquo;s enterprise terms that content is not used to train the models.</p>
 
 <h2>9. Your rights</h2>
 <p>Under the DPDP Act you have the right to:</p>
