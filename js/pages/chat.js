@@ -157,9 +157,17 @@ window.addEventListener("ss:coach-sync", () => {
       const main = document.getElementById("main");
       if (main) renderChat(main);
     };
-    repaint();
-    // The DB rebuild is one flat line per chat; put the branches back.
-    if (isPreview()) syncFromCloud().then((changed) => { if (changed) repaint(); });
+    if (isPreview()) {
+      // DB hydration rebuilds chats as flat logs. Wait for the richer cloud
+      // threads (branches, cards, and ordering) before painting, or tab focus
+      // briefly shows that incomplete version.
+      syncFromCloud().then(repaint).catch((e) => {
+        console.warn("[chat] cloud sync after coach hydration failed:", e);
+        repaint();
+      });
+    } else {
+      repaint();
+    }
   } catch (e) { console.warn("[chat] ss:coach-sync failed:", e); }
 });
 
