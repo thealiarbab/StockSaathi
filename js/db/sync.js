@@ -350,11 +350,10 @@ const usableMsg = (m) => m && !m.streaming && (m.role === "user" || m.role === "
 
 /**
  * Fold this device's not-yet-persisted chat messages into the rebuilt
- * structures, in place. A local message survives when it is newer than the
- * newest DB row it would sit beside (2 s of slack for client/server clock
- * skew) and is not already there by role + text. Local sessions the DB has
- * never seen are kept when they are newer than everything in the DB — e.g.
- * a chat started a moment ago whose first turn is still in flight.
+ * structures, in place. Local messages newer than a matching session's
+ * latest DB row survive even inside the usual 2 s clock-skew window. Local
+ * sessions the DB has never seen are kept when active or newer than all DB
+ * sessions.
  * Call only after enforceChatCacheOwner(), so the cache is this user's.
  */
 // The DB log is one flat line of text per turn. The copy on this device may
@@ -392,14 +391,16 @@ function mergeLocalChatTail(sessions, coachLog) {
       const db = byId.get(ls.id);
       if (db) {
         const seen = new Set(db.messages.map(chatMsgKey));
-        const extra = msgs.filter(m => (m.ts || 0) > (db.updatedAt || 0) + SKEW_MS && !seen.has(chatMsgKey(m)));
+        const localTailStart = msgs.findIndex((m) => (m.ts || 0) > (db.updatedAt || 0));
+        const extra = localTailStart < 0 ? [] : msgs.slice(localTailStart).filter((m) =>
+          !seen.has(chatMsgKey(m)) || (m.ts || 0) > (db.updatedAt || 0));
         if (extra.length) {
           db.messages.push(...extra.map(m => ({ role: m.role, text: m.text, ts: m.ts })));
           db.updatedAt = Math.max(db.updatedAt || 0, ...extra.map(m => m.ts || 0));
         }
       } else {
         const newest = Math.max(ls.createdAt || 0, ...msgs.map(m => m.ts || 0));
-        if (newest > dbNewest + SKEW_MS && (msgs.length || ls.id === local.activeId)) {
+        if ((newest > dbNewest + SKEW_MS || ls.id === local.activeId) && (msgs.length || ls.id === local.activeId)) {
           sessions.push({
             id: ls.id,
             title: ls.title || "New chat",
@@ -569,13 +570,10 @@ export function rebuildChatSessionsFromDb(coachMessagesRows, userId = null) {
   for (const s of sessions) repairTurnOrder(s.messages);
   repairTurnOrder(coachLog);
 
-  // Keep the turns this device has that the DB does not yet. This rebuild
-  // used to REPLACE the local cache with the DB snapshot fetched at boot, so
-  // a message sent while that fetch was in flight — or a turn whose insert
-  // had not landed — was wiped from localStorage, and the chat page reloaded
-  // without it: the "message vanished" reports. Only messages newer than the
-  // newest DB row are carried over, so cleaned-up local copies of turns the
-  // DB already holds are not duplicated.
+  // Keep turns this device has that the DB does not yet. In a matching
+  // session, retain the local tail even when it is only milliseconds newer
+  // than the last DB row; otherwise a boot-time rebuild could drop a prompt
+  // sent just before a hard refresh while its insert was still in flight.
   mergeLocalChatTail(sessions, coachLog);
   keepRicherLocal(sessions);
 

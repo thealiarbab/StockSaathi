@@ -39,9 +39,10 @@ export function pushThread(session, { now = false } = {}) {
   const run = async () => {
     _timers.delete(session.id);
     try {
+      const row = threadRow(session);
       const client = await sb();
       if (!client) return;
-      const { error } = await client.from("chat_threads").upsert(threadRow(session), { onConflict: "id" });
+      const { error } = await client.from("chat_threads").upsert(row, { onConflict: "id" });
       if (error) console.warn("[chat-cloud] save failed:", error.message);
     } catch (e) { console.warn("[chat-cloud] save failed:", e?.message || e); }
   };

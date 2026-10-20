@@ -335,11 +335,44 @@ export function renderChat(main) {
       fit();
       main.querySelector(".cc-panel")?.classList.remove("is-empty");
       closeSlash();
-      pushUser(text);
+      const userMessage = pushUser(text);
+      const submittedSessionId = getActiveSession(sessionsData).id;
+      logChatTurn({
+        userText: text, assistantText: "", sessionId: submittedSessionId,
+        surface: "chat_page", userTs: userMessage.ts,
+      });
+      cloudSave(true);
       messagesEl._follow = true;    // sending always goes back to the end
       rerender();
       refreshSide();
-      await produceReply(text);
+      const replyPromise = produceReply(text);
+      try {
+        await replyPromise;
+      } catch (e) {
+        console.error("[chat] reply failed:", e);
+        const session = sessionsData.sessions.find((s) => s.id === submittedSessionId);
+        const userIndex = session?.messages.findIndex((m) => m.role === "user" && m.ts === userMessage.ts) ?? -1;
+        if (session && userIndex >= 0) {
+          const next = session.messages.slice(userIndex + 1).find((m) => m.role === "user" || m.role === "assistant");
+          if (!next || next.role === "user" || (next.streaming && !next.text)) {
+            const replyText = "I hit a snag before I could finish that reply. Please try again.";
+            if (next?.role === "assistant") {
+              next.text = replyText;
+              next.streaming = false;
+            } else {
+              session.messages.splice(userIndex + 1, 0, { role: "assistant", text: replyText, ts: userMessage.ts + 1 });
+            }
+            saveSessions(sessionsData);
+            logChatTurn({
+              userText: "", assistantText: replyText, model: "client-error",
+              sessionId: submittedSessionId, surface: "chat_page", replyTs: userMessage.ts + 1,
+            });
+          }
+        }
+      } finally {
+        m_pending = false;
+        m_abortController = null;
+      }
       rerender();
       refreshSide();
       cloudSave(true);
@@ -1068,7 +1101,11 @@ function syncFromCloud() {
       // the cloud document: it has no cards or versions, and before 19 Oct
       // its order came from insert times. Uploading it is how replies ended
       // up above their questions in chat_threads.
-      if (local && !local.fromLog && (local.updatedAt || 0) > t.updatedAt + 2000 && (local.messages || []).length >= t.messages.length) {
+      const cloudNewestTs = Math.max(0, ...t.messages.map((m) => Number(m?.ts) || 0));
+      const hasUnuploadedUser = local?.messages?.some((m) => m.role === "user" && (m.ts || 0) > cloudNewestTs);
+      if (local && !local.fromLog
+          && ((local.updatedAt || 0) > t.updatedAt + 2000 || hasUnuploadedUser)
+          && (local.messages || []).length >= t.messages.length) {
         pushThread(local);            // this device is newer: send it up
         continue;
       }
@@ -1114,12 +1151,15 @@ async function runCommandReply(text) {
     sess.messages.push({ role: "assistant", text: res.text || "I didn't catch that command. Type /help to see them.", card: res.card || undefined, ts: nextTs(sess.messages) });
     sess.updatedAt = Date.now();
     saveChat();
-    const reply = sess.messages.at(-1), q = sess.messages.at(-2);
-    logChatTurn({ userText: text, assistantText: res.text || "", model: "command", sessionId: sess.id, surface: "chat_page", userTs: q?.ts, replyTs: reply?.ts });
+    const reply = sess.messages.at(-1);
+    logChatTurn({ userText: "", assistantText: reply?.text || "", model: "command", sessionId: sess.id, surface: "chat_page", replyTs: reply?.ts });
   } catch (e) {
     console.warn("[chat] command failed:", e);
-    sess.messages.push({ role: "assistant", text: "That command didn't work just now. Try again in a moment.", ts: nextTs(sess.messages) });
+    const replyText = "That command didn't work just now. Try again in a moment.";
+    const reply = { role: "assistant", text: replyText, ts: nextTs(sess.messages) };
+    sess.messages.push(reply);
     saveChat();
+    logChatTurn({ userText: "", assistantText: replyText, model: "command-error", sessionId: sess.id, surface: "chat_page", replyTs: reply.ts });
   } finally {
     m_pending = false;
   }
@@ -1445,8 +1485,10 @@ function renderTyping() {
 function pushUser(text) {
   const sess = getActiveSession(sessionsData);
   if (sess) delete sess.fromLog;   // this device is writing it now
-  chatLog.push({ role: "user", text, ts: nextTs(chatLog) });
+  const message = { role: "user", text, ts: nextTs(chatLog) };
+  chatLog.push(message);
   saveChat();
+  return message;
 }
 function pushAssistant(text) {
   chatLog.push({ role: "assistant", text, ts: nextTs(chatLog) });
@@ -1610,9 +1652,12 @@ async function sendAndReply(userText) {
   // network work, so it saves the LLM call and the dossier build as intended.
   if (isOffTopic(userText)) {
     try {
-      ownerMessages.push({ role: "assistant", text: offTopicRedirect(userText), ts: nextTs(ownerMessages) });
+      const replyText = offTopicRedirect(userText);
+      const reply = { role: "assistant", text: replyText, ts: nextTs(ownerMessages) };
+      ownerMessages.push(reply);
       if (isOwnerActive()) chatLog = ownerMessages;
       saveSessions(sessionsData);
+      logChatTurn({ userText: "", assistantText: replyText, model: "off-topic", sessionId: ownerSession.id, surface: "chat_page", replyTs: reply.ts });
       finalPaint();
     } catch (e) {
       console.warn("[chat] off-topic paint failed:", e);
@@ -1750,10 +1795,11 @@ This is a discovery question. Search for the instruments AND call get_stock_pric
         : "Couldn't reach Saathi right now. Try again in a moment.";
     }
     if (signal.aborted) errorText = "No worries — I stopped that reply.";
-    // Let the typing finish (at most 2 s) before the final text lands.
-    if (liveTimer) await new Promise((done) => {
-      const until = Date.now() + 2000;
-      const w = setInterval(() => { if (!liveTimer || Date.now() > until) { clearInterval(w); done(); } }, 30);
+    // Flush the last scheduled live-text paint before replacing it with the
+    // final reply. The timeout also releases the send button in background tabs.
+    if (liveRaf) await new Promise((done) => {
+      const timeout = setTimeout(done, 2000);
+      requestAnimationFrame(() => { clearTimeout(timeout); done(); });
     });
     m_pending = false;
     m_abortController = null;
@@ -1809,7 +1855,6 @@ You already offered to look this up and the user already asked. Do NOT ask again
     }
     const replyTs = qIdx >= 0 ? (ownerMessages[qIdx].ts || Date.now()) + 1 : Date.now();
     if (live) {
-      if (liveTimer) { clearInterval(liveTimer); liveTimer = null; }
       live.text = finalText; live.streaming = false; live.status = false; live.ts = replyTs;
       Object.assign(live, chartExtra);
     }
@@ -1825,7 +1870,7 @@ You already offered to look this up and the user already asked. Do NOT ask again
     saveSessions(sessionsData);
     if (replyText && replyText.trim()) {
       logChatTurn({
-        userText, assistantText: finalText, model: "gemini-chat",
+        userText: "", assistantText: finalText, model: "gemini-chat",
         sessionId: ownerSession.id, surface: "chat_page",
         userTs: qIdx >= 0 ? ownerMessages[qIdx]?.ts : undefined, replyTs,
       });
@@ -2064,7 +2109,7 @@ Your earlier draft stated prices, moves or events that were not looked up. Call 
     // the same session the user is looking at now.
     if (!result?.aborted && !result?.error && entry.text && !entry.text.startsWith("Hmm")) {
       logChatTurn({
-        userText, assistantText: entry.text, model: "gemini-chat",
+        userText: "", assistantText: entry.text, model: "gemini-chat",
         sessionId: ownerSession.id, surface: "chat_page",
         userTs: ownerMessages[placeholderIdx - 1]?.ts, replyTs: entry.ts,
       });

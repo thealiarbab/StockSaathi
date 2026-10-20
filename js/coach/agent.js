@@ -1316,7 +1316,7 @@ function isPreambleBlock(block) {
 // missing values fall back to the 30-min time-gap session heuristic for
 // legacy rows. Fire-and-forget: any DB error never affects the chat UX.
 // -----------------------------------------------------------------------------
-export async function logChatTurn({ userText, assistantText, model, sessionId, surface }) {
+export async function logChatTurn({ userText, assistantText, model, sessionId, surface, userTs, replyTs }) {
   try {
     const mod = await import("../db/sync.js");
     if (!mod?.dbAddCoachMessage) return;
@@ -1324,23 +1324,25 @@ export async function logChatTurn({ userText, assistantText, model, sessionId, s
       mod.dbAddCoachMessage({
         eventType: "chat_user",
         triggerSymbol: null,
-        payload: { text: String(userText).slice(0, 4000) },
+        payload: { text: String(userText).slice(0, 4000), ...(Number.isFinite(userTs) ? { ts: userTs } : {}) },
         model: null,
         sessionId: sessionId || null,
         surface: surface || null,
-      }).catch(() => {});
+      }).catch((e) => console.warn("[coach-chat] user message save failed:", e));
     }
     if (assistantText && assistantText.trim()) {
       mod.dbAddCoachMessage({
         eventType: "chat_assistant",
         triggerSymbol: null,
-        payload: { text: String(assistantText).slice(0, 8000) },
+        payload: { text: String(assistantText).slice(0, 8000), ...(Number.isFinite(replyTs) ? { ts: replyTs } : {}) },
         model: model || null,
         sessionId: sessionId || null,
         surface: surface || null,
-      }).catch(() => {});
+      }).catch((e) => console.warn("[coach-chat] assistant message save failed:", e));
     }
-  } catch {}
+  } catch (e) {
+    console.warn("[coach-chat] message logging failed:", e);
+  }
 }
 
 // -----------------------------------------------------------------------------
