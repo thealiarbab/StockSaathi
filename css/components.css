@@ -6189,6 +6189,16 @@ body.chat-app { overflow: hidden; }
 /* Empty chat: the message area shrinks and scrolls instead of being clipped
    (it was flex: 0 0 auto, so a tall empty state could not scroll). */
 .cc-panel.is-empty .cc-messages.chat-messages { flex: 0 1 auto; min-height: 0; overflow-y: auto; }
+@media (min-width: 901px) {
+  .cc-panel.is-empty { justify-content: flex-start; padding-bottom: 0; }
+  .cc-panel.is-empty .cc-messages.chat-messages {
+    display: flex; flex: 1 1 auto; min-height: 0; overflow-y: auto;
+    align-items: center; padding-bottom: 20px;
+  }
+  .cc-panel.is-empty .cc-composer.composer {
+    flex: 0 0 auto; padding-bottom: clamp(24px, 5vh, 56px);
+  }
+}
 .ss-guide-compact { width: min(640px, 100%); display: flex; flex-direction: column; gap: 8px; }
 .ss-gc-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: var(--text-xs); color: var(--text-muted); }
 .ss-gc-more { font: inherit; font-size: var(--text-xs); font-weight: 700; color: var(--brand); background: none; border: 0; cursor: pointer; padding: 4px 6px; border-radius: 8px; }
