@@ -47,10 +47,10 @@ import {
 
 export const config = { runtime: "edge" };
 
-// 128 KiB, up from 64: a tool loop now carries the upstream's reasoning
-// blocks (upstream_blocks, a few KiB each) on every assistant turn on top of
-// the ~20 KiB coach prompt + dossier and up to five 4 KiB tool results.
-const MAX_BODY = 128 * 1024;
+// 3.8 MB (3,800,000 bytes): safely under Vercel Edge's documented 4 MB ceiling
+// while providing ample headroom for long multi-turn sessions with tool results
+// and reasoning blocks (upstream_blocks).
+const MAX_BODY = 3_800_000;
 // The Gemini models' own output ceiling. Not a budget: see the max_tokens
 // block in the handler.
 export const MAX_OUTPUT_TOKENS = 65535;
@@ -312,11 +312,25 @@ export function chainFor(profile) {
 
 export async function callUpstream(desc, payload, ctx = {}) {
   if (desc.kind === "messages") return callMessagesUpstream(desc, payload, ctx);
+  const providerName = desc.label.startsWith("gemini")
+    ? `Google Gemini (${desc.model}) via Google Cloud Vertex AI`
+    : `${desc.label} (${desc.model})`;
+  const runtimeNote = `\n\n# MODEL RUNTIME\nProvider: ${providerName}.`;
+
   // `upstream_blocks` rides along on assistant turns the Messages upstream
   // produced (so its thinking blocks survive a tool loop). It is meaningless
   // to OpenAI-shaped upstreams and strict ones reject unknown fields.
-  if (Array.isArray(payload.messages) && payload.messages.some((m) => m?.upstream_blocks)) {
-    payload = { ...payload, messages: payload.messages.map(({ upstream_blocks, ...m }) => m) };
+  let payloadForAttempt = payload;
+  if (Array.isArray(payload.messages)) {
+    payloadForAttempt = {
+      ...payload,
+      messages: payload.messages.map(({ upstream_blocks, ...m }) => {
+        if (m && (m.role === "system" || m.role === "developer")) {
+          return { ...m, content: (typeof m.content === "string" ? m.content : "") + runtimeNote };
+        }
+        return m;
+      }),
+    };
   }
   // Vertex AI's OpenAI-compat endpoint uses x-goog-api-key for API-key auth,
   // NOT Authorization: Bearer (which is reserved for OAuth access tokens on
@@ -363,7 +377,7 @@ export async function callUpstream(desc, payload, ctx = {}) {
     res = await fetch(desc.url, {
       method: "POST",
       headers,
-      body: JSON.stringify({ ...payload, model: modelForApi }),
+      body: JSON.stringify({ ...payloadForAttempt, model: modelForApi }),
       signal: ctrl.signal,
     });
   } catch (e) {
@@ -390,8 +404,27 @@ export async function callUpstream(desc, payload, ctx = {}) {
 // reasoning_effort the CALLER sent, before the handler filled in the Gemini
 // lane default — that default is tuned for Gemini's scale, not this model's.
 async function callMessagesUpstream(desc, payload, ctx) {
+  const isVertex = globalThis.process?.env?.VERTEX_MESSAGES === "1";
+  const providerDesc = isVertex
+    ? `Anthropic (${desc.model}) via Google Cloud Vertex AI`
+    : `Anthropic (${desc.model}) via Anthropic API`;
+  const runtimeNote = `\n\n# MODEL RUNTIME\nProvider: ${providerDesc}. Automated fallback: Google Gemini.`;
+
+  let payloadForAttempt = payload;
+  if (Array.isArray(payload.messages)) {
+    payloadForAttempt = {
+      ...payload,
+      messages: payload.messages.map((m) => {
+        if (m && (m.role === "system" || m.role === "developer")) {
+          return { ...m, content: (typeof m.content === "string" ? m.content : "") + runtimeNote };
+        }
+        return m;
+      }),
+    };
+  }
+
   const body = toMessagesBody(
-    { ...payload, reasoning_effort: ctx.callerEffort },
+    { ...payloadForAttempt, reasoning_effort: ctx.callerEffort },
     { profile: ctx.profile, stream: !!ctx.stream },
   );
   const t0 = performance.now();
@@ -563,9 +596,7 @@ export default async function handler(req) {
   for (const desc of order) {
     try {
       const isMessages = desc.kind === "messages";
-      // toChatSse only carries text, so a tool turn on the Messages upstream
-      // answers in one JSON piece; the client reads either shape.
-      const streamThis = wantsStream && !(isMessages && Array.isArray(payload.tools));
+      const streamThis = wantsStream;
       const r = await callUpstream(desc, payload, { profile, stream: streamThis, callerEffort });
       // The Messages upstream answers in its own shape. Translate it here so
       // everything below this point (headers, timing, passthrough) is shared.
@@ -612,13 +643,14 @@ export default async function handler(req) {
         const outHeaders = new Headers({
           ...Object.fromEntries(corsHeaders(origin)),
           "X-Chat-Upstream": desc.label,
+          "X-Chat-Model": desc.model,
           "X-Chat-Attempts": trail(),
         });
         // Same-origin clients can read Server-Timing without exposure
         // headers, but Vercel preview deployments and any future split-
         // origin setup need this — make it explicit so devtools always
         // sees the LLM timings.
-        outHeaders.set("Access-Control-Expose-Headers", "Server-Timing, X-Chat-Upstream, X-Chat-Attempts");
+        outHeaders.set("Access-Control-Expose-Headers", "Server-Timing, X-Chat-Upstream, X-Chat-Model, X-Chat-Attempts, X-Chat-Finish-Reason");
         if (streamThis) {
           // Streaming path — TTFT is the only number we know yet; total
           // generation time isn't available until the stream ends, which
@@ -640,6 +672,8 @@ export default async function handler(req) {
           const parsed = JSON.parse(text);
           const u = parsed?.usage?.completion_tokens;
           if (Number.isFinite(u)) tokOut = u;
+          const fin = parsed?.choices?.[0]?.finish_reason;
+          if (fin) outHeaders.set("X-Chat-Finish-Reason", String(fin));
         } catch {}
         const stParts = [
           `ttft;dur=${r.ttftMs};desc="${desc.label}"`,

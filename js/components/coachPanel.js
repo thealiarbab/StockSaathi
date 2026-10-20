@@ -15,7 +15,7 @@ import { getNews } from "../data/news.js";
 import { formatRupees, formatPct } from "../money.js";
 import { SYSTEM_PROMPT, matchTemplate, isOffTopic, offTopicRedirect, STARTER_QUESTIONS, runtimeFacts, NO_TOOLS_NOTE } from "../coach/persona.js";
 import { marketStatus } from "../data/prices.js";
-import { runAgent, streamChat, needsLiveData, logChatTurn, isToolCallOnly, looksLikeLookupOffer, looksLikeFetchPromise, looksLikePricelessList, scrubAdvice, looksHinglish, prefetchNewsBlock, unsourcedFigures, figureSources, dropFigureSentences } from "../coach/agent.js";
+import { runAgent, streamChat, needsLiveData, logChatTurn, isToolCallOnly, looksLikeLookupOffer, looksLikeFetchPromise, looksLikePricelessList, scrubAdvice, looksHinglish, isNewsQuestion, prefetchNewsBlock, unsourcedFigures, figureSources, dropFigureSentences } from "../coach/agent.js";
 import { getFreshCachedQuote } from "../data/marketData.js";
 import { buildDossier } from "../coach/dossier.js";
 
@@ -195,34 +195,24 @@ async function finishPanelReply(text, userText, retryAgent) {
   return scrubAdvice(out, userText, hi).text;
 }
 
-async function callLlmAgent(apiKey, history, state, extraSystem = "") {
+async function callLlmAgent(apiKey, history, state, extraSystem = "", onText = null, onStep = null) {
   // No client-side off-topic pre-filter. Let the LLM decide how to handle
-  // off-topic questions per the system prompt — previously we'd intercept
-  // "hello" and return a canned redirect before the model ever saw it,
-  // which made the coach feel like a decision tree instead of a coach.
-  // summarisePortfolio built this block from quantity @ AVERAGE BUY PRICE,
-  // which the model multiplied into a fabricated market value - COACH_FIXES
-  // §3. The dossier carries market value ALREADY COMPUTED, so there is no
-  // arithmetic left to get wrong. The two must never coexist: two portfolio
-  // blocks in one prompt is exactly how §3 happened.
+  // off-topic questions per the system prompt.
   const dossier = await buildDossier();
-  const newsContext = newsSnap.slice(0, 5).map(n => `- ${n.headline} (${n.source}) [${n.sentiment}]`).join("\n");
   const screen = currentScreen();
   const lastUser = [...history].reverse().find((m) => m.role === "user")?.text || "";
   // News-shaped question: fresh headlines fetched by the app (C5).
-  const newsBlock = await prefetchNewsBlock(lastUser);
-  const system = `${SAATHI_SYSTEM}\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# RUNTIME CONTEXT\n${screen ? screen + "\n" : ""}## Latest market headlines\n${newsContext || "(none loaded)"}\n\n# TONE\nKeep replies short by default (1–3 sentences). Go longer only when asked for depth.` + newsBlock + (isPreview() ? CHART_TOOL_NOTE : "") + turnLanguage() + extraSystem;
+  const newsBlock = isNewsQuestion(lastUser) ? await prefetchNewsBlock(lastUser) : "";
+  const system = `${SAATHI_SYSTEM}\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# RUNTIME CONTEXT\n${screen ? screen + "\n" : ""}\n\n# TONE\nKeep replies short by default (1–3 sentences). Go longer only when asked for depth.` + newsBlock + (isPreview() ? CHART_TOOL_NOTE : "") + turnLanguage() + extraSystem;
 
-  // Steps of 8 so the start of the history (the cacheable part) holds still.
-  const messages = history.slice(Math.floor(Math.max(0, history.length - 12) / 8) * 8).map(m => ({
+  // Preserve full conversation history up to platform limits
+  const messages = history.map(m => ({
     role: m.role === "user" ? "user" : "assistant",
     content: m.text,
   }));
   // Tool-use path: "fast" profile (Gemini 3 Flash Preview) is more reliable
-  // at function calling than Lite. Lite is kept for pure conversational chat
-  // only; when the query needs live data, pay the small latency hit for a
-  // model that actually calls the tool every time.
-  return await runAgent({ apiKey, system, messages, profile: "fast" });
+  // at function calling than Lite.
+  return await runAgent({ apiKey, system, messages, profile: "fast", onText, onStep });
 }
 
 // -----------------------------------------------------------------------------
@@ -602,10 +592,10 @@ function render() {
       chatHistory.push({ role: "assistant", text: "", ts: nextTs(chatHistory), streaming: true });
       render();
       const dossier = await buildDossier();
-      const newsContext = newsSnap.slice(0, 5).map(n => `- ${n.headline} (${n.source}) [${n.sentiment}]`).join("\n");
+      const newsBlock = isNewsQuestion(text) ? await prefetchNewsBlock(text) : "";
       const screen = currentScreen();
-      const system = `${SAATHI_NO_TOOLS}\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# RUNTIME CONTEXT\n${screen ? screen + "\n" : ""}## Latest market headlines\n${newsContext || "(none loaded)"}\n\n# TONE\nKeep replies short by default (1–3 sentences). Go longer only when asked for depth.\n\nAnswer only the latest message. Do not restate prices or facts from earlier turns unless the user asks for them again.` + (isPreview() ? CHART_TOOL_NOTE : "") + turnLanguage();
-      const messages = chatHistory.slice(Math.floor(Math.max(0, chatHistory.length - 13) / 8) * 8).filter(m => !m.streaming || m === chatHistory[placeholderIdx]).slice(0, -1).map(m => ({
+      const system = `${SAATHI_NO_TOOLS}\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# RUNTIME CONTEXT\n${screen ? screen + "\n" : ""}\n\n# TONE\nKeep replies short by default (1–3 sentences). Go longer only when asked for depth.\n\nAnswer only the latest message. Do not restate prices or facts from earlier turns unless the user asks for them again.` + newsBlock + (isPreview() ? CHART_TOOL_NOTE : "") + turnLanguage();
+      const messages = chatHistory.filter(m => !m.streaming || m === chatHistory[placeholderIdx]).slice(0, -1).map(m => ({
         role: m.role === "user" ? "user" : "assistant",
         content: m.text,
       }));
@@ -696,6 +686,9 @@ function render() {
           entry.text = await finishPanelReply(entry.text, text,
             () => callLlmAgent(s.settings.llmApiKey || null, chatHistory.filter((m) => m !== entry), s, LANG_RETRY_NOTE));
         }
+        if (result?.finishReason === "length" && entry && !entry.text.includes("maximum generation limit")) {
+          entry.text += "\n\n… [Response reached maximum generation limit. Ask \"continue\" if you'd like more.]";
+        }
       }
       if (entry && entry.text) {
         const ex = extractChartMarker(entry.text);
@@ -718,39 +711,73 @@ function render() {
       return;
     }
 
-    // Tool-use path (live data queries): non-streaming.
+    // Tool-use path (live data queries): streaming via runAgent callbacks.
+    abortController = new AbortController();
+    const placeholderIdx = chatHistory.length;
+    chatHistory.push({ role: "assistant", text: "", ts: nextTs(chatHistory), streaming: true });
+    render();
     let reply = null;
+    let rafPending = false;
+    const onToken = (delta) => {
+      if (!chatHistory[placeholderIdx]) return;
+      chatHistory[placeholderIdx].text += delta;
+      if (!rafPending) {
+        rafPending = true;
+        requestAnimationFrame(() => {
+          rafPending = false;
+          const ms = root?.querySelector("#coach-messages-scroll");
+          if (ms) {
+            ms.innerHTML = renderMessagesHtml(getState());
+            if (panelFollow) ms.scrollTop = ms.scrollHeight;
+          }
+        });
+      }
+    };
+    const onStep = (step) => {
+      if (!chatHistory[placeholderIdx]) return;
+      if (step.type === "call") {
+        const sym = step.args?.symbol || step.args?.query || "";
+        const label = step.name === "get_stock_price" ? `Checking ${sym || "stock"} price…`
+          : step.name === "search_stocks" ? `Searching for ${sym || "stocks"}…`
+          : step.name === "get_market_news" ? `Looking up market news…`
+          : step.name === "get_user_portfolio" ? `Checking your portfolio…`
+          : step.name === "get_fundamentals" ? `Checking ${sym || "company"} numbers…`
+          : step.name === "get_limit_orders" ? `Checking pending orders…`
+          : `Checking ${step.name.replace(/_/g, " ")}…`;
+        chatHistory[placeholderIdx].text = label;
+        const ms = root?.querySelector("#coach-messages-scroll");
+        if (ms) {
+          ms.innerHTML = renderMessagesHtml(getState());
+          if (panelFollow) ms.scrollTop = ms.scrollHeight;
+        }
+      }
+    };
     try {
-      reply = await callLlmAgent(s.settings.llmApiKey || null, chatHistory, s);
+      reply = await callLlmAgent(s.settings.llmApiKey || null, chatHistory.filter((m, idx) => idx !== placeholderIdx), s, "", onToken, onStep);
     } catch (e) { console.warn("coach panel error:", e); }
     // If it offered to look something up instead of doing it, push once more.
     if (reply && (looksLikeLookupOffer(reply) || looksLikeFetchPromise(reply) || looksLikePricelessList(reply, text))) {
       try {
-        const again = await callLlmAgent(s.settings.llmApiKey || null, chatHistory, s);
+        const again = await callLlmAgent(s.settings.llmApiKey || null, chatHistory.filter((m, idx) => idx !== placeholderIdx), s);
         const stillBad = looksLikeLookupOffer(again) || looksLikeFetchPromise(again) || looksLikePricelessList(again, text);
         if (again && again.trim() && !stillBad) reply = again;
       } catch (e) { console.warn("coach panel lookup-offer retry:", e); }
     }
-    let ok = false;
-    if (!reply || !reply.trim()) {
-      reply = "Hmm, I can't reach my brain right now. Give it a sec and try again?";
-    } else {
-      reply = await finishPanelReply(reply, text,
-        () => callLlmAgent(s.settings.llmApiKey || null, chatHistory, s, LANG_RETRY_NOTE));
-      ok = true;
+    const entry = chatHistory[placeholderIdx];
+    if (entry) {
+      entry.streaming = false;
+      if (reply && reply.trim()) entry.text = reply;
+      else if (!entry.text.trim()) entry.text = "Hmm, I can't reach my brain right now. Give it a sec and try again?";
+      entry.text = await finishPanelReply(entry.text, text,
+        () => callLlmAgent(s.settings.llmApiKey || null, chatHistory.filter((m) => m !== entry), s, LANG_RETRY_NOTE));
+      const ex = extractChartMarker(entry.text);
+      if (ex.text) entry.text = ex.text;
+      if (ex.card && isPreview()) { entry.card = ex.card; entry.cardWithText = true; }
+      logChatTurn({ userText: text, assistantText: entry.text, model: "gemini-chat-tools", surface: "side_panel", userTs: chatHistory[placeholderIdx - 1]?.ts, replyTs: entry.ts });
     }
-
-    const ex = extractChartMarker(reply);
-    const msg = { role: "assistant", text: ex.text || reply, ts: nextTs(chatHistory) };
-    if (ex.card && isPreview()) { msg.card = ex.card; msg.cardWithText = true; }
-    const asked = [...chatHistory].reverse().find((m) => m.role === "user");
-    chatHistory.push(msg);
-    // Successful tool-use turn — log to DB for admin review.
-    // surface is required: without it rebuildChatSessionsFromDb filed these
-    // turns under the /chat page, so they vanished from this panel on reload.
-    if (ok) logChatTurn({ userText: text, assistantText: msg.text, model: "gemini-chat-tools", surface: "side_panel", userTs: asked?.ts, replyTs: msg.ts });
     saveChat();
     pending = false;
+    abortController = null;
     render();
   });
 

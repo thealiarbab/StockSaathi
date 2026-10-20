@@ -89,9 +89,8 @@ export function effortFor(profile, requested) {
 // for a news TL;DR, 200 for a tooltip) - reuse those and a single think step
 // can leave zero tokens for the answer, the same "Beta measures how much a"
 // truncation api/ai.js documents for 2.5 Flash. Length is controlled by each
-// prompt, never by a cap. 64k is half this model's 128k ceiling: enough that
-// no reply is ever cut, while still bounding a pathological runaway.
-const OUTPUT_TOKENS = 64000;
+// prompt, never by a cap. 128k is this model's documented ceiling.
+const OUTPUT_TOKENS = 128000;
 export function maxTokensFor() {
   return OUTPUT_TOKENS;
 }
@@ -285,7 +284,17 @@ export function toMessagesBody(payload, { profile, stream }) {
     messages: out,
     output_config: { effort: effortFor(profile, payload.reasoning_effort) },
   };
-  if (system) body.system = system;
+  if (system) {
+    const at = system.indexOf("\n\n# RUNTIME FACTS");
+    if (at > 0) {
+      body.system = [
+        { type: "text", text: system.slice(0, at), cache_control: { type: "ephemeral" } },
+        { type: "text", text: system.slice(at + 2) },
+      ];
+    } else {
+      body.system = system;
+    }
+  }
   if (stream) body.stream = true;
   // temperature / top_p / top_k are deliberately dropped: this model rejects
   // any non-default sampling value with a 400. Determinism for the JSON ops
@@ -344,31 +353,86 @@ export function toChatCompletion(msg) {
   };
 }
 
-// Messages SSE -> OpenAI SSE. Text deltas become `choices[0].delta.content`
-// chunks; thinking deltas are dropped (they are empty by default anyway);
-// the stop reason becomes a final finish_reason chunk, then [DONE].
+// Messages SSE -> OpenAI SSE. Translates text deltas, tool_use blocks, and input_json_delta.
+// Maintains contiguous 0-based tool call indexing. Emits terminal chunk with finish_reason
+// on message_stop, never synthesizing a fake stop on dropped or erroring streams.
 export function toChatSse(upstreamBody, id = "") {
   const enc = new TextEncoder();
   const dec = new TextDecoder();
   const chunk = (delta, finish = null) =>
     enc.encode(`data: ${JSON.stringify({ id, object: "chat.completion.chunk", choices: [{ index: 0, delta, finish_reason: finish }] })}\n\n`);
+
   let buf = "";
-  let finished = false;
+  let savedStopReason = null;
+  let savedUsage = null;
+  let receivedMessageStop = false;
+  let hasError = false;
+
+  // Map Anthropic content_block index -> contiguous OpenAI tool_call index
+  const toolCallIndexByBlockIndex = new Map();
+  let nextToolCallIndex = 0;
+
   const handle = (block, controller) => {
     let data = "";
     for (const line of block.split("\n")) if (line.startsWith("data:")) data += line.slice(5).trim();
     if (!data) return;
     let ev;
     try { ev = JSON.parse(data); } catch { return; }
-    if (ev.type === "content_block_delta" && ev.delta?.type === "text_delta" && ev.delta.text) {
-      controller.enqueue(chunk({ content: ev.delta.text }));
-    } else if (ev.type === "message_delta" && ev.delta?.stop_reason) {
-      controller.enqueue(chunk({}, FINISH[ev.delta.stop_reason] || "stop"));
-      finished = true;
+
+    if (ev.type === "message_start") {
+      if (ev.message?.usage) savedUsage = { ...ev.message.usage };
+    } else if (ev.type === "content_block_start") {
+      if (ev.content_block?.type === "tool_use") {
+        const tcIdx = nextToolCallIndex++;
+        toolCallIndexByBlockIndex.set(ev.index, tcIdx);
+        controller.enqueue(chunk({
+          tool_calls: [{
+            index: tcIdx,
+            id: ev.content_block.id || `call_${tcIdx}`,
+            type: "function",
+            function: { name: ev.content_block.name || "unknown", arguments: "" },
+          }],
+        }));
+      }
+    } else if (ev.type === "content_block_delta") {
+      if (ev.delta?.type === "text_delta" && ev.delta.text) {
+        controller.enqueue(chunk({ content: ev.delta.text }));
+      } else if (ev.delta?.type === "input_json_delta" && ev.delta.partial_json) {
+        const tcIdx = toolCallIndexByBlockIndex.get(ev.index);
+        if (tcIdx !== undefined) {
+          controller.enqueue(chunk({
+            tool_calls: [{
+              index: tcIdx,
+              function: { arguments: ev.delta.partial_json },
+            }],
+          }));
+        }
+      }
+    } else if (ev.type === "message_delta") {
+      if (ev.delta?.stop_reason) {
+        savedStopReason = ev.delta.stop_reason;
+      }
+      if (ev.usage) {
+        savedUsage = { ...(savedUsage || {}), ...ev.usage };
+      }
+    } else if (ev.type === "message_stop") {
+      receivedMessageStop = true;
+      if (savedUsage && (savedUsage.cache_read_input_tokens || savedUsage.cache_creation_input_tokens)) {
+        console.log(JSON.stringify({
+          evt: "messages_cache",
+          cache_read: savedUsage.cache_read_input_tokens || 0,
+          cache_creation: savedUsage.cache_creation_input_tokens || 0,
+        }));
+      }
+      const finish = FINISH[savedStopReason] || (savedStopReason ? savedStopReason : "stop");
+      controller.enqueue(chunk({}, finish));
     } else if (ev.type === "error") {
+      hasError = true;
       console.log(JSON.stringify({ evt: "messages_stream_error", error: String(ev.error?.type || "unknown") }));
+      controller.error(new Error(ev.error?.message || "upstream_messages_error"));
     }
   };
+
   return upstreamBody.pipeThrough(new TransformStream({
     transform(bytes, controller) {
       buf += dec.decode(bytes, { stream: true }).replace(/\r\n/g, "\n");
@@ -380,8 +444,13 @@ export function toChatSse(upstreamBody, id = "") {
     },
     flush(controller) {
       if (buf.trim()) handle(buf, controller);
-      if (!finished) controller.enqueue(chunk({}, "stop"));
-      controller.enqueue(enc.encode("data: [DONE]\n\n"));
+      if (hasError) return;
+      if (receivedMessageStop) {
+        controller.enqueue(enc.encode("data: [DONE]\n\n"));
+      } else {
+        // Stream closed before message_stop! Fail explicitly rather than synthesizing success.
+        controller.error(new Error("upstream_stream_truncated_prematurely"));
+      }
     },
   }));
 }

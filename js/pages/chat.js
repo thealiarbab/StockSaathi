@@ -1562,9 +1562,8 @@ async function sendAndReply(userText) {
   };
 
   const state = getState();
-  // The window moves 8 messages at a time, not 1, so its first message (and
-  // with it the cacheable start of the request) stays the same between turns.
-  const messages = chatLog.slice(Math.floor(Math.max(0, chatLog.length - 12) / 8) * 8).map(m => ({
+  // Preserve full session history without arbitrary truncation
+  const messages = chatLog.map(m => ({
     role: m.role === "user" ? "user" : "assistant",
     content: m.role === "user" && m.chartText ? `${m.text}\n\n[The app attached this chart to the question.]${m.chartText}` : m.text,
   }));
@@ -1669,21 +1668,22 @@ Reply in English.`;
         ownerMessages.push(live);
         reRenderOuter();
       }
-      // Status lines show at once; answer text types out, because the model
-      // often sends a short reply in one or two big chunks.
+      // Status lines show at once; answer text streams directly via requestAnimationFrame.
       liveTarget = isStatus ? "" : t;
-      if (isStatus || liveStatus || !t.startsWith(live.text)) live.text = isStatus ? t : "";
+      live.text = t || "";
       liveStatus = !!isStatus;
       live.status = liveStatus;
-      if (isStatus || !t) paintLive();
-      else if (!liveTimer) liveTimer = setInterval(() => {
-        const rem = liveTarget.length - live.text.length;
-        if (rem <= 0 || liveStatus) { clearInterval(liveTimer); liveTimer = null; return; }
-        live.text = liveTarget.slice(0, live.text.length + Math.min(rem, 2 + Math.floor(rem / 40)));
+      if (isStatus) {
         paintLive();
-      }, 18);
+      } else if (!liveRaf) {
+        liveRaf = true;
+        requestAnimationFrame(() => {
+          liveRaf = false;
+          paintLive();
+        });
+      }
     };
-    let liveTarget = "", liveTimer = null, liveStatus = false;
+    let liveTarget = "", liveRaf = false, liveStatus = false;
     const paintLive = () => {
       if (!isOwnerActive() || !live) return;
       const bubble = outer?.querySelector('#chat-messages [data-streaming="1"] .msg-body');
@@ -2035,6 +2035,9 @@ Your earlier draft stated prices, moves or events that were not looked up. Call 
     }
     if (!result?.aborted && entry.text && !entry.text.startsWith("Hmm")) {
       entry.text = await finishReply(entry.text, userText, streamSystem, messages);
+    }
+    if (result?.finishReason === "length" && entry && !entry.text.includes("maximum generation limit")) {
+      entry.text += "\n\n… [Response reached maximum generation limit. Ask \"continue\" if you'd like more.]";
     }
     {
       const ex = extractChartMarker(entry.text);

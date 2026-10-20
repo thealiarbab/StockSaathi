@@ -383,6 +383,155 @@ for (const [name, got, want] of dossierResults) {
   else failures.push(`  dossier: ${name}\n    got ${got}, want ${want}`);
 }
 
+// -----------------------------------------------------------------------------
+// STREAMING, TRANSLATION, CACHING & ROLE INTEGRITY TESTS
+// -----------------------------------------------------------------------------
+import { toChatSse, toMessagesBody, maxTokensFor } from "../api/_messages.js";
+
+async function runSseTests() {
+  const sseResults = [];
+  const enc = new TextEncoder();
+  const dec = new TextDecoder();
+
+  const collectStream = async (inputLines) => {
+    const stream = new ReadableStream({
+      start(controller) {
+        for (const l of inputLines) controller.enqueue(enc.encode(l));
+        controller.close();
+      },
+    });
+    const outStream = toChatSse(stream, "test_req");
+    const reader = outStream.getReader();
+    let text = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      text += dec.decode(value);
+    }
+    const chunks = [];
+    for (const line of text.split("\n")) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith("data:") && trimmed !== "data: [DONE]") {
+        try { chunks.push(JSON.parse(trimmed.slice(5).trim())); } catch {}
+      }
+    }
+    return { text, chunks, done: text.includes("data: [DONE]") };
+  };
+
+  // Test 1: Contiguous tool indexing (block 0 is text, block 1 is tool_use)
+  try {
+    const t1Input = [
+      'data: {"type":"message_start","message":{"id":"msg_1"}}\n\n',
+      'data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}\n\n',
+      'data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Checking price"}}\n\n',
+      'data: {"type":"content_block_stop","index":0}\n\n',
+      'data: {"type":"content_block_start","index":1,"content_block":{"type":"tool_use","id":"call_1","name":"get_stock_price"}}\n\n',
+      'data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"{\\"sym"}}\n\n',
+      'data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"bol\\":\\"TCS\\"}"}}\n\n',
+      'data: {"type":"content_block_stop","index":1}\n\n',
+      'data: {"type":"message_delta","delta":{"stop_reason":"tool_use"}}\n\n',
+      'data: {"type":"message_stop"}\n\n',
+    ];
+    const { chunks, done } = await collectStream(t1Input);
+    const tcChunk = chunks.find(c => c.choices?.[0]?.delta?.tool_calls);
+    const tcIdx = tcChunk?.choices?.[0]?.delta?.tool_calls?.[0]?.index;
+    const term = chunks.find(c => c.choices?.[0]?.finish_reason);
+    sseResults.push(["contiguous tool indexing maps block 1 to tool_calls[0]", tcIdx, 0]);
+    sseResults.push(["tool_use stop reason maps to tool_calls finish_reason", term?.choices?.[0]?.finish_reason, "tool_calls"]);
+    sseResults.push(["stream ends with [DONE]", done, true]);
+  } catch (e) {
+    sseResults.push(["contiguous tool indexing threw", e.message, "success"]);
+  }
+
+  // Test 2: Max-tokens stop reason maps to length
+  try {
+    const t2Input = [
+      'data: {"type":"message_start","message":{"id":"msg_2"}}\n\n',
+      'data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}\n\n',
+      'data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Incomplete thought..."}}\n\n',
+      'data: {"type":"content_block_stop","index":0}\n\n',
+      'data: {"type":"message_delta","delta":{"stop_reason":"max_tokens"}}\n\n',
+      'data: {"type":"message_stop"}\n\n',
+    ];
+    const { chunks } = await collectStream(t2Input);
+    const term = chunks.find(c => c.choices?.[0]?.finish_reason);
+    sseResults.push(["max_tokens stop reason maps to length finish_reason", term?.choices?.[0]?.finish_reason, "length"]);
+  } catch (e) {
+    sseResults.push(["max_tokens test threw", e.message, "success"]);
+  }
+
+  // Test 3: Premature drop without message_stop throws error
+  try {
+    const t3Input = [
+      'data: {"type":"message_start","message":{"id":"msg_3"}}\n\n',
+      'data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}\n\n',
+      'data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Cut off mid"}}\n\n',
+    ];
+    let threw = false;
+    try {
+      await collectStream(t3Input);
+    } catch {
+      threw = true;
+    }
+    sseResults.push(["premature stream drop before message_stop raises error", threw, true]);
+  } catch (e) {
+    sseResults.push(["premature drop test threw", e.message, "success"]);
+  }
+
+  // Test 4: Upstream error event raises error
+  try {
+    const t4Input = [
+      'data: {"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}}\n\n',
+    ];
+    let threw = false;
+    try {
+      await collectStream(t4Input);
+    } catch {
+      threw = true;
+    }
+    sseResults.push(["upstream error event raises error", threw, true]);
+  } catch (e) {
+    sseResults.push(["upstream error test threw", e.message, "success"]);
+  }
+
+  // Test 5: System prompt caching structure in toMessagesBody
+  try {
+    const bodyCached = toMessagesBody({
+      messages: [{ role: "system", content: "Static System Rules\n\n# RUNTIME FACTS\nClock: 10:30 IST" }],
+    }, { profile: "fast" });
+    const isArray = Array.isArray(bodyCached.system);
+    const hasCache = isArray && bodyCached.system[0]?.cache_control?.type === "ephemeral";
+    const staticText = isArray ? bodyCached.system[0]?.text : "";
+    const dynText = isArray ? bodyCached.system[1]?.text : "";
+    sseResults.push(["system with RUNTIME FACTS splits into dual content blocks", isArray, true]);
+    sseResults.push(["static prefix block carries ephemeral cache_control", hasCache, true]);
+    sseResults.push(["static prefix text matches rules", staticText, "Static System Rules"]);
+    sseResults.push(["dynamic block contains runtime facts", dynText, "# RUNTIME FACTS\nClock: 10:30 IST"]);
+
+    const bodyPlain = toMessagesBody({
+      messages: [{ role: "system", content: "Plain System Only" }],
+    }, { profile: "fast" });
+    sseResults.push(["system without RUNTIME FACTS is string", typeof bodyPlain.system, "string"]);
+  } catch (e) {
+    sseResults.push(["prompt caching test threw", e.message, "success"]);
+  }
+
+  // Test 6: Role integrity (splitForCache is removed from agent.js)
+  sseResults.push(["splitForCache completely absent from agent.js", SRC.includes("splitForCache"), false]);
+
+  // Test 7: Output token ceiling is 128k
+  sseResults.push(["maxTokensFor ceiling is 128000", maxTokensFor(), 128000]);
+
+  return sseResults;
+}
+
+const sseResults = await runSseTests();
+let ssePass = 0;
+for (const [name, got, want] of sseResults) {
+  if (got === want) ssePass++;
+  else failures.push(`  sse/cache: ${name}\n    got ${got}, want ${want}`);
+}
+
 console.log(`coach guards: ${pass}/${CASES.length} passing`);
 console.log(`dossier:      ${dPass}/${dossierResults.length} passing`);
 console.log(`advice:       ${aPass}/${ADVICE_CASES.length} passing`);
@@ -390,6 +539,7 @@ console.log(`scrub:        ${sPass}/${SCRUB_CASES.length} passing`);
 console.log(`language:     ${lPass}/${LANG_CASES.length} passing`);
 console.log(`tradeStats:   ${tPass}/${STAT_CASES.length} passing`);
 console.log(`figures:      ${fPass}/${FIG_TOTAL} passing`);
+console.log(`sse/cache:    ${ssePass}/${sseResults.length} passing`);
 if (failures.length) {
   console.error("\nFAILURES:\n" + failures.join("\n"));
   process.exit(1);
