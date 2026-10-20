@@ -3,29 +3,10 @@
 // Legacy "#/…" URLs are upgraded in place on load (js/navigation.js).
 // =============================================================================
 
-import { renderLanding } from "./pages/landing.js";
 import { track, installTracking } from "./features/track.js";
-import { renderPortfolio } from "./pages/portfolio.js";
-import { renderStocks } from "./pages/stocks.js";
-import { renderStockDetail } from "./pages/stockDetail.js";
-import { renderCrashReplay } from "./pages/crashReplay.js";
 // Leaderboard fully removed Apr 24 2026 — no route, no nav, no helper.
 // /leaderboard URLs now fall through to the router's 404 handler, which
 // shows a "Page not found" with a link home.
-import { renderReportCard } from "./pages/reportCard.js";
-import { renderOnboarding } from "./pages/onboarding.js";
-import { renderSettings } from "./pages/settings.js";
-import { renderLogin } from "./pages/login.js";
-import { renderRegister } from "./pages/register.js";
-import { renderResetPasswordRequest } from "./pages/resetPasswordRequest.js";
-import { renderResetPassword } from "./pages/resetPassword.js";
-import { renderNews } from "./pages/news.js";
-import { renderChat } from "./pages/chat.js";
-import { renderSharedChat } from "./pages/sharedChat.js";
-import { renderAdmin, renderAdminClean } from "./pages/admin.js";
-import { renderPrivacy } from "./pages/privacy.js";
-import { renderTerms } from "./pages/terms.js";
-import { renderGrievance } from "./pages/grievance.js";
 import { currentUser, refreshCurrentUser } from "./auth/accounts.js";
 import { getState, subscribe } from "./state.js";
 import { go, installNavigation, upgradeLegacyHash, NAV_EVENT } from "./navigation.js";
@@ -73,15 +54,16 @@ function titleFor(r) {
 // App routes whose pre-rendered article stays on the page below the app UI
 // on a cold load (see syncBootCompanion in js/pages/staticPage.js).
 const COMPANION_ROUTES = new Set(["stocks", "stock-detail", "crash-replay", "crash-replay-scenario"]);
+let _routeRenderSeq = 0;
 
 const ROUTES = [
-  { name: "home",          match: /^$|^\/$/,                              render: renderLanding, public: true },
-  { name: "login",         match: /^\/login\/?$/,                          render: renderLogin, public: true, guestOnly: true },
-  { name: "register",      match: /^\/register\/?$/,                       render: renderRegister, public: true, guestOnly: true },
-  { name: "reset-req",     match: /^\/reset-password-request\/?$/,         render: renderResetPasswordRequest, public: true },
-  { name: "reset-password", match: /^\/reset-password\/?$/,                render: renderResetPassword, public: true },
-  { name: "onboarding",    match: /^\/onboarding\/?$/,                     render: renderOnboarding, needsAuth: true },
-  { name: "portfolio",     match: /^\/portfolio\/?$/,                      render: renderPortfolio, needsAuth: true, needsOnboarded: true },
+  { name: "home",          match: /^$|^\/$/,                              load: () => import("./pages/landing.js").then(m => m.renderLanding), public: true },
+  { name: "login",         match: /^\/login\/?$/,                          load: () => import("./pages/login.js").then(m => m.renderLogin), public: true, guestOnly: true },
+  { name: "register",      match: /^\/register\/?$/,                       load: () => import("./pages/register.js").then(m => m.renderRegister), public: true, guestOnly: true },
+  { name: "reset-req",     match: /^\/reset-password-request\/?$/,         load: () => import("./pages/resetPasswordRequest.js").then(m => m.renderResetPasswordRequest), public: true },
+  { name: "reset-password", match: /^\/reset-password\/?$/,                load: () => import("./pages/resetPassword.js").then(m => m.renderResetPassword), public: true },
+  { name: "onboarding",    match: /^\/onboarding\/?$/,                     load: () => import("./pages/onboarding.js").then(m => m.renderOnboarding), needsAuth: true },
+  { name: "portfolio",     match: /^\/portfolio\/?$/,                      load: () => import("./pages/portfolio.js").then(m => m.renderPortfolio), needsAuth: true, needsOnboarded: true },
   // Alias: /orders is not a real page, but some users have bookmarks
   // or PWA shortcuts pointing here (from a mental-model of "orders
   // should be their own page"). Redirect to the portfolio page's
@@ -100,21 +82,21 @@ const ROUTES = [
   // and buy/sell buttons on /stocks/<sym> already prompt login when
   // an unauth'd user attempts a trade. So nothing else needs to change
   // — just opening the gate.
-  { name: "stocks",        match: /^\/stocks\/?$/,                         render: renderStocks, public: true },
-  { name: "stock-detail",  match: /^\/stocks\/([A-Za-z0-9&\-_.]+)\/?$/,    render: renderStockDetail, param: "symbol", public: true },
-  { name: "crash-replay",  match: /^\/crash-replay\/?$/,                   render: renderCrashReplay, public: true },
-  { name: "crash-replay-scenario", match: /^\/crash-replay\/([A-Za-z0-9_]+)\/?$/, render: renderCrashReplay, param: "scenario", public: true },
-  { name: "report-card",   match: /^\/report-card\/?$/,                    render: renderReportCard, needsAuth: true, needsOnboarded: true },
+  { name: "stocks",        match: /^\/stocks\/?$/,                         load: () => import("./pages/stocks.js").then(m => m.renderStocks), public: true },
+  { name: "stock-detail",  match: /^\/stocks\/([A-Za-z0-9&\-_.]+)\/?$/,    load: () => import("./pages/stockDetail.js").then(m => m.renderStockDetail), param: "symbol", public: true },
+  { name: "crash-replay",  match: /^\/crash-replay\/?$/,                   load: () => import("./pages/crashReplay.js").then(m => m.renderCrashReplay), public: true },
+  { name: "crash-replay-scenario", match: /^\/crash-replay\/([A-Za-z0-9_]+)\/?$/, load: () => import("./pages/crashReplay.js").then(m => m.renderCrashReplay), param: "scenario", public: true },
+  { name: "report-card",   match: /^\/report-card\/?$/,                    load: () => import("./pages/reportCard.js").then(m => m.renderReportCard), needsAuth: true, needsOnboarded: true },
   // Send / receive money was removed (16 Oct 2026). Old links land on the portfolio.
   { name: "friends",       match: /^\/friends\/?$/,                        render: () => go("/portfolio", { replace: true }), public: true },
-  { name: "news",          match: /^\/news\/?$/,                           render: renderNews, public: true },
-  { name: "chat",          match: /^\/chat\/?$/,                           render: renderChat, public: true },
+  { name: "news",          match: /^\/news\/?$/,                           load: () => import("./pages/news.js").then(m => m.renderNews), public: true },
+  { name: "chat",          match: /^\/chat\/?$/,                           load: () => import("./pages/chat.js").then(m => m.renderChat), public: true },
   // A chat someone shared (chat_shares). Public, read-only, works signed out.
-  { name: "shared-chat",   match: /^\/share\/([a-f0-9]{8,40})\/?$/,          render: renderSharedChat, param: "id", public: true },
-  { name: "settings",      match: /^\/settings\/?$/,                       render: renderSettings, needsAuth: true },
-  { name: "privacy",       match: /^\/privacy\/?$/,                        render: renderPrivacy, public: true },
-  { name: "terms",         match: /^\/terms\/?$/,                          render: renderTerms, public: true },
-  { name: "grievance",     match: /^\/grievance\/?$/,                      render: renderGrievance, public: true },
+  { name: "shared-chat",   match: /^\/share\/([a-f0-9]{8,40})\/?$/,          load: () => import("./pages/sharedChat.js").then(m => m.renderSharedChat), param: "id", public: true },
+  { name: "settings",      match: /^\/settings\/?$/,                       load: () => import("./pages/settings.js").then(m => m.renderSettings), needsAuth: true },
+  { name: "privacy",       match: /^\/privacy\/?$/,                         load: () => import("./pages/privacy.js").then(m => m.renderPrivacy), public: true },
+  { name: "terms",         match: /^\/terms\/?$/,                           load: () => import("./pages/terms.js").then(m => m.renderTerms), public: true },
+  { name: "grievance",     match: /^\/grievance\/?$/,                       load: () => import("./pages/grievance.js").then(m => m.renderGrievance), public: true },
   // Pre-rendered content pages (scripts/prerender.py). The router keeps the
   // server's markup on a cold load and fetches it on in-app navigation.
   { name: "learn",         match: /^\/learn-stock-market\/?$/,             render: renderStaticPage, public: true },
@@ -124,12 +106,12 @@ const ROUTES = [
   // the same 404 shape for wrong slugs, so scanning the URL space gets you
   // nothing. renderAdmin itself calls /api/ai?op=admin-path-check and
   // short-circuits to 404 if the slug isn't valid.
-  { name: "admin-slug",    match: /^\/a\/([A-Za-z0-9_-]{1,16384})\/?$/,    render: renderAdmin, param: "slug", public: true },
+  { name: "admin-slug",    match: /^\/a\/([A-Za-z0-9_-]{1,16384})\/?$/,    load: () => import("./pages/admin.js").then(m => m.renderAdmin), param: "slug", public: true },
   // After validation the address bar is rewritten to /a (see admin.js). This
   // route only shows the console if the slug was validated in this tab;
   // otherwise it renders the same "Page not found" as any unknown path. The
   // server has no rewrite for /a, so a reload of /a is a genuine 404.
-  { name: "admin-clean",   match: /^\/a\/?$/,                              render: renderAdminClean, public: true },
+  { name: "admin-clean",   match: /^\/a\/?$/,                              load: () => import("./pages/admin.js").then(m => m.renderAdminClean), public: true },
 ];
 
 export function currentRoute() {
@@ -263,7 +245,9 @@ let _pendingRouteCheck = null;
 export function mountRouter() {
   const main = document.getElementById("main");
 
-  function route() {
+  async function route() {
+    const routePath = location.pathname;
+    const renderSeq = ++_routeRenderSeq;
     // Cancel any queued deferred check — we're about to re-evaluate fresh.
     if (_pendingRouteCheck) { _pendingRouteCheck(); _pendingRouteCheck = null; }
 
@@ -353,17 +337,20 @@ export function mountRouter() {
     }
     if (r.needsOnboarded && user && !state.user.onboarded) { navigate("/onboarding"); return; }
 
-    main.innerHTML = "";
-    main.classList.remove("page-enter");
-    void main.offsetWidth;
-    main.classList.add("page-enter");
     // Error boundary — a single page throw used to blank the whole UI.
     // Now the user sees a recoverable "something went wrong" card with a
     // retry button, and the error is logged to the console for debugging.
     try {
       document.title = titleFor(r);
-      r.render(main, r.params);
+      const renderPage = r.load ? await r.load() : r.render;
+      if (renderSeq !== _routeRenderSeq || location.pathname !== routePath) return;
+      main.innerHTML = "";
+      main.classList.remove("page-enter");
+      void main.offsetWidth;
+      main.classList.add("page-enter");
+      renderPage(main, r.params);
     } catch (err) {
+      if (renderSeq !== _routeRenderSeq || location.pathname !== routePath) return;
       console.error(`[router] ${r.name} render failed:`, err);
       // Hotfix50b: surface the actual error message + stack in the UI
       // so we can debug without DevTools. Plain pre-formatted text in a

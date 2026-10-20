@@ -444,11 +444,26 @@ function wrapFetch() {
 }
 
 // Page speed on the student's own device, for the first page of the visit.
-const perf = { lcp: 0, cls: 0, inp: 0 };
+const perf = { lcp: 0, cls: 0, clsSessionStart: null, clsSessionLast: 0, clsSessionValue: 0, inp: 0 };
 let perfSent = false;
 function watchPerf() {
   try { new PerformanceObserver((l) => { for (const e of l.getEntries()) perf.lcp = Math.round(e.startTime); }).observe({ type: "largest-contentful-paint", buffered: true }); } catch {}
-  try { new PerformanceObserver((l) => { for (const e of l.getEntries()) if (!e.hadRecentInput) perf.cls += e.value; }).observe({ type: "layout-shift", buffered: true }); } catch {}
+  try {
+    new PerformanceObserver((l) => {
+      for (const e of l.getEntries()) {
+        if (e.hadRecentInput) continue;
+        if (perf.clsSessionStart === null ||
+            e.startTime - perf.clsSessionLast >= 1000 ||
+            e.startTime - perf.clsSessionStart > 5000) {
+          perf.clsSessionStart = e.startTime;
+          perf.clsSessionValue = 0;
+        }
+        perf.clsSessionLast = e.startTime;
+        perf.clsSessionValue += e.value;
+        perf.cls = Math.max(perf.cls, perf.clsSessionValue);
+      }
+    }).observe({ type: "layout-shift", buffered: true });
+  } catch {}
   try { new PerformanceObserver((l) => { for (const e of l.getEntries()) perf.inp = Math.max(perf.inp, Math.round(e.duration)); }).observe({ type: "event", buffered: true, durationThreshold: 40 }); } catch {}
 }
 function sendPerf() {
