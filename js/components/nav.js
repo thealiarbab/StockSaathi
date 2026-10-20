@@ -37,7 +37,7 @@ export function mountNav() {
   subscribe((state) => {
     if (navStateKey(state) !== lastStateKey) render();
   });
-  window.addEventListener("ss:navigate", render);
+  window.addEventListener("ss:navigate", updateActiveLinks);
 
   // Click-outside closes user dropdown
   document.addEventListener("click", (e) => {
@@ -267,6 +267,26 @@ export function mountNav() {
     root.querySelector("#cmdk-open-btn")?.addEventListener("click", () => {
       import("./commandPalette.js").then(m => m.openCommandPalette());
     });
+  }
+
+  function updateActiveLinks() {
+    const seg = (location.pathname || "/").replace(/^\/+/, "").split("/")[0];
+    const links = [
+      ...root.querySelectorAll(".nav-link"),
+      ...document.querySelectorAll("#nav-drawer .drawer-link[href]"),
+    ];
+    for (const link of links) {
+      const linkSeg = new URL(link.href, location.origin).pathname.replace(/^\/+/, "").split("/")[0];
+      const active = linkSeg === seg;
+      link.classList.toggle("active", active);
+      if (active) link.setAttribute("aria-current", "page");
+      else link.removeAttribute("aria-current");
+    }
+    const mobileRoot = document.getElementById("mobile-nav-root");
+    for (const link of mobileRoot?.querySelectorAll(".mbn-link[href]") || []) {
+      const linkSeg = new URL(link.href, location.origin).pathname.replace(/^\/+/, "").split("/")[0];
+      link.classList.toggle("active", linkSeg === seg);
+    }
   }
 }
 
