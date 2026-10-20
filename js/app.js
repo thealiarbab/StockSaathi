@@ -150,6 +150,7 @@ if ("serviceWorker" in navigator) {
         });
       });
       let reloaded = false;
+      let reloadWaitingForChat = false;
       // Only an UPDATE should reload. On a visitor's very first load the page
       // starts uncontrolled; the new worker's clients.claim() still fires
       // controllerchange, which used to reload the page a few seconds after
@@ -158,14 +159,40 @@ if ("serviceWorker" in navigator) {
       const safeReload = () => {
         if (!hadController) return;
         if (reloaded) return;
-        reloaded = true;
-        // Don't yank the page out from under a user mid-keystroke.
-        // Wait for the focused input to lose focus, then reload. Falls
-        // back to immediate reload if nothing's focused.
         const ae = document.activeElement;
+        if (document.getElementById("chat-stop")) {
+          if (reloadWaitingForChat) return;
+          reloadWaitingForChat = true;
+          const observer = new MutationObserver(() => {
+            if (!document.getElementById("chat-stop")) {
+              observer.disconnect();
+              reloadWaitingForChat = false;
+              safeReload();
+            }
+          });
+          observer.observe(document.body, { childList: true, subtree: true });
+          return;
+        }
+        reloaded = true;
         const typing = ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA" || ae.isContentEditable);
         if (typing) {
-          ae.addEventListener("blur", () => window.location.reload(), { once: true });
+          if (ae.id === "chat-input" && typeof ae.value === "string") {
+            try {
+              sessionStorage.setItem("ss.sw-update-chat-draft.v1", JSON.stringify({
+                path: location.pathname,
+                value: ae.value,
+                start: ae.selectionStart,
+                end: ae.selectionEnd,
+              }));
+            } catch {
+              ae.addEventListener("blur", () => window.location.reload(), { once: true });
+              return;
+            }
+            window.location.reload();
+          } else {
+            ae.addEventListener("blur", () => window.location.reload(), { once: true });
+            return;
+          }
         } else {
           window.location.reload();
         }

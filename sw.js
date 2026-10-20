@@ -5,7 +5,7 @@
 // Bump this on every deploy so old cached JS/HTML isn't served forever. The
 // activate step below deletes any cache whose name doesn't match. Include a
 // date so it is obvious in DevTools which build is live.
-const CACHE_NAME = "stocksaathi-v429-20261021a";
+const CACHE_NAME = "stocksaathi-v430-20261021a";
 const STATIC = [
   "./",
   "./app-shell",
@@ -209,7 +209,31 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Cache-first for assets (CSS, JS, fonts, icons) â€” fast on repeat.
+  // Revalidate app code on every page load so a cached bundle cannot outlive
+  // a deployment. Keep the last good response as the offline fallback.
+  if (/\.(?:css|js)$/.test(url.pathname)) {
+    event.respondWith((async () => {
+      try {
+        const response = await fetch(event.request, { cache: "no-cache" });
+        if (event.request.method === "GET" && response.ok) {
+          try {
+            const cache = await caches.open(CACHE_NAME);
+            await cache.put(event.request, response.clone());
+          } catch (error) {
+            console.warn("[sw] failed to cache app asset:", event.request.url, error);
+          }
+        }
+        return response;
+      } catch (error) {
+        const cached = await caches.match(event.request);
+        if (cached) return cached;
+        throw error;
+      }
+    })());
+    return;
+  }
+
+  // Cache-first for data, fonts, icons, and other static files â€” fast on repeat.
   event.respondWith(
     caches.match(event.request).then(cached => {
       return cached || fetch(event.request).then(res => {

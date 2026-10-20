@@ -188,6 +188,17 @@ export function renderChat(main) {
   // App-style page: no site footer, only the messages scroll.
   main.classList.add("main-chat");
   document.body.classList.add("chat-app");
+  let updateDraft = null;
+  try {
+    const rawDraft = sessionStorage.getItem("ss.sw-update-chat-draft.v1");
+    if (rawDraft) {
+      sessionStorage.removeItem("ss.sw-update-chat-draft.v1");
+      const draft = JSON.parse(rawDraft);
+      if (draft.path === location.pathname && typeof draft.value === "string") updateDraft = draft;
+    }
+  } catch (e) {
+    console.warn("[chat] couldn't read draft after app update:", e);
+  }
   const leaveChat = () => {
     // The router fires ss:navigate for this page too; only undo on a real exit.
     if (location.pathname.replace(/\/+$/, "") === "/chat") return;
@@ -210,6 +221,13 @@ export function renderChat(main) {
   }, { once: true });
 
   function render() {
+    const oldInput = main.querySelector("#chat-input");
+    const carriedDraft = updateDraft || (oldInput ? {
+      value: oldInput.value,
+      start: oldInput.selectionStart,
+      end: oldInput.selectionEnd,
+    } : null);
+    updateDraft = null;
     const state = getState();
     const active = getActiveSession(sessionsData);
     // A repaint of the chat on screen (cloud sync, another tab, the language
@@ -318,6 +336,14 @@ export function renderChat(main) {
     // Grows with the text up to ~8 lines, like the big chat apps.
     const fit = () => { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 200) + "px"; input.style.overflowY = input.scrollHeight > 200 ? "auto" : "hidden"; };
     input.addEventListener("input", fit);
+    if (carriedDraft && typeof carriedDraft.value === "string") {
+      input.value = carriedDraft.value;
+      fit();
+      input.setSelectionRange(
+        Number.isInteger(carriedDraft.start) ? carriedDraft.start : input.value.length,
+        Number.isInteger(carriedDraft.end) ? carriedDraft.end : input.value.length,
+      );
+    }
     input.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
         e.preventDefault();
