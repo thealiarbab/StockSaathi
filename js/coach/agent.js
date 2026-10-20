@@ -1099,7 +1099,11 @@ export async function streamChat({ system, messages, profile = "chat", onToken, 
         const line = rawLine.trim();
         if (!line || !line.startsWith("data:")) continue;
         const payload = line.slice(5).trim();
-        if (!payload || payload === "[DONE]") continue;
+        if (!payload) continue;
+        if (payload === "[DONE]") {
+          finishReason ||= "stop";
+          break;
+        }
         try {
           const chunk = JSON.parse(payload);
           const choice = chunk?.choices?.[0];
@@ -1121,6 +1125,10 @@ export async function streamChat({ system, messages, profile = "chat", onToken, 
             }
           }
         } catch {}
+      }
+      if (finishReason) {
+        reader.cancel().catch((e) => console.warn("streamChat cancel:", e));
+        break;
       }
     }
   } catch (e) {
