@@ -140,7 +140,7 @@
   /* ---------- Layout ---------- */
   --nav-h: 64px;
   --event-marquee-h: 0px;
-  --page-top-h: calc(var(--nav-h) + var(--event-marquee-h) + env(safe-area-inset-top) + 1px);
+  --page-top-h: calc(var(--nav-h) + var(--event-marquee-h) + env(safe-area-inset-top) + 4px);
   --coach-w: 380px;
   --max-w: 1280px;
 }
