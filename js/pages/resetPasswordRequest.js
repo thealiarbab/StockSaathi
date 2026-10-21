@@ -54,7 +54,12 @@ export function renderResetPasswordRequest(main) {
 
   async function submit() {
     errBox.innerHTML = "";
-    const email = main.querySelector("#rpr-email").value.trim();
+    const emailInput = main.querySelector("#rpr-email");
+    if (!emailInput) {
+      console.error("[reset-password-request] email input is missing");
+      return showErr("The reset form could not load. Please reload the page.");
+    }
+    const email = emailInput.value.trim();
     if (!email) return showErr("Enter your email.");
     btn.disabled = true;
     btn.textContent = "Sending…";
