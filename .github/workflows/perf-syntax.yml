@@ -52,6 +52,9 @@ jobs:
       - name: Node parse — crashReplay.js
         run: node --check js/pages/crashReplay.js
 
+      - name: NSE calendar — holiday and trading-day regression suite
+        run: node scripts/test-nse-calendar.mjs
+
       - name: Node parse — pregen-crashes.mjs (only on branches that have it)
         run: |
           if [ -f scripts/pregen-crashes.mjs ]; then
