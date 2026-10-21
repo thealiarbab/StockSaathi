@@ -150,11 +150,20 @@ function mergeStored(data) {
     // flat list. Without this, the copy still in storage came straight back.
     const pruned = new Set([...(s.pruned || []), ...(other.pruned || [])]);
     if (pruned.size) s.pruned = [...pruned].slice(-500);
-    const have = new Set(s.messages.map(msgKey));
+    const have = new Map(s.messages.map((m) => [msgKey(m), m]));
     let added = false;
     for (const m of other.messages) {
-      if (!m || (m.ts || 0) <= clearedAt || have.has(msgKey(m)) || pruned.has(msgKey(m))) continue;
+      if (!m || (m.ts || 0) <= clearedAt || pruned.has(msgKey(m))) continue;
+      const existing = have.get(msgKey(m));
+      if (existing) {
+        if ((!Array.isArray(existing.lookupProvenance) || !existing.lookupProvenance.length) &&
+            Array.isArray(m.lookupProvenance) && m.lookupProvenance.length) {
+          existing.lookupProvenance = m.lookupProvenance;
+        }
+        continue;
+      }
       s.messages.push(m);
+      have.set(msgKey(m), m);
       added = true;
     }
     if (added) {

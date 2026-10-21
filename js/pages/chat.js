@@ -10,6 +10,7 @@ import { SYSTEM_PROMPT, matchTemplate, isOffTopic, offTopicRedirect, STARTER_QUE
 import { marketStatus } from "../data/prices.js";
 import { runAgent, streamChat, needsLiveData, logChatTurn, stripToolCallScaffolding, isToolCallOnly, looksLikeLookupOffer, looksLikeFetchPromise, looksLikePricelessList, isDiscoveryQuery, scrubAdvice, looksHinglish, prefetchNewsBlock, unsourcedFigures, figureSources, dropFigureSentences } from "../coach/agent.js";
 import { buildDossier } from "../coach/dossier.js";
+import { normalizeLookupProvenance, withLookupProvenance } from "../coach/lookupProvenance.js";
 import { getNews } from "../data/news.js";
 import {
   loadSessions, saveSessions, getActiveSession, setActiveSession,
@@ -48,7 +49,7 @@ import { onBackdropClick } from "../components/backdrop.js";
 // the reply came back in English (C28), ask once more, bounded. Then remove
 // any sentence that picks a stock, praises or judges the user's trade,
 // nudges the next trade or times the market (C19-C21, scrubAdvice).
-async function finishReply(text, userText, system, messages) {
+async function finishReply(text, userText, system, messages, onStep) {
   let out = text;
   const hi = !!getState().settings.hinglish;
   if (hi && !looksHinglish(out)) {
@@ -60,6 +61,7 @@ async function finishReply(text, userText, system, messages) {
 # THIS TURN
 Your last draft was in English. Hinglish mode is on: answer again in Hinglish (Roman script).`,
         messages, profile: "fast",
+        onStep,
       }), 12_000);
       const clean = stripScaffolding(again);
       if (clean && clean.trim() && looksHinglish(clean)) out = clean.trim();
@@ -1655,7 +1657,10 @@ async function sendAndReply(userText) {
   // Preserve full session history without arbitrary truncation
   const messages = chatLog.map(m => ({
     role: m.role === "user" ? "user" : "assistant",
-    content: m.role === "user" && m.chartText ? `${m.text}\n\n[The app attached this chart to the question.]${m.chartText}` : m.text,
+    content: withLookupProvenance(
+      m.role === "user" && m.chartText ? `${m.text}\n\n[The app attached this chart to the question.]${m.chartText}` : m.text,
+      m.lookupProvenance,
+    ),
   }));
 
   // Heuristic: does the message obviously need live data (stock price,
@@ -1752,6 +1757,12 @@ Reply in English.`;
     reRenderOuter();   // show typing indicator
     let replyText = null;
     let errorText = null;
+    const lookupProvenance = [];
+    const collectLookupStep = (step) => {
+      if (step?.action === "tool_results") {
+        lookupProvenance.push(...normalizeLookupProvenance(step.lookups));
+      }
+    };
     // Live bubble: a status line while tools run ("Checking TCS price…"),
     // then the answer as it streams. The finished reply replaces its text.
     let live = null;
@@ -1831,6 +1842,7 @@ This is a discovery question. Search for the instruments AND call get_stock_pric
         signal,
         onText: (t) => showLive(t || "", false),
         onStep: (st) => {
+          collectLookupStep(st);
           if (st.action === "tool_calls") showLive(toolStatus(st.calls), true);
           else if (st.action === "figure_check") showLive("Double-checking the numbers…", true);
         },
@@ -1881,6 +1893,7 @@ You already offered to look this up and the user already asked. Do NOT ask again
           apiKey: state.settings.llmApiKey || null,
           system: system + nudge,
           messages, profile: "fast",
+          onStep: collectLookupStep,
         }), 12_000);
         const cleanRetry = stripScaffolding(retry);
         const retryStillBad = looksLikeLookupOffer(cleanRetry) || looksLikeFetchPromise(cleanRetry)
@@ -1888,7 +1901,7 @@ You already offered to look this up and the user already asked. Do NOT ask again
         if (cleanRetry && cleanRetry.trim() && !retryStillBad) cleanedReply = cleanRetry;
       } catch (e) { console.warn("[chat] lookup-offer retry failed:", e?.message || e); }
     }
-    cleanedReply = await finishReply(cleanedReply, userText, system, messages);
+    cleanedReply = await finishReply(cleanedReply, userText, system, messages, collectLookupStep);
     let finalText = (cleanedReply && cleanedReply.trim()) ? cleanedReply : (errorText || "Saathi couldn't answer that. Try rephrasing or asking again.");
     const ex = extractChartMarker(finalText);
     finalText = ex.text || finalText;
@@ -1904,9 +1917,17 @@ You already offered to look this up and the user already asked. Do NOT ask again
     if (live) {
       live.text = finalText; live.streaming = false; live.status = false; live.ts = replyTs;
       Object.assign(live, chartExtra);
+      const provenance = normalizeLookupProvenance(lookupProvenance);
+      if (provenance.length) live.lookupProvenance = provenance;
     }
-    else if (qIdx >= 0) ownerMessages.splice(qIdx + 1, 0, { role: "assistant", text: finalText, ts: replyTs, ...chartExtra });
-    else ownerMessages.push({ role: "assistant", text: finalText, ts: replyTs, ...chartExtra });
+    else if (qIdx >= 0) ownerMessages.splice(qIdx + 1, 0, {
+      role: "assistant", text: finalText, ts: replyTs, ...chartExtra,
+      ...(lookupProvenance.length ? { lookupProvenance: normalizeLookupProvenance(lookupProvenance) } : {}),
+    });
+    else ownerMessages.push({
+      role: "assistant", text: finalText, ts: replyTs, ...chartExtra,
+      ...(lookupProvenance.length ? { lookupProvenance: normalizeLookupProvenance(lookupProvenance) } : {}),
+    });
     // Title/timestamp refresh on the owner session
     ownerSession.updatedAt = Date.now();
     if (!ownerSession.title || ownerSession.title === "New chat") {
@@ -1920,6 +1941,7 @@ You already offered to look this up and the user already asked. Do NOT ask again
         userText: "", assistantText: finalText, model: "gemini-chat",
         sessionId: ownerSession.id, surface: "chat_page",
         userTs: qIdx >= 0 ? ownerMessages[qIdx]?.ts : undefined, replyTs,
+        lookupProvenance,
       });
     }
     if (isOwnerActive()) reRenderOuter();
@@ -1934,6 +1956,12 @@ You already offered to look this up and the user already asked. Do NOT ask again
   const placeholderIdx = ownerMessages.length;
   ownerMessages.push({ role: "assistant", text: "", ts: nextTs(ownerMessages), streaming: true });
   reRenderOuter();
+  const lookupProvenance = [];
+  const collectLookupStep = (step) => {
+    if (step?.action === "tool_results") {
+      lookupProvenance.push(...normalizeLookupProvenance(step.lookups));
+    }
+  };
 
   // Typewriter drip — decouples Gemini's burst-y token arrivals (can
   // dump 40+ chars at once) from the on-screen reveal so the user sees
@@ -2047,6 +2075,8 @@ Answer only the latest message. Do not restate prices or facts from earlier turn
   try {
   if (entry) {
     entry.streaming = false;
+    const provenance = normalizeLookupProvenance(lookupProvenance);
+    if (provenance.length) entry.lookupProvenance = provenance;
     // Strip any leaked scaffolding from the streamed result. Done AFTER
     // the typewriter drained so the user-visible drip looks natural;
     // doing it mid-stream would cause text to disappear as it typed
@@ -2084,6 +2114,7 @@ The user asked for data. Call the tools and answer with real numbers. Do NOT ask
       const esc = await withDeadline(runAgent({
         apiKey: getState().settings.llmApiKey || null,
         system: sysT, messages, profile: "fast",
+        onStep: collectLookupStep,
       }), 12_000);
       const cleanEsc = stripScaffolding(esc);
       if (cleanEsc && cleanEsc.trim()) { entry.text = cleanEsc.trim(); fromStream = false; }
@@ -2101,6 +2132,7 @@ Keep replies conversational and short by default (1–3 sentences).`;
       const retry = await withDeadline(runAgent({
         apiKey: getState().settings.llmApiKey || null,
         system: sys, messages, profile: "fast",
+        onStep: collectLookupStep,
       }), 12_000);
       entry.text = (retry && stripScaffolding(retry).trim())
         ? stripScaffolding(retry).trim()
@@ -2126,6 +2158,7 @@ Your earlier draft stated prices, moves or events that were not looked up. Call 
         const redo = await withDeadline(runAgent({
           apiKey: getState().settings.llmApiKey || null,
           system: toolSys, messages, profile: "fast",
+          onStep: collectLookupStep,
         }), 12_000).catch(() => null);
         const cleanRedo = stripScaffolding(redo);
         if (cleanRedo && cleanRedo.trim()) entry.text = cleanRedo.trim();
@@ -2133,7 +2166,7 @@ Your earlier draft stated prices, moves or events that were not looked up. Call 
       }
     }
     if (!result?.aborted && entry.text && !entry.text.startsWith("Hmm")) {
-      entry.text = await finishReply(entry.text, userText, streamSystem, messages);
+      entry.text = await finishReply(entry.text, userText, streamSystem, messages, collectLookupStep);
     }
     if (result?.finishReason === "length" && entry && !entry.text.includes("maximum generation limit")) {
       entry.text += "\n\n… [Response reached maximum generation limit. Ask \"continue\" if you'd like more.]";
@@ -2159,6 +2192,7 @@ Your earlier draft stated prices, moves or events that were not looked up. Call 
         userText: "", assistantText: entry.text, model: "gemini-chat",
         sessionId: ownerSession.id, surface: "chat_page",
         userTs: ownerMessages[placeholderIdx - 1]?.ts, replyTs: entry.ts,
+        lookupProvenance,
       });
     }
   }

@@ -10,6 +10,7 @@ import { getState, setState, subscribe as subscribeState } from "../state.js";
 import { refreshCurrentUser, currentUser } from "../auth/accounts.js";
 import { go } from "../navigation.js";
 import { byTurn, repairTurnOrder } from "../features/chatOrder.js";
+import { normalizeLookupProvenance } from "../coach/lookupProvenance.js";
 
 let _booted = false;
 let _syncing = false;
@@ -369,6 +370,14 @@ function keepRicherLocal(sessions) {
   for (let i = 0; i < sessions.length; i++) {
     const db = sessions[i], ls = byId.get(db.id);
     if (ls && ls.messages.filter(usableMsg).length >= db.messages.length) {
+      const dbMessages = new Map(db.messages.map(m => [chatMsgKey(m), m]));
+      for (const message of ls.messages) {
+        const logged = dbMessages.get(chatMsgKey(message));
+        const provenance = normalizeLookupProvenance(logged?.lookupProvenance);
+        if (!normalizeLookupProvenance(message.lookupProvenance).length && provenance.length) {
+          message.lookupProvenance = provenance;
+        }
+      }
       repairTurnOrder(ls.messages);
       sessions[i] = { ...ls, updatedAt: Math.max(ls.updatedAt || 0, db.updatedAt || 0) };
       delete sessions[i].fromLog;
@@ -390,12 +399,25 @@ function mergeLocalChatTail(sessions, coachLog) {
       const msgs = ls.messages.filter(usableMsg);
       const db = byId.get(ls.id);
       if (db) {
-        const seen = new Set(db.messages.map(chatMsgKey));
+        const seen = new Map(db.messages.map(m => [chatMsgKey(m), m]));
+        for (const message of msgs) {
+          const logged = seen.get(chatMsgKey(message));
+          const provenance = normalizeLookupProvenance(message.lookupProvenance);
+          if (logged && !normalizeLookupProvenance(logged.lookupProvenance).length && provenance.length) {
+            logged.lookupProvenance = provenance;
+          }
+        }
         const localTailStart = msgs.findIndex((m) => (m.ts || 0) > (db.updatedAt || 0));
         const extra = localTailStart < 0 ? [] : msgs.slice(localTailStart).filter((m) =>
           !seen.has(chatMsgKey(m)) || (m.ts || 0) > (db.updatedAt || 0));
         if (extra.length) {
-          db.messages.push(...extra.map(m => ({ role: m.role, text: m.text, ts: m.ts })));
+          db.messages.push(...extra.map(m => {
+            const lookupProvenance = normalizeLookupProvenance(m.lookupProvenance);
+            return {
+              role: m.role, text: m.text, ts: m.ts,
+              ...(lookupProvenance.length ? { lookupProvenance } : {}),
+            };
+          }));
           db.updatedAt = Math.max(db.updatedAt || 0, ...extra.map(m => m.ts || 0));
         }
       } else {
@@ -404,7 +426,13 @@ function mergeLocalChatTail(sessions, coachLog) {
           sessions.push({
             id: ls.id,
             title: ls.title || "New chat",
-            messages: msgs.map(m => ({ role: m.role, text: m.text, ts: m.ts })),
+            messages: msgs.map(m => {
+              const lookupProvenance = normalizeLookupProvenance(m.lookupProvenance);
+              return {
+                role: m.role, text: m.text, ts: m.ts,
+                ...(lookupProvenance.length ? { lookupProvenance } : {}),
+              };
+            }),
             createdAt: ls.createdAt || newest,
             updatedAt: newest,
           });
@@ -416,9 +444,22 @@ function mergeLocalChatTail(sessions, coachLog) {
   const localLog = readLocalJson(COACHLOG_LS_KEY);
   if (Array.isArray(localLog) && localLog.length) {
     const dbNewest = coachLog.reduce((n, m) => Math.max(n, m.ts || 0), 0);
-    const seen = new Set(coachLog.map(chatMsgKey));
+    const seen = new Map(coachLog.map(m => [chatMsgKey(m), m]));
+    for (const message of localLog) {
+      const logged = seen.get(chatMsgKey(message));
+      const provenance = normalizeLookupProvenance(message?.lookupProvenance);
+      if (logged && !normalizeLookupProvenance(logged.lookupProvenance).length && provenance.length) {
+        logged.lookupProvenance = provenance;
+      }
+    }
     const extra = localLog.filter(m => usableMsg(m) && (m.ts || 0) > dbNewest + SKEW_MS && !seen.has(chatMsgKey(m)));
-    coachLog.push(...extra.map(m => ({ role: m.role, text: m.text, ts: m.ts })));
+    coachLog.push(...extra.map(m => {
+      const lookupProvenance = normalizeLookupProvenance(m.lookupProvenance);
+      return {
+        role: m.role, text: m.text, ts: m.ts,
+        ...(lookupProvenance.length ? { lookupProvenance } : {}),
+      };
+    }));
   }
 }
 
@@ -542,10 +583,12 @@ export function rebuildChatSessionsFromDb(coachMessagesRows, userId = null) {
       };
       sessions.push(cur);
     }
+    const lookupProvenance = normalizeLookupProvenance(r.payload?.lookup_provenance);
     cur.messages.push({
       role: r.event_type === "chat_user" ? "user" : "assistant",
       text: r.payload?.text || "",
       ts,
+      ...(lookupProvenance.length ? { lookupProvenance } : {}),
     });
     cur.updatedAt = ts;
     lastTs = ts;
@@ -562,11 +605,15 @@ export function rebuildChatSessionsFromDb(coachMessagesRows, userId = null) {
   }
 
   // Side-panel running log — flat, chronological.
-  const coachLog = sidePanelRows.map(r => ({
-    role: r.event_type === "chat_user" ? "user" : "assistant",
-    text: r.payload?.text || "",
-    ts: r._ts,
-  }));
+  const coachLog = sidePanelRows.map(r => {
+    const lookupProvenance = normalizeLookupProvenance(r.payload?.lookup_provenance);
+    return {
+      role: r.event_type === "chat_user" ? "user" : "assistant",
+      text: r.payload?.text || "",
+      ts: r._ts,
+      ...(lookupProvenance.length ? { lookupProvenance } : {}),
+    };
+  });
   for (const s of sessions) repairTurnOrder(s.messages);
   repairTurnOrder(coachLog);
 

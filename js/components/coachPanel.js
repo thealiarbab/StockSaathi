@@ -16,6 +16,7 @@ import { marketStatus } from "../data/prices.js";
 import { runAgent, streamChat, needsLiveData, logChatTurn, isToolCallOnly, looksLikeLookupOffer, looksLikeFetchPromise, looksLikePricelessList, scrubAdvice, looksHinglish, isNewsQuestion, prefetchNewsBlock, unsourcedFigures, figureSources, dropFigureSentences } from "../coach/agent.js";
 import { getFreshCachedQuote } from "../data/marketData.js";
 import { buildDossier } from "../coach/dossier.js";
+import { normalizeLookupProvenance, withLookupProvenance } from "../coach/lookupProvenance.js";
 
 const CHAT_LOG_KEY = "ss.coachchat.v1";
 // Turns taken off the panel by edit / regenerate. Without these, the merge in
@@ -192,7 +193,7 @@ async function finishPanelReply(text, userText, retryAgent) {
   return scrubAdvice(out, userText, hi).text;
 }
 
-async function callLlmAgent(apiKey, history, state, extraSystem = "", onText = null, onStep = null) {
+async function callLlmAgent(apiKey, history, state, extraSystem = "", onText = null, onStep = null, lookupProvenance = null) {
   // No client-side off-topic pre-filter. Let the LLM decide how to handle
   // off-topic questions per the system prompt.
   const dossier = await buildDossier();
@@ -205,11 +206,19 @@ async function callLlmAgent(apiKey, history, state, extraSystem = "", onText = n
   // Preserve full conversation history up to platform limits
   const messages = history.map(m => ({
     role: m.role === "user" ? "user" : "assistant",
-    content: m.text,
+    content: withLookupProvenance(m.text, m.lookupProvenance),
   }));
   // Tool-use path: "fast" profile (Gemini 3 Flash Preview) is more reliable
   // at function calling than Lite.
-  return await runAgent({ apiKey, system, messages, profile: "fast", onText, onStep });
+  return await runAgent({
+    apiKey, system, messages, profile: "fast", onText,
+    onStep: (step) => {
+      if (step?.action === "tool_results" && Array.isArray(lookupProvenance)) {
+        lookupProvenance.push(...normalizeLookupProvenance(step.lookups));
+      }
+      onStep?.(step);
+    },
+  });
 }
 
 // -----------------------------------------------------------------------------
@@ -305,105 +314,6 @@ export function mountCoachPanel() {
   window.addEventListener("resize", applyVisibility);
   window.addEventListener("ss:navigate", applyVisibility);
   subscribe(applyVisibility);
-}
-
-// ---- Draggable bubble ------------------------------------------------------
-// The bubble sat bottom-right on every page and covered whatever was there
-// (the Send button on /chat, the last row of a list). Drag it anywhere up or
-// down; let go and it snaps to the nearer side. Fling it into the side and it
-// tucks away as a small tab at the edge; tap the tab to bring it back.
-const FAB_POS_KEY = "ss.coachfab.v1";
-const FAB_SIZE = 52;
-let fabPos = loadFabPos();          // { side: "left"|"right", y: 0..1 | null, tucked: bool }
-const fabDrag = { active: false, moved: false, suppressClick: false };
-
-function loadFabPos() {
-  try {
-    const p = JSON.parse(localStorage.getItem(FAB_POS_KEY) || "null");
-    if (p && (p.side === "left" || p.side === "right")) {
-      return { side: p.side, y: Number.isFinite(p.y) ? Math.min(1, Math.max(0, p.y)) : null, tucked: !!p.tucked };
-    }
-  } catch {}
-  return { side: "right", y: null, tucked: false };
-}
-function saveFabPos() {
-  try { localStorage.setItem(FAB_POS_KEY, JSON.stringify(fabPos)); } catch {}
-}
-
-// Vertical room the bubble may use: below the top nav, above the bottom tab bar.
-function fabBounds() {
-  const top = 72;
-  const bottomBar = window.innerWidth <= 820 ? 84 : 16;
-  const bottom = Math.max(top + 1, window.innerHeight - bottomBar - FAB_SIZE);
-  return { top, bottom };
-}
-
-function placeFab() {
-  if (!fab) return;
-  fab.classList.toggle("is-left", fabPos.side === "left");
-  fab.classList.toggle("is-tucked", !!fabPos.tucked);
-  fab.setAttribute("aria-label", fabPos.tucked ? "Show coach button" : "Open coach");
-  if (fabPos.y == null && fabPos.side === "right") {
-    fab.classList.remove("is-placed");
-    fab.style.top = "";
-    return;
-  }
-  const { top, bottom } = fabBounds();
-  const y = fabPos.y == null ? bottom : top + fabPos.y * (bottom - top);
-  fab.classList.add("is-placed");
-  fab.style.top = `${Math.round(y)}px`;
-}
-
-function wireFabDrag() {
-  let startX = 0, startY = 0, startTop = 0, lastX = 0, lastT = 0, vx = 0;
-  fab.style.touchAction = "none";
-  fab.addEventListener("pointerdown", (e) => {
-    if (e.button != null && e.button !== 0) return;
-    fabDrag.active = true; fabDrag.moved = false;
-    startX = lastX = e.clientX; startY = e.clientY; lastT = e.timeStamp; vx = 0;
-    startTop = fab.getBoundingClientRect().top;
-    try { fab.setPointerCapture(e.pointerId); } catch {}
-  });
-  fab.addEventListener("pointermove", (e) => {
-    if (!fabDrag.active) return;
-    const dx = e.clientX - startX, dy = e.clientY - startY;
-    if (!fabDrag.moved && Math.hypot(dx, dy) < 8) return;
-    if (!fabDrag.moved) {
-      fabDrag.moved = true;
-      fab.classList.add("is-dragging", "is-placed");
-      fab.classList.remove("is-tucked");
-    }
-    const dt = Math.max(1, e.timeStamp - lastT);
-    vx = (e.clientX - lastX) / dt;          // px per ms, for the fling
-    lastX = e.clientX; lastT = e.timeStamp;
-    const { top, bottom } = fabBounds();
-    const y = Math.min(bottom, Math.max(top, startTop + dy));
-    fab.style.top = `${Math.round(y)}px`;
-    // Follow the finger sideways too, so the snap reads as a snap.
-    fab.style.left = `${Math.round(e.clientX - FAB_SIZE / 2)}px`;
-    fab.style.right = "auto";
-  });
-  const end = (e) => {
-    if (!fabDrag.active) return;
-    fabDrag.active = false;
-    if (!fabDrag.moved) return;
-    fabDrag.suppressClick = true;
-    setTimeout(() => { fabDrag.suppressClick = false; }, 400);
-    fab.classList.remove("is-dragging");
-    fab.style.left = ""; fab.style.right = "";
-    const x = e.clientX, w = window.innerWidth;
-    const side = x < w / 2 ? "left" : "right";
-    // Tuck when let go hard against the edge, or flung toward it.
-    const nearEdge = side === "left" ? x < 36 : x > w - 36;
-    const flung = side === "left" ? vx < -0.9 : vx > 0.9;
-    const { top, bottom } = fabBounds();
-    const y = Math.min(bottom, Math.max(top, fab.getBoundingClientRect().top));
-    fabPos = { side, y: bottom > top ? (y - top) / (bottom - top) : 1, tucked: nearEdge || flung };
-    saveFabPos();
-    placeFab();
-  };
-  fab.addEventListener("pointerup", end);
-  fab.addEventListener("pointercancel", end);
 }
 
 // U13: render() is subscribed to every state change (quote ticks
@@ -542,6 +452,7 @@ function render() {
     }
 
     const s = getState();
+    const lookupProvenance = [];
 
     // Streaming path for conversational messages — push placeholder bubble
     // and append tokens as they arrive. For messages that need live data
@@ -615,14 +526,14 @@ function render() {
           // Also covers the bare-list shape: a long reply naming several
           // instruments with no prices, which the offer detector cannot see
           // because it caps at 400 chars. See coach/agent.js.
-          const retry = await callLlmAgent(s.settings.llmApiKey || null, chatHistory, s).catch(() => null);
+          const retry = await callLlmAgent(s.settings.llmApiKey || null, chatHistory, s, "", null, null, lookupProvenance).catch(() => null);
           if (retry && retry.trim()) { entry.text = retry.trim(); fromStream = false; }
         } else if (!entry.text.trim() && isToolCallOnly(result?.raw)) {
           // The model answered with nothing but a tool call — it decided it
           // needed live data on the path that has no tools wired. It was
           // right; it was just on the wrong path. Re-run the turn through
           // runAgent, which has the real tools, instead of apologising.
-          const retry = await callLlmAgent(s.settings.llmApiKey || null, chatHistory, s).catch(() => null);
+          const retry = await callLlmAgent(s.settings.llmApiKey || null, chatHistory, s, "", null, null, lookupProvenance).catch(() => null);
           entry.text = (retry && retry.trim())
             ? retry
             : "Let me pull that up — ask me once more?";
@@ -639,7 +550,7 @@ function render() {
           const figs = unsourcedFigures(entry.text, figureSources(system, messages));
           if (figs.length) {
             const redo = await Promise.race([
-              callLlmAgent(s.settings.llmApiKey || null, chatHistory.filter((m) => m !== entry), s, FIGURE_RETRY_NOTE).catch(() => null),
+              callLlmAgent(s.settings.llmApiKey || null, chatHistory.filter((m) => m !== entry), s, FIGURE_RETRY_NOTE, null, null, lookupProvenance).catch(() => null),
               new Promise((r) => setTimeout(() => r(null), 12_000)),
             ]);
             if (redo && redo.trim()) entry.text = redo.trim();
@@ -648,7 +559,7 @@ function render() {
         }
         if (!result?.aborted && entry.text && !entry.text.startsWith("Hmm")) {
           entry.text = await finishPanelReply(entry.text, text,
-            () => callLlmAgent(s.settings.llmApiKey || null, chatHistory.filter((m) => m !== entry), s, LANG_RETRY_NOTE));
+            () => callLlmAgent(s.settings.llmApiKey || null, chatHistory.filter((m) => m !== entry), s, LANG_RETRY_NOTE, null, null, lookupProvenance));
         }
         if (result?.finishReason === "length" && entry && !entry.text.includes("maximum generation limit")) {
           entry.text += "\n\n… [Response reached maximum generation limit. Ask \"continue\" if you'd like more.]";
@@ -658,6 +569,10 @@ function render() {
         const ex = extractChartMarker(entry.text);
         if (ex.text) entry.text = ex.text;
         if (ex.card && isPreview()) { entry.card = ex.card; entry.cardWithText = true; }
+      }
+      if (entry) {
+        const provenance = normalizeLookupProvenance(lookupProvenance);
+        if (provenance.length) entry.lookupProvenance = provenance;
       }
       saveChat();
       pending = false;
@@ -669,6 +584,7 @@ function render() {
         logChatTurn({
           userText: text, assistantText: entry.text, model: "gemini-chat",
           surface: "side_panel", userTs: chatHistory[placeholderIdx - 1]?.ts, replyTs: entry.ts,
+          lookupProvenance,
         });
       }
       render();
@@ -717,12 +633,12 @@ function render() {
       }
     };
     try {
-      reply = await callLlmAgent(s.settings.llmApiKey || null, chatHistory.filter((m, idx) => idx !== placeholderIdx), s, "", onToken, onStep);
+      reply = await callLlmAgent(s.settings.llmApiKey || null, chatHistory.filter((m, idx) => idx !== placeholderIdx), s, "", onToken, onStep, lookupProvenance);
     } catch (e) { console.warn("coach panel error:", e); }
     // If it offered to look something up instead of doing it, push once more.
     if (reply && (looksLikeLookupOffer(reply) || looksLikeFetchPromise(reply) || looksLikePricelessList(reply, text))) {
       try {
-        const again = await callLlmAgent(s.settings.llmApiKey || null, chatHistory.filter((m, idx) => idx !== placeholderIdx), s);
+        const again = await callLlmAgent(s.settings.llmApiKey || null, chatHistory.filter((m, idx) => idx !== placeholderIdx), s, "", null, null, lookupProvenance);
         const stillBad = looksLikeLookupOffer(again) || looksLikeFetchPromise(again) || looksLikePricelessList(again, text);
         if (again && again.trim() && !stillBad) reply = again;
       } catch (e) { console.warn("coach panel lookup-offer retry:", e); }
@@ -733,11 +649,17 @@ function render() {
       if (reply && reply.trim()) entry.text = reply;
       else if (!entry.text.trim()) entry.text = "Hmm, I can't reach my brain right now. Give it a sec and try again?";
       entry.text = await finishPanelReply(entry.text, text,
-        () => callLlmAgent(s.settings.llmApiKey || null, chatHistory.filter((m) => m !== entry), s, LANG_RETRY_NOTE));
+        () => callLlmAgent(s.settings.llmApiKey || null, chatHistory.filter((m) => m !== entry), s, LANG_RETRY_NOTE, null, null, lookupProvenance));
       const ex = extractChartMarker(entry.text);
       if (ex.text) entry.text = ex.text;
       if (ex.card && isPreview()) { entry.card = ex.card; entry.cardWithText = true; }
-      logChatTurn({ userText: text, assistantText: entry.text, model: "gemini-chat-tools", surface: "side_panel", userTs: chatHistory[placeholderIdx - 1]?.ts, replyTs: entry.ts });
+      const provenance = normalizeLookupProvenance(lookupProvenance);
+      if (provenance.length) entry.lookupProvenance = provenance;
+      logChatTurn({
+        userText: text, assistantText: entry.text, model: "gemini-chat-tools",
+        surface: "side_panel", userTs: chatHistory[placeholderIdx - 1]?.ts, replyTs: entry.ts,
+        lookupProvenance,
+      });
     }
     saveChat();
     pending = false;
