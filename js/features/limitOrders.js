@@ -237,7 +237,9 @@ function notePendingOrders(list) {
 }
 
 function _syncChannel() {
-  _syncing = _syncing.then(_syncChannelNow, _syncChannelNow);
+  _syncing = _syncing.then(_syncChannelNow, _syncChannelNow).catch((error) => {
+    console.warn("[orders] realtime channel sync failed:", error?.message || error || "(no rejection reason)");
+  });
   return _syncing;
 }
 
