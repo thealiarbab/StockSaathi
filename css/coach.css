@@ -713,7 +713,7 @@ body.chat-app { overflow: hidden; }
 .coach-full svg { width: 18px; height: 18px; flex: 0 0 auto; }
 /* Reply-language switch (coach header, /chat header). The Hinglish setting is
    the only thing that picks the coach's language. */
-.coach-lang { height: 36px; padding: 0 12px; font-size: var(--text-xs); font-weight: 700; color: var(--text-muted); white-space: nowrap; }
+.coach-lang { height: 36px; padding: 0 12px; font-size: var(--text-xs); font-weight: 700; color: var(--text-strong); border-color: color-mix(in srgb, var(--brand) 45%, var(--border)); background: color-mix(in srgb, var(--brand) 8%, transparent); white-space: nowrap; }
 .coach-lang.is-on { color: var(--brand); border-color: color-mix(in srgb, var(--brand) 55%, var(--border)); background: var(--brand-soft); }
 /* Stock page: a stock the exchange no longer trades (instrument_status). */
 .trade-blocked { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }

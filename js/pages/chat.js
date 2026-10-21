@@ -279,7 +279,7 @@ export function renderChat(main) {
             <div class="cc-id">
               <h1 class="cc-title">${chatLog.length ? escapeHtml(active.title || "Saathi") : "Saathi"}</h1>
             </div>
-            <button class="cc-chip-btn coach-lang ${state.settings.hinglish ? "is-on" : ""}" id="cc-lang" type="button" aria-pressed="${state.settings.hinglish ? "true" : "false"}" title="Reply language">${state.settings.hinglish ? "Hinglish" : "English"}</button>
+            <button class="cc-chip-btn coach-lang ${state.settings.hinglish ? "is-on" : ""}" id="cc-lang" type="button" aria-label="Switch reply language to ${state.settings.hinglish ? "English" : "Hinglish (Hindi in Roman script)"}" aria-pressed="${state.settings.hinglish ? "true" : "false"}">${state.settings.hinglish ? "Switch to English" : "Switch to Hinglish"}</button>
             ${isPreview() ? `
             <button class="cc-chip-btn cc-head-share" id="cc-share" type="button" aria-label="Share this chat">
               <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><path d="m16 6-4-4-4 4"/><path d="M12 2v13"/></svg><span>Share</span>
@@ -328,7 +328,8 @@ export function renderChat(main) {
     main.querySelector("#cc-lang")?.addEventListener("click", (e) => {
       const on = !getState().settings.hinglish;
       setSetting("hinglish", on);
-      e.currentTarget.textContent = on ? "Hinglish" : "English";
+      e.currentTarget.textContent = on ? "Switch to English" : "Switch to Hinglish";
+      e.currentTarget.setAttribute("aria-label", `Switch reply language to ${on ? "English" : "Hinglish (Hindi in Roman script)"}`);
       e.currentTarget.classList.toggle("is-on", on);
       e.currentTarget.setAttribute("aria-pressed", on ? "true" : "false");
       // The empty-chat guide is written in the chosen language.

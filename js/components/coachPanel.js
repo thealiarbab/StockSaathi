@@ -343,7 +343,8 @@ function render() {
       </div>
       <div class="coach-header-actions">
         <button type="button" class="cc-chip-btn coach-lang ${state.settings.hinglish ? "is-on" : ""}" id="coach-lang-btn"
-                aria-pressed="${state.settings.hinglish ? "true" : "false"}" title="Reply language">${state.settings.hinglish ? "Hinglish" : "English"}</button>
+                aria-label="Switch reply language to ${state.settings.hinglish ? "English" : "Hinglish (Hindi in Roman script)"}"
+                aria-pressed="${state.settings.hinglish ? "true" : "false"}">${state.settings.hinglish ? "Switch to English" : "Switch to Hinglish"}</button>
         <a href="/chat" class="cc-chip-btn coach-full" title="Open the full chat page" aria-label="Open full chat">
           <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
         </a>
