@@ -8,6 +8,7 @@
 // =============================================================================
 
 import { getState } from "../state.js";
+import { formatNseHolidayCalendar } from "../data/nseCalendar.js";
 
 // -----------------------------------------------------------------------------
 // The system prompt (used with Groq Llama 3.3 70B tool-use)
@@ -403,7 +404,7 @@ function nextOpenIsTomorrow(nextOpenAt) {
   } catch { return false; }
 }
 
-export function runtimeFacts(status) {
+export function runtimeFacts(status, latestQuestion = "") {
   const lines = [];
   if (status) {
     const openness = status.state === "open"
@@ -412,9 +413,18 @@ export function runtimeFacts(status) {
         ? "in the PRE-OPEN session (orders collected, no continuous trading)"
         : "CLOSED";
     lines.push(`Right now it is ${status.istTime} on ${status.istDate}. The NSE is ${openness}.`);
+    const yesterday = status.yesterday;
+    if (yesterday) {
+      const yesterdayStatus = yesterday.isTradingDay
+        ? "a regular NSE trading day (not a holiday)"
+        : yesterday.isHoliday
+          ? `an NSE trading holiday (${yesterday.holidayName})`
+          : "a weekend/non-trading day";
+      lines.push(`Yesterday, ${yesterday.dateLabel}, was ${yesterdayStatus}. Use this as the authoritative answer to follow-ups about yesterday.`);
+    }
     if (status.state !== "open") {
       const weekend = status.istDay === "sat" || status.istDay === "sun";
-      if (status.isHoliday) lines.push("Today is an NSE trading holiday (it is on the exchange's published holiday list).");
+      if (status.isHoliday) lines.push(`Today is an NSE trading holiday (${status.holidayName || "listed by NSE"}).`);
       else if (weekend) lines.push("It is the weekend — NSE and BSE are shut Saturday and Sunday.");
       else if (status.state === "closed") {
         // A bare "CLOSED" on a weekday was read as a holiday: at 1 AM on a
@@ -426,6 +436,9 @@ export function runtimeFacts(status) {
       if (status.nextOpenLabel) lines.push(`Next session: ${status.nextOpenLabel} IST${nextOpenIsTomorrow(status.nextOpenAt) ? " (that is tomorrow)" : ""}.`);
       lines.push("An order placed now is queued as an AMO and fills at the next open, on our servers, whether or not the user keeps the app open. It is not stuck, rejected, or broken.");
       lines.push("Being shut does NOT stop a lookup — prices and searches still work, they just return the last close. So never refuse 'because the market is closed'. It also does not hand you any number: still never state a price you were not given.");
+    }
+    if (/\b(holiday|yesterday|day before|which date|what date|on \d{1,2}\b|\d{4}-\d{2}-\d{2})\b/i.test(latestQuestion)) {
+      lines.push(`Official NSE cash-market holiday calendar for 2026 (dates are IST; a Sunday/holiday may also have an exchange-announced special session): ${formatNseHolidayCalendar()}. For a date in this list, say the listed reason; do not infer a holiday from stale prices or missing data.`);
     }
   }
   lines.push("You have NO index tool. Never state a Nifty, Sensex, or Bank Nifty level — say you can't pull index levels, and offer an individual stock instead.");

@@ -201,7 +201,7 @@ async function callLlmAgent(apiKey, history, state, extraSystem = "", onText = n
   const lastUser = [...history].reverse().find((m) => m.role === "user")?.text || "";
   // News-shaped question: fresh headlines fetched by the app (C5).
   const newsBlock = isNewsQuestion(lastUser) ? await prefetchNewsBlock(lastUser) : "";
-  const system = `${SAATHI_SYSTEM}\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# RUNTIME CONTEXT\n${screen ? screen + "\n" : ""}\n\n# TONE\nKeep replies short by default (1–3 sentences). Go longer only when asked for depth.` + newsBlock + (isPreview() ? CHART_TOOL_NOTE : "") + turnLanguage() + extraSystem;
+  const system = `${SAATHI_SYSTEM}\n\n${runtimeFacts(marketStatus(), lastUser)}\n\n${dossier}\n\n# RUNTIME CONTEXT\n${screen ? screen + "\n" : ""}\n\n# TONE\nKeep replies short by default (1–3 sentences). Go longer only when asked for depth.` + newsBlock + (isPreview() ? CHART_TOOL_NOTE : "") + turnLanguage() + extraSystem;
 
   // Preserve full conversation history up to platform limits
   const messages = history.map(m => ({
@@ -470,7 +470,7 @@ function render() {
       const dossier = await buildDossier();
       const newsBlock = isNewsQuestion(text) ? await prefetchNewsBlock(text) : "";
       const screen = currentScreen();
-      const system = `${SAATHI_NO_TOOLS}\n\n${runtimeFacts(marketStatus())}\n\n${dossier}\n\n# RUNTIME CONTEXT\n${screen ? screen + "\n" : ""}\n\n# TONE\nKeep replies short by default (1–3 sentences). Go longer only when asked for depth.\n\nAnswer only the latest message. Do not restate prices or facts from earlier turns unless the user asks for them again.` + newsBlock + (isPreview() ? CHART_TOOL_NOTE : "") + turnLanguage();
+      const system = `${SAATHI_NO_TOOLS}\n\n${runtimeFacts(marketStatus(), text)}\n\n${dossier}\n\n# RUNTIME CONTEXT\n${screen ? screen + "\n" : ""}\n\n# TONE\nKeep replies short by default (1–3 sentences). Go longer only when asked for depth.\n\nAnswer only the latest message. Do not restate prices or facts from earlier turns unless the user asks for them again.` + newsBlock + (isPreview() ? CHART_TOOL_NOTE : "") + turnLanguage();
       const messages = chatHistory.filter(m => !m.streaming || m === chatHistory[placeholderIdx]).slice(0, -1).map(m => ({
         role: m.role === "user" ? "user" : "assistant",
         content: m.text,
