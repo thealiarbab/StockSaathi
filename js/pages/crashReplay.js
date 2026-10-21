@@ -808,6 +808,8 @@ function renderReplay(main, scenario) {
     coach({ type: "CRASH_SIMULATION_START", symbol: scenario.id, days: frames.length }).then(msg => {
       msg.triggerSymbol = scenario.id;
       recordCoachMessage(msg);
+    }).catch(error => {
+      console.warn("[crash-replay] start coach message failed:", error?.message || error);
     });
   }
 
@@ -1092,6 +1094,8 @@ function renderReplay(main, scenario) {
     }).then(msg => {
       msg.triggerSymbol = scenario.id;
       recordCoachMessage(msg);
+    }).catch(error => {
+      console.warn("[crash-replay] completion coach message failed:", error?.message || error);
     });
   }
 
