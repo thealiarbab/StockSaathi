@@ -75,7 +75,7 @@ CRON_SECRET = os.environ.get("CRON_SECRET", "").strip()
 MAX_ORDERS_PER_RUN = 3000
 MAX_SYMBOLS_PER_BATCH = 60
 
-# NSE trading holidays — parsed from js/data/prices.js at runtime so there is
+# NSE trading holidays — parsed from js/data/nseCalendar.js at runtime so there is
 # exactly ONE list in the codebase.
 #
 # This started as a hand-written copy and immediately drifted: the two
@@ -86,13 +86,14 @@ MAX_SYMBOLS_PER_BATCH = 60
 # them. That is the same failure the client matcher's own comments describe as
 # "queued orders vanish on /#/portfolio".
 #
-# prices.js ships with every deploy, so parsing it costs nothing and cannot
-# drift. The literal below is only a last-resort fallback and is asserted
-# equal to prices.js by api-backup/tests/test_order_execution_guards.py.
+# The shared calendar ships with every deploy, so parsing it costs nothing and
+# cannot drift. The literal below is only a last-resort fallback and is
+# asserted equal to the shared calendar by api-backup/tests/test_order_execution_guards.py.
 _HOLIDAY_FALLBACK = {
-    "2026-01-26", "2026-02-17", "2026-03-03", "2026-03-26", "2026-04-03",
-    "2026-04-14", "2026-05-01", "2026-08-15", "2026-08-26", "2026-09-14",
-    "2026-10-02", "2026-10-21", "2026-11-04", "2026-12-25",
+    "2026-01-15", "2026-01-26", "2026-02-15", "2026-03-03", "2026-03-21",
+    "2026-03-26", "2026-03-31", "2026-04-03", "2026-04-14", "2026-05-01",
+    "2026-05-28", "2026-06-26", "2026-08-15", "2026-09-14", "2026-10-02",
+    "2026-10-20", "2026-11-08", "2026-11-10", "2026-11-24", "2026-12-25",
 }
 
 _holidays_cache = None
@@ -103,9 +104,8 @@ def nse_holidays():
     if _holidays_cache is not None:
         return _holidays_cache
     try:
-        src = (_DIR.parent / "js" / "data" / "prices.js").read_text(encoding="utf-8")
-        block = src.split("NSE_HOLIDAYS_2026 = new Set([")[1].split("]);")[0]
-        found = set(re.findall(r'"(\d{4}-\d{2}-\d{2})"', block))
+        src = (_DIR.parent / "js" / "data" / "nseCalendar.js").read_text(encoding="utf-8")
+        found = set(re.findall(r'^\s*"(\d{4}-\d{2}-\d{2})"\s*:', src, re.MULTILINE))
         _holidays_cache = found or set(_HOLIDAY_FALLBACK)
     except Exception:
         _holidays_cache = set(_HOLIDAY_FALLBACK)

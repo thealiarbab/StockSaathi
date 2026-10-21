@@ -9,6 +9,7 @@
 
 import { INSTRUMENTS, getInstrument } from "./universe.js";
 import { serverNow, isServerTimeSynced } from "./serverTime.js";
+import { isNseTradingDay, nseHolidayName } from "./nseCalendar.js";
 
 // Module-scoped instrument resolver. Defaults to the loader's getInstrument
 // (which returns curated → Tier-2 → stub), so this file Just Works for any
@@ -272,27 +273,6 @@ export function get52wRange(symbol) {
   return { hi, lo };
 }
 
-// NSE trading holidays (2026) — hardcoded since NSE doesn't expose a
-// public holiday API and official dates are a short list. Keep as
-// YYYY-MM-DD in IST. Update annually.
-// Source: NSE 2026 trading holiday circular.
-const NSE_HOLIDAYS_2026 = new Set([
-  "2026-01-26",  // Republic Day
-  "2026-02-17",  // Mahashivratri
-  "2026-03-03",  // Holi
-  "2026-03-26",  // Ram Navami
-  "2026-04-03",  // Good Friday
-  "2026-04-14",  // Ambedkar Jayanti
-  "2026-05-01",  // Maharashtra Day
-  "2026-08-15",  // Independence Day (Sat — non-effect)
-  "2026-08-26",  // Janmashtami
-  "2026-09-14",  // Ganesh Chaturthi (approx)
-  "2026-10-02",  // Gandhi Jayanti
-  "2026-10-21",  // Diwali (Laxmi Puja; special muhurat session happens in evening)
-  "2026-11-04",  // Guru Nanak Jayanti
-  "2026-12-25",  // Christmas
-]);
-
 // 9:15 IST → 15:30 IST for continuous trading (normal session).
 // 9:00 → 9:15 is pre-open session — orders accepted but no trading.
 const OPEN_MIN = 9 * 60 + 15;
@@ -333,9 +313,7 @@ function istParts(date) {
 }
 
 function isTradingDay(parts) {
-  if (parts.weekday === "sat" || parts.weekday === "sun") return false;
-  if (NSE_HOLIDAYS_2026.has(parts.ymd)) return false;
-  return true;
+  return isNseTradingDay(parts.ymd, parts.weekday);
 }
 
 function labelIstTime(minutes) {
@@ -404,9 +382,15 @@ export function marketStatus(opts = {}) {
 
   const nowParts = istParts(now);
   const tradingDay = isTradingDay(nowParts);
-  const isHoliday = tradingDay === false && nowParts.weekday !== "sat" && nowParts.weekday !== "sun"
-    ? NSE_HOLIDAYS_2026.has(nowParts.ymd)
-    : false;
+  const holidayName = nseHolidayName(nowParts.ymd);
+  const isHoliday = !tradingDay && !!holidayName
+    && nowParts.weekday !== "sat" && nowParts.weekday !== "sun";
+  const yesterdayParts = istParts(new Date(now.getTime() - 86400000));
+  const yesterdayHolidayName = nseHolidayName(yesterdayParts.ymd);
+  const yesterdayTradingDay = isTradingDay(yesterdayParts);
+  const yesterdayWeekday = yesterdayParts.weekday
+    ? yesterdayParts.weekday[0].toUpperCase() + yesterdayParts.weekday.slice(1)
+    : "";
 
   let state;
   if (tradingDay && nowParts.minutes >= OPEN_MIN && nowParts.minutes < CLOSE_MIN) state = "open";
@@ -446,10 +430,19 @@ export function marketStatus(opts = {}) {
     istDate: `${weekdayCap}, ${parseInt(nowParts.d, 10)} ${monthName}`,
     istDay: nowParts.weekday,
     isHoliday,
+    holidayName,
+    yesterday: {
+      date: yesterdayParts.ymd,
+      dateLabel: `${yesterdayWeekday}, ${parseInt(yesterdayParts.d, 10)} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][parseInt(yesterdayParts.m, 10)-1] || ""}`,
+      weekday: yesterdayParts.weekday,
+      isTradingDay: yesterdayTradingDay,
+      isHoliday: !yesterdayTradingDay && !!yesterdayHolidayName
+        && yesterdayParts.weekday !== "sat" && yesterdayParts.weekday !== "sun",
+      holidayName: yesterdayHolidayName,
+    },
     nextOpenAt,
     nextOpenLabel,
     lastCloseLabel,
     degraded,
   };
 }
-

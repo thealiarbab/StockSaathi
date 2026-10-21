@@ -127,12 +127,11 @@ def test_matcher_does_not_cancel_unpriced_orders():
 
 
 def _js_holidays():
-    src = (ROOT / "js" / "data" / "prices.js").read_text(encoding="utf-8")
-    block = src.split("NSE_HOLIDAYS_2026 = new Set([")[1].split("]);")[0]
-    return set(re.findall(r'"(\d{4}-\d{2}-\d{2})"', block))
+    src = (ROOT / "js" / "data" / "nseCalendar.js").read_text(encoding="utf-8")
+    return set(re.findall(r'^\s*"(\d{4}-\d{2}-\d{2})"\s*:', src, re.MULTILINE))
 
 
-def test_matcher_reads_holidays_from_prices_js():
+def test_matcher_reads_holidays_from_shared_calendar():
     """One holiday list, not two.
 
     These began as separate hand-written copies and drifted by 8 dates within
@@ -141,8 +140,8 @@ def test_matcher_reads_holidays_from_prices_js():
     previous session's stale closes, and fills live orders against them.
     """
     src = (ROOT / "handlers" / "match-orders.py").read_text(encoding="utf-8")
-    assert "NSE_HOLIDAYS_2026 = new Set([" in src, (
-        "The matcher no longer parses the holiday list out of prices.js. "
+    assert '"nseCalendar.js"' in src, (
+        "The matcher no longer parses the shared NSE calendar. "
         "A second hand-maintained copy will drift."
     )
 
@@ -154,8 +153,8 @@ def test_holiday_fallback_matches_prices_js():
     fallback = set(re.findall(r'"(\d{4}-\d{2}-\d{2})"', block))
     js = _js_holidays()
     assert fallback == js, (
-        "match-orders.py's _HOLIDAY_FALLBACK has drifted from prices.js.\n"
-        f"  only in prices.js: {sorted(js - fallback)}\n"
+        "match-orders.py's _HOLIDAY_FALLBACK has drifted from nseCalendar.js.\n"
+        f"  only in nseCalendar.js: {sorted(js - fallback)}\n"
         f"  only in fallback : {sorted(fallback - js)}"
     )
 

@@ -22,27 +22,7 @@
 // idempotent â€” calling twice is a no-op (returns early if already mounted).
 
 import { INSTRUMENTS } from "../data/universe.js";
-
-// NSE market holidays for the current year. Manually maintained because
-// NSE doesn't publish a machine-readable feed and the list is short
-// enough to update annually. Format: ISO date strings (Asia/Kolkata).
-//
-// Source: nseindia.com/resources/exchange-communication-holidays
-// Last reviewed 2026-04-26 against the 2026 holiday list.
-const NSE_HOLIDAYS_2026 = {
-  "2026-01-26": "Republic Day",
-  "2026-03-04": "Mahashivratri",
-  "2026-03-25": "Holi",
-  "2026-04-03": "Mahavir Jayanti",
-  "2026-04-14": "Dr. Ambedkar Jayanti",
-  "2026-04-19": "Good Friday",
-  "2026-08-15": "Independence Day",
-  "2026-08-27": "Ganesh Chaturthi",
-  "2026-10-02": "Mahatma Gandhi Jayanti",
-  "2026-10-21": "Diwali Laxmi Pujan",
-  "2026-11-25": "Guru Nanak Jayanti",
-  "2026-12-25": "Christmas",
-};
+import { nseHolidayName } from "../data/nseCalendar.js";
 
 function _todayIstIso() {
   // YYYY-MM-DD in IST. Date.now() is UTC; we add the IST offset (+5:30)
@@ -65,10 +45,11 @@ export function getActiveEvents() {
 
   // 1. NSE market holidays
   const today = _todayIstIso();
-  if (NSE_HOLIDAYS_2026[today]) {
+  const holiday = nseHolidayName(today);
+  if (holiday) {
     events.push({
       kind: "holiday",
-      text: `NSE & BSE closed today — ${NSE_HOLIDAYS_2026[today]}. No equity / ETF trading. MF NAVs publish as usual.`,
+      text: `NSE & BSE closed today — ${holiday}. No equity / ETF trading. MF NAVs publish as usual.`,
       severity: "info",
     });
   }
