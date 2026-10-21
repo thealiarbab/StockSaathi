@@ -20,16 +20,26 @@ export function ensureStylesheet(id, href, preloadId = "") {
   }
 
   const promise = new Promise((resolve, reject) => {
-    link.addEventListener("load", resolve, { once: true });
-    link.addEventListener("error", () => {
-      link.remove();
-      reject(new Error(`Failed to load stylesheet: ${link.href}`));
-    }, { once: true });
-    if (isLoaded(link)) {
-      resolve();
-    } else if (link !== existing) {
-      document.head.appendChild(link);
-    }
+    const stylesheetHref = link.href;
+    const attach = (target, retriesRemaining) => {
+      target.addEventListener("load", resolve, { once: true });
+      target.addEventListener("error", () => {
+        target.remove();
+        if (retriesRemaining > 0) {
+          const retry = document.createElement("link");
+          retry.id = id;
+          retry.rel = "stylesheet";
+          retry.href = stylesheetHref;
+          attach(retry, retriesRemaining - 1);
+          document.head.appendChild(retry);
+          return;
+        }
+        reject(new Error(`Failed to load stylesheet: ${stylesheetHref}`));
+      }, { once: true });
+      if (isLoaded(target)) resolve();
+      else if (target !== existing) document.head.appendChild(target);
+    };
+    attach(link, 1);
   }).finally(() => {
     pendingStylesheets.delete(id);
     preload?.remove();
