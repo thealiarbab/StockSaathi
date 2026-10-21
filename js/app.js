@@ -4,8 +4,8 @@
 
 import { getState, subscribe, setSetting, setSettings, switchUser, resolvedTheme } from "./state.js";
 import { mountNav } from "./components/nav.js";
+import { mountCoachLauncher } from "./components/coachLauncher.js";
 import { mountEventMarquee } from "./components/eventMarquee.js";
-import { mountCoachPanel } from "./components/coachPanel.js";
 import { mountRouter } from "./router.js";
 import { currentUser, refreshCurrentUser } from "./auth/accounts.js";
 import { bootSync } from "./db/sync.js";
@@ -18,6 +18,8 @@ import { startServerTimeSync } from "./data/serverTime.js";
 import { mountMarketStatusPopover } from "./features/marketStatusPopover.js";
 import { ensureUniverseLoaded } from "./data/universe.js";
 import { upgradeLegacyHash } from "./navigation.js";
+import { ensureCoachStyles, ensureStylesheet } from "./features/styles.js";
+import { toast } from "./components/toast.js";
 
 // Old "#/…" links (bookmarks, shared URLs, emails sent before clean URLs) →
 // clean path, before anything reads the URL. Runs ahead of the Supabase
@@ -39,6 +41,9 @@ upgradeLegacyHash();
 
 // Load user-scoped state on boot (local immediately)
 switchUser();
+if (window.innerWidth < 1280 && getState().settings.coachPanelOpen) {
+  setSetting("coachPanelOpen", false);
+}
 
 // Kick off the server-time sync early so the market-status badge has a
 // trusted clock within a second of first paint. Non-blocking.
@@ -50,16 +55,63 @@ startServerTimeSync();
 // SW-cached, so subsequent loads are free.
 ensureUniverseLoaded();
 
-// Mount components
-mountEventMarquee();   // hides itself when no active events
-mountNav();
-mountCoachPanel();
-mountAiExplainer();
-mountCommandPalette();
-mountMarketStatusPopover();
-mountRouter();
 // Visitor tracking (js/features/telemetry.js). Never allowed to break the app.
 try { startTelemetry(); } catch (e) { console.warn("telemetry off:", e); }
+
+let coachPanelLoad;
+function canLoadCoachPanel() {
+  const path = location.pathname || "/";
+  return getState().isAuthed && !["", "/", "/login", "/register"].includes(path);
+}
+
+function syncCoachPanel() {
+  if (!getState().settings.coachPanelOpen || !canLoadCoachPanel() || coachPanelLoad) return;
+  coachPanelLoad = (async () => {
+    const panelPromise = import("./components/coachPanel.js");
+    await ensureCoachStyles();
+    const panel = await panelPromise;
+    panel.mountCoachPanel();
+  })().catch((error) => {
+    coachPanelLoad = undefined;
+    console.error("[coach] Failed to load Coach panel:", error);
+    setSetting("coachPanelOpen", false);
+    toast({ kind: "error", message: "Coach could not load. Please try again." });
+  });
+}
+
+function showStylesheetError(error) {
+  console.error("[app] Required stylesheet failed to load:", error);
+  const main = document.getElementById("main");
+  if (!main) return;
+  const message = document.createElement("p");
+  message.setAttribute("role", "alert");
+  message.style.cssText = "padding:24px;text-align:center";
+  message.textContent = "The app could not finish loading its styles.";
+  const retry = document.createElement("button");
+  retry.type = "button";
+  retry.textContent = "Reload";
+  retry.style.cssText = "display:block;margin:12px auto;padding:10px 18px";
+  retry.addEventListener("click", () => location.reload());
+  main.replaceChildren(message, retry);
+}
+
+const componentPreload = document.getElementById("components-css-preload");
+const componentStylesReady = componentPreload
+  ? ensureStylesheet("components-stylesheet", "/css/components.css", "components-css-preload")
+  : Promise.resolve();
+
+componentStylesReady.then(() => {
+  mountEventMarquee();   // hides itself when no active events
+  mountNav();
+  mountCoachLauncher();
+  mountAiExplainer();
+  mountCommandPalette();
+  mountMarketStatusPopover();
+  mountRouter();
+  subscribe(syncCoachPanel);
+  window.addEventListener("ss:navigate", syncCoachPanel);
+  syncCoachPanel();
+}).catch(showStylesheetError);
 
 // If Supabase is configured, boot cross-device sync + start the limit-order
 // fill listener (the server fills orders; the tab only hears about it).

@@ -55,7 +55,20 @@
   <link rel="preload" href="/fonts/inter-latin-ext.woff2" as="font" type="font/woff2" crossorigin />
 
   <link rel="stylesheet" href="/css/main.css" />
-  <link rel="stylesheet" href="/css/components.css" />
+  <link rel="preload" href="/css/components.css" as="style" id="components-css-preload" />
+  <noscript><link rel="stylesheet" href="/css/components.css" /></noscript>
+  <style>
+    .nav {
+      position: sticky; top: 0; z-index: 50; height: var(--nav-h);
+      padding-top: env(safe-area-inset-top); box-sizing: content-box;
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: saturate(180%) blur(14px);
+      -webkit-backdrop-filter: saturate(180%) blur(14px);
+      border-bottom: 1px solid var(--divider);
+    }
+    [data-theme="dark"] .nav { background: rgba(10, 11, 15, 0.85); }
+    .empty-state { text-align: center; color: var(--text-muted); }
+  </style>
   <link rel="preload" href="/js/app.js" as="script" crossorigin />
 </head>
 <body>

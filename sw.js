@@ -5,7 +5,7 @@
 // Bump this on every deploy so old cached JS/HTML isn't served forever. The
 // activate step below deletes any cache whose name doesn't match. Include a
 // date so it is obvious in DevTools which build is live.
-const CACHE_NAME = "stocksaathi-v436-20261021a";
+const CACHE_NAME = "stocksaathi-v437-20261021a";
 const STATIC = [
   "./",
   "./app-shell",
@@ -35,7 +35,7 @@ const STATIC = [
   "./js/auth/emailCheck.js",
   "./js/components/googleButton.js",
   "./js/components/nav.js",
-  "./js/components/coachPanel.js",
+  "./js/components/coachLauncher.js",
   "./js/components/interventionModal.js",
   "./js/components/toast.js",
   "./js/components/charts.js",
@@ -50,25 +50,18 @@ const STATIC = [
   "./js/coach/orchestrator.js",
   "./js/coach/historicalAnalog.js",
   "./js/coach/llmBridge.js",
-  "./js/coach/persona.js",
-  "./js/coach/liveData.js",
-  "./js/coach/agent.js",
   "./js/db/supabase.js",
   "./js/vendor/supabase-js-2.45.4.js",
   "./js/vendor/supabase-js-2.45.4.umd.js",
   "./js/db/sync.js",
   "./js/features/limitOrders.js",
+  "./js/features/styles.js",
   "./js/features/telemetry.js",
   "./js/features/stockSearch.js",
   "./js/features/stockSearchUi.js",
   "./js/features/aiLang.js",
   "./js/features/customCrash.js",
-  "./js/features/chatSessions.js",
-  "./js/features/chatBranches.js",
-  "./js/features/chatCloud.js",
-  "./js/features/chatCards.js",
   "./js/features/chatOrder.js",
-  "./js/features/chatProjects.js",
   "./js/features/notifications.js",
   "./js/components/bell.js",
   "./js/components/backdrop.js",
@@ -109,8 +102,6 @@ const STATIC = [
   "./js/pages/adminCharts.js",
   "./js/pages/adminSignups.js",
   "./js/pages/adminBehaviour.js",
-  "./js/pages/chat.js",
-  "./js/pages/sharedChat.js",
   "./js/pages/privacy.js",
   "./js/pages/terms.js",
   "./js/pages/grievance.js",

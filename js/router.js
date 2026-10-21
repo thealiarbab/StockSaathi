@@ -13,6 +13,7 @@ import { go, installNavigation, upgradeLegacyHash, NAV_EVENT } from "./navigatio
 import { renderStaticPage, captureBootMain, bootTitleFor, syncBootCompanion } from "./pages/staticPage.js";
 import { PAGE_TITLES } from "./pageTitles.js";
 import { getInstrument } from "./data/universe.js";
+import { ensureCoachStyles } from "./features/styles.js";
 
 const DEFAULT_TITLE = PAGE_TITLES["/"] || "StockSaathi";
 const APP_TITLES = {
@@ -90,9 +91,15 @@ const ROUTES = [
   // Send / receive money was removed (16 Oct 2026). Old links land on the portfolio.
   { name: "friends",       match: /^\/friends\/?$/,                        render: () => go("/portfolio", { replace: true }), public: true },
   { name: "news",          match: /^\/news\/?$/,                           load: () => import("./pages/news.js").then(m => m.renderNews), public: true },
-  { name: "chat",          match: /^\/chat\/?$/,                           load: () => import("./pages/chat.js").then(m => m.renderChat), public: true },
+  { name: "chat",          match: /^\/chat\/?$/,                           load: () => Promise.all([
+    ensureCoachStyles(),
+    import("./pages/chat.js"),
+  ]).then(([, m]) => m.renderChat), public: true },
   // A chat someone shared (chat_shares). Public, read-only, works signed out.
-  { name: "shared-chat",   match: /^\/share\/([a-f0-9]{8,40})\/?$/,          load: () => import("./pages/sharedChat.js").then(m => m.renderSharedChat), param: "id", public: true },
+  { name: "shared-chat",   match: /^\/share\/([a-f0-9]{8,40})\/?$/,          load: () => Promise.all([
+    ensureCoachStyles(),
+    import("./pages/sharedChat.js"),
+  ]).then(([, m]) => m.renderSharedChat), param: "id", public: true },
   { name: "settings",      match: /^\/settings\/?$/,                       load: () => import("./pages/settings.js").then(m => m.renderSettings), needsAuth: true },
   { name: "privacy",       match: /^\/privacy\/?$/,                         load: () => import("./pages/privacy.js").then(m => m.renderPrivacy), public: true },
   { name: "terms",         match: /^\/terms\/?$/,                           load: () => import("./pages/terms.js").then(m => m.renderTerms), public: true },

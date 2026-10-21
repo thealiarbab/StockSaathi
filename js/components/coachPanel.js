@@ -1,11 +1,9 @@
 // =============================================================================
-// COACH PANEL — Interactive chat. Right-docked on desktop, FAB + slide-over
-// on mobile. Hidden entirely on public routes (landing/login/register) so it
-// never overlays the signup CTAs on phones.
+// COACH PANEL — Interactive chat. Right-docked on desktop, slide-over on
+// mobile. Its lightweight launcher lives in coachLauncher.js.
 // =============================================================================
 
 import { getState, subscribe, setSetting } from "../state.js";
-import { track } from "../features/track.js";
 import { nextTs, byTurn, repairTurnOrder } from "../features/chatOrder.js";
 import { isPreview } from "../features/preview.js";
 import { isCommand, runCommand, cardHtml, hydrateCards, guideHtml, CHART_TOOL_NOTE, hideChartMarkers, extractChartMarker } from "../features/chatCards.js";
@@ -39,9 +37,8 @@ let pending = false;
 let abortController = null;
 let newsSnap = [];
 let root;
-let fab;
 
-// Routes where the coach panel + FAB are completely hidden
+// Routes where the coach panel is completely hidden
 const COACH_HIDDEN_ROUTES = new Set(["", "/", "/login", "/register"]);
 
 function isCoachAllowed() {
@@ -220,43 +217,12 @@ export function mountCoachPanel() {
   root = document.getElementById("coach-root");
   if (!root) return;
 
-  // Mobile / tablet (< 1280 px) treats the coach panel as a transient
-  // drawer opened by the FAB — never a persistent overlay. But the
-  // coachPanelOpen setting is localStorage-persisted for desktop's "dock"
-  // behaviour, so if the user enabled it on desktop (or toggled it from
-  // Settings by accident on mobile) and then visits on a phone, the
-  // panel would auto-open as a full-viewport overlay they can't dismiss
-  // without finding the tiny ✕ in the header. Reset the flag on mount
-  // below the docking breakpoint so the panel starts closed on mobile
-  // every session regardless of persisted state. FAB tap still sets it
-  // true for the rest of the session.
-  if (window.innerWidth < 1280 && getState().settings.coachPanelOpen) {
-    setSetting("coachPanelOpen", false);
-  }
-
   // Pre-fetch news (best-effort) for chat context
   getNews({ limit: 12 }).then(items => { newsSnap = items || []; render(); }).catch(() => {});
 
   render();
   subscribe(render);
   window.addEventListener("ss:navigate", render);
-
-  // FAB — only present when the coach is allowed on this route
-  fab = document.createElement("button");
-  fab.className = "coach-fab";
-  fab.setAttribute("aria-label", "Open coach");
-  fab.innerHTML = `<span>💬</span>`;
-  fab.addEventListener("click", () => {
-    if (fabDrag.suppressClick) { fabDrag.suppressClick = false; return; }
-    if (fabPos.tucked) { fabPos.tucked = false; saveFabPos(); placeFab(); return; }
-    const opening = !getState().settings.coachPanelOpen;
-    setSetting("coachPanelOpen", opening);
-    if (opening) track("coach_open", location.pathname.startsWith("/a/") ? "/a/[redacted]" : location.pathname);
-  });
-  document.body.appendChild(fab);
-  wireFabDrag();
-  placeFab();
-  window.addEventListener("resize", placeFab);
 
   let wasOpenLastTick = false;
   let wasDrawerLastTick = false;
@@ -293,8 +259,6 @@ export function mountCoachPanel() {
   const applyVisibility = () => {
     const allowed = isCoachAllowed();
     const state = getState();
-    // Not on /chat: that page IS Saathi, and the bubble sat on its Send button.
-    fab.style.display = allowed && !/^\/chat\/?$/.test(location.pathname) ? "" : "none";
     if (!allowed) {
       document.body.classList.remove("coach-docked");
       root.classList.remove("open");
