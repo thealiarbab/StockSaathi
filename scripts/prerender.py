@@ -1077,6 +1077,33 @@ def render(page, template):
     doc = splice(template, "<!-- meta:start -->", "<!-- meta:end -->", head(page))
     if page.get("headOnly"):
         return doc
+    components_link = '<link rel="stylesheet" href="/css/components.css" />'
+    if page["path"] == "/app-shell":
+        shell_styles = """<link rel="preload" href="/css/components.css" as="style" id="components-css-preload" />
+  <noscript><link rel="stylesheet" href="/css/components.css" /></noscript>
+  <style>
+    .nav {
+      position: sticky; top: 0; z-index: 50; height: var(--nav-h);
+      padding-top: env(safe-area-inset-top); box-sizing: content-box;
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: saturate(180%) blur(14px);
+      -webkit-backdrop-filter: saturate(180%) blur(14px);
+      border-bottom: 1px solid var(--divider);
+    }
+    [data-theme="dark"] .nav { background: rgba(10, 11, 15, 0.85); }
+    .empty-state { text-align: center; color: var(--text-muted); }
+  </style>"""
+        if components_link not in doc:
+            raise SystemExit("components stylesheet link not found in template")
+        doc = doc.replace(components_link, shell_styles, 1)
+    elif page["path"] == "/chat":
+        if components_link not in doc:
+            raise SystemExit("components stylesheet link not found in template")
+        doc = doc.replace(
+            components_link,
+            components_link + '\n  <link rel="stylesheet" href="/css/coach.css" id="coach-stylesheet" />',
+            1,
+        )
     main = "\n".join("    " + ln if ln.strip() else "" for ln in page["main"].splitlines())
     doc = splice(doc, "<!-- landing:start -->", "<!-- landing:end -->", main)
     doc = splice(doc, "<!-- faq-jsonld:start -->", "<!-- faq-jsonld:end -->", "")

@@ -47,6 +47,7 @@ ROUTES = [
     ("/crash-replay/DEMO_2016", 200, "#main"),
     ("/news", 200, "#main"),
     ("/chat", 200, "#main"),
+    ("/share/abcdef12", 200, "#main"),
     ("/login", 200, "#main form, #main input"),
     ("/register", 200, "#main input"),
     ("/privacy", 200, "h1"),
@@ -182,9 +183,61 @@ def main():
             page = ctx.new_page()
             errors = []
             page.on("pageerror", lambda ex: errors.append(str(ex)))
+            checks = []
+            asset_ctx = browser.new_context(service_workers="block")
+            asset_page = asset_ctx.new_page()
+            asset_paths = set()
+            asset_page.on("request", lambda req: asset_paths.add(urllib.parse.urlsplit(req.url).path))
+            asset_page.goto(BASE + "/stocks", wait_until="networkidle")
+            lazy_assets = (
+                "/css/coach.css",
+                "/js/components/coachPanel.js",
+                "/js/coach/agent.js",
+                "/js/coach/persona.js",
+                "/js/features/chatCards.js",
+            )
+            checks.append(("Coach chat assets stay unloaded on /stocks",
+                           not any(path in asset_paths for path in lazy_assets)))
+            asset_paths.clear()
+            asset_page.goto(BASE + "/stocks/RELIANCE", wait_until="networkidle")
+            checks.append(("stock detail retains trade-coaching detectors",
+                           "/js/coach/orchestrator.js" in asset_paths
+                           and "/js/coach/biasDetectors.js" in asset_paths
+                           and "/js/coach/agent.js" not in asset_paths))
+            asset_paths.clear()
+            asset_page.locator("#nav-root a[href='/chat']").click()
+            asset_page.locator("#chat-input").wait_for(timeout=30000)
+            chat_assets_ok = (
+                "/css/coach.css" in asset_paths
+                and "/js/coach/agent.js" in asset_paths
+                and asset_page.locator(".coach-fab").evaluate(
+                    "el => getComputedStyle(el).display === 'none'")
+            )
+            checks.append(("SPA navigation loads Coach stylesheet and chat agent", chat_assets_ok))
+            asset_paths.clear()
+            asset_page.goto(BASE + "/share/abcdef12", wait_until="networkidle")
+            checks.append(("shared chat loads deferred Coach styles",
+                           "/css/coach.css" in asset_paths))
+            asset_ctx.close()
+
+            shell_html = urllib.request.urlopen(BASE + "/portfolio", timeout=10).read().decode("utf-8")
+            checks.append(("app shell preloads component CSS without blocking",
+                           '<link rel="preload" href="/css/components.css" as="style" id="components-css-preload" />'
+                           in shell_html))
+            sw_source = urllib.request.urlopen(BASE + "/sw.js", timeout=10).read().decode("utf-8")
+            sw_static = re.search(r"const STATIC = \[(.*?)\];", sw_source, re.S).group(1)
+            checks.append(("service worker defers chat assets but preserves trade detectors",
+                           all(asset not in sw_static for asset in (
+                               "./css/coach.css",
+                               "./js/components/coachPanel.js",
+                               "./js/coach/agent.js",
+                               "./js/coach/persona.js",
+                           ))
+                           and "./js/coach/orchestrator.js" in sw_static
+                           and "./js/coach/biasDetectors.js" in sw_static))
+
             page.goto(BASE + "/", wait_until="networkidle")
             page.evaluate("() => { window.__noReload = 1; }")
-            checks = []
 
             # 1. in-app link → pushState, no reload
             link = page.locator("a[href^='/crash-replay']:visible").first
