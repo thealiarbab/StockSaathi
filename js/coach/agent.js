@@ -13,6 +13,7 @@ import { listPendingOrders, listAllOrders } from "../features/limitOrders.js";
 import { getNews } from "../data/news.js";
 import { getState, getPortfolioValue } from "../state.js";
 import { SYSTEM_PROMPT, NO_TOOLS_NOTE } from "./persona.js";
+import { normalizeLookupProvenance } from "./lookupProvenance.js";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const BACKEND_URL = "/api/chat";
@@ -1014,7 +1015,7 @@ export async function runAgent({ apiKey, system, messages, onStep, onText, profi
       });
 
       // Execute tools in parallel, collect results
-      const results = await waitForSignal(Promise.all(toolCalls.map(async (tc) => {
+      const outcomes = await waitForSignal(Promise.all(toolCalls.map(async (tc) => {
         const name = tc.function?.name || "";
         let args = {};
         const rawArgs = tc.function?.arguments ?? "{}";
@@ -1032,15 +1033,25 @@ export async function runAgent({ apiKey, system, messages, onStep, onText, profi
           try { result = await executor(args); }
           catch (e) { result = { ok: false, error: String(e?.message || e) }; }
         }
+        const subject = args.symbol || args.coin || args.query || "";
         return {
-          role: "tool",
-          tool_call_id: tc.id,
-          content: JSON.stringify(result).slice(0, 4000),   // cap large payloads
+          message: {
+            role: "tool",
+            tool_call_id: tc.id,
+            content: JSON.stringify(result).slice(0, 4000),   // cap large payloads
+          },
+          provenance: {
+            tool: name,
+            ...(subject ? { subject: String(subject) } : {}),
+            status: result == null || result?.ok === false ? "failed" : "returned",
+            ...(result?.ok === true ? { facts: result, recordedAt: Date.now() } : {}),
+          },
         };
       })), signal);
       if (signal?.aborted) return null;
 
-      conv.push(...results);
+      conv.push(...outcomes.map((outcome) => outcome.message));
+      onStep?.({ stepIndex: loops, action: "tool_results", lookups: outcomes.map((outcome) => outcome.provenance) });
       lastTurnRanTools = true;
       continue;
     }
@@ -1316,7 +1327,7 @@ function isPreambleBlock(block) {
 // missing values fall back to the 30-min time-gap session heuristic for
 // legacy rows. Fire-and-forget: any DB error never affects the chat UX.
 // -----------------------------------------------------------------------------
-export async function logChatTurn({ userText, assistantText, model, sessionId, surface, userTs, replyTs }) {
+export async function logChatTurn({ userText, assistantText, model, sessionId, surface, userTs, replyTs, lookupProvenance }) {
   try {
     const mod = await import("../db/sync.js");
     if (!mod?.dbAddCoachMessage) return;
@@ -1331,10 +1342,15 @@ export async function logChatTurn({ userText, assistantText, model, sessionId, s
       }).catch((e) => console.warn("[coach-chat] user message save failed:", e));
     }
     if (assistantText && assistantText.trim()) {
+      const provenance = normalizeLookupProvenance(lookupProvenance);
       mod.dbAddCoachMessage({
         eventType: "chat_assistant",
         triggerSymbol: null,
-        payload: { text: String(assistantText).slice(0, 8000), ...(Number.isFinite(replyTs) ? { ts: replyTs } : {}) },
+        payload: {
+          text: String(assistantText).slice(0, 8000),
+          ...(Number.isFinite(replyTs) ? { ts: replyTs } : {}),
+          ...(provenance.length ? { lookup_provenance: provenance } : {}),
+        },
         model: model || null,
         sessionId: sessionId || null,
         surface: surface || null,
@@ -1725,10 +1741,11 @@ export function dropFigureSentences(text, figures) {
 }
 
 /**
- * Everything the model was given this turn, as one string for
- * unsourcedFigures. The fixed persona and no-tools note are cut out: their
- * numbers are teaching examples, not facts ("pays 2.5% annual interest"
- * would otherwise vouch for an invented "up 3% today").
+ * Trusted numeric sources for this turn. The fixed persona and no-tools note
+ * are cut out because their figures are teaching examples. User and tool
+ * messages remain available, but ordinary assistant prose is deliberately
+ * excluded: an earlier hallucination must not become evidence for itself.
+ * Prior assistant turns contribute only their app-recorded lookup provenance.
  */
 export function figureSources(system, messages) {
   let sys = String(system || "");
@@ -1736,7 +1753,13 @@ export function figureSources(system, messages) {
   const parts = [sys];
   for (const m of messages || []) {
     const c = m?.content ?? m?.text;
-    parts.push(typeof c === "string" ? c : JSON.stringify(c ?? ""));
+    const content = typeof c === "string" ? c : JSON.stringify(c ?? "");
+    if (m?.role === "assistant") {
+      const records = content.match(/<stocksaathi_lookup_provenance>[\s\S]*?<\/stocksaathi_lookup_provenance>/g);
+      if (records) parts.push(...records);
+      continue;
+    }
+    parts.push(content);
   }
   return parts.join("\n");
 }

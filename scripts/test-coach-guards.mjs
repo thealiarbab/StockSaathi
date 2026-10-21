@@ -26,6 +26,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { withLookupProvenance } from "../js/coach/lookupProvenance.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = fs.readFileSync(path.join(ROOT, "js/coach/agent.js"), "utf8");
@@ -335,6 +336,10 @@ const ADANI = "Nobody is \"sure\" in the markets—anyone who says they are is l
 const HDFC_LIMIT = "It's too early to call it a \"good\" or \"bad\" move because none of your orders have filled yet—you still have all your cash and zero holdings.\n\nThe move you *did* make was setting \"Limit\" prices. For example, you've set HDFCBANK to buy at ₹700, but it usually trades much higher (around ₹1,600-₹1,700 lately). Unless there’s a massive crash, that order might never fill. \n\nA \"Market\" order buys at the current price immediately, while a \"Limit\" order is you being picky about the price. Do you want me to check the current price for HDFCBANK so you can see how far off your ₹700 limit is?";
 const HDFC_TOOL = '{"ok":true,"orders":[{"symbol":"AAATECH","side":"BUY","qty":10,"limit_price_inr":107.92},{"symbol":"HDFCBANK","side":"BUY","qty":4,"limit_price_inr":700},{"symbol":"3BBLACKBIO","side":"BUY","qty":1,"limit_price_inr":1500}]}';
 const src = (...extra) => figBox.figureSources(PERSONA_SRC + "\n\n# MARKET\nNSE is closed.", extra.map((content) => ({ role: "user", content })));
+const assistantSrc = (content) => figBox.figureSources(
+  PERSONA_SRC + "\n\n# MARKET\nNSE is closed.",
+  [{ role: "assistant", content }],
+);
 const sameSet = (a, b) => a.length === b.length && a.every((x) => b.includes(x));
 const FIG_CASES = [
   // --- must flag ---------------------------------------------------------------
@@ -354,6 +359,14 @@ const FIG_CASES = [
   ["the user's own number", figBox.unsourcedFigures("Your INFY limit at ₹1,350 will wait in Queued orders.", src("place a limit for INFY at 1350")), []],
   ["market cap in crore, as the tool gives it", figBox.unsourcedFigures("RELIANCE has a market cap of about ₹19,10,000 crore (₹19.1 lakh crore).", src('{"symbol":"RELIANCE","market_cap_crore_inr":1910432}')), []],
   ["share of imports, no time word", figBox.unsourcedFigures("We import over 80% of our oil.", src()), []],
+  ["old assistant claim is not its own evidence", figBox.unsourcedFigures("TCS was at ₹2,269.30.", assistantSrc("TCS was at ₹2,269.30.")), ["₹2,269.30"]],
+  ["app-recorded quote may support a historical reference", figBox.unsourcedFigures(
+    "TCS was at ₹2,269.30.",
+    assistantSrc(withLookupProvenance("TCS was at ₹2,269.30.", [{
+      tool: "get_stock_price", subject: "TCS", status: "returned",
+      facts: { symbol: "TCS", price_inr: 2269.3, day_change_pct: 6.79 },
+    }])),
+  ), []],
 ];
 let fPass = 0;
 for (const [name, got, want] of FIG_CASES) {
