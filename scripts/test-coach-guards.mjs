@@ -30,6 +30,7 @@ import { withLookupProvenance } from "../js/coach/lookupProvenance.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = fs.readFileSync(path.join(ROOT, "js/coach/agent.js"), "utf8");
+const PERSONA_SRC = fs.readFileSync(path.join(ROOT, "js/coach/persona.js"), "utf8");
 
 /** Slice a top-level `export function name(...) { ... }` out of the source. */
 function extractFn(name) {
@@ -215,9 +216,11 @@ const adviceBox = new Function(`
   ${extractFn("adviceViolation")}
   ${SRC.slice(SRC.indexOf("const HINGLISH_RE = "), SRC.indexOf("export function looksHinglish"))}
   ${extractFn("looksHinglish")}
+  ${SRC.slice(SRC.indexOf("const FORMAL_HINDI_RE = "), SRC.indexOf("export function hasFormalHindiRegister"))}
+  ${extractFn("hasFormalHindiRegister")}
   ${extractFn("replyLanguageMismatch")}
   ${extractFn("scrubAdvice")}
-  return { adviceViolation, looksHinglish, replyLanguageMismatch, scrubAdvice };
+  return { adviceViolation, looksHinglish, hasFormalHindiRegister, replyLanguageMismatch, scrubAdvice };
 `)();
 
 // [name, reply, should the guard fire?]
@@ -274,6 +277,11 @@ const LANG_CASES = [
   ["Hinglish reply to Hinglish is fine", adviceBox.replyLanguageMismatch("Bhai maine 63 moons kitne me kharida", ADVICE_CASES[5][1]), false],
   ["English question is not Hinglish", adviceBox.looksHinglish("How to start trading"), false],
   ["English question with 'me' is not Hinglish", adviceBox.looksHinglish("Can you tell me the price of TCS"), false],
+  ["formal Hindi phrasing is flagged for a Hinglish rewrite", adviceBox.hasFormalHindiRegister("kis cheez se tulna karoge, aur future growth ki umeed hai"), true],
+  ["production P/E reply passes Hinglish detection but formal vocabulary is caught", adviceBox.looksHinglish("Company ka profit badhe toh shares ki value badhti hai. High P/E ka matlab future growth ki umeed ho sakti hai. Kis stock ke saath tulna karoge?") && adviceBox.hasFormalHindiRegister("Company ka profit badhe toh shares ki value badhti hai. High P/E ka matlab future growth ki umeed ho sakti hai. Kis stock ke saath tulna karoge?"), true],
+  ["casual Hinglish is not flagged", adviceBox.hasFormalHindiRegister("isse TCS ke saath compare karo; growth expectation kya hai"), false],
+  ["no-tools prompt distinguishes this turn from app capability", PERSONA_SRC.includes("This particular reply has NO tools available") && PERSONA_SRC.includes("Never claim that you or the app generally lack live-data access"), true],
+  ["Hinglish prompt names the requested casual mixed register", PERSONA_SRC.includes("natural English words and phrases") && PERSONA_SRC.includes("'tulna'"), true],
 ];
 let lPass = 0;
 for (const [name, got, want] of LANG_CASES) {
@@ -325,7 +333,6 @@ for (const [name, got, want] of STAT_CASES) {
 // prompt: it must be cut out, or its teaching numbers ("2.5% annual
 // interest") quietly vouch for invented ones ("up 3% today").
 // -----------------------------------------------------------------------------
-const PERSONA_SRC = fs.readFileSync(path.join(ROOT, "js/coach/persona.js"), "utf8");
 const figBox = new Function("SYSTEM_PROMPT", "NO_TOOLS_NOTE", `
   const NEWS_RE = ${extractRe("NEWS_RE")};
   ${SRC.slice(SRC.indexOf("const FIG_MONEY_RE"), SRC.indexOf("const FIGURE_NUDGE")).replace(/^export\s+/gm, "")}

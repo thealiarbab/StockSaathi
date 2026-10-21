@@ -8,7 +8,7 @@ import { getState, setSetting } from "../state.js";
 import { getInstrument, STOCKS } from "../data/universe.js";
 import { SYSTEM_PROMPT, matchTemplate, isOffTopic, offTopicRedirect, STARTER_QUESTIONS, runtimeFacts, NO_TOOLS_NOTE } from "../coach/persona.js";
 import { marketStatus } from "../data/prices.js";
-import { runAgent, streamChat, needsLiveData, logChatTurn, stripToolCallScaffolding, isToolCallOnly, looksLikeLookupOffer, looksLikeFetchPromise, looksLikePricelessList, isDiscoveryQuery, scrubAdvice, looksHinglish, prefetchNewsBlock, unsourcedFigures, figureSources, dropFigureSentences } from "../coach/agent.js";
+import { runAgent, streamChat, needsLiveData, logChatTurn, stripToolCallScaffolding, isToolCallOnly, looksLikeLookupOffer, looksLikeFetchPromise, looksLikePricelessList, isDiscoveryQuery, scrubAdvice, looksHinglish, hasFormalHindiRegister, prefetchNewsBlock, unsourcedFigures, figureSources, dropFigureSentences } from "../coach/agent.js";
 import { buildDossier } from "../coach/dossier.js";
 import { normalizeLookupProvenance, withLookupProvenance } from "../coach/lookupProvenance.js";
 import { getNews } from "../data/news.js";
@@ -52,19 +52,19 @@ import { onBackdropClick } from "../components/backdrop.js";
 async function finishReply(text, userText, system, messages, onStep) {
   let out = text;
   const hi = !!getState().settings.hinglish;
-  if (hi && !looksHinglish(out)) {
+  if (hi && (!looksHinglish(out) || hasFormalHindiRegister(out))) {
     try {
       const again = await withDeadline(runAgent({
         apiKey: getState().settings.llmApiKey || null,
         system: `${system}
 
 # THIS TURN
-Your last draft was in English. Hinglish mode is on: answer again in Hinglish (Roman script).`,
+Your last draft did not follow the requested Hinglish style. Rewrite it in casual Hinglish: mix everyday Roman Hindi with natural English words, keep finance terms in English, and avoid formal Hindi such as 'tulna', 'ummeed', 'nirnay', 'nivesh', 'laabh', 'saalana', 'keemat' and 'moolya'.`,
         messages, profile: "fast",
         onStep,
       }), 12_000);
       const clean = stripScaffolding(again);
-      if (clean && clean.trim() && looksHinglish(clean)) out = clean.trim();
+      if (clean && clean.trim() && looksHinglish(clean) && !hasFormalHindiRegister(clean)) out = clean.trim();
     } catch (e) { console.warn("[chat] language retry failed:", e?.message || e); }
   }
   return scrubAdvice(out, userText, hi).text;
@@ -1745,7 +1745,7 @@ async function sendAndReply(userText) {
     ? `
 
 # THIS TURN: LANGUAGE
-Hinglish mode is on. Reply in Hinglish (Hindi in Roman script), keeping finance terms like P/E and NAV in English.`
+Hinglish mode is on. Reply in casual Hinglish: mix everyday Roman Hindi with natural English words and phrases. Keep finance terms like P/E, SIP, NAV, price, profit, company and stock in English. Avoid formal Hindi translations such as 'tulna', 'ummeed', 'nirnay', 'nivesh', 'laabh', 'saalana', 'keemat' and 'moolya'.`
     : `
 
 # THIS TURN: LANGUAGE

@@ -1949,6 +1949,11 @@ export function looksHinglish(text) {
   return !!hits && hits.length >= 2;
 }
 
+const FORMAL_HINDI_RE = /\b(?:tulna|ummeed|nirnay|nivesh|laabh|saalana|vartamaan|keemat|moolya|aankda|arthaat|atah|yadi|kintu|prashn|vishay)\b/i;
+export function hasFormalHindiRegister(text) {
+  return FORMAL_HINDI_RE.test(String(text || ""));
+}
+
 /** User wrote Hinglish and the reply is (almost) pure English. */
 export function replyLanguageMismatch(userText, replyText) {
   if (!looksHinglish(userText)) return false;

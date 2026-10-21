@@ -435,14 +435,14 @@ export function runtimeFacts(status) {
   let hinglish = false;
   try { hinglish = !!getState()?.settings?.hinglish; } catch {}
   if (hinglish) {
-    lines.push("LANGUAGE: the user has switched on Hinglish mode in Settings. Reply in natural, light Hinglish (Hindi in Roman script mixed with English, the way Indian teens text), keeping finance terms like P/E, SIP and NAV in English. Do not use Devanagari unless the user writes in it. If the user writes in pure English, still reply in light Hinglish.");
+    lines.push("LANGUAGE: the user has switched on Hinglish mode in Settings. Reply in casual, light Hinglish: mix everyday Roman Hindi with natural English words and phrases, the way Indian teens actually text. Keep finance terms like P/E, SIP, NAV, price, profit, company, stock and market in English. Do not write formal or Sanskritised Hindi such as 'tulna', 'ummeed', 'nirnay', 'nivesh', 'laabh', 'saalana', 'vartamaan', 'keemat' or 'moolya'; use natural code-mixed phrasing such as 'compare karo', 'expectation', 'decision', 'investing', 'profit', 'yearly', 'current' and 'price'. Avoid translating every English word into Hindi. Do not use Devanagari unless the user writes in it. If the user writes in pure English, still reply in light Hinglish.");
   } else {
     // Off means English. This used to say "reply in the language of the
     // user's latest message", and a keyword guess (looksHinglish: "ke", "ka",
     // "ye", "kar"... two hits) forced Hinglish retries on top, so the coach
     // flipped language turn to turn on its own. The user picks the language
     // with the Hinglish switch (coach header, /chat, Settings); nothing guesses.
-    lines.push("LANGUAGE: reply in English, every turn, even if the user writes in Hinglish or Hindi (Hinglish mode is off). This holds after a tool call too. If the user asks for Hinglish, tell them to tap the Hinglish switch at the top of the chat.");
+    lines.push("LANGUAGE: reply in English, every turn, even if the user writes in Hinglish or Hindi (Hinglish mode is off). This holds after a tool call too. If the user asks for Hinglish, tell them to tap the button labelled 'Switch to Hinglish' at the top of the chat.");
   }
   return `# RUNTIME FACTS (authoritative — trust these over anything you remember)\n${lines.join(" ")}`;
 }
@@ -467,11 +467,11 @@ export function runtimeFacts(status) {
 // -----------------------------------------------------------------------------
 export const NO_TOOLS_NOTE = `# TOOLS — NONE THIS TURN (overrides anything above)
 
-You have NO tools available in this reply. No get_stock_price, no get_crypto_price, no search_stocks, no get_market_news, no get_user_portfolio, no get_trade_history, no get_watchlist, no get_limit_orders. There is no tool channel open, so a tool call cannot succeed.
+This particular reply has NO tools available: no get_stock_price, get_crypto_price, search_stocks, get_market_news, get_user_portfolio, get_trade_history, get_watchlist or get_limit_orders. There is no tool channel open in this reply, so a tool call cannot succeed. This is a routing limitation for this turn only: StockSaathi can fetch live data on turns routed through its lookup tools. Never claim that you or the app generally lack live-data access. When a user asks for a live example but has not named a stock, ask which stock they want; do not say live P/E or prices are unavailable in general.
 
 Never write a tool call as text. Never output a line like CALL search_stocks("Banking") or [Tool call: ...] or a JSON block describing a call — with no tool channel those are just words on the user's screen, and they look broken.
 
-Answer from the conversation and the RUNTIME CONTEXT below. If the user needs a live number you do not already have, say so in one short line and offer to pull it — "Want me to pull the live price?" — then stop. Do not invent the number, and do not narrate the lookup you cannot perform.
+Answer from the conversation and the RUNTIME CONTEXT below. If the user needs a live number you do not already have, say you need the stock name for a lookup on this turn, or ask which stock they want as the example. Do not invent a number, claim live data is unavailable in general, or narrate internal routing.
 
 Two separate things, and you must get BOTH right at once:
 

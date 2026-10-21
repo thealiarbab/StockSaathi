@@ -13,7 +13,7 @@ import { getNews } from "../data/news.js";
 import { formatRupees, formatPct } from "../money.js";
 import { SYSTEM_PROMPT, matchTemplate, isOffTopic, offTopicRedirect, STARTER_QUESTIONS, runtimeFacts, NO_TOOLS_NOTE } from "../coach/persona.js";
 import { marketStatus } from "../data/prices.js";
-import { runAgent, streamChat, needsLiveData, logChatTurn, isToolCallOnly, looksLikeLookupOffer, looksLikeFetchPromise, looksLikePricelessList, scrubAdvice, looksHinglish, isNewsQuestion, prefetchNewsBlock, unsourcedFigures, figureSources, dropFigureSentences } from "../coach/agent.js";
+import { runAgent, streamChat, needsLiveData, logChatTurn, isToolCallOnly, looksLikeLookupOffer, looksLikeFetchPromise, looksLikePricelessList, scrubAdvice, looksHinglish, hasFormalHindiRegister, isNewsQuestion, prefetchNewsBlock, unsourcedFigures, figureSources, dropFigureSentences } from "../coach/agent.js";
 import { getFreshCachedQuote } from "../data/marketData.js";
 import { buildDossier } from "../coach/dossier.js";
 import { normalizeLookupProvenance, withLookupProvenance } from "../coach/lookupProvenance.js";
@@ -168,7 +168,7 @@ function hinglishOn() {
 }
 function turnLanguage() {
   return hinglishOn()
-    ? "\n\n# THIS TURN: LANGUAGE\nHinglish mode is on. Reply in Hinglish (Hindi in Roman script), keeping finance terms like P/E and NAV in English."
+    ? "\n\n# THIS TURN: LANGUAGE\nHinglish mode is on. Reply in casual Hinglish: mix everyday Roman Hindi with natural English words and phrases. Keep finance terms like P/E, SIP, NAV, price, profit, company and stock in English. Avoid formal Hindi translations such as 'tulna', 'ummeed', 'nirnay', 'nivesh', 'laabh', 'saalana', 'keemat' and 'moolya'."
     : "\n\n# THIS TURN: LANGUAGE\nReply in English.";
 }
 
@@ -177,17 +177,17 @@ const FIGURE_RETRY_NOTE = `
 # THIS TURN
 Your earlier draft stated prices, moves or events that were not looked up. Call the tool for every figure you give (get_stock_price for a price or today's move, get_market_news for news), or leave the figure out.`;
 
-const LANG_RETRY_NOTE = "\n\n# THIS TURN\nYour last draft was in English. Hinglish mode is on: answer again in Hinglish (Roman script).";
+const LANG_RETRY_NOTE = "\n\n# THIS TURN\nYour last draft did not follow the requested Hinglish style. Rewrite it in casual Hinglish: mix everyday Roman Hindi with natural English words, keep finance terms in English, and avoid formal Hindi such as 'tulna', 'ummeed', 'nirnay', 'nivesh', 'laabh', 'saalana', 'keemat' and 'moolya'.";
 
 // Same last step as /chat: one bounded language retry, then remove any
 // sentence that picks, praises/judges, nudges or times the market.
 async function finishPanelReply(text, userText, retryAgent) {
   let out = text;
   const hi = hinglishOn();
-  if (hi && !looksHinglish(out) && retryAgent) {
+  if (hi && (!looksHinglish(out) || hasFormalHindiRegister(out)) && retryAgent) {
     try {
       const again = await Promise.race([retryAgent(), new Promise((r) => setTimeout(() => r(null), 12_000))]);
-      if (again && again.trim() && looksHinglish(again)) out = again.trim();
+      if (again && again.trim() && looksHinglish(again) && !hasFormalHindiRegister(again)) out = again.trim();
     } catch (e) { console.warn("[coach] language retry failed:", e?.message || e); }
   }
   return scrubAdvice(out, userText, hi).text;
