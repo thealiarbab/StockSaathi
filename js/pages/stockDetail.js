@@ -510,15 +510,20 @@ export function renderStockDetail(main, params) {
   // "RELIANCE is a Other company. P/E is —" gibberish that survives
   // localStorage reloads.
   const existing = getState().coachMessages.some(m => m.eventType === "STOCK_INTRO" && m.triggerSymbol === symbol);
+  function fireStockIntro(event) {
+    coach(event).then(msg => {
+      if (myToken.cancelled) return;
+      msg.triggerSymbol = symbol;
+      recordCoachMessage(msg);
+    }).catch(error => {
+      console.warn("[stock-detail] intro coach message failed:", error?.message || error);
+    });
+  }
   function maybeFireStockIntro() {
     if (existing || inst._stub) return;
     if (inst.kind === "MF") {
       // MFs don't have PE/sector — fire with a different template path.
-      coach({ type: "STOCK_INTRO", symbol, instrument: inst }).then(msg => {
-        if (myToken.cancelled) return;
-        msg.triggerSymbol = symbol;
-        recordCoachMessage(msg);
-      });
+      fireStockIntro({ type: "STOCK_INTRO", symbol, instrument: inst });
       return;
     }
     // Equity / ETF: require both a real sector AND live fundamentals
@@ -535,7 +540,7 @@ export function renderStockDetail(main, params) {
     const hasSector = liveSector && liveSector !== "Other" && liveSector !== "Unknown";
     const hasPE = liveFundamentals?.pe_ratio != null;
     if (!hasSector || !hasPE) return;
-    coach({
+    fireStockIntro({
       type: "STOCK_INTRO",
       symbol,
       instrument: {
@@ -544,10 +549,6 @@ export function renderStockDetail(main, params) {
         marketCap: liveFundamentals.market_cap,
         sector: liveSector,   // override stale universe sector
       }
-    }).then(msg => {
-      if (myToken.cancelled) return;
-      msg.triggerSymbol = symbol;
-      recordCoachMessage(msg);
     });
   }
   maybeFireStockIntro();
