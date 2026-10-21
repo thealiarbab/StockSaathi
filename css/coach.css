@@ -619,12 +619,12 @@
 .cc-composer .composer-btn { width: 36px; height: 36px; font-size: 15px; }
 .cc-foot { display: block; margin: 0 auto 10px; padding: 0 20px; max-width: 780px; }
 
-.cc-panel.is-empty { justify-content: center; padding-bottom: 12vh; }
-.cc-panel.is-empty .cc-messages.chat-messages { flex: 0 0 auto; padding-bottom: 20px; }
-.cc-panel.is-empty .cc-composer.composer { padding: 0 20px; }
-@media (min-width: 901px) and (max-height: 700px) {
-  .cc-panel.is-empty { justify-content: flex-start; overflow-y: auto; padding-bottom: 16px; }
+.cc-panel.is-empty { justify-content: flex-start; padding-bottom: 0; }
+.cc-panel.is-empty .cc-messages.chat-messages {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-bottom: 20px;
 }
+.cc-panel.is-empty .cc-empty { margin-block: auto; }
+.cc-panel.is-empty .cc-composer.composer { padding: 0 20px; }
 .cc-empty { gap: 18px; padding: 0; }
 .cc-empty-title { font-size: var(--text-2xl); font-weight: 500; letter-spacing: -0.01em; }
 .cc-starters { order: 2; gap: 6px; margin: 0; }
@@ -647,13 +647,16 @@
   .cc.cc-has-side { display: block; height: calc(100dvh - var(--page-top-h) - 76px - env(safe-area-inset-bottom)); position: static; }
   .cc-main { height: 100%; }
   .cc-side { position: fixed; height: auto; border-right: 0; border-radius: 0; background: var(--bg); }
-  .cc-has-side .cc-head { padding: 8px 12px; gap: 10px; border-bottom: 1px solid var(--divider); }
-  .cc-head-new { border-radius: 8px; background: transparent; border: 1px solid var(--border); color: var(--text-strong); }
+  .cc-has-side .cc-head { padding: 8px 12px; gap: 10px; border-bottom: 1px solid var(--divider); flex-wrap: wrap; }
+  .cc-head-new { display: none; }
+  .cc-head-share { width: 36px; padding: 0; justify-content: center; }
+  .cc-head-share span { display: none; }
   .cc-menu-btn { border-radius: 8px; }
   .cc-messages.chat-messages { padding: 12px 14px 16px; }
   .cc-composer.composer { padding: 0 10px 8px; }
   .cc-panel.chat-card { height: auto; min-height: 0; }
-  .cc-panel.is-empty { padding-bottom: 6vh; }
+  .cc-panel.is-empty .cc-messages.chat-messages { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+  .cc-panel.is-empty { padding-bottom: 0; }
   .cc-foot { display: none; }
 }
 .cc-panel.chat-card #chat-form.cc-composer { position: static; background: transparent; z-index: auto; }
