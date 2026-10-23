@@ -490,9 +490,13 @@ export default async function handler(req) {
     return jsonResponse(429, { error: "rate_limited" }, origin);
   }
 
-  // Body-size cap
+  // Body-size cap. Read the upload before refusing it: answering while a
+  // large body is still unread crashes the Node function (500
+  // FUNCTION_INVOCATION_FAILED) and takes the next request down with it.
+  // Vercel itself caps a request body at 4.5 MB, so reading is bounded.
   const cl = parseInt(req.headers.get("Content-Length") || "0", 10);
   if (cl > MAX_BODY) {
+    try { await req.arrayBuffer(); } catch {}
     return jsonResponse(413, { error: "payload_too_large" }, origin);
   }
 

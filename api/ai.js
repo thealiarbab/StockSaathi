@@ -1505,8 +1505,13 @@ export default async function handler(req) {
   }
   if (origin && !allowed(origin)) return j(403, { error: "forbidden_origin" }, origin);
 
+  // Read an oversized upload before refusing it: answering with the body
+  // unread crashes the Node function and the next request with it.
   const cl = parseInt(req.headers.get("Content-Length") || "0", 10);
-  if (cl > MAX_BODY) return j(413, { error: "payload_too_large" }, origin);
+  if (cl > MAX_BODY) {
+    try { await req.arrayBuffer(); } catch {}
+    return j(413, { error: "payload_too_large" }, origin);
+  }
 
   const op = url.searchParams.get("op");
   if (!op) return j(400, { error: "missing_op" }, origin);
