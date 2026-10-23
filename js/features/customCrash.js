@@ -200,13 +200,13 @@ const _PHASE_A_ALIASES = [
            hint: "Global Financial Crisis, Sep 2008" } },
   // Satyam — most-specific first
   { tokens: ["satyam", "computer"],
-    out: { startIso: "2009-01-07", endIso: "2009-04-30", symbol: "^NSEI",
+    out: { startIso: "2009-01-07", endIso: "2009-04-30", symbol: "SATYAMCOMP.NS",
            hint: "Satyam Computer fraud, 7 Jan 2009" } },
   { tokens: ["satyam", "scandal"],
-    out: { startIso: "2009-01-07", endIso: "2009-04-30", symbol: "^NSEI",
+    out: { startIso: "2009-01-07", endIso: "2009-04-30", symbol: "SATYAMCOMP.NS",
            hint: "Satyam fraud, 7 Jan 2009" } },
   { tokens: ["satyam"],
-    out: { startIso: "2009-01-07", endIso: "2009-04-30", symbol: "^NSEI",
+    out: { startIso: "2009-01-07", endIso: "2009-04-30", symbol: "SATYAMCOMP.NS",
            hint: "Satyam fraud, 7 Jan 2009" } },
   // IL&FS 2018 — note IL&FS becomes "il" "fs" after token-split
   { tokens: ["il", "fs"],
@@ -283,16 +283,6 @@ const _PHASE_A_ALIASES = [
   { tokens: ["jio", "launch"],
     out: { startIso: "2016-09-05", endIso: "2017-01-31", symbol: "RELIANCE.NS",
            hint: "Reliance Jio launch, Sep 2016" } },
-  // Pani puri vendor GST (well-known meme event)
-  { tokens: ["pani", "puri"],
-    out: { startIso: "2023-06-01", endIso: "2023-07-31", symbol: "^NSEI",
-           hint: "Tamil Nadu pani puri vendor GST notice, June 2023" } },
-  { tokens: ["golgappa"],
-    out: { startIso: "2023-06-01", endIso: "2023-07-31", symbol: "^NSEI",
-           hint: "Pani puri / golgappa GST notice, June 2023" } },
-  { tokens: ["fuchka"],
-    out: { startIso: "2023-06-01", endIso: "2023-07-31", symbol: "^NSEI",
-           hint: "Fuchka / pani puri GST notice, June 2023" } },
   // Russia / Ukraine — Feb 2022 sell-off
   { tokens: ["russia", "ukraine"],
     out: { startIso: "2022-02-24", endIso: "2022-06-30", symbol: "^NSEI",
@@ -306,16 +296,16 @@ const _PHASE_A_ALIASES = [
            hint: "Brexit referendum, 23 June 2016" } },
   // 2G spectrum scam — A. Raja, CAG report Nov 2010, SC cancellation Feb 2012.
   // The tokenizer splits "2g" into "2" + "g", so the aliases match those two.
-  // Hit telecom hardest. Bharti Airtel was the most-traded survivor; RCOM /
-  // Tata Tele / Idea were impacted but RCOM is delisted. Use BHARTIARTL.NS.
+  // Reliance Communications was the accused telecom company; Yahoo RCOM.NS
+  // closes match NSE bhavcopy for this window (checked 2026-10-24).
   { tokens: ["2", "g", "scam"],
-    out: { startIso: "2010-11-10", endIso: "2011-04-30", symbol: "BHARTIARTL.NS",
+    out: { startIso: "2010-11-10", endIso: "2011-04-30", symbol: "RCOM.NS",
            hint: "2G spectrum scam, CAG report Nov 2010 → telecom sector wipe-out" } },
   { tokens: ["2", "g", "spectrum"],
-    out: { startIso: "2010-11-10", endIso: "2011-04-30", symbol: "BHARTIARTL.NS",
+    out: { startIso: "2010-11-10", endIso: "2011-04-30", symbol: "RCOM.NS",
            hint: "2G spectrum allocation scandal, Nov 2010" } },
   { tokens: ["raja", "telecom"],
-    out: { startIso: "2010-11-10", endIso: "2011-04-30", symbol: "BHARTIARTL.NS",
+    out: { startIso: "2010-11-10", endIso: "2011-04-30", symbol: "RCOM.NS",
            hint: "A. Raja telecom scam (2G spectrum), Nov 2010" } },
   // Coal scam — Coalgate, CAG report 2012
   { tokens: ["coal", "scam"],
