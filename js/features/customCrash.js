@@ -305,12 +305,13 @@ const _PHASE_A_ALIASES = [
     out: { startIso: "2016-06-23", endIso: "2016-09-30", symbol: "^NSEI",
            hint: "Brexit referendum, 23 June 2016" } },
   // 2G spectrum scam — A. Raja, CAG report Nov 2010, SC cancellation Feb 2012.
+  // The tokenizer splits "2g" into "2" + "g", so the aliases match those two.
   // Hit telecom hardest. Bharti Airtel was the most-traded survivor; RCOM /
   // Tata Tele / Idea were impacted but RCOM is delisted. Use BHARTIARTL.NS.
-  { tokens: ["2g", "scam"],
+  { tokens: ["2", "g", "scam"],
     out: { startIso: "2010-11-10", endIso: "2011-04-30", symbol: "BHARTIARTL.NS",
            hint: "2G spectrum scam, CAG report Nov 2010 → telecom sector wipe-out" } },
-  { tokens: ["2g", "spectrum"],
+  { tokens: ["2", "g", "spectrum"],
     out: { startIso: "2010-11-10", endIso: "2011-04-30", symbol: "BHARTIARTL.NS",
            hint: "2G spectrum allocation scandal, Nov 2010" } },
   { tokens: ["raja", "telecom"],
@@ -325,10 +326,10 @@ const _PHASE_A_ALIASES = [
            hint: "Coalgate, Aug 2012" } },
   // Vijay Mallya / Kingfisher Airlines collapse, late 2012
   { tokens: ["mallya"],
-    out: { startIso: "2012-10-01", endIso: "2013-03-31", symbol: "^NSEI",
+    out: { startIso: "2012-10-01", endIso: "2013-03-31", symbol: "KFA.NS",
            hint: "Vijay Mallya / Kingfisher Airlines collapse, Oct 2012" } },
   { tokens: ["kingfisher", "airlines"],
-    out: { startIso: "2012-10-01", endIso: "2013-03-31", symbol: "^NSEI",
+    out: { startIso: "2012-10-01", endIso: "2013-03-31", symbol: "KFA.NS",
            hint: "Kingfisher Airlines grounded, Oct 2012" } },
   // SVB — March 2023
   { tokens: ["svb"],

@@ -494,7 +494,7 @@ function renderSelector(main) {
         const dStr = i === 0 ? "" : `<span class="${dCls}">${delta >= 0 ? "+" : ""}${delta.toFixed(2)}%</span>`;
         appendGenFeedRow(main,
           `<span class="day">D${i}</span>` +
-          `<span class="px">₹${Math.round(c).toLocaleString("en-IN")}</span>` +
+          `<span class="px">₹${Number(c).toLocaleString("en-IN", { maximumFractionDigits: c < 1000 ? 2 : 0 })}</span>` +
           dStr
         );
         prevClose = c;
@@ -746,7 +746,7 @@ function renderReplay(main, scenario) {
         ${renderDescriptionParagraphs(scenario.description)}
         ${scenario.indexDrop != null ? `<div class="replay-context-stats">
           <div><span class="rc-key">Peak drop</span><span class="rc-val negative">${Math.abs(scenario.indexDrop).toFixed(1)}%</span></div>
-          <div><span class="rc-key">Recovery</span><span class="rc-val">${scenario.recoveryDays ? scenario.recoveryDays + " trading days" : "within the plotted window"}</span></div>
+          <div><span class="rc-key">Recovery</span><span class="rc-val">${scenario.recoveryDays ? scenario.recoveryDays + " trading days" : "not back to the start in this window"}</span></div>
           <div><span class="rc-key">Window</span><span class="rc-val">${escapeHtml(scenario.startLabel)} → ${escapeHtml(scenario.endLabel)}</span></div>
           <div><span class="rc-key">Held vs panic delta</span><span class="rc-val ${scenario.finalDelta >= 0 ? "positive" : "negative"}">${scenario.finalDelta >= 0 ? "+" : ""}${scenario.finalDelta.toFixed(1)}%</span></div>
         </div>` : ""}
