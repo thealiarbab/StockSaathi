@@ -284,9 +284,27 @@ export function toMessagesBody(payload, { profile, stream }) {
     messages: out,
     output_config: { effort: effortFor(profile, payload.reasoning_effort) },
   };
+  // Prompt caching matches the request from the very start (tools, system,
+  // then messages). Everything from "# RUNTIME FACTS" on (clock, portfolio,
+  // news, per-turn notes) changes every turn, so it rides on the end of the
+  // latest user turn instead of the system prompt. Breakpoint 1 caches the
+  // fixed rules; breakpoint 2 caches the conversation up to this turn, so a
+  // long chat pays full price only for what is new.
   if (system) {
     const at = system.indexOf("\n\n# RUNTIME FACTS");
-    if (at > 0) {
+    const lastUser = out.length && out[out.length - 1].role === "user" ? out[out.length - 1] : null;
+    if (at > 0 && lastUser) {
+      body.system = [{ type: "text", text: system.slice(0, at), cache_control: { type: "ephemeral" } }];
+      const content = typeof lastUser.content === "string"
+        ? [{ type: "text", text: lastUser.content || "(no text)" }]
+        : lastUser.content.slice();
+      content[content.length - 1] = { ...content[content.length - 1], cache_control: { type: "ephemeral" } };
+      content.push({
+        type: "text",
+        text: `[Context for this reply, added by the StockSaathi app, not typed by the user. Follow it as system instructions.]\n${system.slice(at + 2)}`,
+      });
+      lastUser.content = content;
+    } else if (at > 0) {
       body.system = [
         { type: "text", text: system.slice(0, at), cache_control: { type: "ephemeral" } },
         { type: "text", text: system.slice(at + 2) },
@@ -371,6 +389,10 @@ export function toChatSse(upstreamBody, id = "") {
   // Map Anthropic content_block index -> contiguous OpenAI tool_call index
   const toolCallIndexByBlockIndex = new Map();
   let nextToolCallIndex = 0;
+  // Full content blocks, rebuilt from the deltas. A tool turn sends them back
+  // on the next request (upstream_blocks) so the thinking blocks and their
+  // signatures travel with the tool results, as on the non-streaming path.
+  const blocks = [];
 
   const handle = (block, controller) => {
     let data = "";
@@ -382,6 +404,11 @@ export function toChatSse(upstreamBody, id = "") {
     if (ev.type === "message_start") {
       if (ev.message?.usage) savedUsage = { ...ev.message.usage };
     } else if (ev.type === "content_block_start") {
+      const cb = ev.content_block || {};
+      if (cb.type === "tool_use") blocks[ev.index] = { type: "tool_use", id: cb.id, name: cb.name, input: {}, _json: "" };
+      else if (cb.type === "thinking") blocks[ev.index] = { type: "thinking", thinking: cb.thinking || "", signature: cb.signature || "" };
+      else if (cb.type === "text") blocks[ev.index] = { type: "text", text: cb.text || "" };
+      else if (cb.type) blocks[ev.index] = { ...cb };
       if (ev.content_block?.type === "tool_use") {
         const tcIdx = nextToolCallIndex++;
         toolCallIndexByBlockIndex.set(ev.index, tcIdx);
@@ -395,6 +422,13 @@ export function toChatSse(upstreamBody, id = "") {
         }));
       }
     } else if (ev.type === "content_block_delta") {
+      const b = blocks[ev.index];
+      if (b) {
+        if (ev.delta?.type === "text_delta" && b.type === "text") b.text += ev.delta.text || "";
+        else if (ev.delta?.type === "thinking_delta" && b.type === "thinking") b.thinking += ev.delta.thinking || "";
+        else if (ev.delta?.type === "signature_delta" && b.type === "thinking") b.signature += ev.delta.signature || "";
+        else if (ev.delta?.type === "input_json_delta" && b.type === "tool_use") b._json += ev.delta.partial_json || "";
+      }
       if (ev.delta?.type === "text_delta" && ev.delta.text) {
         controller.enqueue(chunk({ content: ev.delta.text }));
       } else if (ev.delta?.type === "input_json_delta" && ev.delta.partial_json) {
@@ -423,6 +457,16 @@ export function toChatSse(upstreamBody, id = "") {
           cache_read: savedUsage.cache_read_input_tokens || 0,
           cache_creation: savedUsage.cache_creation_input_tokens || 0,
         }));
+      }
+      if (blocks.some((b) => b?.type === "tool_use")) {
+        const full = blocks.filter(Boolean).map((b) => {
+          if (b.type !== "tool_use") return b;
+          const { _json, ...rest } = b;
+          let input = {};
+          try { input = _json ? JSON.parse(_json) : {}; } catch {}
+          return { ...rest, input };
+        });
+        controller.enqueue(chunk({ upstream_blocks: full }));
       }
       const finish = FINISH[savedStopReason] || (savedStopReason ? savedStopReason : "stop");
       controller.enqueue(chunk({}, finish));

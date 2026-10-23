@@ -299,7 +299,7 @@ for (const ev of EVENTS) {
     try {
       const cr = await fetch(`${BASE}/api/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Origin": "https://stocksaathi.co.in" },
         body: JSON.stringify({
           messages: [
             { role: "system", content: SYSTEM_PROMPT },

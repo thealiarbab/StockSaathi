@@ -47,10 +47,27 @@ import {
 
 export const config = { runtime: "edge" };
 
-// 3.8 MB (3,800,000 bytes): safely under Vercel Edge's documented 4 MB ceiling
-// while providing ample headroom for long multi-turn sessions with tool results
-// and reasoning blocks (upstream_blocks).
-const MAX_BODY = 3_800_000;
+// 1 MB: a long chat with its full history, tool results and reasoning
+// blocks (upstream_blocks) is a few hundred KB. Anything bigger is not a
+// student's chat, and this endpoint pays for every token it forwards.
+const MAX_BODY = 1_000_000;
+
+// Best-effort flood guard, per instance and per IP. Edge instances are
+// short-lived and regional, so this stops a single burst, not a determined
+// attacker; that needs a rate-limit rule in the Vercel firewall.
+const RATE_WINDOW_MS = 60_000;
+const RATE_MAX = 120;   // high on purpose: a whole classroom can share one school IP
+const _hits = new Map();
+function rateLimited(ip) {
+  const now = Date.now();
+  const h = _hits.get(ip);
+  if (!h || now - h.start > RATE_WINDOW_MS) {
+    _hits.set(ip, { start: now, n: 1 });
+    if (_hits.size > 5000) for (const [k, v] of _hits) if (now - v.start > RATE_WINDOW_MS) _hits.delete(k);
+    return false;
+  }
+  return ++h.n > RATE_MAX;
+}
 // The Gemini models' own output ceiling. Not a budget: see the max_tokens
 // block in the handler.
 export const MAX_OUTPUT_TOKENS = 65535;
@@ -463,8 +480,14 @@ export default async function handler(req) {
     return jsonResponse(405, { error: "method_not_allowed" }, origin);
   }
 
-  if (origin && !allowOrigin(origin)) {
+  // Browsers always send Origin on a POST, so a missing one means a script.
+  // Local tools (scripts/pregen-crashes.mjs) send the site's own origin.
+  if (!allowOrigin(origin)) {
     return jsonResponse(403, { error: "forbidden_origin" }, origin);
+  }
+  const ip = (req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "?").split(",")[0].trim();
+  if (rateLimited(ip)) {
+    return jsonResponse(429, { error: "rate_limited" }, origin);
   }
 
   // Body-size cap

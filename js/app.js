@@ -79,28 +79,15 @@ function syncCoachPanel() {
   });
 }
 
-function showStylesheetError(error) {
-  console.error("[app] Required stylesheet failed to load:", error);
-  const main = document.getElementById("main");
-  if (!main) return;
-  const message = document.createElement("p");
-  message.setAttribute("role", "alert");
-  message.style.cssText = "padding:24px;text-align:center";
-  message.textContent = "The app could not finish loading its styles.";
-  const retry = document.createElement("button");
-  retry.type = "button";
-  retry.textContent = "Reload";
-  retry.style.cssText = "display:block;margin:12px auto;padding:10px 18px";
-  retry.addEventListener("click", () => location.reload());
-  main.replaceChildren(message, retry);
-}
-
 const componentPreload = document.getElementById("components-css-preload");
 const componentStylesReady = componentPreload
   ? ensureStylesheet("components-stylesheet", "/css/components.css", "components-css-preload")
   : Promise.resolve();
 
-componentStylesReady.then(() => {
+let appMounted = false;
+function mountApp() {
+  if (appMounted) return;
+  appMounted = true;
   mountEventMarquee();   // hides itself when no active events
   mountNav();
   mountCoachLauncher();
@@ -111,7 +98,21 @@ componentStylesReady.then(() => {
   subscribe(syncCoachPanel);
   window.addEventListener("ss:navigate", syncCoachPanel);
   syncCoachPanel();
-}).catch(showStylesheetError);
+}
+
+// Wait briefly for the component styles so the first paint does not jump,
+// but never let a slow or failed stylesheet keep the app from opening: an
+// unstyled page still works, a blank one does not.
+const STYLE_WAIT_MS = 2500;
+Promise.race([
+  componentStylesReady,
+  new Promise((resolve) => setTimeout(resolve, STYLE_WAIT_MS)),
+]).then(mountApp, mountApp);
+componentStylesReady.catch((error) => {
+  console.error("[app] Component stylesheet failed to load:", error);
+  mountApp();
+  toast({ kind: "error", message: "Some styles didn't load. Pull to refresh if the page looks off." });
+});
 
 // If Supabase is configured, boot cross-device sync + start the limit-order
 // fill listener (the server fills orders; the tab only hears about it).
@@ -203,6 +204,15 @@ if ("serviceWorker" in navigator) {
       });
       let reloaded = false;
       let reloadWaitingForChat = false;
+      // The worker found a changed file that came without a version bump
+      // (see sw.js). Pick it up on the next in-app navigation, never mid-page.
+      let staleAssets = false;
+      navigator.serviceWorker.addEventListener("message", (e) => {
+        if (e.data?.type === "asset-updated") staleAssets = true;
+      });
+      window.addEventListener("ss:navigate", () => {
+        if (staleAssets && !document.getElementById("chat-stop")) window.location.reload();
+      });
       // Only an UPDATE should reload. On a visitor's very first load the page
       // starts uncontrolled; the new worker's clients.claim() still fires
       // controllerchange, which used to reload the page a few seconds after

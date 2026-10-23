@@ -5,7 +5,7 @@
 // Bump this on every deploy so old cached JS/HTML isn't served forever. The
 // activate step below deletes any cache whose name doesn't match. Include a
 // date so it is obvious in DevTools which build is live.
-const CACHE_NAME = "stocksaathi-v448-20261024c";
+const CACHE_NAME = "stocksaathi-v449-20261024d";
 const STATIC = [
   "./",
   "./app-shell",
@@ -200,26 +200,39 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Revalidate app code on every page load so a cached bundle cannot outlive
-  // a deployment. Keep the last good response as the offline fallback.
-  if (/\.(?:css|js)$/.test(url.pathname)) {
+  // App code: stale-while-revalidate. Serve the cached copy at once (no
+  // network round trip per module, which is what made phones slow), then
+  // re-check it in the background. A deploy normally bumps CACHE_NAME and
+  // reloads the page through the update flow; if a file changed WITHOUT a
+  // bump, the background check spots the new ETag, stores the new file and
+  // tells the page, which reloads on its next in-app navigation, so a stale
+  // bundle cannot outlive a deployment.
+  if (/\.(?:css|js)$/.test(url.pathname) && event.request.method === "GET") {
     event.respondWith((async () => {
-      try {
-        const response = await fetch(event.request, { cache: "no-cache" });
-        if (event.request.method === "GET" && response.ok) {
-          try {
-            const cache = await caches.open(CACHE_NAME);
-            await cache.put(event.request, response.clone());
-          } catch (error) {
-            console.warn("[sw] failed to cache app asset:", event.request.url, error);
+      const cache = await caches.open(CACHE_NAME);
+      const cached = await cache.match(event.request);
+      const refresh = (async () => {
+        try {
+          const response = await fetch(event.request, { cache: "no-cache" });
+          if (!response.ok) return response;
+          const oldTag = cached?.headers.get("ETag");
+          const newTag = response.headers.get("ETag");
+          await cache.put(event.request, response.clone());
+          if (cached && oldTag && newTag && oldTag !== newTag) {
+            const pages = await self.clients.matchAll({ type: "window" });
+            for (const page of pages) page.postMessage({ type: "asset-updated", url: event.request.url });
           }
+          return response;
+        } catch (error) {
+          if (cached) return cached;
+          throw error;
         }
-        return response;
-      } catch (error) {
-        const cached = await caches.match(event.request);
-        if (cached) return cached;
-        throw error;
+      })();
+      if (cached) {
+        event.waitUntil(refresh.catch(() => {}));
+        return cached;
       }
+      return refresh;
     })());
     return;
   }

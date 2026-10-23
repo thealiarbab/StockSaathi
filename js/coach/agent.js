@@ -11,7 +11,7 @@ import { getInstrument, getAllInstruments, STOCKS, MUTUAL_FUNDS } from "../data/
 import { getQuote, getQuoteBatch, getFundamentals } from "../data/marketData.js";
 import { listPendingOrders, listAllOrders } from "../features/limitOrders.js";
 import { getNews } from "../data/news.js";
-import { getState, getPortfolioValue } from "../state.js";
+import { getState, getPortfolioValue, getReturnSummary } from "../state.js";
 import { SYSTEM_PROMPT, NO_TOOLS_NOTE } from "./persona.js";
 import { normalizeLookupProvenance } from "./lookupProvenance.js";
 
@@ -414,7 +414,6 @@ async function execGetUserPortfolio() {
     } catch {}
   }
   const total = getPortfolioValue(state);
-  const start = state.portfolio.startingCashPaise;
 
   // Sanity guard. A corrupted account (seeded/admin rows with qty in the
   // billions and a zero average cost) produced a portfolio worth more than
@@ -432,7 +431,8 @@ async function execGetUserPortfolio() {
     ok: true,
     cash_inr: +(state.portfolio.cashPaise / 100).toFixed(2),
     total_value_inr: +totalInr.toFixed(2),
-    return_pct: +(((total - start) / start) * 100).toFixed(2),
+    // On the money put in; cash received outside trades is not a return.
+    return_pct: +(getReturnSummary(state).pct * 100).toFixed(2),
     holdings, holdings_count: holdings.length,
     trade_count: state.transactions.length,
   };
@@ -759,6 +759,15 @@ function resolveCryptoId(q) {
 // -----------------------------------------------------------------------------
 // Transport — client-direct OR via backend proxy
 // -----------------------------------------------------------------------------
+// The model that actually answered the last /api/chat call (X-Chat-Model).
+// logChatTurn records it, so the admin log says Haiku when Haiku answered
+// and Gemini only when the fallback did.
+let _lastChatModel = "";
+function noteChatModel(res) {
+  const m = res?.headers?.get?.("X-Chat-Model");
+  if (m) _lastChatModel = m;
+}
+
 async function callLLM({ apiKey, system, messages, tools, profile = "fast", reasoningEffort, onText, signal }) {
   // Convert chat history (role/content string) to OpenAI format
   const openaiMessages = [
@@ -839,6 +848,7 @@ async function callLLM({ apiKey, system, messages, tools, profile = "fast", reas
       body: JSON.stringify(body),
       signal,
     });
+    noteChatModel(res);
     if (!res.ok) {
       const txt = await res.text().catch(() => "");
       console.warn("Backend /api/chat", res.status, txt);
@@ -860,7 +870,7 @@ async function callLLM({ apiKey, system, messages, tools, profile = "fast", reas
 async function readToolStream(res, onText, signal) {
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
-  let buffer = "", text = "", finish = null, usage = null;
+  let buffer = "", text = "", finish = null, usage = null, upstreamBlocks = null;
   const calls = [];
   const cancelReader = () => { reader.cancel().catch((e) => console.warn("tool stream cancel:", e)); };
   const onAbort = () => cancelReader();
@@ -894,6 +904,7 @@ async function readToolStream(res, onText, signal) {
           complete = true;
         }
         const d = ch.delta || {};
+        if (Array.isArray(d.upstream_blocks)) upstreamBlocks = d.upstream_blocks;
         for (const tc of d.tool_calls || []) {
           const i = Number.isInteger(tc.index) ? tc.index : calls.length;
           const cur = calls[i] || (calls[i] = { type: "function", function: { name: "", arguments: "" } });
@@ -922,7 +933,11 @@ async function readToolStream(res, onText, signal) {
   const tool_calls = calls.filter(Boolean);
   return {
     choices: [{
-      message: { role: "assistant", content: text, ...(tool_calls.length ? { tool_calls } : {}) },
+      message: {
+        role: "assistant", content: text,
+        ...(tool_calls.length ? { tool_calls } : {}),
+        ...(tool_calls.length && upstreamBlocks ? { upstream_blocks: upstreamBlocks } : {}),
+      },
       finish_reason: finish || (tool_calls.length ? "tool_calls" : "stop"),
     }],
     usage,
@@ -1092,7 +1107,7 @@ export async function runAgent({ apiKey, system, messages, onStep, onText, profi
   // answering from whatever the tools did return.
   try {
     conv.push({ role: "user", content: "[app] No more lookups are possible this turn. Answer the question now using only what the tools returned above. If something could not be found, say so plainly in one sentence. Do not mention tools." });
-    const last = await callLLM({ apiKey, system: split.system, messages: conv, tools: undefined, profile, reasoningEffort: "minimal", signal });
+    const last = await callLLM({ apiKey, system, messages: conv, tools: undefined, profile, reasoningEffort: "minimal", signal });
     const text = stripToolCallScaffolding(String(last?.choices?.[0]?.message?.content || "")).trim();
     if (text) return text;
   } catch (e) { console.warn("Agent: final answer failed:", e?.message || e); }
@@ -1135,6 +1150,7 @@ export async function streamChat({ system, messages, profile = "chat", onToken, 
     console.warn("streamChat fetch:", e);
     return { error: e?.message || "network_error", text: "", finishReason: "error" };
   }
+  noteChatModel(res);
   if (!res.ok || !res.body) {
     const errText = await res.text().catch(() => "");
     console.warn("streamChat http:", res.status, errText.slice(0, 200));
@@ -1328,6 +1344,9 @@ function isPreambleBlock(block) {
 // legacy rows. Fire-and-forget: any DB error never affects the chat UX.
 // -----------------------------------------------------------------------------
 export async function logChatTurn({ userText, assistantText, model, sessionId, surface, userTs, replyTs, lookupProvenance }) {
+  // Callers label LLM turns "gemini-chat…" from before the Haiku switch;
+  // swap in the model that really answered ("claude-haiku-5-5-chat…").
+  if (model && /^gemini-chat/.test(model) && _lastChatModel) model = model.replace(/^gemini/, _lastChatModel);
   try {
     const mod = await import("../db/sync.js");
     if (!mod?.dbAddCoachMessage) return;
@@ -1967,10 +1986,12 @@ export function replyLanguageMismatch(userText, replyText) {
  * closing question was the problem, a short reflective line is used instead,
  * in the user's language.
  */
-export function scrubAdvice(text, userText = "") {
+export function scrubAdvice(text, userText = "", hinglishMode = null) {
   const src = String(text || "");
   const rules = [];
-  const hinglish = looksHinglish(userText) || looksHinglish(src);
+  // The Settings switch decides when the caller passes it; the guess is
+  // only for callers that don't (tests, old paths).
+  const hinglish = hinglishMode != null ? !!hinglishMode : (looksHinglish(userText) || looksHinglish(src));
   const lines = src.split("\n").map((line) => {
     if (!adviceViolation(line)) return line;
     // Split a prose line into sentences; keep the clean ones.
