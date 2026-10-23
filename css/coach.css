@@ -917,3 +917,33 @@ body.chat-app { overflow: hidden; }
 #coach-root .coach-embed .cc-messages.chat-messages { padding: 12px 14px 16px; }
 #coach-root .coach-embed .cc-foot { display: none; }
 #coach-root .coach-embed .cc-item-more, #coach-root .coach-embed .cc-act { opacity: 1; }
+
+/* Pop-up sizing. Width is the student's (drag the left edge; saved), the
+   page underneath keeps scrolling except on phones, and the /chat header
+   is squeezed to icons so nothing spills past the right edge. */
+@media (min-width: 481px) {
+  .coach-panel { width: min(var(--coach-w), 100vw) !important; }
+  body.coach-drawer-open { overflow: auto !important; }
+}
+#coach-root .coach-resize {
+  position: absolute; left: -4px; top: 0; bottom: 0; width: 8px; z-index: 230;
+  cursor: col-resize; touch-action: none;
+}
+#coach-root .coach-resize::after {
+  content: ""; position: absolute; left: 3px; top: 50%; width: 2px; height: 40px; margin-top: -20px;
+  border-radius: 2px; background: var(--border-strong); opacity: 0; transition: opacity var(--dur-2) ease;
+}
+#coach-root .coach-resize:hover::after, #coach-root .coach-resize.is-dragging::after { opacity: 1; }
+body.coach-resizing { cursor: col-resize; user-select: none; -webkit-user-select: none; }
+@media (max-width: 480px) { #coach-root .coach-resize { display: none; } }
+#coach-root .coach-embed { font-size: 14px; }
+#coach-root .coach-embed .cc-head { overflow: hidden; flex-wrap: nowrap; gap: 6px; padding: 6px 44px 6px 8px; min-height: 0; }
+#coach-root .coach-embed .cc-head .cc-chip-btn { height: 30px; min-height: 30px; padding: 0 9px; font-size: 12px; flex: 0 1 auto; min-width: 0; white-space: nowrap; }
+#coach-root .coach-embed .cc-head .cc-chip-btn > span { display: none; }
+#coach-root .coach-embed .cc-empty-title { font-size: 20px; line-height: 1.25; }
+#coach-root .coach-embed .cc-starter { font-size: 12.5px; padding: 6px 12px; }
+#coach-root .coach-embed .cc-bubble, #coach-root .coach-embed .msg-body { font-size: 14px; }
+#coach-root .coach-embed .composer-input { font-size: 15px; }
+#coach-root .coach-embed-close { top: 5px; right: 6px; }
+#coach-root .coach-embed .cc-head .cc-id { display: none; }
+#coach-root .coach-embed .cc-head .coach-lang { flex: 0 0 auto; margin-right: auto; }

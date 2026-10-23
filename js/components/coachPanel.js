@@ -334,9 +334,11 @@ function render() {
   if (!root.querySelector("#coach-embed") || root.dataset.embedPath !== location.pathname) {
     root.dataset.embedPath = location.pathname;
     root.innerHTML = `
+      <div class="coach-resize" aria-hidden="true" title="Drag to resize"></div>
       <button class="coach-embed-close" id="coach-close-btn" type="button" aria-label="Close coach">✕</button>
       <div class="coach-embed" id="coach-embed"></div>`;
     root.querySelector("#coach-close-btn").addEventListener("click", () => setSetting("coachPanelOpen", false));
+    wireResize(root);
     Promise.all([import("../pages/chat.js"), import("../features/styles.js").then(st => st.ensureCoachStyles())]).then(([m]) => {
       const box = root.querySelector("#coach-embed");
       if (box) m.renderChat(box, { embedded: true });
@@ -907,4 +909,38 @@ function renderMarkdown(text) {
   flushPara();
   closeList();
   return out.join("");
+}
+
+
+// Drag the panel's left edge to resize it. The width is kept per device.
+const COACH_W_KEY = "ss.coach.width.v1";
+function applyCoachWidth(px) {
+  const max = Math.max(320, Math.min(820, window.innerWidth - 240));
+  const w = Math.round(Math.min(max, Math.max(300, px)));
+  document.documentElement.style.setProperty("--coach-w", w + "px");
+  return w;
+}
+try { const saved = parseInt(localStorage.getItem(COACH_W_KEY), 10); if (saved > 0) applyCoachWidth(saved); } catch {}
+function wireResize(rootEl) {
+  const handle = rootEl.querySelector(".coach-resize");
+  if (!handle) return;
+  handle.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    handle.setPointerCapture?.(e.pointerId);
+    handle.classList.add("is-dragging");
+    document.body.classList.add("coach-resizing");
+    let last = 0;
+    const move = (ev) => { last = applyCoachWidth(window.innerWidth - ev.clientX); };
+    const up = () => {
+      handle.removeEventListener("pointermove", move);
+      handle.removeEventListener("pointerup", up);
+      handle.removeEventListener("pointercancel", up);
+      handle.classList.remove("is-dragging");
+      document.body.classList.remove("coach-resizing");
+      if (last) { try { localStorage.setItem(COACH_W_KEY, String(last)); } catch {} }
+    };
+    handle.addEventListener("pointermove", move);
+    handle.addEventListener("pointerup", up);
+    handle.addEventListener("pointercancel", up);
+  });
 }
