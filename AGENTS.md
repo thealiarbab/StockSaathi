@@ -195,6 +195,18 @@ update their own profile row).
   confirmation that never reaches an agent session and time out. Write
   migrations without them (CREATE OR REPLACE, flags instead of deletes).
 
+## LLM usage ledger (since 2026-10-23)
+
+Every model call and AI-cache hit writes a row to `public.llm_usage` (tokens,
+cache reads/writes, effort, model, latency, status; never prompt text or user
+ids) via `api/_usage.js`, from `api/chat.js` (all lanes, stream and not) and
+`api/ai.js` `callLlm` (tagged with the op) + `cacheGet`. The browser names the
+caller with an `X-Saathi-Feature` header. Cost is priced at read time from
+`llm_prices` (+ `llm_settings.usd_inr`) by `admin_llm_usage()`; /a → "AI cost"
+tab. Any new LLM call site must record a row the same way.
+`MESSAGES_EFFORT_FORCE` (Vercel env, low..max) overrides every lane and caller
+effort for A/B runs; unset to restore the per-op settings.
+
 ## User notices
 
 `public.user_notices` + `ack_notice()` RPC + `js/components/noticeModal.js`

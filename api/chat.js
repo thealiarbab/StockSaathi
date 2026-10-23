@@ -41,8 +41,9 @@
 // =============================================================================
 
 import { liveGeminiModel } from "./_models.js";
+import { recordUsage, featureOf, normUsage, tapOpenAiSse } from "./_usage.js";
 import {
-  messagesEnabled, messagesFetch, toMessagesBody, toChatCompletion, toChatSse, MESSAGES_MODEL,
+  messagesEnabled, messagesFetch, toMessagesBody, toChatCompletion, toChatSse, MESSAGES_MODEL, effortFor,
 } from "./_messages.js";
 
 export const config = { runtime: "edge" };
@@ -471,7 +472,7 @@ export default async function handler(req) {
   if (req.method === "OPTIONS") {
     const h = corsHeaders(origin);
     h.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-    h.set("Access-Control-Allow-Headers", "Content-Type");
+    h.set("Access-Control-Allow-Headers", "Content-Type, X-Saathi-Feature");
     h.set("Access-Control-Max-Age", "600");
     return new Response(null, { status: 204, headers: h });
   }
@@ -525,6 +526,7 @@ export default async function handler(req) {
   // reassembles tool_calls from the stream itself.
   const streamTools = payload.stream_tools === true;
   delete payload.stream_tools;
+  const feature = featureOf(req);
 
   // Output budget. Tools are passed through — the coach agent needs
   // function-calling to fetch live quotes, portfolio values and news during
@@ -620,6 +622,15 @@ export default async function handler(req) {
   const attempts = [];
   const tReq = performance.now();
   const trail = () => attempts.join(",") || "none";
+  // Usage ledger (api/_usage.js): one row per attempt, tokens on success.
+  const toolCount = Array.isArray(payload.tools) ? payload.tools.length : 0;
+  const effortSent = (desc) => desc.kind === "messages"
+    ? effortFor(profile, callerEffort)
+    : (payload.reasoning_effort || null);
+  const usageRow = (desc, extra) => ({
+    route: "chat", op: profile, feature, profile, upstream: desc.label, model: desc.model,
+    effort: effortSent(desc), tools: toolCount, attempt: attempts.length, ...extra,
+  });
   for (const desc of order) {
     try {
       const isMessages = desc.kind === "messages";
@@ -647,11 +658,17 @@ export default async function handler(req) {
             category: msg?.stop_details?.category || null,
             attempts: trail(),
           }));
+          await recordUsage(usageRow(desc, {
+            ok: false, status: msg ? "refusal" : "bad_json", stream: false, ttft_ms: r.ttftMs,
+            total_ms: Math.round(performance.now() - r.t0), stop_reason: msg?.stop_reason, ...normUsage(msg?.usage),
+          }));
           last = { status: 502, text: JSON.stringify({ error: "upstream_declined" }), upstream: desc.label };
           lastText = last.text;
           continue;
         }
         translatedText = JSON.stringify(toChatCompletion(msg));
+        r.rawUsage = msg.usage;
+        r.stop = msg.stop_reason;
       }
       // Pass any 2xx through immediately. Streaming responses get their body
       // piped; non-streaming ones get their body read + forwarded as JSON.
@@ -686,7 +703,12 @@ export default async function handler(req) {
           outHeaders.set("Cache-Control", "no-store");
           outHeaders.set("X-Accel-Buffering", "no");  // disable proxy buffering
           outHeaders.set("Server-Timing", `ttft;dur=${r.ttftMs};desc="${desc.label}"`);
-          const streamBody = isMessages ? toChatSse(r.res.body) : r.res.body;
+          const tStream = r.t0;
+          const done = ({ usage, stop, finish, ok = true }) => recordUsage(usageRow(desc, {
+            ok, status: ok ? "ok" : "stream_error", stream: true, ttft_ms: r.ttftMs,
+            total_ms: Math.round(performance.now() - tStream), stop_reason: stop || finish, ...normUsage(usage),
+          }));
+          const streamBody = isMessages ? toChatSse(r.res.body, "", done) : tapOpenAiSse(r.res.body, done);
           return new Response(streamBody, { status: r.status, headers: outHeaders });
         }
         outHeaders.set("Content-Type", "application/json");
@@ -707,6 +729,15 @@ export default async function handler(req) {
           `llm;dur=${llmMs};desc="${desc.label}"`,
         ];
         if (tokOut != null) stParts.push(`tokens-out;dur=0;desc="${tokOut}"`);
+        let rawUsage = r.rawUsage;
+        let stop = r.stop;
+        if (!rawUsage) {
+          try { const p = JSON.parse(text); rawUsage = p?.usage; stop = p?.choices?.[0]?.finish_reason; } catch {}
+        }
+        await recordUsage(usageRow(desc, {
+          ok: true, status: "ok", stream: false, ttft_ms: r.ttftMs, total_ms: llmMs,
+          stop_reason: stop, ...normUsage(rawUsage),
+        }));
         outHeaders.set("Server-Timing", stParts.join(", "));
         return new Response(text, { status: r.status, headers: outHeaders });
       }
@@ -737,6 +768,7 @@ export default async function handler(req) {
       // Only pure client-shape errors (400 bad body, 413 too large, 415 unsupported
       // content type) get returned directly — those would fail identically on
       // every upstream.
+      await recordUsage(usageRow(desc, { ok: false, status: `http_${r.status}`, stream: streamThis, ttft_ms: r.ttftMs }));
       const isFallover = r.status === 429
                       || r.status >= 500
                       || (isMessages && r.status === 400)
@@ -767,6 +799,7 @@ export default async function handler(req) {
         detail: redact(e?.message).slice(0, 140),
         attempts: trail(),
       }));
+      await recordUsage(usageRow(desc, { ok: false, status: timedOut ? "timeout" : "unreachable", stream: wantsStream, total_ms: timedOut ? e.__ms : null }));
       last = { status: 502, text: JSON.stringify({ error: timedOut ? "upstream_timeout" : "upstream_unreachable", detail: redact(e?.message).slice(0, 140) }), upstream: desc.label };
       lastText = last.text;
     }

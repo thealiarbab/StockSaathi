@@ -844,7 +844,7 @@ async function callLLM({ apiKey, system, messages, tools, profile = "fast", reas
   try {
     const res = await fetch(BACKEND_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...(onText ? { "Accept": "text/event-stream" } : {}) },
+      headers: { "Content-Type": "application/json", "X-Saathi-Feature": "coach-agent", ...(onText ? { "Accept": "text/event-stream" } : {}) },
       body: JSON.stringify(body),
       signal,
     });
@@ -1141,7 +1141,7 @@ export async function streamChat({ system, messages, profile = "chat", onToken, 
   try {
     res = await fetch(BACKEND_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Accept": "text/event-stream" },
+      headers: { "Content-Type": "application/json", "Accept": "text/event-stream", "X-Saathi-Feature": "coach-chat" },
       body: JSON.stringify(body),
       signal,
     });

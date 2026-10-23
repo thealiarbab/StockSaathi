@@ -73,6 +73,12 @@ const DEFAULT_EFFORT = {
 const EFFORTS = new Set(["low", "medium", "high", "xhigh", "max"]);
 
 export function effortFor(profile, requested) {
+  // MESSAGES_EFFORT_FORCE (low..max) overrides every lane AND every caller's
+  // own value, so one env var runs an A/B of effort across the whole app;
+  // the usage ledger records the effort each call ran at. Unset to return
+  // to the per-lane / per-op settings.
+  const forced = env().MESSAGES_EFFORT_FORCE;
+  if (EFFORTS.has(forced)) return forced;
   // An explicit effort from a caller wins. The OpenAI-shaped callers send
   // reasoning_effort tuned for the previous upstream, whose scale had a
   // "minimal" this one does not.
@@ -386,7 +392,9 @@ export function toChatCompletion(msg) {
 // Messages SSE -> OpenAI SSE. Translates text deltas, tool_use blocks, and input_json_delta.
 // Maintains contiguous 0-based tool call indexing. Emits terminal chunk with finish_reason
 // on message_stop, never synthesizing a fake stop on dropped or erroring streams.
-export function toChatSse(upstreamBody, id = "") {
+// onDone({ usage, stop, ok }) runs once the stream has ended, before the
+// stream closes, so the usage ledger sees the final token counts.
+export function toChatSse(upstreamBody, id = "", onDone = null) {
   const enc = new TextEncoder();
   const dec = new TextDecoder();
   const chunk = (delta, finish = null) =>
@@ -498,8 +506,11 @@ export function toChatSse(upstreamBody, id = "") {
         buf = buf.slice(i + 2);
       }
     },
-    flush(controller) {
+    async flush(controller) {
       if (buf.trim()) handle(buf, controller);
+      if (onDone) {
+        try { await onDone({ usage: savedUsage, stop: savedStopReason, ok: receivedMessageStop && !hasError }); } catch {}
+      }
       if (hasError) return;
       if (receivedMessageStop) {
         controller.enqueue(enc.encode("data: [DONE]\n\n"));

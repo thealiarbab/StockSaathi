@@ -874,7 +874,7 @@ function pickRandomExample() {
 async function callLlmForBracket(description, signal) {
   const res = await fetch("/api/chat", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "X-Saathi-Feature": "crash-bracket" },
     body: JSON.stringify({
       messages: [
         { role: "system", content: PHASE1_PROMPT },
@@ -1055,7 +1055,7 @@ async function callLlmWithHistory(description, bracket, history, companionHistor
   // parser, which is out of scope for this PR).
   const res = await fetch("/api/chat", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "X-Saathi-Feature": "crash-narrative" },
     body: JSON.stringify({
       messages: [
         { role: "system", content: SYSTEM_PROMPT },

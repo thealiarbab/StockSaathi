@@ -23,7 +23,8 @@
 //   op=command            POST { query, context }         -> { action, response, target?, query?, symbol?, side?, qty? }
 // =============================================================================
 
-import { messagesEnabled, messagesFetch, toMessagesBody, textOf } from "./_messages.js";
+import { messagesEnabled, messagesFetch, toMessagesBody, textOf, effortFor, MESSAGES_MODEL } from "./_messages.js";
+import { recordUsage, normUsage } from "./_usage.js";
 import { liveGeminiModel, isGemini3 } from "./_models.js";
 import { lastSessionIst } from "./_session.js";
 
@@ -100,6 +101,9 @@ async function cacheGet(bucket, cacheKey) {
     if (!res.ok) return null;
     const rows = await res.json();
     if (!Array.isArray(rows) || !rows.length) return null;
+    // A hit is a model call that did not happen: recorded so the dashboard
+    // can show each feature's hit rate next to its spend.
+    await recordUsage({ route: "ai", op: bucket, upstream: "cache", ok: true, status: "cache_hit" });
     return rows[0].payload;
   } catch { return null; }
 }
@@ -154,7 +158,8 @@ function hinglishOf(req) {
 // scale). Each op below picks its own: low where the job is one sentence and
 // latency is what the user feels, medium where numbers and rules have to be
 // respected, high where a wrong answer is the documented failure.
-async function callLlm({ messages, temperature = 0.4, max_tokens = 400, response_format, profile = "reasoning", hinglish = false, effort }) {
+async function callLlm({ messages, temperature = 0.4, max_tokens = 400, response_format, profile = "reasoning", hinglish = false, effort, op = "unknown", feature }) {
+  const usageBase = { route: "ai", op, feature: feature || op, profile, stream: false };
   if (hinglish && messages?.[0]?.role === "system") {
     messages = [{ ...messages[0], content: messages[0].content + HINGLISH_RULE }, ...messages.slice(1)];
   }
@@ -229,21 +234,30 @@ async function callLlm({ messages, temperature = 0.4, max_tokens = 400, response
           { messages, max_tokens, response_format, reasoning_effort: effort },
           { profile },
         );
+        const t0 = performance.now();
+        const mRow = { ...usageBase, upstream: "messages", model: MESSAGES_MODEL(), effort: effortFor(profile, effort) };
         const res = await messagesFetch(body, { signal: ctrl.signal });
         if (!res.ok) {
           lastErr = `messages_http_${res.status}`;
+          await recordUsage({ ...mRow, ok: false, status: `http_${res.status}`, total_ms: Math.round(performance.now() - t0) });
           console.log(JSON.stringify({ evt: "ai_upstream", ok: false, upstream: "messages", status: res.status, body: (await res.text().catch(() => "")).slice(0, 300) }));
           continue;
         }
         const data = await res.json();
+        const text = textOf(data);
+        const good = data?.stop_reason !== "refusal" && !!text.trim();
+        await recordUsage({
+          ...mRow, ok: good, status: data?.stop_reason === "refusal" ? "refusal" : (good ? "ok" : "empty"),
+          total_ms: Math.round(performance.now() - t0), stop_reason: data?.stop_reason, ...normUsage(data?.usage),
+        });
         // A safety decline is HTTP 200 with stop_reason "refusal"; let the
         // next provider try rather than caching an empty answer.
         if (data?.stop_reason === "refusal") { lastErr = "messages_refusal"; continue; }
-        const text = textOf(data);
         if (!text.trim()) { lastErr = "empty"; continue; }
         return text;
       } catch (e) {
         lastErr = ctrl.signal.aborted ? "messages_timeout" : (e?.message || "fetch_failed");
+        await recordUsage({ ...usageBase, upstream: "messages", model: MESSAGES_MODEL(), effort: effortFor(profile, effort), ok: false, status: ctrl.signal.aborted ? "timeout" : "unreachable" });
         continue;
       } finally {
         clearTimeout(killer);
@@ -270,6 +284,8 @@ async function callLlm({ messages, temperature = 0.4, max_tokens = 400, response
       if (isVertex && body.model && !body.model.includes("/")) {
         body.model = `google/${body.model}`;
       }
+      const t0 = performance.now();
+      const gRow = { ...usageBase, upstream: p.label, model: p.model, effort: body.reasoning_effort || null };
       const res = await fetch(p.url, {
         method: "POST",
         headers: {
@@ -281,12 +297,18 @@ async function callLlm({ messages, temperature = 0.4, max_tokens = 400, response
       });
       if (!res.ok) {
         lastErr = `http_${res.status}`;
+        await recordUsage({ ...gRow, ok: false, status: `http_${res.status}`, total_ms: Math.round(performance.now() - t0) });
         console.log(JSON.stringify({ evt: "ai_upstream", ok: false, upstream: p.label, model: p.model, profile, status: res.status, body: (await res.text().catch(() => "")).slice(0, 300) }));
         continue;
       }
       const data = await res.json();
       const text = data?.choices?.[0]?.message?.content;
-      if (typeof text !== "string" || !text.trim()) { lastErr = "empty"; continue; }
+      const gGood = typeof text === "string" && !!text.trim();
+      await recordUsage({
+        ...gRow, ok: gGood, status: gGood ? "ok" : "empty", total_ms: Math.round(performance.now() - t0),
+        stop_reason: data?.choices?.[0]?.finish_reason, ...normUsage(data?.usage),
+      });
+      if (!gGood) { lastErr = "empty"; continue; }
       console.log(JSON.stringify({ evt: "ai_upstream", ok: true, upstream: p.label, model: p.model, profile }));
       return text;
     } catch (e) {
@@ -479,7 +501,7 @@ async function opExplain(req, origin, url) {
     // "Beta measures how much a". Flash-lite is genuinely non-thinking so
     // the whole max_tokens budget reaches the user. max_tokens bumped
     // 120 → 200 as belt-and-braces against future regressions.
-    const text = await callLlm({ hinglish: hinglishOf(req),
+    const text = await callLlm({ op: "explain", hinglish: hinglishOf(req),
       messages: [
         { role: "system", content: SYSTEM_EXPLAIN },
         { role: "user", content: `Explain "${term}" in one sentence.` },
@@ -622,7 +644,7 @@ async function opNewsTldr(req, origin) {
   ].filter(Boolean).join("\n");
 
   try {
-    const text = await callLlm({ hinglish: hinglishOf(req),
+    const text = await callLlm({ op: "news-tldr", hinglish: hinglishOf(req),
       messages: [{ role: "system", content: SYSTEM_NEWS_TLDR }, { role: "user", content: userMsg }],
       max_tokens: 400, temperature: 0.3, response_format: { type: "json_object" }, profile: "json", effort: "low",
     });
@@ -671,7 +693,7 @@ async function opPortfolioDigest(req, origin) {
       : `Holdings:\n${holdings.map(h => `  ${h.symbol} (${h.name}, ${h.sector}) — ${h.qty} units, avg ₹${Number(h.avgRupees).toFixed(2)}, now ₹${Number(h.curRupees).toFixed(2)}, day ${h.dayPct >= 0 ? "+" : ""}${Number(h.dayPct).toFixed(2)}%, P/L ${h.plPct >= 0 ? "+" : ""}${(Number(h.plPct) * 100).toFixed(2)}%`).join("\n")}`,
   ].join("\n");
   try {
-    const text = await callLlm({ hinglish: hinglishOf(req),
+    const text = await callLlm({ op: "portfolio-digest", hinglish: hinglishOf(req),
       messages: [{ role: "system", content: SYSTEM_PORTFOLIO }, { role: "user", content: userMsg }],
       max_tokens: 260, temperature: 0.4, response_format: { type: "json_object" }, profile: "json", effort: "medium",
     });
@@ -725,7 +747,7 @@ async function opStockWhy(req, origin) {
   ].filter(Boolean).join("\n");
 
   try {
-    const text = await callLlm({ hinglish: hinglishOf(req),
+    const text = await callLlm({ op: "stock-why", hinglish: hinglishOf(req),
       messages: [{ role: "system", content: SYSTEM_STOCK_WHY }, { role: "user", content: userMsg }],
       max_tokens: 240, temperature: 0.35, response_format: { type: "json_object" }, profile: "json", effort: "medium",
     });
@@ -764,7 +786,7 @@ async function opTradeNudge(req, origin) {
     pf.sectorAllocPct != null ? `  Current ${body.sector} sector weight: ${Number(pf.sectorAllocPct).toFixed(0)}%` : null,
   ].filter(Boolean).join("\n");
   try {
-    const text = await callLlm({ hinglish: hinglishOf(req),
+    const text = await callLlm({ op: "trade-nudge", hinglish: hinglishOf(req),
       messages: [{ role: "system", content: SYSTEM_TRADE_NUDGE }, { role: "user", content: userMsg }],
       max_tokens: 220, temperature: 0.4, response_format: { type: "json_object" }, profile: "json", effort: "medium",
     });
@@ -837,7 +859,7 @@ async function opMarketMood(req, origin) {
   ].join("\n");
 
   try {
-    const text = await callLlm({ hinglish: hinglishOf(req),
+    const text = await callLlm({ op: "market-mood", hinglish: hinglishOf(req),
       messages: [{ role: "system", content: SYSTEM_MOOD }, { role: "user", content: userMsg }],
       max_tokens: 220, temperature: 0.25, response_format: { type: "json_object" }, profile: "json", effort: "high",
     });
@@ -870,7 +892,7 @@ async function opMarketMood(req, origin) {
       // One stricter retry. Provide the exact list of words to avoid.
       try {
         const retryMsg = userMsg + `\n\nThe previous attempt named these companies that are NOT in the allowed list: ${leaked.join(", ")}. Rewrite the paragraph WITHOUT mentioning any of them. Stick to the allowed tickers only, or just describe sectors generically without specific stocks.`;
-        const retryText = await callLlm({ hinglish: hinglishOf(req),
+        const retryText = await callLlm({ op: "market-mood", hinglish: hinglishOf(req),
           messages: [{ role: "system", content: SYSTEM_MOOD }, { role: "user", content: retryMsg }],
           max_tokens: 220, temperature: 0.15, response_format: { type: "json_object" }, profile: "json", effort: "high",
         });
@@ -913,7 +935,7 @@ async function opMarketSearch(req, origin) {
   const userMsg = `Query: ${query}\n\nCandidates:\n${table}`;
 
   try {
-    const text = await callLlm({
+    const text = await callLlm({ op: "market-search",
       messages: [{ role: "system", content: SYSTEM_NL_SEARCH }, { role: "user", content: userMsg }],
       max_tokens: 400, temperature: 0.2, response_format: { type: "json_object" }, profile: "json", effort: "medium",
     });
@@ -949,7 +971,7 @@ async function opReportCard(req, origin) {
     `Bias flags raised: ${(body.biasFlags || []).length ? (body.biasFlags || []).join(", ") : "none"}`,
   ].join("\n");
   try {
-    const text = await callLlm({ hinglish: hinglishOf(req),
+    const text = await callLlm({ op: "report-card", hinglish: hinglishOf(req),
       messages: [{ role: "system", content: SYSTEM_REPORT }, { role: "user", content: userMsg }],
       max_tokens: 360, temperature: 0.45, response_format: { type: "json_object" }, profile: "json", effort: "medium",
     });
@@ -991,7 +1013,7 @@ async function opCrashSuggestions(req, origin) {
   const hit = await cacheGet("crash_sugg_v2", key);
   if (hit?.suggestions?.length) return j(200, { ...hit, source: "cache" }, origin, false);
   try {
-    const text = await callLlm({
+    const text = await callLlm({ op: "crash-suggestions",
       messages: [{ role: "system", content: SYSTEM_CRASH_SUGG }, { role: "user", content: "Generate 10 suggestions." }],
       max_tokens: 300, temperature: 0.8, response_format: { type: "json_object" }, profile: "json", effort: "low",
     });
@@ -1477,7 +1499,7 @@ async function opCommand(req, origin) {
   const context = String(body.context || "").slice(0, 200);
   const userMsg = context ? `Current page: ${context}\nCommand: ${query}` : `Command: ${query}`;
   try {
-    const text = await callLlm({
+    const text = await callLlm({ op: "command",
       messages: [{ role: "system", content: SYSTEM_COMMAND }, { role: "user", content: userMsg }],
       max_tokens: 400, temperature: 0.2, response_format: { type: "json_object" }, profile: "json", effort: "medium",
     });
@@ -1547,6 +1569,7 @@ export default async function handler(req) {
       case "admin-activity-feed": return await opAdminActivityFeed(req, origin, url);
       case "admin-ai-cache":      return await opAdminAiCache(req, origin, url);
       case "admin-quote-cache":   return await opAdminQuoteCache(req, origin);
+      case "admin-llm-usage":     return await opAdminLlmUsage(req, origin, url);
       case "admin-dhan-coverage": return await opAdminDhanCoverage(req, origin);
       case "admin-audit-log":     return await opAdminAuditLog(req, origin, url);
       case "admin-user-reset":    return await opAdminUserReset(req, origin);
@@ -2033,6 +2056,25 @@ async function opAdminQuoteCache(req, origin) {
       staleMs: row.cached_at_ms ? now - Number(row.cached_at_ms) : null,
     }));
     return j(200, { rows: annotated, count: rows.length }, origin);
+  } catch (e) {
+    return j(502, { error: "query_failed", detail: String(e.message).slice(0, 120) }, origin);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// op: admin-llm-usage — the AI cost tab (public.admin_llm_usage, migration 2026-10-23a)
+// -----------------------------------------------------------------------------
+async function opAdminLlmUsage(req, origin, url) {
+  const gate = checkAdmin(req);
+  if (!gate.ok) return j(401, { error: gate.reason }, origin);
+  const days = Math.min(90, Math.max(1, parseInt(url.searchParams.get("days") || "7", 10) || 7));
+  try {
+    const r = await sbAdminFetch(`/rest/v1/rpc/admin_llm_usage`, {
+      method: "POST",
+      body: JSON.stringify({ p_since: new Date(Date.now() - days * 86400000).toISOString(), p_until: new Date(Date.now() + 60000).toISOString() }),
+    });
+    if (!r.ok) return j(502, { error: "query_failed", detail: (await r.text()).slice(0, 200) }, origin);
+    return j(200, await r.json(), origin);
   } catch (e) {
     return j(502, { error: "query_failed", detail: String(e.message).slice(0, 120) }, origin);
   }

@@ -26,6 +26,7 @@
 import { formatRupees } from "../money.js";
 import { xyChart } from "./adminCharts.js";
 import { renderSignupsTab } from "./adminSignups.js";
+import { renderAiCostTab } from "./adminAiCost.js";
 import { renderBehaviourTab, renderJourney } from "./adminBehaviour.js";
 import { toast } from "../components/toast.js";
 import { mountThemedSelect } from "../components/themedSelect.js";
@@ -218,6 +219,7 @@ function renderTabbedShell(main) {
     { id: "database", label: "Database" },
     { id: "auth",     label: "Auth" },
     { id: "markets",  label: "Markets" },
+    { id: "aicost",   label: "AI cost" },
     { id: "deploy",   label: "Deploy" },
     { id: "repo",     label: "Repo" },
     { id: "audit",    label: "Audit" },
@@ -283,6 +285,7 @@ function renderTabBody(main) {
     case "database": return renderDatabaseTab(host, main);
     case "auth":     return renderAuthTab(host, main);
     case "markets":  return renderMarketsTab(host, main);
+    case "aicost":   return renderAiCostTab(host, { adminGet });
     case "deploy":   return renderDeployTab(host, main);
     case "repo":     return renderRepoTab(host, main);
     case "audit":    return renderAuditTab(host, main);
