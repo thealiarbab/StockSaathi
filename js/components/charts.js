@@ -31,6 +31,14 @@ function pad(n) {
   return Math.max(0, Math.min(1, n));
 }
 
+function formatChartTime(tms) {
+  const date = new Date(tms);
+  const options = { hour: "2-digit", minute: "2-digit", hourCycle: "h23" };
+  const ist = date.toLocaleTimeString("en-IN", { ...options, timeZone: "Asia/Kolkata" });
+  const regional = date.toLocaleTimeString("en-IN", options);
+  return `${ist} IST${regional === ist ? "" : ` (${regional})`}`;
+}
+
 function buildPath(values, width, height, { min, max, paddingTop = 6, paddingBottom = 6 } = {}) {
   if (!values.length) return "";
   const range = max - min || 1;
@@ -351,7 +359,7 @@ export function stockChart(ohlc, {
 
   // X-axis ticks.
   let xLabels = "";
-  const fmtTime = (tms) => new Date(tms).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" });
+  const fmtTime = formatChartTime;
   const fmtDate = (tms) => new Date(tms).toLocaleDateString("en-IN", { day: "2-digit", month: "short", timeZone: "Asia/Kolkata" });
   if (useTimeAxis) {
     // Five fixed wall-clock ticks across the trading day. The 09:15 →
@@ -367,7 +375,7 @@ export function stockChart(ohlc, {
       // "02:29 pm, 03:29 pm" (the window ends on the last minute bar) and a
       // zoomed window split in quarters read "10:47 am".
       const IST = 330 * 60 * 1000, MIN = 60 * 1000;
-      const fit = Math.max(2, Math.floor(plotW / 70));
+      const fit = Math.max(2, Math.floor(plotW / 110));
       const steps = [1, 2, 5, 10, 15, 30, 60, 120, 180];
       let shown = [];
       for (const m of steps) {
@@ -789,9 +797,9 @@ export function attachStockChartHover(container, ohlc, {
     const isIntraday = totalSpan > 0 && totalSpan < 3 * 86400000;
     const intradayBars = !useTimeAxis && N > 1 && (ohlc[N - 1].t - ohlc[0].t) / (N - 1) < 86400000 / 2;
     const cursorTimeStr = isIntraday
-      ? cursorDate.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" })
+      ? formatChartTime(cursorDate.getTime())
       : cursorDate.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric" })
-        + (intradayBars ? ", " + cursorDate.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" }) : "");
+        + (intradayBars ? ", " + formatChartTime(cursorDate.getTime()) : "");
     const cursorDateStr = isIntraday
       ? cursorDate.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short" })
       : "";
@@ -810,7 +818,7 @@ export function attachStockChartHover(container, ohlc, {
     //   Row 5: Volume of the nearest candle
     //   No-data state: rows 2–5 collapse to "(no candle yet)".
     const headerRow = isIntraday
-      ? `<span style="color:var(--text-dim)">${cursorTimeStr} IST · ${cursorDateStr}</span>`
+      ? `<span style="color:var(--text-dim)">${cursorTimeStr} · ${cursorDateStr}</span>`
       : `<span style="color:var(--text-dim)">${cursorTimeStr}</span>`;
     let tipLines;
     if (tooltipRows) {
