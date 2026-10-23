@@ -287,12 +287,24 @@ export function toMessagesBody(payload, { profile, stream }) {
   // Prompt caching matches the request from the very start (tools, system,
   // then messages). Everything from "# RUNTIME FACTS" on (clock, portfolio,
   // news, per-turn notes) changes every turn, so it rides on the end of the
-  // latest user turn instead of the system prompt. Breakpoint 1 caches the
-  // fixed rules; breakpoint 2 caches the conversation up to this turn, so a
-  // long chat pays full price only for what is new.
+  // student's latest question instead of the system prompt. Breakpoint 1
+  // caches the fixed rules; breakpoint 2 caches the conversation up to this
+  // turn, so a long chat pays full price only for what is new.
+  //
+  // The question, not simply the last user turn: inside a tool loop the last
+  // user turn is a tool result, and the thinking blocks replayed from the
+  // previous step are bound to the exact prefix they were made in. Moving the
+  // facts to a different message changes that prefix and the API rejects the
+  // block ("bound to a different conversation").
   if (system) {
     const at = system.indexOf("\n\n# RUNTIME FACTS");
-    const lastUser = out.length && out[out.length - 1].role === "user" ? out[out.length - 1] : null;
+    let lastUser = null;
+    for (let i = out.length - 1; i >= 0 && !lastUser; i--) {
+      const m = out[i];
+      if (m.role !== "user") continue;
+      const asked = typeof m.content === "string" || m.content.some((b) => b?.type !== "tool_result");
+      if (asked) lastUser = m;
+    }
     if (at > 0 && lastUser) {
       body.system = [{ type: "text", text: system.slice(0, at), cache_control: { type: "ephemeral" } }];
       const content = typeof lastUser.content === "string"
