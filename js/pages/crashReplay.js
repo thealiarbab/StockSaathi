@@ -155,7 +155,7 @@ function playTimeMachine(main, scenario) {
   const closes = frames.map(f => f.nifty);
   const c0 = closes[0];
   const when = (i) => dates ? fmtDate(dates[i]) : `Day ${frames[i].day}`;
-  const level = (v) => Number(v).toLocaleString("en-IN", { maximumFractionDigits: v < 1000 ? 2 : 0 });
+  const level = (v) => Number(v).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const rupee = (v) => "₹" + Math.round(v).toLocaleString("en-IN");
   const pct = (v) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(1)}%`;
   const soldIdx = Math.max(0, frames.findIndex(f => f.day >= 3));
@@ -494,7 +494,7 @@ function renderSelector(main) {
         const dStr = i === 0 ? "" : `<span class="${dCls}">${delta >= 0 ? "+" : ""}${delta.toFixed(2)}%</span>`;
         appendGenFeedRow(main,
           `<span class="day">D${i}</span>` +
-          `<span class="px">₹${Number(c).toLocaleString("en-IN", { maximumFractionDigits: c < 1000 ? 2 : 0 })}</span>` +
+          `<span class="px">₹${Number(c).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>` +
           dStr
         );
         prevClose = c;
