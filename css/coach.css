@@ -883,3 +883,37 @@ body.chat-app { overflow: hidden; }
 .cc-modal-input { width: 100%; box-sizing: border-box; font: inherit; font-size: var(--text-md); padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--text-strong); margin: 4px 0 12px; }
 .cc-modal-input:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 18%, transparent); }
 .cc-modal-area { resize: vertical; min-height: 110px; line-height: 1.5; }
+
+/* Coach pop-up = the /chat view in a narrow box (coachPanel.js draws it with
+   chat.js). Same markup and styles; the chat list is the slide-out drawer it
+   is on phones, and nothing is pinned to the screen. */
+#coach-root .coach-embed { position: relative; flex: 1 1 auto; min-height: 0; height: 100%; overflow: hidden; }
+#coach-root .coach-embed-close {
+  position: absolute; top: 8px; right: 8px; z-index: 220;
+  width: 32px; height: 32px; border-radius: 8px; border: 0;
+  background: transparent; color: var(--text-muted); font-size: 16px; cursor: pointer;
+}
+#coach-root .coach-embed-close:hover { background: var(--bg-soft); color: var(--text-strong); }
+#coach-root .coach-embed .cc.cc-has-side { position: absolute; inset: 0; display: block; height: auto; max-width: none; margin: 0; }
+#coach-root .coach-embed .cc-main { height: 100%; min-height: 0; }
+#coach-root .coach-embed .cc-has-side .cc-head { padding: 8px 48px 8px 12px; gap: 10px; border-bottom: 1px solid var(--divider); }
+#coach-root .coach-embed .cc-menu-btn { display: inline-flex; flex: 0 0 auto; }
+#coach-root .coach-embed .cc-head-new { display: inline-grid; place-items: center; flex: 0 0 auto; width: 36px; padding: 0; font-size: 20px; }
+#coach-root .coach-embed .cc-has-side .cc-avatar-lg { display: none; }
+#coach-root .coach-embed .cc-side {
+  position: absolute; top: 0; left: 0; bottom: 0; z-index: 210;
+  width: min(300px, 86%); height: auto; max-height: none;
+  border-right: 1px solid var(--divider); background: var(--bg);
+  transform: translateX(-104%); transition: transform var(--dur-2) var(--ease); box-shadow: var(--sh-lg);
+}
+#coach-root .coach-embed .cc-side-close { display: inline-grid; place-items: center; }
+#coach-root .coach-embed .is-drawer-open .cc-side { transform: none; }
+#coach-root .coach-embed .cc-scrim {
+  display: block; position: absolute; inset: 0; z-index: 205; border: 0; padding: 0;
+  background: rgba(0, 0, 0, 0.5); opacity: 0; pointer-events: none; transition: opacity var(--dur-2) ease;
+}
+#coach-root .coach-embed .is-drawer-open .cc-scrim { opacity: 1; pointer-events: auto; }
+#coach-root .coach-embed .cc-panel.chat-card { height: auto; min-height: 0; }
+#coach-root .coach-embed .cc-messages.chat-messages { padding: 12px 14px 16px; }
+#coach-root .coach-embed .cc-foot { display: none; }
+#coach-root .coach-embed .cc-item-more, #coach-root .coach-embed .cc-act { opacity: 1; }

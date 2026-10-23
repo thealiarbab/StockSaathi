@@ -156,7 +156,7 @@ window.addEventListener("ss:coach-sync", () => {
     chatLog = getActiveSession(sessionsData).messages;
     const repaint = () => {
       if (!document.getElementById("chat-messages")) return;
-      const main = document.getElementById("main");
+      const main = chatHost();
       if (main) renderChat(main);
     };
     if (isPreview()) {
@@ -194,10 +194,22 @@ function replyFor(text) {
   });
 }
 
-export function renderChat(main) {
-  // App-style page: no site footer, only the messages scroll.
-  main.classList.add("main-chat");
-  document.body.classList.add("chat-app");
+// The element the chat is drawn into: <main> on /chat, or the coach pop-up's
+// box, which shows this same view (coachPanel.js).
+let _host = null;
+function chatHost() {
+  return (_host && _host.isConnected) ? _host : document.getElementById("main");
+}
+
+export function renderChat(main, opts = {}) {
+  _host = main;
+  const embedded = !!opts.embedded;
+  // App-style page: no site footer, only the messages scroll. Not when
+  // drawn inside the coach pop-up: the page underneath stays as it is.
+  if (!embedded) {
+    main.classList.add("main-chat");
+    document.body.classList.add("chat-app");
+  }
   let updateDraft = null;
   try {
     const rawDraft = sessionStorage.getItem("ss.sw-update-chat-draft.v1");
@@ -217,8 +229,10 @@ export function renderChat(main) {
     window.removeEventListener("ss:navigate", leaveChat);
     window.removeEventListener("popstate", leaveChat);
   };
-  window.addEventListener("ss:navigate", () => setTimeout(leaveChat, 0));
-  window.addEventListener("popstate", () => setTimeout(leaveChat, 0));
+  if (!embedded) {
+    window.addEventListener("ss:navigate", () => setTimeout(leaveChat, 0));
+    window.addEventListener("popstate", () => setTimeout(leaveChat, 0));
+  }
   render();
 
   // Cross-tab sync: when the storage event handler (see module scope) pulls
@@ -1574,7 +1588,7 @@ async function sendAndReply(userText) {
   // Manually toggle the form DOM so the input disables + Send becomes Stop
   // without a full re-render (a full re-render would re-attach listeners
   // and move focus, disrupting the user's typing rhythm).
-  const outer = document.getElementById("main");
+  const outer = chatHost();
   const input = outer?.querySelector("#chat-input");
   const sendBtn = outer?.querySelector("#chat-send");
   const shell = outer?.querySelector(".composer-shell");
@@ -1634,7 +1648,7 @@ async function sendAndReply(userText) {
     // Re-read from the DOM rather than trusting the captured refs: a
     // re-render between send and completion replaces these nodes, and a
     // stale ref here is how the composer ends up stuck on "thinking".
-    const el = document.getElementById("main");
+    const el = chatHost();
     const shellNow = el?.querySelector(".composer-shell");
     shellNow?.classList.remove("is-busy");
     shellNow?.querySelector(".composer-dots")?.remove();
@@ -1993,7 +2007,7 @@ You already offered to look this up and the user already asked. Do NOT ask again
     // In-place bubble update — only touch the streaming message, not
     // the whole chat list. This is 10-50× cheaper than the full
     // reRenderOuter and is what makes the reveal feel buttery.
-    const outerEl = document.getElementById("main");
+    const outerEl = chatHost();
     const streamBubble = outerEl?.querySelector('#chat-messages [data-streaming="1"] .msg-body');
     if (streamBubble) {
       streamBubble.innerHTML = renderMarkdown(hideChartMarkers(displayedText));

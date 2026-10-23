@@ -40,7 +40,7 @@ let newsSnap = [];
 let root;
 
 // Routes where the coach panel is completely hidden
-const COACH_HIDDEN_ROUTES = new Set(["", "/", "/login", "/register"]);
+const COACH_HIDDEN_ROUTES = new Set(["", "/", "/login", "/register", "/chat"]);
 
 function isCoachAllowed() {
   const state = getState();
@@ -327,6 +327,23 @@ function render() {
   const state = getState();
   if (!state.settings.coachPanelOpen && !pending) { _staleWhileClosed = true; return; }
   _staleWhileClosed = false;
+  // The pop-up shows the /chat view itself (same chats, sidebar, composer,
+  // commands), drawn by chat.js into this box. Drawn once per opening and
+  // after any page change (visiting /chat points chat.js back at <main>);
+  // chat.js re-renders itself in between.
+  if (!root.querySelector("#coach-embed") || root.dataset.embedPath !== location.pathname) {
+    root.dataset.embedPath = location.pathname;
+    root.innerHTML = `
+      <button class="coach-embed-close" id="coach-close-btn" type="button" aria-label="Close coach">✕</button>
+      <div class="coach-embed" id="coach-embed"></div>`;
+    root.querySelector("#coach-close-btn").addEventListener("click", () => setSetting("coachPanelOpen", false));
+    Promise.all([import("../pages/chat.js"), import("../features/styles.js").then(st => st.ensureCoachStyles())]).then(([m]) => {
+      const box = root.querySelector("#coach-embed");
+      if (box) m.renderChat(box, { embedded: true });
+    }).catch(e => console.warn("[coach] embed failed", e));
+  }
+  return;
+  // eslint-disable-next-line no-unreachable
   const messages = renderMessagesHtml(state);
   const usingLLM = !!state.settings.llmApiKey;
 
