@@ -62,7 +62,7 @@ function ask(o) {
           <div class="modal-head"><div><h2 id="pa-title">Get a ping when it fills?</h2></div></div>
           <div class="modal-body">
             <p style="margin:0 0 var(--sp-2);">${bodyFor(o)}</p>
-            <p class="muted text-sm" style="margin:0;">Only your orders and account. Nothing between 10 pm and 7 am. Change it any time in Settings.</p>
+            <p class="muted text-sm" style="margin:0;">Your orders, a one-line recap after the market closes, and account notes. Nothing between 10 pm and 7 am. Change it any time in Settings.</p>
           </div>
           <div class="modal-foot">
             <button class="btn btn-outline" data-pa="no">Not now</button>
@@ -89,7 +89,7 @@ function ask(o) {
       e.currentTarget.disabled = true;
       e.currentTarget.textContent = "Turning on…";
       let st;
-      try { st = await enablePush(["orders", "account"]); } catch (err) {
+      try { st = await enablePush(["orders", "account", "recap"]); } catch (err) {
         toast({ kind: "error", message: `Couldn't turn on alerts: ${err?.message || err}` });
         return done("error");
       }

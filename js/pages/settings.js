@@ -73,7 +73,7 @@ export function renderSettings(main) {
     wireNav(sections);
 
     const notifBox = main.querySelector("#notif-settings");
-    if (notifBox) { drawNotifSettings(notifBox); drawOrderEmailRow(notifBox); }
+    if (notifBox) { drawNotifSettings(notifBox); drawEmailRows(notifBox); }
 
     // Appearance
     main.querySelectorAll("[data-theme]").forEach((b) => b.addEventListener("click", () => {
@@ -578,34 +578,45 @@ async function drawNotifSettings(box) {
   }));
 }
 
-// Order emails (handlers/fill-email.py): sent only when push didn't reach the
-// user, so this switch stays on the page whatever the device can do.
-async function drawOrderEmailRow(box) {
-  let client, on = true;
+// Emails, per account rather than per device, so these switches stay on the
+// page whatever this device can do. Order emails (handlers/fill-email.py) go
+// only when push didn't reach the user; the weekly report
+// (handlers/weekly-report.py) goes on Sunday morning.
+const EMAIL_ROWS = [
+  { col: "order_emails", title: "Email me when an order fills", desc: "Only when alerts on this device didn't already tell you.", name: "Order emails" },
+  { col: "recap_emails", title: "Weekly report by email", desc: "Sunday morning: your week, your best and worst stock, and your report card.", name: "Weekly emails" },
+];
+async function drawEmailRows(box) {
+  let client, prof = {};
   try {
     client = await (await import("../db/supabase.js")).sb();
-    const { data } = await client.from("profiles").select("order_emails").maybeSingle();
-    if (data && data.order_emails === false) on = false;
+    const { data } = await client.from("profiles").select(EMAIL_ROWS.map((r) => r.col).join(",")).maybeSingle();
+    prof = data || {};
   } catch {}
   if (!box.isConnected || !client) return;
-  const row = document.createElement("div");
-  row.className = "settings-row";
-  row.innerHTML = `
-    <div class="label-wrap"><div class="title">Email me when an order fills</div><div class="desc">Only when alerts on this device didn't already tell you.</div></div>
-    <label class="switch"><input type="checkbox" id="order-email-toggle" ${on ? "checked" : ""} /><span class="slider"></span></label>`;
-  box.after(row);
-  row.querySelector("input").addEventListener("change", async (e) => {
-    const v = e.target.checked;
-    e.target.disabled = true;
-    try {
-      const uid = (await client.auth.getSession()).data.session?.user?.id;
-      const { error } = await client.from("profiles").update({ order_emails: v }).eq("id", uid);
-      if (error) throw error;
-      toast({ kind: "success", message: v ? "Order emails on." : "Order emails off." });
-    } catch (err) {
-      e.target.checked = !v;
-      toast({ kind: "error", message: `Couldn't save: ${err?.message || err}` });
-    }
-    e.target.disabled = false;
-  });
+  let prev = box;
+  for (const r of EMAIL_ROWS) {
+    const row = document.createElement("div");
+    row.className = "settings-row";
+    row.innerHTML = `
+      <div class="label-wrap"><div class="title">${r.title}</div><div class="desc">${r.desc}</div></div>
+      <label class="switch"><input type="checkbox" ${prof[r.col] === false ? "" : "checked"} /><span class="slider"></span></label>`;
+    prev.after(row);
+    prev = row;
+    row.querySelector("input").addEventListener("change", (e) => saveEmailPref(client, r, e.target));
+  }
+}
+async function saveEmailPref(client, r, input) {
+  const v = input.checked;
+  input.disabled = true;
+  try {
+    const uid = (await client.auth.getSession()).data.session?.user?.id;
+    const { error } = await client.from("profiles").update({ [r.col]: v }).eq("id", uid);
+    if (error) throw error;
+    toast({ kind: "success", message: `${r.name} ${v ? "on" : "off"}.` });
+  } catch (err) {
+    input.checked = !v;
+    toast({ kind: "error", message: `Couldn't save: ${err?.message || err}` });
+  }
+  input.disabled = false;
 }
