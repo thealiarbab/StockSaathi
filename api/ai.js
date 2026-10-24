@@ -3144,8 +3144,10 @@ async function opAdminBehaviour(req, origin, url) {
   const gate = checkAdmin(req);
   if (!gate.ok) return j(401, { error: gate.reason }, origin);
   const days = Math.max(1, Math.min(90, parseInt(url.searchParams.get("days") || "7", 10) || 7));
-  const res = await sbAdminFetch(`/rest/v1/rpc/admin_behaviour_stats`, { method: "POST", body: JSON.stringify({ p_days: days }) });
-  if (!res.ok) return j(502, { error: "query_failed", detail: `admin_behaviour_stats ${res.status}` }, origin);
+  // Stored result refreshed by pg_cron (behaviour-cache) + a live panel. The
+  // full pass over web_events takes 30-60 s, too long for a page load.
+  const res = await sbAdminFetch(`/rest/v1/rpc/admin_behaviour_cached`, { method: "POST", body: JSON.stringify({ p_days: days }) });
+  if (!res.ok) return j(502, { error: "query_failed", detail: `admin_behaviour_cached ${res.status}` }, origin);
   return j(200, await res.json(), origin);
 }
 

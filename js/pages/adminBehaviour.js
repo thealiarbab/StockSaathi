@@ -10,6 +10,8 @@
 import { xyChart, barList, escapeHtml, fmtInt } from "./adminCharts.js";
 
 const PREF_KEY = "ss.adminBehaviourPrefs.v1";
+// How often pg_cron (behaviour-cache) recalculates each range.
+const REFRESH = { 1: "every 10 min", 7: "every 30 min", 30: "daily", 90: "daily" };
 const RELOAD_MS = 60_000;
 const C = { brand: "var(--brand)", blue: "#4C8DF6", avg: "#F2994A", purple: "#9B6CF0", red: "#EB5757" };
 
@@ -78,10 +80,15 @@ function paint() {
   const ranges = [[1, "24 hours"], [7, "7 days"], [30, "30 days"], [90, "90 days"]];
   const head = `<div class="bh-top">
     <div class="sg-seg bh-seg" id="bh-days">${ranges.map(([v, l]) => `<button data-v="${v}" class="${st.prefs.days === v ? "on" : ""}">${l}</button>`).join("")}</div>
-    <span class="dim text-xs">${st.loading ? "loading…" : st.at ? `updated ${new Date(st.at).toLocaleTimeString("en-IN")} · every 60 s` : ""}</span>
+    <span class="dim text-xs">${st.loading ? "loading…" : st.at ? `${d?.asOf ? `figures from ${new Date(d.asOf).toLocaleTimeString("en-IN")} (recalculated ${REFRESH[d.days] || "regularly"}) · ` : ""}live panel ${new Date(st.at).toLocaleTimeString("en-IN")}, every 60 s` : ""}</span>
   </div>`;
   if (!d) {
     host.innerHTML = `<div class="bh-root">${head}<div class="card">${st.error ? `<span style="color:var(--negative)">${e(st.error)}</span>` : "Loading…"}</div></div>`;
+    wire();
+    return;
+  }
+  if (d.pending) {
+    host.innerHTML = `<div class="bh-root">${head}<div class="card">These figures are being calculated for the first time in the background (a job runs every 10 minutes). Check back in a few minutes.</div></div>`;
     wire();
     return;
   }
