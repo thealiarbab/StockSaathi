@@ -3,6 +3,10 @@
 -- into one CTE and re-read it ~100 times with 2 MB of work_mem — 24 times
 -- for the hourly chart alone, once per error type for the browser list.
 --
+-- work_mem stays at the default. A first version set 32 MB on the function;
+-- with ~40 sort/hash nodes in one statement that is over 1 GB, and the first
+-- background run restarted Postgres (24 Oct 17:41 IST).
+--
 -- Same output, built differently:
 --   w   — materialised, without props (the bulky column), for the wide stats.
 --   wp  — NOT MATERIALIZED, so each section's kind filter reaches the
@@ -11,7 +15,6 @@
 create or replace function public.admin_behaviour_stats(p_days integer default 7)
 returns jsonb language sql stable security definer
 set search_path = public
-set work_mem = '32MB'
 as $$
 with prm as (select greatest(1, least(coalesce(p_days, 7), 90)) as d),
 w as materialized (
@@ -197,30 +200,32 @@ create table if not exists public.admin_behaviour_cache (
 alter table public.admin_behaviour_cache enable row level security;
 revoke all on table public.admin_behaviour_cache from anon, authenticated;
 
--- Refreshes every range that is due: 24 h every 10 min, 7 days every 30 min,
--- 30 and 90 days daily. p_force recomputes all four.
+-- Refreshes the single most overdue range per run (24 h due every 10 min,
+-- 7 days every 30 min, 30 and 90 days daily), so a run never holds more than
+-- one full pass. p_force picks the stalest range even if not yet due.
 create or replace function public.refresh_admin_behaviour(p_force boolean default false)
 returns integer language plpgsql security definer
 set search_path = public
 as $$
-declare d integer; t0 timestamptz; j jsonb; n integer := 0;
+declare d integer; t0 timestamptz; j jsonb;
 begin
   if not pg_try_advisory_xact_lock(hashtext('refresh_admin_behaviour')) then return -1; end if;
-  foreach d in array array[1, 7, 30, 90] loop
-    if p_force or not exists (
-         select 1 from admin_behaviour_cache c where c.days = d
-            and c.computed_at > clock_timestamp() - case d when 1 then interval '9 minutes'
-                                                          when 7 then interval '29 minutes'
-                                                          else interval '23 hours' end) then
-      t0 := clock_timestamp();
-      j := admin_behaviour_stats(d);
-      insert into admin_behaviour_cache (days, data, computed_at, ms)
-      values (d, j, t0, round(extract(epoch from clock_timestamp() - t0) * 1000))
-      on conflict (days) do update set data = excluded.data, computed_at = excluded.computed_at, ms = excluded.ms;
-      n := n + 1;
-    end if;
-  end loop;
-  return n;
+  select r.d into d
+    from unnest(array[1, 7, 30, 90]) as r(d)
+    left join admin_behaviour_cache c on c.days = r.d
+   where p_force or c.days is null
+      or c.computed_at < clock_timestamp() - case r.d when 1 then interval '9 minutes'
+                                                    when 7 then interval '29 minutes'
+                                                    else interval '23 hours' end
+   order by c.computed_at nulls first, r.d
+   limit 1;
+  if d is null then return 0; end if;
+  t0 := clock_timestamp();
+  j := admin_behaviour_stats(d);
+  insert into admin_behaviour_cache (days, data, computed_at, ms)
+  values (d, j, t0, round(extract(epoch from clock_timestamp() - t0) * 1000))
+  on conflict (days) do update set data = excluded.data, computed_at = excluded.computed_at, ms = excluded.ms;
+  return d;
 end $$;
 
 -- Live panel from the last 30 minutes (last page looked up within 6 hours).

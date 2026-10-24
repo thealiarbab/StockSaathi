@@ -10,5 +10,8 @@ export const PAGE_TITLES = {
   "/chat": "Ask Saathi: Free AI Stock Market Coach for Beginners | StockSaathi",
   "/news": "Indian Stock Market News with Sentiment | StockSaathi",
   "/learn-stock-market": "How to Learn the Stock Market as a Teenager in India",
-  "/for-students": "Stock Market Game for School Students in India | StockSaathi"
+  "/for-students": "Stock Market Game for School Students in India | StockSaathi",
+  "/privacy": "Privacy Policy | StockSaathi",
+  "/terms": "Terms of Use | StockSaathi",
+  "/grievance": "Grievance Officer | StockSaathi"
 };

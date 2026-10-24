@@ -1,128 +1,227 @@
 <!DOCTYPE html>
-<html lang="en-IN">
+<html lang="en-IN" data-theme="light">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<meta name="google-adsense-account" content="ca-pub-6383385864830785" />
-<meta name="theme-color" content="#0A0B0F" />
-<meta name="color-scheme" content="dark" />
-<title>Terms of Use &middot; StockSaathi</title>
-<meta name="description" content="StockSaathi Terms of Use — educational paper-trading simulator. No real securities, no real money, not investment advice. Read before using the service." />
-<meta name="robots" content="index,follow" />
-<meta name="author" content="Ali Arbab" />
-<link rel="canonical" href="https://stocksaathi.co.in/terms" />
-<link rel="alternate" hreflang="en-IN" href="https://stocksaathi.co.in/terms" />
-<meta property="og:type" content="website" />
-<meta property="og:title" content="Terms of Use &middot; StockSaathi" />
-<meta property="og:description" content="StockSaathi Terms of Use. Paper trading only, no real money, SEBI-disclaimed educational platform under Indian law." />
-<meta property="og:url" content="https://stocksaathi.co.in/terms" />
-<meta property="og:image" content="https://stocksaathi.co.in/og-image.svg" />
-<meta property="og:site_name" content="StockSaathi" />
-<meta property="og:locale" content="en_IN" />
-<meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="Terms of Use &middot; StockSaathi" />
-<meta name="twitter:description" content="Paper trading terms. Virtual money only, SEBI-disclaimed, Indian jurisdiction." />
-<meta name="twitter:image" content="https://stocksaathi.co.in/og-image.svg" />
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2300B386'/%3E%3Cpath d='M16 40 L26 28 L34 36 L48 20' stroke='white' stroke-width='4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='48' cy='20' r='3' fill='white'/%3E%3C/svg%3E" />
-<style>
-*,*::before,*::after{box-sizing:border-box}
-html,body{margin:0;padding:0;background:#0A0B0F;color:#E6E8EB;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;line-height:1.6;-webkit-font-smoothing:antialiased}
-a{color:#22C55E;text-decoration:none}
-a:hover{text-decoration:underline}
-.skip-link{position:absolute;left:-9999px}.skip-link:focus{left:1rem;top:1rem;background:#22C55E;color:#0A0B0F;padding:.5rem 1rem;border-radius:6px;z-index:100}
-header.nav{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;border-bottom:1px solid #1F2229;background:#0E1014;position:sticky;top:0;z-index:10}
-.wordmark{font-weight:800;font-size:1.15rem;letter-spacing:-.01em;color:#E6E8EB;display:inline-flex;align-items:center;gap:.5rem}
-.wordmark .dot{width:10px;height:10px;border-radius:3px;background:#22C55E}
-.nav-links{display:flex;gap:1rem;font-size:.9rem;flex-wrap:wrap}
-.nav-links a{color:#A6ACB7;display:inline-block;padding:12px 4px}
-main{max-width:720px;margin:0 auto;padding:2rem 1.25rem 4rem}
-h1{font-size:2rem;line-height:1.2;margin:.5rem 0 .25rem;color:#fff;letter-spacing:-.02em}
-h2{font-size:1.15rem;margin:1.75rem 0 .5rem;color:#fff;letter-spacing:-.01em}
-.muted{color:#A6ACB7;font-size:.9rem;margin:0 0 2rem}
-.lede{background:#13161C;border:1px solid #1F2229;border-radius:10px;padding:1rem 1.15rem;margin:0 0 1.5rem;font-size:.95rem}
-section{border-top:1px solid #1F2229;padding-top:1rem;margin-top:1.25rem}
-section:first-of-type{border-top:none;padding-top:0;margin-top:0}
-p{margin:.5rem 0}
-ul{padding-left:1.25rem;margin:.5rem 0}
-li{margin:.25rem 0}
-strong{color:#fff}
-footer{border-top:1px solid #1F2229;padding:1.5rem 1.25rem;color:#7A8189;font-size:.8rem;text-align:center;line-height:1.6}
-footer nav{margin-top:.5rem;display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap}
-footer nav a{color:#A6ACB7;display:inline-block;padding:12px 4px}
-@media (max-width:480px){h1{font-size:1.6rem}main{padding:1.5rem 1rem 3rem}.nav-links{font-size:.82rem;gap:.6rem}}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5" />
+  <meta name="google-adsense-account" content="ca-pub-6383385864830785" />
+  <meta name="theme-color" content="#00B386" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0A0B0F" media="(prefers-color-scheme: dark)" />
+  <meta name="color-scheme" content="light dark" />
+
+  <!-- defer keeps order: the beforeSend filter in va.js is queued before insights loads. -->
+  <script defer src="/js/va.js"></script>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script defer src="/js/ga.js"></script>
+  <!-- meta:start -->
+  <title>Terms of Use | StockSaathi</title>
+  <meta name="description" content="StockSaathi Terms of Use: an educational paper-trading simulator. No real securities, no real money, not investment advice." />
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+  <link rel="canonical" href="https://stocksaathi.co.in/terms" />
+  <link rel="alternate" hreflang="en-IN" href="https://stocksaathi.co.in/terms" />
+  <link rel="alternate" hreflang="x-default" href="https://stocksaathi.co.in/terms" />
+  <meta property="og:site_name" content="StockSaathi" />
+  <meta property="og:locale" content="en_IN" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Terms of Use | StockSaathi" />
+  <meta property="og:description" content="StockSaathi Terms of Use: an educational paper-trading simulator. No real securities, no real money, not investment advice." />
+  <meta property="og:url" content="https://stocksaathi.co.in/terms" />
+  <meta property="og:image" content="https://stocksaathi.co.in/images/og-image-v2.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="StockSaathi: Invest virtually. Learn for real. A free stock market simulator for Indian teens, beside a chart of the COVID-19 crash replay: ₹1,00,000 held finished at ₹1,02,764, sold on day 3 at ₹97,295." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:site" content="@thealiarbab" />
+  <meta name="twitter:title" content="Terms of Use | StockSaathi" />
+  <meta name="twitter:description" content="StockSaathi Terms of Use: an educational paper-trading simulator. No real securities, no real money, not investment advice." />
+  <meta name="twitter:image" content="https://stocksaathi.co.in/images/og-image-v2.png" />
+  <meta name="twitter:image:alt" content="StockSaathi: Invest virtually. Learn for real. A free stock market simulator for Indian teens, beside a chart of the COVID-19 crash replay: ₹1,00,000 held finished at ₹1,02,764, sold on day 3 at ₹97,295." />
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebPage",
+      "@id": "https://stocksaathi.co.in/terms#webpage",
+      "url": "https://stocksaathi.co.in/terms",
+      "name": "Terms of Use | StockSaathi",
+      "description": "StockSaathi Terms of Use: an educational paper-trading simulator. No real securities, no real money, not investment advice.",
+      "inLanguage": "en-IN",
+      "isPartOf": {
+        "@id": "https://stocksaathi.co.in/#website"
+      },
+      "primaryImageOfPage": "https://stocksaathi.co.in/images/og-image-v2.png",
+      "breadcrumb": {
+        "@id": "https://stocksaathi.co.in/terms#breadcrumb"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "@id": "https://stocksaathi.co.in/terms#breadcrumb",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Home",
+          "item": "https://stocksaathi.co.in/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Terms of Use",
+          "item": "https://stocksaathi.co.in/terms"
+        }
+      ]
+    }
+  ]
+}
+  </script>  <!-- meta:end -->
+  <!-- faq-jsonld:start -->
+  <!-- faq-jsonld:end -->
+
+  <!-- iOS / PWA -->
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="StockSaathi" />
+  <meta name="format-detection" content="telephone=no" />
+  <link rel="manifest" href="/manifest.json" />
+
+  <!-- Favicons / touch icons (rendered by scripts/render_assets.py) -->
+  <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
+  <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+  <link rel="apple-touch-icon" href="/images/apple-touch-icon.png" />
+
+  <!-- Fonts are self-hosted (@font-face at the top of main.css). Preloading
+       the two Inter files lets them download alongside the CSS; latin-ext
+       holds the rupee sign, which is on nearly every page. -->
+  <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/fonts/inter-latin-ext.woff2" as="font" type="font/woff2" crossorigin />
+
+  <link rel="stylesheet" href="/css/main.css" />
+  <link rel="stylesheet" href="/css/components.css" />
+  <link rel="preload" href="/js/app.js" as="script" crossorigin />
 </head>
 <body>
-<a href="#main" class="skip-link">Skip to content</a>
-<header class="nav">
-  <a href="/" class="wordmark"><span class="dot"></span>StockSaathi</a>
-  <nav class="nav-links" aria-label="Legal pages">
-    <a href="/privacy">Privacy</a>
-    <a href="/terms">Terms</a>
-    <a href="/grievance">Grievance</a>
-    <a href="/">App</a>
-  </nav>
-</header>
-<main id="main" tabindex="-1">
-  <h1>Terms of Use</h1>
-  <p class="muted">Last updated: 23 April 2026 &middot; Effective immediately.</p>
+  <a href="#main" class="skip-link">Skip to content</a>
 
-  <div class="lede">
-    <strong>Read this first.</strong> StockSaathi is an <strong>educational paper-trading simulator</strong>. Every number, portfolio and balance you see on the service is simulated. No real securities are bought, sold, or held. No real money is ever debited, credited, or held on your behalf. StockSaathi is <strong>not a SEBI-registered broker, investment adviser, research analyst, or portfolio manager</strong>, and is not affiliated with SEBI, NSE, BSE, or any broker. By using this service you agree to these terms.
-  </div>
+  <header id="nav-root" class="nav"></header>
 
-  <section><h2>1. What StockSaathi is</h2>
-  <p>StockSaathi is a web application that simulates the experience of investing in Indian equities and mutual funds using virtual money. Its purpose is educational. Coach responses are generated by an AI language model and are <strong>not</strong> investment advice, a recommendation to buy or sell any security, or a signal about future price movement.</p></section>
+  <!-- tabindex="-1" so the skip-link actually moves focus to main content.
+       PRE-RENDERED LANDING: the markup between the landing markers is
+       generated from partials/landing.html by scripts/build_landing.py —
+       the same source js/pages/landing.js renders — so crawlers that do
+       not run JavaScript read the real page and the SPA takes over with no
+       visible flash. Edit the partial, never this block. -->
+  <main id="main" class="main" tabindex="-1">
+    <!-- landing:start -->
+    <article class="container static-page" data-static-page="/terms">
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="/">Home</a> <span aria-hidden="true">›</span> <span>Terms of Use</span></nav>
+      <h1>Terms of Use</h1>
+      <p class="muted">Last updated: 23 April 2026 &middot; Effective immediately.</p>
 
-  <section><h2>2. Eligibility</h2>
-  <p>StockSaathi is intended for users aged 13 or older who understand that the service is educational and non-advisory. By registering you confirm that you meet this requirement.</p></section>
+      <div class="lede">
+      <strong>Read this first.</strong> StockSaathi is an <strong>educational paper-trading simulator</strong>. Every number, portfolio and balance you see on the service is simulated. No real securities are bought, sold, or held. No real money is ever debited, credited, or held on your behalf. StockSaathi is <strong>not a SEBI-registered broker, investment adviser, research analyst, or portfolio manager</strong>, and is not affiliated with SEBI, NSE, BSE, or any broker. By using this service you agree to these terms.
+      </div>
 
-  <section><h2>3. No investment advice, no securities activity</h2>
-  <p>Nothing displayed on StockSaathi &mdash; quotes, charts, coach replies, news summaries, crash replays &mdash; constitutes investment advice, research, a solicitation to transact, or a recommendation to buy or sell any security. You are solely responsible for any real-world financial decision you make. Consult a SEBI-registered financial adviser before you commit real money to any instrument.</p></section>
+      <section><h2>1. What StockSaathi is</h2>
+      <p>StockSaathi is a web application that simulates the experience of investing in Indian equities and mutual funds using virtual money. Its purpose is educational. Coach responses are generated by an AI language model and are <strong>not</strong> investment advice, a recommendation to buy or sell any security, or a signal about future price movement.</p></section>
 
-  <section><h2>4. Price data disclaimer</h2>
-  <p>Price data displayed in the service is sourced from publicly accessible feeds (such as Yahoo Finance, CoinGecko, AMFI / MFAPI). StockSaathi does not hold an exchange data licence and does not guarantee the accuracy, completeness, or timeliness of the data. The data is displayed for educational illustration only. Users are <strong>not</strong> covered by SEBI&rsquo;s investor protection, grievance redressal, or dispute resolution mechanisms (including SCORES) for any activity on StockSaathi.</p></section>
+      <section><h2>2. Eligibility</h2>
+      <p>StockSaathi is intended for users aged 13 or older who understand that the service is educational and non-advisory. By registering you confirm that you meet this requirement.</p></section>
 
-  <section><h2>5. Virtual currency</h2>
-  <p>The &ldquo;cash&rdquo; shown in your account is a fictional in-app balance. It is an entry in our database and has no real-world monetary value. Virtual cash cannot be sent to or received from other users. You cannot withdraw virtual cash or convert it into anything of value. No gambling, wagering, or prize scheme is operated on the service.</p></section>
+      <section><h2>3. No investment advice, no securities activity</h2>
+      <p>Nothing displayed on StockSaathi &mdash; quotes, charts, coach replies, news summaries, crash replays &mdash; constitutes investment advice, research, a solicitation to transact, or a recommendation to buy or sell any security. You are solely responsible for any real-world financial decision you make. Consult a SEBI-registered financial adviser before you commit real money to any instrument.</p></section>
 
-  <section><h2>6. Acceptable use</h2>
-  <p>You will not:</p>
-  <ul>
-    <li>Attempt to bypass the login, rate limits, or any security control.</li>
-    <li>Impersonate another person, or create accounts using someone else&rsquo;s details.</li>
-    <li>Upload content that is illegal, hateful, obscene, or that infringes a third party&rsquo;s rights.</li>
-    <li>Scrape, reverse-engineer, or mirror the service beyond ordinary use.</li>
-    <li>Treat the coach&rsquo;s output as advice, or repackage it as advice to someone else.</li>
-    <li>Use the service to offer real-world trading, investment advisory, or money-transmission services.</li>
-  </ul></section>
+      <section><h2>4. Price data disclaimer</h2>
+      <p>Price data displayed in the service is sourced from publicly accessible feeds (such as Yahoo Finance, CoinGecko, AMFI / MFAPI). StockSaathi does not hold an exchange data licence and does not guarantee the accuracy, completeness, or timeliness of the data. The data is displayed for educational illustration only. Users are <strong>not</strong> covered by SEBI&rsquo;s investor protection, grievance redressal, or dispute resolution mechanisms (including SCORES) for any activity on StockSaathi.</p></section>
 
-  <section><h2>7. Intellectual property</h2>
-  <p>The StockSaathi brand, design, code, and coach personality are our intellectual property. You keep ownership of content you post (e.g. your display name, profile bio). Stock names, ticker symbols, and price data belong to the respective exchanges and data vendors.</p></section>
+      <section><h2>5. Virtual currency</h2>
+      <p>The &ldquo;cash&rdquo; shown in your account is a fictional in-app balance. It is an entry in our database and has no real-world monetary value. Virtual cash cannot be sent to or received from other users. You cannot withdraw virtual cash or convert it into anything of value. No gambling, wagering, or prize scheme is operated on the service.</p></section>
 
-  <section><h2>8. Service availability</h2>
-  <p>The service is provided on an &ldquo;as is&rdquo; and &ldquo;as available&rdquo; basis. We may change, pause, or shut down any part of the service at any time. We are not obligated to retain data after account deletion beyond what our Privacy Policy states.</p></section>
+      <section><h2>6. Acceptable use</h2>
+      <p>You will not:</p>
+      <ul>
+      <li>Attempt to bypass the login, rate limits, or any security control.</li>
+      <li>Impersonate another person, or create accounts using someone else&rsquo;s details.</li>
+      <li>Upload content that is illegal, hateful, obscene, or that infringes a third party&rsquo;s rights.</li>
+      <li>Scrape, reverse-engineer, or mirror the service beyond ordinary use.</li>
+      <li>Treat the coach&rsquo;s output as advice, or repackage it as advice to someone else.</li>
+      <li>Use the service to offer real-world trading, investment advisory, or money-transmission services.</li>
+      </ul></section>
 
-  <section><h2>9. Limitation of liability</h2>
-  <p>To the maximum extent permitted by law, we are not liable for any loss, damage, claim, or demand arising from your use of the service, including but not limited to any real-world financial decision you made that was influenced by the service. You use the service at your own risk and agree that nothing displayed constitutes a recommendation or advice.</p></section>
+      <section><h2>7. Intellectual property</h2>
+      <p>The StockSaathi brand, design, code, and coach personality are our intellectual property. You keep ownership of content you post (e.g. your display name, profile bio). Stock names, ticker symbols, and price data belong to the respective exchanges and data vendors.</p></section>
 
-  <section><h2>10. Termination</h2>
-  <p>You can delete your account at any time from Settings &rarr; Danger Zone. We may suspend or terminate access if you violate these terms or the Acceptable Use section.</p></section>
+      <section><h2>8. Service availability</h2>
+      <p>The service is provided on an &ldquo;as is&rdquo; and &ldquo;as available&rdquo; basis. We may change, pause, or shut down any part of the service at any time. We are not obligated to retain data after account deletion beyond what our Privacy Policy states.</p></section>
 
-  <section><h2>11. Governing law and disputes</h2>
-  <p>These terms are governed by the laws of India. Any dispute that cannot be resolved through the grievance officer will be subject to the exclusive jurisdiction of the courts at the user&rsquo;s place of residence within India.</p></section>
+      <section><h2>9. Limitation of liability</h2>
+      <p>To the maximum extent permitted by law, we are not liable for any loss, damage, claim, or demand arising from your use of the service, including but not limited to any real-world financial decision you made that was influenced by the service. You use the service at your own risk and agree that nothing displayed constitutes a recommendation or advice.</p></section>
 
-  <section><h2>12. Changes to these terms</h2>
-  <p>We may update these terms occasionally. Material changes will be highlighted on this page and, where appropriate, surfaced in-app. Continued use of the service after a change means you accept the revised terms.</p></section>
-</main>
-<footer>
-  <p>StockSaathi &mdash; Educational paper-trading simulator. Virtual money only.</p>
-  <nav aria-label="Legal">
-    <a href="/privacy">Privacy</a><span aria-hidden="true">&middot;</span>
-    <a href="/terms">Terms</a><span aria-hidden="true">&middot;</span>
-    <a href="/grievance">Grievance</a><span aria-hidden="true">&middot;</span>
-    <a href="mailto:grievance@stocksaathi.co.in">grievance@stocksaathi.co.in</a>
-  </nav>
-</footer>
+      <section><h2>10. Termination</h2>
+      <p>You can delete your account at any time from Settings &rarr; Danger Zone. We may suspend or terminate access if you violate these terms or the Acceptable Use section.</p></section>
+
+      <section><h2>11. Governing law and disputes</h2>
+      <p>These terms are governed by the laws of India. Any dispute that cannot be resolved through the grievance officer will be subject to the exclusive jurisdiction of the courts at the user&rsquo;s place of residence within India.</p></section>
+
+      <section><h2>12. Changes to these terms</h2>
+      <p>We may update these terms occasionally. Material changes will be highlighted on this page and, where appropriate, surfaced in-app. Continued use of the service after a change means you accept the revised terms.</p></section>
+      <p class="legal-links"><a href="/privacy">Privacy Policy</a> · <a href="/terms">Terms of Use</a> · <a href="/grievance">Grievance Officer</a></p>
+    </article>    <!-- landing:end -->
+  </main>
+
+  <aside id="coach-root" class="coach-panel" aria-label="Coach panel"></aside>
+
+  <div id="modal-root" aria-live="assertive"></div>
+
+  <div id="toast-root" class="toast-root" aria-live="polite"></div>
+
+  <footer class="disclaimer">
+    <p>
+      <strong>Educational paper-trading simulator · Virtual money only.</strong>
+      All trades and portfolios on StockSaathi are simulated &mdash;
+      no real securities are bought, sold, or held. StockSaathi is
+      <strong>not a SEBI-registered stock broker, investment adviser, research analyst, or
+      portfolio manager</strong>, and is not affiliated with SEBI, NSE, BSE, or any broker.
+      Price data is displayed for educational illustration only. Nothing on this site is
+      investment advice or a recommendation to buy or sell any security. Users are not
+      covered by SEBI's investor protection, grievance-redressal, or dispute-resolution
+      mechanisms for any activity on this app. Past performance does not guarantee future
+      returns.
+    </p>
+    <nav class="disclaimer-nav site-links" aria-label="Site">
+      <a href="/">Home</a>
+      <span aria-hidden="true">·</span>
+      <a href="/stocks">Markets</a>
+      <span aria-hidden="true">·</span>
+      <a href="/crash-replay">Crash replays</a>
+      <span aria-hidden="true">·</span>
+      <a href="/chat">AI coach</a>
+      <span aria-hidden="true">·</span>
+      <a href="/learn-stock-market">Learn the stock market</a>
+      <span aria-hidden="true">·</span>
+      <a href="/for-students">For students</a>
+      <span aria-hidden="true">·</span>
+      <a href="/news">News</a>
+    </nav>
+    <nav class="disclaimer-nav" aria-label="Legal">
+      <a href="/privacy">Privacy Policy</a>
+      <span aria-hidden="true">·</span>
+      <a href="/terms">Terms of Use</a>
+      <span aria-hidden="true">·</span>
+      <a href="/grievance">Grievance</a>
+      <span aria-hidden="true">·</span>
+      <a href="mailto:grievance@stocksaathi.co.in">grievance@stocksaathi.co.in</a>
+    </nav>
+  </footer>
+
+  <noscript>
+    <div class="noscript-warning">
+      <p><strong>Prices, charts and trading need JavaScript.</strong> Enable it to use the simulator.</p>
+    </div>
+  </noscript>
+
+  <script type="module" src="/js/app.js"></script>
 </body>
 </html>

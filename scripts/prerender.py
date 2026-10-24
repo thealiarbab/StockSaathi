@@ -1057,10 +1057,25 @@ def build_pages():
     pages.append({"path": "/404", "file": "404.html", "index": False, "sitemap": False, "canonical": False,
                   "title": "Page not found | StockSaathi",
                   "description": "This page doesn't exist on StockSaathi.", "graph": None, "main": notfound_main()})
-    # Static legal pages are hand-written files; they only join the sitemap.
-    for path, pr in (("/privacy", "0.3"), ("/terms", "0.3"), ("/grievance", "0.3")):
-        pages.append({"path": path, "file": path.lstrip("/") + ".html", "legal": True, "index": True,
-                      "sitemap": True, "priority": pr, "changefreq": "yearly"})
+    # Legal pages: copy in partials/pages/, the same template as every other
+    # page. They used to be hand-written standalone files with their own
+    # header and CSS, plus a second copy in js/pages/*.js for in-app
+    # navigation, and the two drifted (in-app Privacy was 6 days stale).
+    for path, title, desc in (
+        ("/privacy", "Privacy Policy | StockSaathi",
+         "How StockSaathi handles your data under India's DPDP Act 2023 and DPDP Rules 2025. Educational "
+         "paper-trading simulator. No real money, no data sold."),
+        ("/terms", "Terms of Use | StockSaathi",
+         "StockSaathi Terms of Use: an educational paper-trading simulator. No real securities, no real money, "
+         "not investment advice."),
+        ("/grievance", "Grievance Officer | StockSaathi",
+         "Contact StockSaathi's Grievance Officer for complaints, data-protection requests or takedown notices. "
+         "Reply within 7 working days."),
+    ):
+        name = path.lstrip("/")
+        label = {"privacy": "Privacy Policy", "terms": "Terms of Use", "grievance": "Grievance Officer"}[name]
+        add(path=path, file=name + ".html", priority="0.3", changefreq="yearly", title=title, description=desc,
+            crumbs=[("Home", "/"), (label, path)], main=partial(name + ".html", path))
     return pages
 
 

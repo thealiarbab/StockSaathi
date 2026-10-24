@@ -101,9 +101,9 @@ const ROUTES = [
     import("./pages/sharedChat.js"),
   ]).then(([, m]) => m.renderSharedChat), param: "id", public: true },
   { name: "settings",      match: /^\/settings\/?$/,                       load: () => import("./pages/settings.js").then(m => m.renderSettings), needsAuth: true },
-  { name: "privacy",       match: /^\/privacy\/?$/,                         load: () => import("./pages/privacy.js").then(m => m.renderPrivacy), public: true },
-  { name: "terms",         match: /^\/terms\/?$/,                           load: () => import("./pages/terms.js").then(m => m.renderTerms), public: true },
-  { name: "grievance",     match: /^\/grievance\/?$/,                       load: () => import("./pages/grievance.js").then(m => m.renderGrievance), public: true },
+  { name: "privacy",       match: /^\/privacy\/?$/,                         render: renderStaticPage, public: true },
+  { name: "terms",         match: /^\/terms\/?$/,                           render: renderStaticPage, public: true },
+  { name: "grievance",     match: /^\/grievance\/?$/,                       render: renderStaticPage, public: true },
   // Pre-rendered content pages (scripts/prerender.py). The router keeps the
   // server's markup on a cold load and fetches it on in-app navigation.
   { name: "learn",         match: /^\/learn-stock-market\/?$/,             render: renderStaticPage, public: true },
