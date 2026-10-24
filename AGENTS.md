@@ -207,6 +207,24 @@ tab. Any new LLM call site must record a row the same way.
 `MESSAGES_EFFORT_FORCE` (Vercel env, low..max) overrides every lane and caller
 effort for A/B runs; unset to restore the per-op settings.
 
+## Admin analytics + uptime alerts (2026-10-24)
+
+- /a tabs: **Growth** (`admin_growth()`: D1/D7/D30 per sign-up week, time to
+  first trade, day-one actions of retained vs churned, feature adoption),
+  **Coach** (`admin_coach_quality()`: regenerate/edit taps = web_events kind
+  `coach`, thumbs, Haiku vs Gemini answers, failures, first-token time),
+  **AI cost** (llm_usage). All service_role RPCs behind `op=admin-*`.
+  Aggregate `user_events` (has every signed-in page view), never `web_events`
+  per request: it is too large (an admin_growth draft over it timed out).
+- `user_events.kind` has a CHECK whitelist; adding a kind needs DROP
+  CONSTRAINT, which the connector cannot run. New product events go through
+  `telemetry.js` `logEvent()` + `EV_KINDS` in api/ai.js instead.
+- **Uptime alerts:** pg_cron `ops-health` (*/5) runs `ops_health_check()`:
+  quotes_stale, matcher_stalled (market hours only, no NSE holiday list),
+  matcher_http (pg_net failures), chat_failing, chat_fallback. A failing check
+  inserts `notifications` (kind `ops_alert`) for the owner accounts -> bell +
+  push; cooldown 2 h per check (`ops_alerts`).
+
 ## User notices
 
 `public.user_notices` + `ack_notice()` RPC + `js/components/noticeModal.js`
