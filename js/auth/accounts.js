@@ -634,10 +634,13 @@ export async function refreshCurrentUser() {
       avatarColor: profile.avatar_color,
       school: profile.school,
       classCode: profile.class_code,
+      city: profile.city,
       age: profile.age,
       riskProfile: profile.risk_profile,
       onboarded: profile.onboarded,
       createdAt: profile.created_at,
+      // Google-only accounts have no password to check or change.
+      hasPassword: (u.app_metadata?.providers || [u.app_metadata?.provider]).includes("email"),
       isAdmin,
       _supabase: true,
     };
@@ -665,7 +668,7 @@ export async function updateProfile(patch) {
     const map = {
       displayName: "display_name", school: "school", classCode: "class_code",
       city: "city", age: "age", riskProfile: "risk_profile",
-      onboarded: "onboarded",
+      avatarColor: "avatar_color", onboarded: "onboarded",
     };
     for (const [k, v] of Object.entries(patch || {})) {
       if (map[k]) dbPatch[map[k]] = v;
@@ -692,7 +695,15 @@ export async function updateProfile(patch) {
 export async function changePassword({ currentPassword, newPassword }) {
   const client = await sb();
   if (client) {
-    // Supabase requires re-auth for security; use updateUser — signed-in user only
+    // The current password used to be asked for and then ignored: anyone at
+    // an unlocked, signed-in school computer could change it. Check it first
+    // (Google-only accounts have none and set their first one).
+    const me = _cachedUser || await refreshCurrentUser();
+    if (me?.hasPassword !== false) {
+      if (!currentPassword) throw new Error("Enter your current password.");
+      const { error: authErr } = await client.auth.signInWithPassword({ email: me.email, password: currentPassword });
+      if (authErr) throw new Error("Current password is incorrect.");
+    }
     const { error } = await client.auth.updateUser({ password: newPassword });
     if (error) throw new Error(error.message);
     return true;
