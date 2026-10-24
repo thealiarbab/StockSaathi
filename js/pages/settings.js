@@ -99,7 +99,7 @@ export function renderSettings(main) {
     `;
 
     const notifBox = main.querySelector("#notif-settings");
-    if (notifBox) drawNotifSettings(notifBox);
+    if (notifBox) { drawNotifSettings(notifBox); drawOrderEmailRow(notifBox); }
 
     // Theme
     main.querySelector("[data-theme='system']").addEventListener("click", () => { setSettings({ themeChosen: false }); });
@@ -300,4 +300,36 @@ async function drawNotifSettings(box) {
     const on = [...box.querySelectorAll("[data-cat]")].filter((x) => x.checked).map((x) => x.dataset.cat);
     try { await N.setPushCategories(on); } catch (err) { toast({ kind: "error", message: `Couldn't save: ${err?.message || err}` }); }
   }));
+}
+
+// Order emails (handlers/fill-email.py): sent only when push didn't reach the
+// user, so this switch stays on the page whatever the device can do.
+async function drawOrderEmailRow(box) {
+  let client, on = true;
+  try {
+    client = await (await import("../db/supabase.js")).sb();
+    const { data } = await client.from("profiles").select("order_emails").maybeSingle();
+    if (data && data.order_emails === false) on = false;
+  } catch {}
+  if (!box.isConnected || !client) return;
+  const row = document.createElement("div");
+  row.className = "settings-row";
+  row.innerHTML = `
+    <div class="label-wrap"><div class="title">Email me when an order fills</div><div class="desc">Only when alerts on this device didn't already tell you.</div></div>
+    <label class="switch"><input type="checkbox" id="order-email-toggle" ${on ? "checked" : ""} /><span class="slider"></span></label>`;
+  box.after(row);
+  row.querySelector("input").addEventListener("change", async (e) => {
+    const v = e.target.checked;
+    e.target.disabled = true;
+    try {
+      const uid = (await client.auth.getSession()).data.session?.user?.id;
+      const { error } = await client.from("profiles").update({ order_emails: v }).eq("id", uid);
+      if (error) throw error;
+      toast({ kind: "success", message: v ? "Order emails on." : "Order emails off." });
+    } catch (err) {
+      e.target.checked = !v;
+      toast({ kind: "error", message: `Couldn't save: ${err?.message || err}` });
+    }
+    e.target.disabled = false;
+  });
 }

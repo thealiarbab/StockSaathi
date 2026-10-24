@@ -1773,6 +1773,7 @@ async function placeMfOrder(inst, side, units, navPaise, amountPaise) {
       await loadAllFromDb();
     } catch {}
     go("/portfolio");
+    offerPushLater({ symbol: inst.symbol, path: "mf" });
   } catch (e) {
     console.error("[mf-order]", e);
     toast({ kind: "error", message: e?.message || "Couldn't place the fund order.", duration: 6000 });
@@ -1818,6 +1819,12 @@ function toast(opts) {
   if (_orderAttempt && opts?.kind === "error") orderEnd("error", { error: String(opts.message || "").slice(0, 200) });
   else if (_orderAttempt && opts?.kind === "success") orderEnd("ok");
   return showToast(opts);
+}
+
+// After an order that fills later: offer alerts once the next page has drawn
+// (features/pushAsk.js decides whether to ask at all).
+function offerPushLater(o) {
+  setTimeout(() => { import("../features/pushAsk.js").then((m) => m.offerPushAfterOrder(o)).catch(() => {}); }, 700);
 }
 
 // In-app choice box (O14). The native confirm() it replaces can be
@@ -2078,6 +2085,7 @@ async function _reviewTrade(inst, symbol, curPrice, holding) {
       // "Pending limit orders" card — gives the user concrete evidence
       // the AMO landed, not just a toast.
       go("/portfolio");
+      offerPushLater({ symbol, path: "amo", when: openWhen(ms) });
     } catch (e) {
       console.error("[AMO] placeLimitOrder failed:", e);
       toast({
@@ -2143,6 +2151,7 @@ async function _reviewTrade(inst, symbol, curPrice, holding) {
         throw e;
       });
       toast({ kind: "success", message: `${ui.side} limit placed: ${formatQty(qty, inst.kind)} ${symbol} @ ₹${limitRupees.toFixed(2)}. Fills automatically when market crosses.` });
+      offerPushLater({ symbol, path: "limit" });
     } catch (e) {
       console.error("[limit] placeLimitOrder failed:", e);
       toast({ kind: "error", message: e?.message || "Could not place limit order." });

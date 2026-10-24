@@ -47,9 +47,11 @@ const KINDS = new Set([
   "order_submit", "order_result", "trade_modal",
   // U9: crash replay opened / finished / left (with how far they got).
   "replay_start", "replay_finish", "replay_exit",
+  // 24 Oct: the "ping me when it fills" ask and how it ended (pushAsk.js).
+  "push_ask",
 ]);
 // Never collapsed: two attempts on one stock a second apart are two rows.
-const NO_DEDUPE = new Set(["order_submit", "order_result", "trade_modal", "replay_start", "replay_finish", "replay_exit"]);
+const NO_DEDUPE = new Set(["order_submit", "order_result", "trade_modal", "replay_start", "replay_finish", "replay_exit", "push_ask"]);
 
 let queue = [];
 let timer = null;
