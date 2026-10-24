@@ -129,9 +129,13 @@ function renderStep(s) {
 function attachStepListeners(main) {
   main.querySelector("[data-next]")?.addEventListener("click", () => {
     if (step === 1) {
-      form.age = parseInt(main.querySelector("#f-age").value, 10);
-      form.school = main.querySelector("#f-school").value.trim();
-      form.classCode = main.querySelector("#f-class").value.trim();
+      // The fields can be gone if the page re-rendered under a second tap
+      // (seen live 23 Oct: "reading 'value' of null").
+      const age = main.querySelector("#f-age");
+      if (!age) return;
+      form.age = parseInt(age.value, 10);
+      form.school = (main.querySelector("#f-school")?.value || "").trim();
+      form.classCode = (main.querySelector("#f-class")?.value || "").trim();
       if (!form.age || form.age < 13) { alert("Please enter a valid age (13+)."); return; }
     }
     step++;

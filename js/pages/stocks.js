@@ -1124,17 +1124,25 @@ export function renderStocks(main) {
       if (_debounceTimer) clearTimeout(_debounceTimer);
       _debounceTimer = setTimeout(() => { if (!cancelled) renderList(); }, 180);
     });
-    import("../components/themedSelect.js").then(({ mountThemedSelect }) => {
-      mountThemedSelect(main.querySelector("#stocks-sort"), {
-        value: filter.sort,
-        options: [
-          { value: "marketCap", label: "Top by size" },
-          { value: "gainers",   label: "Top gainers today" },
-          { value: "losers",    label: "Top losers today" },
-          { value: "name",      label: "Name A–Z" },
-        ],
-        onChange: v => { filter.sort = v; _sortChosen = true; visibleCount = PAGE_SIZE; render(); },
-      });
+    const sortOptions = [
+      { value: "marketCap", label: "Top by size" },
+      { value: "gainers",   label: "Top gainers today" },
+      { value: "losers",    label: "Top losers today" },
+      { value: "name",      label: "Name A–Z" },
+    ];
+    const onSort = v => { filter.sort = v; _sortChosen = true; visibleCount = PAGE_SIZE; render(); };
+    // A failed chunk fetch (flaky network, or a deploy mid-visit; 5 times on
+    // 24 Oct) used to leave no sort control at all: retry once, then fall
+    // back to a plain <select>.
+    import("../components/themedSelect.js").catch(() => import("../components/themedSelect.js?retry=1")).then(({ mountThemedSelect }) => {
+      const host = main.querySelector("#stocks-sort");
+      if (host) mountThemedSelect(host, { value: filter.sort, options: sortOptions, onChange: onSort });
+    }).catch(() => {
+      const host = main.querySelector("#stocks-sort");
+      if (!host) return;
+      host.innerHTML = `<select class="input" aria-label="Sort stocks">${sortOptions.map(o =>
+        `<option value="${o.value}"${o.value === filter.sort ? " selected" : ""}>${o.label}</option>`).join("")}</select>`;
+      host.querySelector("select").addEventListener("change", e => onSort(e.target.value));
     });
     main.querySelectorAll("[data-sector]").forEach(btn => btn.addEventListener("click", () => { filter.sector = btn.dataset.sector; visibleCount = PAGE_SIZE; render(); }));
     // Hotfix65a: view toggle (Tiles / Cards). renderList() rebuilds the

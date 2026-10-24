@@ -728,7 +728,8 @@ export function attachStockChartHover(container, ohlc, {
         const i0 = Math.max(0, Math.min(N - 2, Math.floor(contIdx)));
         const i1 = i0 + 1;
         const frac = contIdx - i0;
-        interpClose = ohlc[i0].c + (ohlc[i1].c - ohlc[i0].c) * frac;
+        // A one-candle series has no i1 (seen live 24 Oct: TypeError on .c).
+        interpClose = N < 2 ? ohlc[0].c : ohlc[i0].c + (ohlc[i1].c - ohlc[i0].c) * frac;
         idx = Math.round(contIdx);
       } else {
         idx = nearestIdxAt(cursorMs);
