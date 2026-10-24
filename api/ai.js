@@ -1570,6 +1570,7 @@ export default async function handler(req) {
       case "admin-ai-cache":      return await opAdminAiCache(req, origin, url);
       case "admin-quote-cache":   return await opAdminQuoteCache(req, origin);
       case "admin-llm-usage":     return await opAdminLlmUsage(req, origin, url);
+      case "admin-growth":        return await opAdminGrowth(req, origin, url);
       case "admin-dhan-coverage": return await opAdminDhanCoverage(req, origin);
       case "admin-audit-log":     return await opAdminAuditLog(req, origin, url);
       case "admin-user-reset":    return await opAdminUserReset(req, origin);
@@ -2073,6 +2074,22 @@ async function opAdminLlmUsage(req, origin, url) {
       method: "POST",
       body: JSON.stringify({ p_since: new Date(Date.now() - days * 86400000).toISOString(), p_until: new Date(Date.now() + 60000).toISOString() }),
     });
+    if (!r.ok) return j(502, { error: "query_failed", detail: (await r.text()).slice(0, 200) }, origin);
+    return j(200, await r.json(), origin);
+  } catch (e) {
+    return j(502, { error: "query_failed", detail: String(e.message).slice(0, 120) }, origin);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// op: admin-growth — retention, time to first trade, adoption (migration 2026-10-24a)
+// -----------------------------------------------------------------------------
+async function opAdminGrowth(req, origin, url) {
+  const gate = checkAdmin(req);
+  if (!gate.ok) return j(401, { error: gate.reason }, origin);
+  const weeks = Math.min(52, Math.max(1, parseInt(url.searchParams.get("weeks") || "12", 10) || 12));
+  try {
+    const r = await sbAdminFetch(`/rest/v1/rpc/admin_growth`, { method: "POST", body: JSON.stringify({ p_weeks: weeks }) });
     if (!r.ok) return j(502, { error: "query_failed", detail: (await r.text()).slice(0, 200) }, origin);
     return j(200, await r.json(), origin);
   } catch (e) {
