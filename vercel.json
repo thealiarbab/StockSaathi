@@ -12,7 +12,8 @@
     { "path": "/api/admin-sync-mf", "schedule": "30 20 * * *" },
     { "path": "/api/admin-sync-mf", "schedule": "45 1 * * *" },
     { "path": "/api/admin-sync-mf", "schedule": "40 3 * * 1-5" },
-    { "path": "/api/fill-email?send=1", "schedule": "0 4 * * 1-5" }
+    { "path": "/api/fill-email?send=1", "schedule": "0 4 * * 1-5" },
+    { "path": "/api/weekly-report?send=1", "schedule": "30 4 * * 0" }
   ],
   "functions": {
     "api/*.py": { "runtime": "@vercel/python@6.36.0", "maxDuration": 60 }
