@@ -24,7 +24,27 @@
 // =============================================================================
 
 import { messagesEnabled, messagesFetch, toMessagesBody, textOf, effortFor, MESSAGES_MODEL } from "./_messages.js";
-import { recordUsage, normUsage } from "./_usage.js";
+import { recordUsage as recordUsageRaw, normUsage } from "./_usage.js";
+import { AsyncLocalStorage } from "node:async_hooks";
+
+// Effort eval (admin only): a request with X-Eval-Effort: low|medium|high and
+// the admin token runs the normal op with that effort forced, never reads or
+// writes ai_response_cache (test answers must not reach students), and tags
+// its llm_usage rows feature "eval:<effort>:<op>". The model calls it made
+// come back in an X-Eval-Usage header. Scoped per request, so concurrent
+// user requests in the same isolate are untouched.
+const EVAL = new AsyncLocalStorage();
+const EVAL_EFFORTS = new Set(["low", "medium", "high"]);
+function recordUsage(row) {
+  const ev = EVAL.getStore();
+  if (ev) {
+    row = { ...row, feature: `eval:${ev.effort}:${row.feature || row.op || ""}` };
+    if (row.upstream !== "cache") ev.rows.push({ upstream: row.upstream, model: row.model, effort: row.effort, ok: row.ok,
+      status: row.status, input_tokens: row.input_tokens, output_tokens: row.output_tokens,
+      cache_read_tokens: row.cache_read_tokens, cache_write_tokens: row.cache_write_tokens, total_ms: row.total_ms });
+  }
+  return recordUsageRaw(row);
+}
 import { liveGeminiModel, isGemini3 } from "./_models.js";
 import { lastSessionIst } from "./_session.js";
 
@@ -95,6 +115,7 @@ function normalizeKey(s) {
   return String(s || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 400);
 }
 async function cacheGet(bucket, cacheKey) {
+  if (EVAL.getStore()) return null;
   try {
     const path = `/rest/v1/ai_response_cache?select=payload,display_key,created_at&bucket=eq.${encodeURIComponent(bucket)}&cache_key=eq.${encodeURIComponent(cacheKey)}&limit=1`;
     const res = await supabaseReq(path);
@@ -110,6 +131,7 @@ async function cacheGet(bucket, cacheKey) {
 // Fire-and-forget: on Edge the write is cut off when the response returns,
 // so it usually never lands. Use await cachePutAwait() instead.
 function cachePut(bucket, cacheKey, display, payload) {
+  if (EVAL.getStore()) return;
   supabaseReq("/rest/v1/ai_response_cache", {
     method: "POST",
     serviceRole: true,
@@ -121,6 +143,7 @@ function cachePut(bucket, cacheKey, display, payload) {
 // guarantee the good value lands BEFORE we return to the caller, so
 // the next request from anyone gets the good value, not the poison.
 async function cachePutAwait(bucket, cacheKey, display, payload) {
+  if (EVAL.getStore()) return;
   try {
     await supabaseReq("/rest/v1/ai_response_cache", {
       method: "POST",
@@ -159,6 +182,8 @@ function hinglishOf(req) {
 // latency is what the user feels, medium where numbers and rules have to be
 // respected, high where a wrong answer is the documented failure.
 async function callLlm({ messages, temperature = 0.4, max_tokens = 400, response_format, profile = "reasoning", hinglish = false, effort, op = "unknown", feature }) {
+  const evalRun = EVAL.getStore();
+  if (evalRun) effort = evalRun.effort;
   const usageBase = { route: "ai", op, feature: feature || op, profile, stream: false };
   if (hinglish && messages?.[0]?.role === "system") {
     messages = [{ ...messages[0], content: messages[0].content + HINGLISH_RULE }, ...messages.slice(1)];
@@ -234,8 +259,11 @@ async function callLlm({ messages, temperature = 0.4, max_tokens = 400, response
           { messages, max_tokens, response_format, reasoning_effort: effort },
           { profile },
         );
+        // MESSAGES_EFFORT_FORCE beats a caller's effort inside effortFor; an
+        // eval must run at the effort it names or the comparison is void.
+        if (evalRun) body.output_config = { ...(body.output_config || {}), effort: evalRun.effort };
         const t0 = performance.now();
-        const mRow = { ...usageBase, upstream: "messages", model: MESSAGES_MODEL(), effort: effortFor(profile, effort) };
+        const mRow = { ...usageBase, upstream: "messages", model: MESSAGES_MODEL(), effort: evalRun ? evalRun.effort : effortFor(profile, effort) };
         const res = await messagesFetch(body, { signal: ctrl.signal });
         if (!res.ok) {
           lastErr = `messages_http_${res.status}`;
@@ -1515,13 +1543,28 @@ async function opCommand(req, origin) {
 // Dispatch
 // -----------------------------------------------------------------------------
 export default async function handler(req) {
+  const evalEffort = req.headers.get("X-Eval-Effort");
+  if (!evalEffort) return route(req);
+  const origin = req.headers.get("Origin") || "";
+  if (!EVAL_EFFORTS.has(evalEffort)) return j(400, { error: "bad_eval_effort" }, origin);
+  const gate = checkAdmin(req);
+  if (!gate.ok) return j(401, { error: gate.reason }, origin);
+  const store = { effort: evalEffort, rows: [] };
+  const res = await EVAL.run(store, () => route(req));
+  const h = new Headers(res.headers);
+  h.set("X-Eval-Usage", JSON.stringify(store.rows));
+  h.set("Access-Control-Expose-Headers", "X-Eval-Usage");
+  return new Response(res.body, { status: res.status, headers: h });
+}
+
+async function route(req) {
   const origin = req.headers.get("Origin") || "";
   const url = new URL(req.url);
 
   if (req.method === "OPTIONS") {
     const h = cors(origin);
     h.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    h.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    h.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Eval-Effort");
     h.set("Access-Control-Max-Age", "600");
     return new Response(null, { status: 204, headers: h });
   }
