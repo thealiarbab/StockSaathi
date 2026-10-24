@@ -20,6 +20,7 @@ export const CATEGORIES = [
   { key: "account", label: "Account", hint: "Refunds and notes from StockSaathi" },
   { key: "achievements", label: "Achievements", hint: "Badges and streaks you earn" },
   { key: "coach", label: "Coach", hint: "Saathi's notes on your trades" },
+  { key: "recap", label: "Recaps", hint: "Your stocks after the close on trading days, and your week on Sunday" },
 ];
 
 let _items = [];

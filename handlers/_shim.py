@@ -78,6 +78,7 @@ ROUTES = {
     "admin-ingest-eod": "admin-ingest-eod",
     "match-orders": "match-orders",
     "fill-email": "fill-email",
+    "weekly-report": "weekly-report",
 }
 
 
