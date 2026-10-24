@@ -115,22 +115,25 @@ def render(user, fills, eid=None):
     name = html.escape(first_name(user.get("display_name")))
     subject = subject_for(fills)
     head = "Your order filled" if len(fills) == 1 else f"{len(fills)} of your orders filled"
-    items = "".join(f"""
-          <tr><td style="padding:12px 0;border-top:1px solid #E6E8EC;">
-            <a href="{html.escape(_link(f.get('url'), eid))}" style="font:700 15px/1.4 {FONT};color:#0A0A0A;text-decoration:none;">{html.escape(f.get('title') or 'Order filled')}</a>
-            <div style="font:400 14px/1.5 {FONT};color:#30343B;">{html.escape(f.get('body') or '')} <span style="color:#6B7280;">{html.escape(_when(f.get('at') or ''))}</span></div>
-          </td></tr>""" for f in fills)
+    first = fills[0]
+    fig = html.escape(first.get("title") or "Order filled") if len(fills) == 1 else f"{len(fills)} orders filled"
+    pairs = []
+    for f in fills:
+        pairs.append((f'<a href="{html.escape(_link(f.get("url"), eid))}" style="color:#111827; text-decoration:none;">'
+                      f'{html.escape((f.get("title") or "Order filled").upper())}</a>',
+                      html.escape(_when(f.get("at") or "").upper())))
+        if f.get("body"):
+            pairs.append((html.escape(f["body"]), ""))
     blocks = [
-        L.heading(head),
-        L.para(f"Hi {name}, here's what happened with your virtual orders."),
-        f'<tr><td style="padding:12px 32px 0 32px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">{items}</table></td></tr>',
+        L.heading(head, f"Hi {name}, here's what happened with your virtual orders."),
+        L.ticket("ORDER", "FILLED", pairs),
         L.button("See your portfolio", _link("/portfolio", eid)),
-        L.note("<strong style=\"color:#00906B;\">Want these as phone alerts?</strong> "
-               "Tap the bell at the top of StockSaathi and turn them on."),
-        L.small_print("You get this because an order you placed on StockSaathi filled. It's virtual money: nothing real "
-                      f"was bought or sold. <a href=\"{SETTINGS}\" style=\"color:#6B7280;\">Turn off order emails</a>."),
+        L.note("<strong>Want these as phone alerts?</strong> Tap the bell at the top of StockSaathi and turn them on."),
+        L.small("It&rsquo;s virtual money: nothing real was bought or sold. "
+                f'<a href="{SETTINGS}" style="color:#00875A;">Turn off order emails</a>.'),
     ]
-    body = L.page(subject, "See how it's doing since it filled.", blocks)
+    body = L.page(subject, "See how it's doing since it filled.", ("ORDER FILLED", fig, "VIRTUAL · 0 REAL RISK"),
+                  blocks, "You're receiving this because an order you placed on StockSaathi filled.")
     text = "\n".join(
         [f"Hi {first_name(user.get('display_name'))},", "", head + ":", ""]
         + [f"- {f.get('title') or 'Order filled'} {f.get('body') or ''} ({_when(f.get('at') or '')})" for f in fills]

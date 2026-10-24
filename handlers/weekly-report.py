@@ -151,22 +151,23 @@ def render(u, eid=None):
     rows = [("Portfolio now", inr(u["value_now"])), ("A week ago", inr(u["value_then"])),
             ("Trades this week", str(t) if t else "None")]
     subject = f"Your week on StockSaathi: {inr(ch, True)} ({pct(p)})" if ch else "Your week on StockSaathi"
-    blocks = [
-        L.heading(f"Hi {first_name(u.get('display_name'))}, here's your week"),
-        L.big_number(f"{html.escape(inr(ch, True))} <span style=\"font-size:18px;\">({html.escape(pct(p))})</span>",
-                     L.GREEN if ch >= 0 else L.RED),
-        L.rows([(k, html.escape(v)) for k, v in rows]),
-    ]
+    fig = html.escape(inr(ch, True))
+    fig = f'{fig} <span style="font-size:16px; color:#D4F7EA;">({html.escape(pct(p))})</span>'
+    pairs = [(k, html.escape(v)) for k, v in rows]
     if u.get("best_symbol") is not None:
-        blocks += [L.subhead("Your stocks this week"), L.para(mover_lines(u, "<br>", True), top=6, size=15)]
-    blocks += [
+        pairs += [(html.escape(l.split(": ", 1)[0].upper()), html.escape(l.split(": ", 1)[1]))
+                  for l in mover_lines(u, "|", False).split("|")]
+    blocks = [
+        L.heading("Your week on StockSaathi",
+                  f"Hi {name}, here's how your virtual portfolio did over the last 7 days."),
+        L.ticket("WEEKLY REPORT", "READY", [(k.upper(), v) for k, v in pairs]),
         L.button("Open your report card", _link("/report-card", eid)),
-        L.note("<strong style=\"color:#00906B;\">A week says little on its own.</strong> "
-               "Your report card shows the habits behind the number."),
-        L.small_print("Virtual money only: nothing real was bought or sold. You get this weekly because you have a "
-                      f"StockSaathi portfolio. <a href=\"{SETTINGS}\" style=\"color:#6B7280;\">Turn off weekly emails</a>."),
+        L.note("<strong>A week says little on its own.</strong> Your report card shows the habits behind the number."),
+        L.small(f'Virtual money only: nothing real was bought or sold. <a href="{SETTINGS}" style="color:#00875A;">Turn off weekly emails</a>.'),
     ]
-    body = L.page(subject, "How your virtual portfolio did this week, and your report card.", blocks)
+    body = L.page(subject, "How your virtual portfolio did this week, and your report card.",
+                  ("THIS WEEK", fig, "VIRTUAL · 0 REAL RISK"), blocks,
+                  "You're receiving this because you have a StockSaathi portfolio.")
     text = "\n".join([f"Hi {first_name(u.get('display_name'))}, here's your week.", "",
                       f"{inr(ch, True)} ({pct(p)})", f"Portfolio now: {inr(u['value_now'])}",
                       f"A week ago: {inr(u['value_then'])}", f"Trades this week: {t or 'None'}"]
