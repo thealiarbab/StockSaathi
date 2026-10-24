@@ -7,15 +7,20 @@
 // All days and hours are Indian time.
 //
 // Live: while this tab is on screen and the browser tab is visible, the total
-// is checked every 10 s (~1 KB each). When it moves, the full stats reload at
-// most once a minute. Nothing runs once you leave the tab.
+// is checked every 10 s (~1 KB each). Every other number reloads with the full
+// stats (~1.3 s in Postgres): within 15 s of a new signup, and at least once a
+// minute regardless, since active users and the funnel move without new
+// signups. (They used to wait up to 5 minutes, and a signup landing less than
+// a minute after a reload was never followed up.) Nothing runs once you leave
+// the tab.
 // =============================================================================
 
 import { xyChart, heatmap, barList, escapeHtml, fmtInt } from "./adminCharts.js";
 
 const LIVE_MS = 10_000;
-const STATS_MIN_GAP_MS = 60_000;
-const STATS_MAX_AGE_MS = 5 * 60_000;
+const STATS_MIN_GAP_MS = 15_000;
+const STATS_MAX_AGE_MS = 60_000;
+const WEB_MAX_AGE_MS = 5 * 60_000;
 const PREF_KEY = "ss.adminSignupsPrefs.v1";
 
 const C = {
@@ -177,7 +182,7 @@ export function renderSignupsTab(host, { adminGet, onOpenUser }) {
   if (st.openedCount == null && st.count != null) st.openedCount = st.count;
   paint();
   if (!st.stats || Date.now() - st.statsAt > STATS_MAX_AGE_MS) loadStats();
-  if (!st.web || Date.now() - st.webAt > STATS_MAX_AGE_MS) loadWeb();
+  if (!st.web || Date.now() - st.webAt > WEB_MAX_AGE_MS) loadWeb();
   startLive();
 }
 
@@ -240,9 +245,11 @@ async function liveTick() {
     st.liveErr = null;
     if (st.openedCount == null) st.openedCount = r.count;
     paintLive(prev != null && r.count > prev ? r.count - prev : 0);
+    // A change seen inside the gap stays pending until the next tick past it.
+    if (prev != null && r.count !== prev) st.statsDue = true;
     const stale = Date.now() - st.statsAt;
-    if ((prev != null && r.count !== prev && stale > STATS_MIN_GAP_MS) || stale > STATS_MAX_AGE_MS) loadStats();
-    if (Date.now() - st.webAt > STATS_MAX_AGE_MS) loadWeb();
+    if ((st.statsDue && stale > STATS_MIN_GAP_MS) || stale > STATS_MAX_AGE_MS) { st.statsDue = false; loadStats(); }
+    if (Date.now() - st.webAt > WEB_MAX_AGE_MS) loadWeb();
   } catch (e) {
     st.liveErr = e.message || String(e);
     paintLive(0);
