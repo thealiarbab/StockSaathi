@@ -31,6 +31,8 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler
 
+import _email_layout as L
+
 SUPA_URL = os.environ.get("SUPABASE_URL", "").strip().rstrip("/")
 SUPA_SRV = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "").strip()
 ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "").strip()
@@ -113,47 +115,22 @@ def render(user, fills, eid=None):
     name = html.escape(first_name(user.get("display_name")))
     subject = subject_for(fills)
     head = "Your order filled" if len(fills) == 1 else f"{len(fills)} of your orders filled"
-    rows = "".join(f"""
+    items = "".join(f"""
           <tr><td style="padding:12px 0;border-top:1px solid #E6E8EC;">
             <a href="{html.escape(_link(f.get('url'), eid))}" style="font:700 15px/1.4 {FONT};color:#0A0A0A;text-decoration:none;">{html.escape(f.get('title') or 'Order filled')}</a>
             <div style="font:400 14px/1.5 {FONT};color:#30343B;">{html.escape(f.get('body') or '')} <span style="color:#6B7280;">{html.escape(_when(f.get('at') or ''))}</span></div>
           </td></tr>""" for f in fills)
-    body = f"""<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark">
-<title>{html.escape(subject)}</title>
-<style>
-  :root {{ color-scheme: light dark; supported-color-schemes: light dark; }}
-  @media (prefers-color-scheme: dark) {{
-    body, [style*="background:#F1F3F6"] {{ background: #0A0B0F !important; }}
-    [style*="background:#FFFFFF"] {{ background: #13161E !important; }}
-    [style*="color:#0A0A0A"] {{ color: #F1F3F7 !important; }}
-    [style*="color:#30343B"] {{ color: #C9CED8 !important; }}
-    [style*="color:#6B7280"] {{ color: #8F97A8 !important; }}
-    [style*="border-top:1px solid #E6E8EC"] {{ border-color: #262A36 !important; }}
-  }}
-</style></head>
-<body style="margin:0;padding:0;background:#F1F3F6;">
-<div style="display:none;max-height:0;overflow:hidden;opacity:0;">See how it's doing since it filled.</div>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F1F3F6;">
-  <tr><td align="center" style="padding:32px 16px;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#FFFFFF;border-radius:12px;">
-      <tr><td style="padding:24px 28px 0 28px;font:700 16px/1 {FONT};color:#0A0A0A;">StockSaathi</td></tr>
-      <tr><td style="padding:16px 28px 0 28px;font:700 22px/1.3 {FONT};color:#0A0A0A;">{html.escape(head)}</td></tr>
-      <tr><td style="padding:8px 28px 4px 28px;font:400 15px/1.6 {FONT};color:#30343B;">Hi {name}, here's what happened with your virtual orders.</td></tr>
-      <tr><td style="padding:0 28px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">{rows}
-      </table></td></tr>
-      <tr><td style="padding:20px 28px 0 28px;">
-        <a href="{html.escape(_link('/portfolio', eid))}" style="display:inline-block;background:#00B386;color:#FFFFFF;font:700 15px/1 {FONT};padding:13px 20px;border-radius:8px;text-decoration:none;">See your portfolio</a>
-      </td></tr>
-      <tr><td style="padding:20px 28px 26px 28px;font:400 13px/1.6 {FONT};color:#6B7280;">
-        Want these as phone alerts instead? Tap the bell at the top of StockSaathi and turn them on.<br>
-        You get this because an order you placed on StockSaathi filled. It's virtual money: nothing real was bought or sold.
-        <a href="{SETTINGS}" style="color:#6B7280;">Turn off order emails</a>.
-      </td></tr>
-    </table>
-  </td></tr>
-</table></body></html>"""
+    blocks = [
+        L.heading(head),
+        L.para(f"Hi {name}, here's what happened with your virtual orders."),
+        f'<tr><td style="padding:12px 32px 0 32px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">{items}</table></td></tr>',
+        L.button("See your portfolio", _link("/portfolio", eid)),
+        L.note("<strong style=\"color:#00906B;\">Want these as phone alerts?</strong> "
+               "Tap the bell at the top of StockSaathi and turn them on."),
+        L.small_print("You get this because an order you placed on StockSaathi filled. It's virtual money: nothing real "
+                      f"was bought or sold. <a href=\"{SETTINGS}\" style=\"color:#6B7280;\">Turn off order emails</a>."),
+    ]
+    body = L.page(subject, "See how it's doing since it filled.", blocks)
     text = "\n".join(
         [f"Hi {first_name(user.get('display_name'))},", "", head + ":", ""]
         + [f"- {f.get('title') or 'Order filled'} {f.get('body') or ''} ({_when(f.get('at') or '')})" for f in fills]

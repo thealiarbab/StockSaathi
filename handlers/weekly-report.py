@@ -34,6 +34,8 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler
 
+import _email_layout as L
+
 SUPA_URL = os.environ.get("SUPABASE_URL", "").strip().rstrip("/")
 SUPA_SRV = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "").strip()
 ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "").strip()
@@ -148,53 +150,23 @@ def render(u, eid=None):
     t = int(u.get("trades") or 0)
     rows = [("Portfolio now", inr(u["value_now"])), ("A week ago", inr(u["value_then"])),
             ("Trades this week", str(t) if t else "None")]
-    movers = ""
-    if u.get("best_symbol") is not None:
-        movers = f"""
-      <tr><td style="padding:18px 28px 0 28px;font:700 15px/1.3 {FONT};color:#0A0A0A;">Your stocks this week</td></tr>
-      <tr><td style="padding:6px 28px 0 28px;font:400 15px/1.7 {FONT};color:#30343B;">
-        {mover_lines(u, "<br>", True)}
-      </td></tr>"""
-    table = "".join(f"""
-          <tr><td style="padding:10px 0;border-top:1px solid #E6E8EC;font:400 15px/1.4 {FONT};color:#30343B;">{k}</td>
-              <td align="right" style="padding:10px 0;border-top:1px solid #E6E8EC;font:700 15px/1.4 {FONT};color:#0A0A0A;">{html.escape(v)}</td></tr>"""
-                    for k, v in rows)
     subject = f"Your week on StockSaathi: {inr(ch, True)} ({pct(p)})" if ch else "Your week on StockSaathi"
-    body = f"""<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark">
-<title>{html.escape(subject)}</title>
-<style>
-  :root {{ color-scheme: light dark; supported-color-schemes: light dark; }}
-  @media (prefers-color-scheme: dark) {{
-    body, [style*="background:#F1F3F6"] {{ background: #0A0B0F !important; }}
-    [style*="background:#FFFFFF"] {{ background: #13161E !important; }}
-    [style*="color:#0A0A0A"] {{ color: #F1F3F7 !important; }}
-    [style*="color:#30343B"] {{ color: #C9CED8 !important; }}
-    [style*="color:#6B7280"] {{ color: #8F97A8 !important; }}
-    [style*="border-top:1px solid #E6E8EC"] {{ border-color: #262A36 !important; }}
-  }}
-</style></head>
-<body style="margin:0;padding:0;background:#F1F3F6;">
-<div style="display:none;max-height:0;overflow:hidden;opacity:0;">How your virtual portfolio did this week, and your report card.</div>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F1F3F6;">
-  <tr><td align="center" style="padding:32px 16px;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#FFFFFF;border-radius:12px;">
-      <tr><td style="padding:24px 28px 0 28px;font:700 16px/1 {FONT};color:#0A0A0A;">StockSaathi</td></tr>
-      <tr><td style="padding:16px 28px 0 28px;font:400 15px/1.5 {FONT};color:#30343B;">Hi {name}, here's your week.</td></tr>
-      <tr><td style="padding:6px 28px 0 28px;font:700 30px/1.2 {FONT};color:{colour};">{html.escape(inr(ch, True))} <span style="font-size:18px;">({html.escape(pct(p))})</span></td></tr>
-      <tr><td style="padding:14px 28px 0 28px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">{table}
-      </table></td></tr>{movers}
-      <tr><td style="padding:22px 28px 0 28px;">
-        <a href="{html.escape(_link('/report-card', eid))}" style="display:inline-block;background:#00B386;color:#FFFFFF;font:700 15px/1 {FONT};padding:13px 20px;border-radius:8px;text-decoration:none;">Open your report card</a>
-      </td></tr>
-      <tr><td style="padding:20px 28px 26px 28px;font:400 13px/1.6 {FONT};color:#6B7280;">
-        Virtual money only: nothing real was bought or sold. A week up or down says little on its own; your report card shows the habits behind it.<br>
-        <a href="{SETTINGS}" style="color:#6B7280;">Turn off weekly emails</a>.
-      </td></tr>
-    </table>
-  </td></tr>
-</table></body></html>"""
+    blocks = [
+        L.heading(f"Hi {first_name(u.get('display_name'))}, here's your week"),
+        L.big_number(f"{html.escape(inr(ch, True))} <span style=\"font-size:18px;\">({html.escape(pct(p))})</span>",
+                     L.GREEN if ch >= 0 else L.RED),
+        L.rows([(k, html.escape(v)) for k, v in rows]),
+    ]
+    if u.get("best_symbol") is not None:
+        blocks += [L.subhead("Your stocks this week"), L.para(mover_lines(u, "<br>", True), top=6, size=15)]
+    blocks += [
+        L.button("Open your report card", _link("/report-card", eid)),
+        L.note("<strong style=\"color:#00906B;\">A week says little on its own.</strong> "
+               "Your report card shows the habits behind the number."),
+        L.small_print("Virtual money only: nothing real was bought or sold. You get this weekly because you have a "
+                      f"StockSaathi portfolio. <a href=\"{SETTINGS}\" style=\"color:#6B7280;\">Turn off weekly emails</a>."),
+    ]
+    body = L.page(subject, "How your virtual portfolio did this week, and your report card.", blocks)
     text = "\n".join([f"Hi {first_name(u.get('display_name'))}, here's your week.", "",
                       f"{inr(ch, True)} ({pct(p)})", f"Portfolio now: {inr(u['value_now'])}",
                       f"A week ago: {inr(u['value_then'])}", f"Trades this week: {t or 'None'}"]
