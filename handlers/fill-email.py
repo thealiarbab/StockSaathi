@@ -3,8 +3,11 @@
 Migration 2026-10-24b: fill_email_due() lists users with an unread order_filled
 notice from the last 24 h that was not emailed and that push did not deliver
 (no live push subscription for orders), who left order emails on. One email
-per user lists all of their fills; mark_fill_emailed() then stamps the rows so
-the next run skips them.
+per user lists all of their fills; log_fill_emails() then stamps the rows so
+the next run skips them, and records the email (email_log, with Resend's id
+for the hourly delivery check) and the send (outbound_log). Every link carries
+ss_e=<email id>, so a click is counted by log_email_click. A batch Resend
+refuses is logged as send_failed (migration 2026-10-24e).
 
 SENDING IS OFF unless BOTH hold:
   * env FILL_EMAIL_ON = "1" (Vercel), and
@@ -24,6 +27,7 @@ import json
 import os
 import urllib.parse
 import urllib.request
+import uuid
 from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler
 
@@ -79,9 +83,14 @@ def first_name(display):
     return w[0].upper() + w[1:].lower() if w.isascii() else w
 
 
-def _link(path):
+def _link(path, eid=None):
     path = path if path and path.startswith("/") else "/portfolio"
-    return f"{SITE}{path}{'&' if '?' in path else '?'}{UTM}"
+    return f"{SITE}{path}{'&' if '?' in path else '?'}{UTM}" + (f"&ss_e={eid}" if eid else "")
+
+
+def email_id(fills):
+    """Stable per set of fills, so a rerun of the same email gets the same id."""
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, "fill:" + ",".join(sorted(f["id"] for f in fills))))
 
 
 def _when(iso):
@@ -98,7 +107,7 @@ def subject_for(fills):
     return f"{len(fills)} of your orders filled"
 
 
-def render(user, fills):
+def render(user, fills, eid=None):
     """(subject, html, text) for one user's fills. Titles and bodies come from
     the database (e.g. 'Buy 10 RELIANCE filled', 'At ₹2,847.35.'), escaped."""
     name = html.escape(first_name(user.get("display_name")))
@@ -106,7 +115,7 @@ def render(user, fills):
     head = "Your order filled" if len(fills) == 1 else f"{len(fills)} of your orders filled"
     rows = "".join(f"""
           <tr><td style="padding:12px 0;border-top:1px solid #E6E8EC;">
-            <a href="{html.escape(_link(f.get('url')))}" style="font:700 15px/1.4 {FONT};color:#0A0A0A;text-decoration:none;">{html.escape(f.get('title') or 'Order filled')}</a>
+            <a href="{html.escape(_link(f.get('url'), eid))}" style="font:700 15px/1.4 {FONT};color:#0A0A0A;text-decoration:none;">{html.escape(f.get('title') or 'Order filled')}</a>
             <div style="font:400 14px/1.5 {FONT};color:#30343B;">{html.escape(f.get('body') or '')} <span style="color:#6B7280;">{html.escape(_when(f.get('at') or ''))}</span></div>
           </td></tr>""" for f in fills)
     body = f"""<!doctype html>
@@ -135,7 +144,7 @@ def render(user, fills):
       <tr><td style="padding:0 28px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">{rows}
       </table></td></tr>
       <tr><td style="padding:20px 28px 0 28px;">
-        <a href="{html.escape(_link('/portfolio'))}" style="display:inline-block;background:#00B386;color:#FFFFFF;font:700 15px/1 {FONT};padding:13px 20px;border-radius:8px;text-decoration:none;">See your portfolio</a>
+        <a href="{html.escape(_link('/portfolio', eid))}" style="display:inline-block;background:#00B386;color:#FFFFFF;font:700 15px/1 {FONT};padding:13px 20px;border-radius:8px;text-decoration:none;">See your portfolio</a>
       </td></tr>
       <tr><td style="padding:20px 28px 26px 28px;font:400 13px/1.6 {FONT};color:#6B7280;">
         Want these as phone alerts instead? Tap the bell at the top of StockSaathi and turn them on.<br>
@@ -148,7 +157,7 @@ def render(user, fills):
     text = "\n".join(
         [f"Hi {first_name(user.get('display_name'))},", "", head + ":", ""]
         + [f"- {f.get('title') or 'Order filled'} {f.get('body') or ''} ({_when(f.get('at') or '')})" for f in fills]
-        + ["", f"See your portfolio: {_link('/portfolio')}", "",
+        + ["", f"See your portfolio: {_link('/portfolio', eid)}", "",
            f"Turn off order emails: {SETTINGS}"])
     return subject, body, text
 
@@ -181,19 +190,32 @@ def run(send=False, preview=False, hours=24):
         chunk = due[i:i + BATCH]
         items = []
         ids = []
+        logs = []
         for u in chunk:
-            subject, body, text = render(u, u["fills"])
+            eid = email_id(u["fills"])
+            subject, body, text = render(u, u["fills"], eid)
             items.append({"from": FROM, "to": [u["email"]], "reply_to": REPLY_TO, "subject": subject,
                           "html": body, "text": text,
                           "headers": {"List-Unsubscribe": f"<mailto:{REPLY_TO}?subject=unsubscribe>, <{SETTINGS}>"}})
             ids.extend(f["id"] for f in u["fills"])
+            logs.append({"user_id": u["user_id"], "email_id": eid, "subject": subject,
+                         "ids": [f["id"] for f in u["fills"]]})
         key = "fill-" + hashlib.sha256(",".join(sorted(ids)).encode()).hexdigest()[:40]
         try:
-            _resend_batch(items, key)
+            res = _resend_batch(items, key)
         except Exception as e:
             errors.append(str(e)[:200])
+            try:
+                _rpc("log_send_failed", {"p_kind": "fill_email",
+                                         "p_rows": [{"user_id": l["user_id"], "error": str(e)[:300]} for l in logs]})
+            except Exception:
+                pass
             continue
-        _rpc("mark_fill_emailed", {"p_ids": ids})
+        # Resend answers the batch in order: {"data": [{"id": ...}, ...]}.
+        rids = [d.get("id") for d in (res.get("data") or [])] if isinstance(res, dict) else []
+        for l, rid in zip(logs, rids + [None] * len(logs)):
+            l["resend_id"] = rid
+        _rpc("log_fill_emails", {"p_rows": logs})
         sent_users += len(chunk)
         sent_fills += len(ids)
     return {"ok": not errors, "sent_users": sent_users, "sent_fills": sent_fills, "errors": errors}, None

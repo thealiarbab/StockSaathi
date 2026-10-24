@@ -2,6 +2,9 @@
 // Admin: Growth tab — retention by sign-up week, time to first trade, what
 // retained users did on day one, and feature adoption among active users.
 // Data: admin_growth() (migration 2026-10-24a). "Active" = any user_events row.
+// Below it, the retention tracking card: every recap / weekly report / fill
+// email decision, delivery, open and opt-out, and the recap holdout
+// comparison (retention_scoreboard, migration 2026-10-24e).
 // =============================================================================
 const st = { weeks: 12 };
 
@@ -66,6 +69,7 @@ export async function renderGrowthTab(host, { adminGet }) {
         <tbody>${DAY1.map(([l, k]) => `<tr><td>${l}</td><td class="tabular" style="text-align:right">${pct(fd.retained?.[k])}</td><td class="tabular" style="text-align:right">${pct(fd.churned?.[k])}</td></tr>`).join("")}</tbody>
       </table></div>
     </div>
+    <div class="card" style="margin-bottom:var(--sp-3);" id="growth-tracking"><div class="muted">Loading retention tracking…</div></div>
     <div class="card">
       <div class="card-head"><h3>Feature adoption</h3></div>
       <p class="muted text-sm" style="margin:0 0 var(--sp-2) 0;">Share of active signed-in users who used each feature. Active users: ${n(a7.active_users)} (7 days), ${n(a30.active_users)} (30 days).</p>
@@ -77,4 +81,64 @@ export async function renderGrowthTab(host, { adminGet }) {
       </table></div>
     </div>`;
   host.querySelectorAll("[data-gw]").forEach((b) => b.addEventListener("click", () => { st.weeks = Number(b.dataset.gw); renderGrowthTab(host, { adminGet }); }));
+  renderTracking(host.querySelector("#growth-tracking"), adminGet);
+}
+
+const KIND = { daily_recap: "Daily recap", weekly_report: "Weekly report", fill_email: "Fill email", order_filled: "Order filled" };
+const STATUS = { sent: "Sent", held_out: "Held out (holdout)", skipped_stale: "Skipped: prices not fresh", opted_out: "Skipped: turned off", send_failed: "Send failed" };
+// Rows of cells; the first cell is text (escaped here), the rest are numbers
+// already formatted by n() / pct() / share().
+const table = (head, rows, empty) => `<div class="admin-table-wrap" style="overflow:auto"><table class="admin-table">
+  <thead><tr>${head.map((h, i) => `<th${i ? ' style="text-align:right"' : ""}>${esc(h)}</th>`).join("")}</tr></thead>
+  <tbody>${rows.length ? rows.map((r) => `<tr>${r.map((c, i) => `<td${i ? ' class="tabular" style="text-align:right"' : ""}>${esc(c)}</td>`).join("")}</tr>`).join("")
+    : `<tr><td colspan="${head.length}" class="muted">${esc(empty)}</td></tr>`}</tbody></table></div>`;
+
+async function renderTracking(box, adminGet) {
+  if (!box) return;
+  let t;
+  try { t = await adminGet(`/api/ai?op=admin-retention-tracking&days=${st.trackDays || 14}`); }
+  catch (e) { box.innerHTML = `<div style="color:var(--negative);">Retention tracking: ${esc(e.message)}</div>`; return; }
+  if (!box.isConnected) return;
+  const ex = t.experiment || {};
+  const cfg = ex.config || {};
+  const g = Object.fromEntries((ex.by_group || []).map((x) => [x.grp, x]));
+  const tr = g.treatment || {}, ho = g.holdout || {};
+  const gap = (a, b) => {
+    if (a == null || b == null) return "–";
+    const d = Math.round((a - b) * 10) / 10;
+    return `${d > 0 ? "+" : ""}${d} pts`;
+  };
+  const when = (iso) => new Date(iso).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+  const asks = t.push_ask || {};
+  const dev = t.push_devices || {};
+  box.innerHTML = `
+    <div class="card-head">
+      <h3>Retention tracking: recaps, reports, fill emails</h3>
+      <div class="flex gap-2">${[7, 14, 30, 90].map((d) => `<button class="btn btn-ghost btn-sm ${(st.trackDays || 14) === d ? "active-btn" : ""}" data-td="${d}">${d} days</button>`).join("")}</div>
+    </div>
+    <p class="muted text-sm" style="margin:0 0 var(--sp-2) 0;">Recap holdout: 1 in ${n(cfg.holdout_mod)} users get no daily recap or weekly report.
+      ${cfg.started_at ? `Started ${esc(when(cfg.started_at))}` : "Not started yet: the comparison fills in once recaps are switched on"}${cfg.ended_at ? `, ended ${esc(when(cfg.ended_at))}` : ""}.
+      Both groups are counted on the days a recap was due, whether or not it was sent. Snapshot written nightly at 23:50 IST.</p>
+    <h4 style="margin:var(--sp-3) 0 var(--sp-1);">Did it work?</h4>
+    ${table(["Group", "Came back the day after a recap was due", "Active in the last 7 days", "Users", "Days recorded"], [
+      ["Gets recaps", pct(tr.next_day_return_pct), pct(tr.active_7d_pct), n(tr.cohort_latest), n(tr.days_recorded)],
+      ["Holdout", pct(ho.next_day_return_pct), pct(ho.active_7d_pct), n(ho.cohort_latest), n(ho.days_recorded)],
+      ["Difference", gap(tr.next_day_return_pct, ho.next_day_return_pct), gap(tr.active_7d_pct, ho.active_7d_pct), "", ""],
+    ], "")}
+    <h4 style="margin:var(--sp-3) 0 var(--sp-1);">Every send decision</h4>
+    ${table(["What", "Outcome", "Group", "Count"], (t.sends || []).map((s) => [KIND[s.kind] || s.kind, STATUS[s.status] || s.status, s.grp, n(s.n)]), "Nothing sent or skipped in this window.")}
+    <h4 style="margin:var(--sp-3) 0 var(--sp-1);">Emails (Resend status, checked hourly)</h4>
+    ${table(["Email", "Sent", "Delivered", "Opened", "Clicked", "Bounced", "Spam reports", "Not checked yet"], (t.emails || []).map((e) => [KIND[e.kind] || e.kind,
+      n(e.sent), `${n(e.delivered)} (${share(e.delivered, e.sent)})`, `${n(e.opened)} (${share(e.opened, e.sent)})`, `${n(e.clicked)} (${share(e.clicked, e.sent)})`,
+      n(e.bounced), n(e.complained), n(e.not_checked_yet)]), "No emails in this window.")}
+    <p class="muted text-sm" style="margin:var(--sp-1) 0 0;">Opens are only reported for news.stocksaathi.co.in (the weekly report). Fill emails come from stocksaathi.co.in, where open tracking is off, so judge them by clicks.</p>
+    <h4 style="margin:var(--sp-3) 0 var(--sp-1);">Notifications (bell + push)</h4>
+    ${table(["Kind", "Made", "Pushed", "Push failed", "Read", "Opened from push", "Opened in bell"], (t.notifications || []).map((x) => [KIND[x.kind] || x.kind,
+      n(x.made), n(x.pushed), n(x.push_failed), `${n(x.read)} (${share(x.read, x.made)})`, n(x.opened_from_push), n(x.opened_in_bell)]), "No notifications in this window.")}
+    <h4 style="margin:var(--sp-3) 0 var(--sp-1);">"Ping me when it fills" ask</h4>
+    ${table(["Outcome", "Count"], Object.entries(asks).map(([k, v]) => [k, n(v)]), "Not shown yet in this window.")}
+    <p class="muted text-sm" style="margin:var(--sp-1) 0 0;">Push now: ${n(dev.users_now)} users on ${n(dev.active_now)} devices; ${n(dev.added_in_period)} devices added in this window.</p>
+    <h4 style="margin:var(--sp-3) 0 var(--sp-1);">Turned on / off</h4>
+    ${table(["Setting", "Changed to", "Count"], (t.pref_changes || []).map((p) => [p.what, p.value, n(p.n)]), "No changes in this window.")}`;
+  box.querySelectorAll("[data-td]").forEach((b) => b.addEventListener("click", () => { st.trackDays = Number(b.dataset.td); renderTracking(box, adminGet); }));
 }

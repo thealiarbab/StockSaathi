@@ -8,6 +8,12 @@ Resend, mark_weekly_report_sent() logs each user for this week (so a rerun
 skips them) and leaves the same summary in the bell, which push carries to
 devices that take recaps.
 
+Tracking (migration 2026-10-24e): before sending, log_weekly_skips() logs the
+holdout and opted-out users who would have qualified; each sent email gets an
+email_log row (Resend id, delivery checked hourly) and an outbound_log row;
+links carry ss_e=<email id> for click counting; a refused batch is logged as
+send_failed.
+
 SENDING IS OFF unless BOTH hold:
   * env WEEKLY_EMAIL_ON = "1" (Vercel), and
   * the call says ?send=1 (the cron path does; a manual check does not).
@@ -24,6 +30,7 @@ import json
 import os
 import urllib.parse
 import urllib.request
+import uuid
 from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler
 
@@ -104,8 +111,8 @@ def first_name(display):
     return w[0].upper() + w[1:].lower() if w.isascii() else w
 
 
-def _link(path):
-    return f"{SITE}{path}{'&' if '?' in path else '?'}{UTM}"
+def _link(path, eid=None):
+    return f"{SITE}{path}{'&' if '?' in path else '?'}{UTM}" + (f"&ss_e={eid}" if eid else "")
 
 
 def summary(u):
@@ -134,7 +141,7 @@ def mover_lines(u, sep, as_html):
                      f"{'Worst' if float(u['worst_pct']) < 0 else 'Smallest gain'}: {sym(worst)} {e(pct(u['worst_pct']))}"])
 
 
-def render(u):
+def render(u, eid=None):
     ch, p, title, _ = summary(u)
     name = html.escape(first_name(u.get("display_name")))
     colour = "#00B386" if ch >= 0 else "#E5484D"
@@ -179,7 +186,7 @@ def render(u):
       <tr><td style="padding:14px 28px 0 28px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">{table}
       </table></td></tr>{movers}
       <tr><td style="padding:22px 28px 0 28px;">
-        <a href="{html.escape(_link('/report-card'))}" style="display:inline-block;background:#00B386;color:#FFFFFF;font:700 15px/1 {FONT};padding:13px 20px;border-radius:8px;text-decoration:none;">Open your report card</a>
+        <a href="{html.escape(_link('/report-card', eid))}" style="display:inline-block;background:#00B386;color:#FFFFFF;font:700 15px/1 {FONT};padding:13px 20px;border-radius:8px;text-decoration:none;">Open your report card</a>
       </td></tr>
       <tr><td style="padding:20px 28px 26px 28px;font:400 13px/1.6 {FONT};color:#6B7280;">
         Virtual money only: nothing real was bought or sold. A week up or down says little on its own; your report card shows the habits behind it.<br>
@@ -192,7 +199,7 @@ def render(u):
                       f"{inr(ch, True)} ({pct(p)})", f"Portfolio now: {inr(u['value_now'])}",
                       f"A week ago: {inr(u['value_then'])}", f"Trades this week: {t or 'None'}"]
                      + ([mover_lines(u, chr(10), False)] if u.get("best_symbol") is not None else [])
-                     + ["", f"Your report card: {_link('/report-card')}", "", f"Turn off weekly emails: {SETTINGS}"])
+                     + ["", f"Your report card: {_link('/report-card', eid)}", "", f"Turn off weekly emails: {SETTINGS}"])
     return subject, body, text
 
 
@@ -217,25 +224,36 @@ def run(send=False, preview=False):
     week = datetime.now(IST).date().isoformat()
     sent = 0
     errors = []
+    skipped = _rpc("log_weekly_skips", {})
     for i in range(0, len(due), BATCH):
         chunk = due[i:i + BATCH]
         items, marks = [], []
         for u in chunk:
-            subject, body, text = render(u)
+            eid = str(uuid.uuid5(uuid.NAMESPACE_URL, f"weekly:{week}:{u['user_id']}"))
+            subject, body, text = render(u, eid)
             _, _, title, bell = summary(u)
             items.append({"from": FROM, "to": [u["email"]], "reply_to": REPLY_TO, "subject": subject,
                           "html": body, "text": text,
                           "headers": {"List-Unsubscribe": f"<mailto:{REPLY_TO}?subject=unsubscribe>, <{SETTINGS}>"}})
-            marks.append({"user_id": u["user_id"], "title": title, "body": bell})
+            marks.append({"user_id": u["user_id"], "email_id": eid, "subject": subject, "title": title, "body": bell})
         key = f"weekly-{week}-" + hashlib.sha256(",".join(sorted(m["user_id"] for m in marks)).encode()).hexdigest()[:32]
         try:
-            _resend_batch(items, key)
+            res = _resend_batch(items, key)
         except Exception as e:
             errors.append(str(e)[:200])
+            try:
+                _rpc("log_send_failed", {"p_kind": "weekly_report",
+                                         "p_rows": [{"user_id": m["user_id"], "error": str(e)[:300]} for m in marks]})
+            except Exception:
+                pass
             continue
+        # Resend answers the batch in order: {"data": [{"id": ...}, ...]}.
+        rids = [d.get("id") for d in (res.get("data") or [])] if isinstance(res, dict) else []
+        for m, rid in zip(marks, rids + [None] * len(marks)):
+            m["resend_id"] = rid
         _rpc("mark_weekly_report_sent", {"p_rows": marks})
         sent += len(chunk)
-    return {"ok": not errors, "sent_users": sent, "due_users": len(due), "errors": errors}, None
+    return {"ok": not errors, "sent_users": sent, "due_users": len(due), "skips_logged": skipped, "errors": errors}, None
 
 
 class handler(BaseHTTPRequestHandler):

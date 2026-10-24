@@ -79,6 +79,7 @@ ROUTES = {
     "match-orders": "match-orders",
     "fill-email": "fill-email",
     "weekly-report": "weekly-report",
+    "email-status": "email-status",
 }
 
 

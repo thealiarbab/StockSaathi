@@ -131,6 +131,7 @@ async function drawPanel() {
     const it = e.target.closest(".nb-item");
     if (!it) return;
     if (it.classList.contains("is-unread")) markRead([it.dataset.id]);
+    import("../features/openTracking.js").then((m) => m.logNotifOpen(it.dataset.id, "bell")).catch(() => {});
     if (it.dataset.url) { closePanel(); go(it.dataset.url); }
   };
 }

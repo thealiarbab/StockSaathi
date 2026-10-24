@@ -1571,6 +1571,7 @@ export default async function handler(req) {
       case "admin-quote-cache":   return await opAdminQuoteCache(req, origin);
       case "admin-llm-usage":     return await opAdminLlmUsage(req, origin, url);
       case "admin-growth":        return await opAdminGrowth(req, origin, url);
+      case "admin-retention-tracking": return await opAdminRetentionTracking(req, origin, url);
       case "admin-coach-quality": return await opAdminCoachQuality(req, origin, url);
       case "admin-dhan-coverage": return await opAdminDhanCoverage(req, origin);
       case "admin-audit-log":     return await opAdminAuditLog(req, origin, url);
@@ -2091,6 +2092,23 @@ async function opAdminGrowth(req, origin, url) {
   const weeks = Math.min(52, Math.max(1, parseInt(url.searchParams.get("weeks") || "12", 10) || 12));
   try {
     const r = await sbAdminFetch(`/rest/v1/rpc/admin_growth`, { method: "POST", body: JSON.stringify({ p_weeks: weeks }) });
+    if (!r.ok) return j(502, { error: "query_failed", detail: (await r.text()).slice(0, 200) }, origin);
+    return j(200, await r.json(), origin);
+  } catch (e) {
+    return j(502, { error: "query_failed", detail: String(e.message).slice(0, 120) }, origin);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// op: admin-retention-tracking — sends, deliveries, opens, opt-outs and the
+// recap holdout comparison (retention_scoreboard, migration 2026-10-24e)
+// -----------------------------------------------------------------------------
+async function opAdminRetentionTracking(req, origin, url) {
+  const gate = checkAdmin(req);
+  if (!gate.ok) return j(401, { error: gate.reason }, origin);
+  const days = Math.min(365, Math.max(1, parseInt(url.searchParams.get("days") || "14", 10) || 14));
+  try {
+    const r = await sbAdminFetch(`/rest/v1/rpc/retention_scoreboard`, { method: "POST", body: JSON.stringify({ p_days: days }) });
     if (!r.ok) return j(502, { error: "query_failed", detail: (await r.text()).slice(0, 200) }, origin);
     return j(200, await r.json(), origin);
   } catch (e) {

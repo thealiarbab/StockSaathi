@@ -20,12 +20,15 @@ import { ensureUniverseLoaded } from "./data/universe.js";
 import { upgradeLegacyHash } from "./navigation.js";
 import { ensureCoachStyles, ensureStylesheet } from "./features/styles.js";
 import { toast } from "./components/toast.js";
+import { captureOpen } from "./features/openTracking.js";
 
 // Old "#/…" links (bookmarks, shared URLs, emails sent before clean URLs) →
 // clean path, before anything reads the URL. Runs ahead of the Supabase
 // client's creation, so a legacy password-reset link's "#access_token=…"
 // ends up in location.hash where supabase-js expects it.
 upgradeLegacyHash();
+// A push tap or email link (?ss_n= / ?ss_e=): count it, then clean the URL.
+captureOpen();
 
 // Theme ASAP to avoid flash
 (function applyTheme() {

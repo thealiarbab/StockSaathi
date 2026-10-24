@@ -5,7 +5,7 @@
 // Bump this on every deploy so old cached JS/HTML isn't served forever. The
 // activate step below deletes any cache whose name doesn't match. Include a
 // date so it is obvious in DevTools which build is live.
-const CACHE_NAME = "stocksaathi-v459-20261024t";
+const CACHE_NAME = "stocksaathi-v460-20261024t";
 const STATIC = [
   "./",
   "./app-shell",
@@ -66,6 +66,7 @@ const STATIC = [
   "./js/features/chatOrder.js",
   "./js/features/notifications.js",
   "./js/features/pushAsk.js",
+  "./js/features/openTracking.js",
   "./js/components/bell.js",
   "./js/components/backdrop.js",
   "./js/features/preview.js",
@@ -277,7 +278,14 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = new URL(event.notification.data?.url || "/", self.location.origin).href;
+  // ss_n / ss_via: the page reports which notification brought the user back
+  // (js/features/openTracking.js) and strips them again.
+  const target = new URL(event.notification.data?.url || "/", self.location.origin);
+  if (event.notification.data?.id) {
+    target.searchParams.set("ss_n", event.notification.data.id);
+    target.searchParams.set("ss_via", "push");
+  }
+  const url = target.href;
   event.waitUntil((async () => {
     const tabs = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
     const tab = tabs.find((c) => c.url.startsWith(self.location.origin));
