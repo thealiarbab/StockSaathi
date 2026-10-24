@@ -41,8 +41,12 @@ export async function offerPushAfterOrder({ symbol, path, when = "" }) {
     if (log.n >= MAX_ASKS || Date.now() - log.t < GAP_MS) return;
     if (await pushState() !== "off") return;
     writeLog({ n: log.n + 1, t: Date.now() });
-    const outcome = await ask({ symbol, path, when });
-    track("push_ask", symbol, { outcome, path, n: log.n + 1 });
+    const r = await ask({ symbol, path, when });
+    // outcome: on | blocked (browser said Block) | off (browser box closed
+    // with no answer) | not_now | dismiss (closed our box) | error.
+    // ms_to_tap: box shown -> first tap; ms_total: box shown -> final answer.
+    track("push_ask", symbol, { outcome: r.outcome, path, n: log.n + 1, ms_to_tap: r.msToTap, ms_total: r.msTotal,
+                                perm: typeof Notification !== "undefined" ? Notification.permission : null });
   } catch { /* an alert offer must never break an order */ }
 }
 
@@ -72,27 +76,40 @@ function ask(o) {
       </div>`;
     document.body.appendChild(root);
     const overlay = root.firstElementChild;
+    const shownAt = Date.now();
+    let tappedAt = null;
     let settled = false;
+    // Once "Turn on" is tapped the browser's own permission box is up, and a
+    // tap that closes it can land on our overlay. That is not a dismissal:
+    // until enablePush answers, only its answer counts. (24 Oct: two people
+    // who allowed alerts were logged as "dismiss" this way.)
+    let enabling = false;
     const done = (v) => {
       if (settled) return;
       settled = true;
       document.removeEventListener("keydown", onKey);
       root.remove();
-      resolve(v);
+      const now = Date.now();
+      resolve({ outcome: v, msToTap: (tappedAt || now) - shownAt, msTotal: now - shownAt });
     };
-    const onKey = (e) => { if (e.key === "Escape") done("dismiss"); };
+    const close = (v) => { if (!enabling) done(v); };
+    const onKey = (e) => { if (e.key === "Escape") close("dismiss"); };
     document.addEventListener("keydown", onKey);
-    overlay.addEventListener("click", (e) => { if (e.target === overlay) done("dismiss"); });
-    root.querySelector('[data-pa="no"]').addEventListener("click", () => done("not_now"));
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) { tappedAt ??= Date.now(); close("dismiss"); } });
+    root.querySelector('[data-pa="no"]').addEventListener("click", () => { tappedAt ??= Date.now(); close("not_now"); });
     root.querySelector('[data-pa="yes"]').addEventListener("click", async (e) => {
       // The permission prompt needs this tap, so it is asked from here.
+      tappedAt ??= Date.now();
+      enabling = true;
       e.currentTarget.disabled = true;
       e.currentTarget.textContent = "Turning on…";
       let st;
       try { st = await enablePush(["orders", "account", "recap"]); } catch (err) {
         toast({ kind: "error", message: `Couldn't turn on alerts: ${err?.message || err}` });
+        enabling = false;
         return done("error");
       }
+      enabling = false;
       if (st === "on") toast({ kind: "success", message: "Done. We'll ping you when it fills." });
       done(st);
     });
