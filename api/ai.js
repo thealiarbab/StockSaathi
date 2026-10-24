@@ -1571,6 +1571,7 @@ export default async function handler(req) {
       case "admin-quote-cache":   return await opAdminQuoteCache(req, origin);
       case "admin-llm-usage":     return await opAdminLlmUsage(req, origin, url);
       case "admin-growth":        return await opAdminGrowth(req, origin, url);
+      case "admin-coach-quality": return await opAdminCoachQuality(req, origin, url);
       case "admin-dhan-coverage": return await opAdminDhanCoverage(req, origin);
       case "admin-audit-log":     return await opAdminAuditLog(req, origin, url);
       case "admin-user-reset":    return await opAdminUserReset(req, origin);
@@ -2090,6 +2091,22 @@ async function opAdminGrowth(req, origin, url) {
   const weeks = Math.min(52, Math.max(1, parseInt(url.searchParams.get("weeks") || "12", 10) || 12));
   try {
     const r = await sbAdminFetch(`/rest/v1/rpc/admin_growth`, { method: "POST", body: JSON.stringify({ p_weeks: weeks }) });
+    if (!r.ok) return j(502, { error: "query_failed", detail: (await r.text()).slice(0, 200) }, origin);
+    return j(200, await r.json(), origin);
+  } catch (e) {
+    return j(502, { error: "query_failed", detail: String(e.message).slice(0, 120) }, origin);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// op: admin-coach-quality (migration 2026-10-24b)
+// -----------------------------------------------------------------------------
+async function opAdminCoachQuality(req, origin, url) {
+  const gate = checkAdmin(req);
+  if (!gate.ok) return j(401, { error: gate.reason }, origin);
+  const days = Math.min(120, Math.max(1, parseInt(url.searchParams.get("days") || "30", 10) || 30));
+  try {
+    const r = await sbAdminFetch(`/rest/v1/rpc/admin_coach_quality`, { method: "POST", body: JSON.stringify({ p_days: days }) });
     if (!r.ok) return j(502, { error: "query_failed", detail: (await r.text()).slice(0, 200) }, origin);
     return j(200, await r.json(), origin);
   } catch (e) {
@@ -2963,7 +2980,7 @@ async function vercelFetch(path, opts = {}) {
 const EV_KINDS = new Set([
   "session_start", "page", "page_leave", "click", "rage_click", "form_start", "field",
   "form_submit", "form_abandon", "form_error", "toast", "error", "api", "perf", "search",
-  "outbound", "copy", "net", "install", "visibility", "share", "media",
+  "outbound", "copy", "net", "install", "visibility", "share", "media", "coach",
 ]);
 const EV_BOT = /bot|crawl|spider|slurp|headless|lighthouse|pagespeed|preview|facebookexternalhit|whatsapp|python-requests|curl|wget/i;
 const EV_ID = /^[A-Za-z0-9_-]{8,40}$/;

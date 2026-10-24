@@ -27,6 +27,7 @@ import { pushThread, pullThreads, upsertShare, listShares, revokeShare, sendFeed
 import { COMMANDS, isCommand, runCommand, cardHtml, hydrateCards, guideHtml, guideCompactHtml, CHART_TOOL_NOTE, hideChartMarkers, extractChartMarker } from "../features/chatCards.js";
 import { toast } from "../components/toast.js";
 import { onBackdropClick } from "../components/backdrop.js";
+import { logEvent } from "../features/telemetry.js";
 
 // Defense-in-depth: strip any prompt-scaffolding patterns the model might
 // leak into its visible reply.
@@ -599,6 +600,7 @@ export function renderChat(main, opts = {}) {
       const send = async () => {
         const text = box.value.trim();
         if (!text || text === m.text) { rerender(); return; }
+        logEvent("coach", "edit", { surface: "chat_page" });
         const sess = getActiveSession(sessionsData);
         const removed = forkAt(chatLog, i, { role: "user", text, ts: Date.now() });
         notePruned(sess, removed, chatLog);
@@ -620,6 +622,7 @@ export function renderChat(main, opts = {}) {
       const head = chatLog[i];
       const q = chatLog[i - 1];
       if (!head || head.role !== "assistant" || !q || q.role !== "user") return;
+      logEvent("coach", "regenerate", { surface: "chat_page" });
       const sess = getActiveSession(sessionsData);
       const vers = Array.isArray(head.vers) && head.vers.length ? head.vers.slice() : [];
       const vi = Number.isInteger(head.vi) && vers.length ? head.vi : 0;

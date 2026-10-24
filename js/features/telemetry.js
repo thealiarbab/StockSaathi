@@ -483,6 +483,12 @@ function sendPerf() {
 let perfPath = location.pathname;
 
 // ---------------------------------------------------------------------------
+// Product events from feature code (e.g. coach regenerate / edit). Kinds must
+// be in EV_KINDS in api/ai.js or the server drops them.
+export function logEvent(kind, target = null, props = {}) {
+  try { ev(kind, target, props); } catch {}
+}
+
 export function startTelemetry() {
   if (started || navigator.webdriver) return;
   started = true;

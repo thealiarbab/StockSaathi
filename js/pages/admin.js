@@ -28,6 +28,7 @@ import { xyChart } from "./adminCharts.js";
 import { renderSignupsTab } from "./adminSignups.js";
 import { renderAiCostTab } from "./adminAiCost.js";
 import { renderGrowthTab } from "./adminGrowth.js";
+import { renderCoachQualityTab } from "./adminCoachQuality.js";
 import { renderBehaviourTab, renderJourney } from "./adminBehaviour.js";
 import { toast } from "../components/toast.js";
 import { mountThemedSelect } from "../components/themedSelect.js";
@@ -222,6 +223,7 @@ function renderTabbedShell(main) {
     { id: "auth",     label: "Auth" },
     { id: "markets",  label: "Markets" },
     { id: "aicost",   label: "AI cost" },
+    { id: "coachq",   label: "Coach" },
     { id: "deploy",   label: "Deploy" },
     { id: "repo",     label: "Repo" },
     { id: "audit",    label: "Audit" },
@@ -289,6 +291,7 @@ function renderTabBody(main) {
     case "markets":  return renderMarketsTab(host, main);
     case "aicost":   return renderAiCostTab(host, { adminGet });
     case "growth":   return renderGrowthTab(host, { adminGet });
+    case "coachq":   return renderCoachQualityTab(host, { adminGet });
     case "deploy":   return renderDeployTab(host, main);
     case "repo":     return renderRepoTab(host, main);
     case "audit":    return renderAuditTab(host, main);

@@ -17,6 +17,7 @@ import { runAgent, streamChat, needsLiveData, logChatTurn, isToolCallOnly, looks
 import { getFreshCachedQuote } from "../data/marketData.js";
 import { buildDossier } from "../coach/dossier.js";
 import { normalizeLookupProvenance, withLookupProvenance } from "../coach/lookupProvenance.js";
+import { logEvent } from "../features/telemetry.js";
 
 const CHAT_LOG_KEY = "ss.coachchat.v1";
 // Turns taken off the panel by edit / regenerate. Without these, the merge in
@@ -744,6 +745,7 @@ function wirePanelExtras(ms, input) {
     for (let i = chatHistory.length - 1; i >= 0; i--) if (chatHistory[i]?.role === "user") { qi = i; break; }
     if (qi < 0) return;
     const q = chatHistory[qi].text;
+    if (kind === "regen" || kind === "edit") logEvent("coach", kind === "regen" ? "regenerate" : "edit", { surface: "side_panel" });
     addPruned(chatHistory.splice(qi));
     saveChat();
     if (kind === "regen") { render(); send(q); }
