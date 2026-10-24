@@ -298,8 +298,10 @@ export function detectSectorBias(ctx) {
   if (total <= 0 || eq < 0.2 * total || n < 2) return null;
   const share = inSector / eq;
   if (share < 0.6) return null;
+  // Already a two-stock sector bet before this buy: no new note.
   const tv = Math.round(trade.qty * trade.pricePaise);
-  if (eq - tv > 0 && (inSector - tv) / (eq - tv) >= 0.6) return null;   // was already there
+  const nBefore = (portfolio.positions[trade.symbol]?.qty || 0) > trade.qty ? n : n - 1;
+  if (nBefore >= 2 && eq - tv > 0 && (inSector - tv) / (eq - tv) >= 0.6) return null;
   return {
     bias: "sector_concentration",
     severity: 0.45 + 0.55 * clamp01((share - 0.6) / 0.35),

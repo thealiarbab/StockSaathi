@@ -17,10 +17,10 @@ import {
   getPortfolioValue,
 } from "../state.js";
 import { coach } from "../coach/orchestrator.js";
-import { detectPanicSell } from "../coach/biasDetectors.js";
-import { buildAnalogContext, formatAnalog } from "../coach/historicalAnalog.js";
-import { primeRealCloses } from "../data/realCloses.js";
-import { showInterventionModal } from "../components/interventionModal.js";
+import { evaluateDecision, biasFlag } from "../coach/biasDetectors.js";
+import { primeRealCloses, realBars } from "../data/realCloses.js";
+import { pickNote, showTradeNote } from "../components/tradeNote.js";
+import { biasCopy } from "../coach/biasCopy.js";
 import { mountQuantitySelector } from "../components/quantitySelector.js";
 import { toast as showToast } from "../components/toast.js";
 import { termHtml } from "../features/aiExplainer.js";
@@ -325,10 +325,10 @@ export function renderStockDetail(main, params) {
     return;
   }
 
-  // The panic-sell pause reads a year of real closes. Fetched only on the
-  // Sell tap, it sat in front of the order (11 s of a 19 Oct limit sell was
-  // this plus a quote fetch, before the RPC). Load it now, in the background,
-  // for anything the user holds.
+  // The behaviour detectors read a year of real closes. Never in front of an
+  // order (11 s of a 19 Oct limit sell was this plus a quote fetch): loaded
+  // in the background, now for anything the user holds, else on the first
+  // touch of the trade box (wired in render).
   if (getState().holdings?.[symbol] && inst.kind !== "MF") primeRealCloses(symbol);
 
   if (inst.kind !== "MF" && !_blockReason.has(symbol)) {
@@ -1647,6 +1647,7 @@ function attachListeners(main, inst, symbol, curPrice, holding, chartOhlc, sessi
     }
   });
 
+  if (inst.kind !== "MF") main.querySelector(".trade-box")?.addEventListener("pointerdown", () => primeRealCloses(symbol), { once: true });
   main.querySelector("#place-trade-btn")?.addEventListener("click", async () => {
     if (!getState().isAuthed) { promptSignupToTrade(symbol); return; }
     // Wrap in try/catch so any silent throw inside reviewTrade surfaces
@@ -1821,6 +1822,29 @@ function toast(opts) {
   return showToast(opts);
 }
 
+// After an order that fills later (AMO / limit): Saathi's quiet note when the
+// decision fits a behaviour pattern (option C, 24 Oct: it replaced the pause
+// that stopped panic sells before they went through). Runs after the order
+// is placed, so it never delays it. Returns whether a note was shown.
+async function noteAfterOrder({ symbol, side, qty, pricePaise }) {
+  try {
+    await Promise.race([primeRealCloses(symbol), new Promise((r) => setTimeout(r, 4000))]);
+    const biases = evaluateDecision({ symbol, side, qty, pricePaise });
+    const note = pickNote(biases);
+    if (!note) return false;
+    showTradeNote(note, { name: symbol });
+    recordCoachMessage({
+      id: genId(), ts: Date.now(), eventType: side, triggerSymbol: symbol, model: "template",
+      payload: { reflection: biasCopy(note, { name: symbol }).note, historical_context: null, warning_level: "caution", suggested_q: biasCopy(note).question, citations: [`${note.bias}: ${Math.round(note.severity * 100)}% conf`] },
+      biases,
+    });
+    return true;
+  } catch (e) {
+    console.warn("[bias] note after order failed:", e);
+    return false;
+  }
+}
+
 // After an order that fills later: offer alerts once the next page has drawn
 // (features/pushAsk.js decides whether to ask at all).
 function offerPushLater(o) {
@@ -1884,8 +1908,6 @@ async function promptSignupToTrade(symbol) {
 // double tap there placed two orders. Found 2026-09-27: two identical
 // Rs 10,000 liquid-fund orders from one user, created 50 ms apart.
 let _tradeInFlight = false;
-// Symbol whose panic-sell pause the user just chose to override.
-let _panicAckedFor = null;
 
 // "Opens Tue 9:15 AM" -> "Tue 9:15 AM", for use inside a sentence.
 function openWhen(ms) {
@@ -1992,27 +2014,6 @@ async function _reviewTrade(inst, symbol, curPrice, holding) {
     }
   }
 
-  // D3: the panic pause used to guard market sells only, so the same sell
-  // queued after hours or as a limit skipped it. Same detector, same modal;
-  // "proceed" re-enters this function with the pause acknowledged.
-  const queuedSell = ui.side === "SELL" && holding && inst.kind !== "MF"
-    && (!marketStatus().open || ui.orderType === "LIMIT");
-  if (queuedSell && _panicAckedFor !== symbol) {
-    await primeRealCloses(symbol);
-    const biasResult = detectPanicSell({ trade: { symbol, side: "SELL", qty, pricePaise: curPrice }, holding });
-    if (biasResult && biasResult.severity >= 0.35) {
-      const analog = buildAnalogContext(symbol, curPrice);
-      showInterventionModal(
-        { analog, biasResult, instrument: inst, trade: { qty, pricePaise: curPrice, holding } },
-        {
-          onProceed: () => { _panicAckedFor = symbol; orderEnd("proceed_after_pause"); reviewTrade(inst, symbol, curPrice, holding); },
-          onHold: () => { orderEnd("held"); toast({ kind: "info", message: "Held. Good choice to pause." }); },
-        }
-      );
-      return;
-    }
-  }
-  _panicAckedFor = null;
 
   // ---- After-hours AMO path --------------------------------------------
   // Mirror Groww: when NSE is closed, we never call apply_trade — we queue
@@ -2085,7 +2086,8 @@ async function _reviewTrade(inst, symbol, curPrice, holding) {
       // "Pending limit orders" card — gives the user concrete evidence
       // the AMO landed, not just a toast.
       go("/portfolio");
-      offerPushLater({ symbol, path: "amo", when: openWhen(ms) });
+      if (!await noteAfterOrder({ symbol, side: ui.side, qty, pricePaise: atOpen ? curPrice : limitPaise }))
+        offerPushLater({ symbol, path: "amo", when: openWhen(ms) });
     } catch (e) {
       console.error("[AMO] placeLimitOrder failed:", e);
       toast({
@@ -2151,7 +2153,8 @@ async function _reviewTrade(inst, symbol, curPrice, holding) {
         throw e;
       });
       toast({ kind: "success", message: `${ui.side} limit placed: ${formatQty(qty, inst.kind)} ${symbol} @ ₹${limitRupees.toFixed(2)}. Fills automatically when market crosses.` });
-      offerPushLater({ symbol, path: "limit" });
+      if (!await noteAfterOrder({ symbol, side: ui.side, qty, pricePaise: limitPaise }))
+        offerPushLater({ symbol, path: "limit" });
     } catch (e) {
       console.error("[limit] placeLimitOrder failed:", e);
       toast({ kind: "error", message: e?.message || "Could not place limit order." });
@@ -2183,48 +2186,10 @@ async function _reviewTrade(inst, symbol, curPrice, holding) {
     return;
   }
 
-  // SELL → check panic detector FIRST (before confirmation modal)
-  if (ui.side === "SELL" && holding) {
-    // The detector needs REAL recent closes; without them it stays silent.
-    await primeRealCloses(symbol);
-    const biasResult = detectPanicSell({
-      trade: { symbol, side: "SELL", qty, pricePaise: curPrice },
-      holding,
-    });
-    if (biasResult && biasResult.severity >= 0.35) {
-      const analog = buildAnalogContext(symbol, curPrice);
-      showInterventionModal(
-        { analog, biasResult, instrument: inst, trade: { qty, pricePaise: curPrice, holding } },
-        {
-          onProceed: () => showConfirm(inst, symbol, curPrice, qty, biasResult),
-          onHold: () => {
-            orderEnd("held");
-            toast({ kind: "info", message: "Held. Good choice to pause." });
-            recordCoachMessage({
-              id: genId(), ts: Date.now(),
-              eventType: "INTERVENTION_HOLD",
-              triggerSymbol: symbol,
-              model: "template",
-              payload: {
-                reflection: `You paused a panic-sell on ${inst.name}. Doing nothing in the middle of a drop is the rarest skill in investing. The muscle you just used is the one that actually matters long-term.`,
-                historical_context: analog ? formatAnalog(analog) : null,
-                warning_level: "info",
-                suggested_q: "Set a rule right now — if this drops another 5%, what will you do? Write it down.",
-                citations: ["hold_decision", "panic_averted"],
-              },
-              biases: [biasResult],
-            });
-          },
-        }
-      );
-      return;
-    }
-  }
-
-  showConfirm(inst, symbol, curPrice, qty, null);
+  showConfirm(inst, symbol, curPrice, qty);
 }
 
-function showConfirm(inst, symbol, curPrice, qty, biasResult) {
+function showConfirm(inst, symbol, curPrice, qty) {
   const modalRoot = document.getElementById("modal-root");
   const total = Math.round(qty * curPrice);
   const side = ui.side;
@@ -2288,7 +2253,7 @@ function showConfirm(inst, symbol, curPrice, qty, biasResult) {
   modalRoot.querySelector("#confirm-btn").addEventListener("click", () => {
     track("trade_modal", symbol, { action: "confirm", side });
     close();
-    executeTrade(inst, side, qty, curPrice, biasResult);
+    executeTrade(inst, side, qty, curPrice);
   });
   setTimeout(() => modalRoot.querySelector("#confirm-btn")?.focus(), 50);
   // Fire the pre-trade AI nudge in parallel — doesn't block the confirm button.
@@ -2353,7 +2318,7 @@ async function fetchTradeNudge(modalRoot, inst, symbol, side, qty, curPricePaise
   }
 }
 
-async function executeTrade(inst, side, qty, pricePaise, biasResult) {
+async function executeTrade(inst, side, qty, pricePaise) {
   // Market order: the server books its own latest quote (apply_trade), so
   // the toast and the coach use the price it returns, not the screen's.
   try {
@@ -2381,11 +2346,18 @@ async function executeTrade(inst, side, qty, pricePaise, biasResult) {
       return;
     }
 
-    // The coach's detectors need the holding as it was BEFORE this trade.
-    const holdingBefore = getState().holdings[inst.symbol];
+    // The coach's detectors need the portfolio as it was BEFORE this trade
+    // (state is replaced, never mutated, so this snapshot stays as it is).
+    const before = getState();
+    const holdingBefore = before.holdings[inst.symbol];
+    // Judged at the moment of the decision, at the price the user accepted.
+    // Real bars are usually loaded by now (trade box touch); if not, the
+    // check runs after the fill instead and the trade carries no flags.
+    let biases = realBars(inst.symbol) || inst.kind === "MF"
+      ? evaluateDecision({ symbol: inst.symbol, side, qty, pricePaise: fillPrice }, before) : null;
     const place = () => applyTrade({
       symbol: inst.symbol, side, qty, pricePaise: fillPrice, idempotencyKey,
-      biasFlags: biasResult ? [biasResult] : [],
+      biasFlags: (biases || []).map(biasFlag),
     });
     let txn;
     try {
@@ -2411,8 +2383,14 @@ async function executeTrade(inst, side, qty, pricePaise, biasResult) {
 
     const state = getState();
     const isFirstTrade = state.transactions.length === 1;
-    const msg = await coach({ type: side, symbol: inst.symbol, qty, pricePaise: bookedPaise, txnId: txn?.id, isFirstTrade, holdingBefore });
+    if (!biases) {
+      await Promise.race([primeRealCloses(inst.symbol), new Promise((r) => setTimeout(r, 4000))]);
+      biases = evaluateDecision({ symbol: inst.symbol, side, qty, pricePaise: bookedPaise }, before);
+    }
+    const msg = await coach({ type: side, symbol: inst.symbol, qty, pricePaise: bookedPaise, txnId: txn?.id, isFirstTrade, holdingBefore, biases });
     recordCoachMessage(msg);
+    const note = pickNote(biases);
+    if (note) showTradeNote(note, { name: inst.symbol });
   } catch (e) {
     toast({ kind: "error", message: e.message || "Trade failed" });
     console.error(e);

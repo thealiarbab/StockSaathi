@@ -58,6 +58,11 @@ export function realCloses(symbol, n = null) {
   return n != null ? closes.slice(-n) : closes;
 }
 
+/** The real daily bars ({t,o,h,l,c}, oldest first), or null if not primed. */
+export function realBars(symbol) {
+  return _real.get(symbol)?.ohlc || null;
+}
+
 /** Real 52-week high/low (paise), or null if not primed. */
 export function real52w(symbol) {
   const bars = _real.get(symbol)?.ohlc;

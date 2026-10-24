@@ -5,10 +5,10 @@ Vanilla-JS SPA + Python serverless (Vercel) + Postgres (Supabase). Virtual-money
 ## RESUME HERE (paused 19 Oct 2026, continuing the next week)
 
 Handoff notes were kept OUTSIDE git (`docs/HANDOFF_claude-session-jolly-ptolemy_chat-notifications-portfolio_2026-10-19.md`, gitignored, owner has a copy). Summary: owner's standing rules, his UX
-decisions, the pending queue IN HIS ORDER (#1 bias/panic-sell rewrite with
-option-C UX → #2 report card algorithm → #3 achievements 80+/seasonal; #6
-Settings only when he asks — he said "LEAVE SETTINGS"), what shipped, root
-causes, and tooling traps. Commit 27b1c155 still needs his approval for a
+decisions, the pending queue IN HIS ORDER, what shipped, root causes, and
+tooling traps. Done since: #6 Settings redesign (24 Oct), #1 bias detectors
++ after-trade note (24 Oct). Next: #2 report card algorithm, then #3
+achievements (80+/seasonal). Commit 27b1c155 still needs his approval for a
 history rewrite.
 
 ## Stack
@@ -224,6 +224,30 @@ effort for A/B runs; unset to restore the per-op settings.
   matcher_http (pg_net failures), chat_failing, chat_fallback. A failing check
   inserts `notifications` (kind `ops_alert`) for the owner accounts -> bell +
   push; cooldown 2 h per check (`ops_alerts`).
+
+## Behaviour detectors and the after-trade note (rewritten 24 Oct)
+
+- `js/coach/biasCore.js`: the 9 detectors as PURE functions (no imports), so
+  Node tests and replays run the exact app code. `js/coach/biasDetectors.js`
+  builds their input from app state (real prices, else cost; real daily bars
+  from `realCloses.js`, never the chart walk). `scripts/test-bias-core.mjs`.
+- Thresholds scale with each stock's own volatility (stdev of 60 daily
+  returns). A trade price >25% from the last close is a data mismatch (split
+  adjusted history, bad quote): nothing price-based is judged. Bars count only
+  once their session has ended, so an intraday sale is judged against
+  yesterday's close.
+- Measured on all 7,139 real trades (24 Oct): the old panic check would have
+  paused 62 sells, mostly sales at a profit, 1-share trims and split
+  artifacts; the new one notes 9. Overtrading/churning/concentration fire on
+  the trade that crosses the line, not on every trade after it.
+- UX (owner's option C): NO pause before the order. After it goes through
+  (market, AMO or limit), `components/tradeNote.js` shows a quiet note from
+  the coach button, with a "What is …?" explainer sheet (English/Hinglish,
+  "in your case" chips, one question, Ask Saathi). Rationed per pattern in
+  localStorage `ss.biasnote.v1`. Telemetry: user_events kind `bias_note`
+  (shown/opened/dismissed/ask). Copy: `js/coach/biasCopy.js` (reflection
+  only, never advice). The owner floated "grey out the screen" with the
+  note: NOT built, confirm with him first.
 
 ## User notices
 

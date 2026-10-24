@@ -6,12 +6,12 @@
 // Deterministic layer ALWAYS runs first. The LLM is optional flavor.
 // =============================================================================
 
-import { runDetectors } from "./biasDetectors.js";
+import { runDetectors, biasContext } from "./biasDetectors.js";
 import { buildAnalogContext } from "./historicalAnalog.js";
 import { resolveTemplate, makeTick } from "./templates.js";
 import { filterOutput, safeFallback } from "./outputFilter.js";
 import { getInstrument } from "../data/universe.js";
-import { getRealPricePaise, getReservedCashPaise } from "../state.js";
+import { getReservedCashPaise } from "../state.js";
 import { getState } from "../state.js";
 import { callExternalLlm } from "./llmBridge.js";
 import { primeRealCloses } from "../data/realCloses.js";
@@ -29,8 +29,9 @@ export async function coach(event) {
   // Build a unified context
   const ctx = buildContext(event, s);
 
-  // Run deterministic biases
-  const biases = runDetectors(ctx.detectorCtx);
+  // Run deterministic biases (the stock page passes the ones it already ran
+  // at the moment of the decision, so the note and this message agree).
+  const biases = Array.isArray(event.biases) ? event.biases : runDetectors(ctx.detectorCtx);
   const biasEvidence = {};
   for (const b of biases) biasEvidence[b.bias] = b;
 
@@ -152,20 +153,16 @@ function buildContext(event, s) {
       ? event.holdingBefore
       : undoTrade(s.holdings, ctx.trade)[event.symbol];
     ctx.holding = holdingBefore;
-    ctx.detectorCtx = {
+    ctx.detectorCtx = biasContext({
       trade: ctx.trade,
-      holding: holdingBefore,
       holdingBefore,
       holdingsAfter,
-      portfolioValue: getPortfolioValueForCtx(s, holdingsAfter, ctx.trade),
-      transactions: s.transactions,
-    };
+      cashAfterPaise: (s.portfolio?.cashPaise || 0) + getReservedCashPaise(s),
+      excludeTxnId: event.txnId || null,
+      state: s,
+    });
   } else {
-    ctx.detectorCtx = {
-      transactions: s.transactions,
-      holdingsAfter: s.holdings,
-      portfolioValue: getPortfolioValueForCtx(s, s.holdings),
-    };
+    ctx.detectorCtx = null;   // the detectors judge trades only
   }
   return ctx;
 }
@@ -187,17 +184,6 @@ function undoTrade(holdings, trade) {
     ...holdings,
     [symbol]: { avgCostPaise: pricePaise, firstBoughtAt: Date.now(), ...(cur || {}), qty: (cur?.qty || 0) + qty },
   };
-}
-
-// Cash + held-for-orders cash + holdings at real prices (the traded symbol at
-// its fill price, anything unpriced at its average cost). Never the walk.
-function getPortfolioValueForCtx(s, holdings, trade = null) {
-  let total = (s.portfolio?.cashPaise || 0) + getReservedCashPaise(s);
-  for (const [sym, h] of Object.entries(holdings)) {
-    const px = (trade && sym === trade.symbol && trade.pricePaise) || getRealPricePaise(sym) || h.avgCostPaise;
-    total += Math.round(h.qty * px);
-  }
-  return total;
 }
 
 function pickTemplateKey(event, biases) {

@@ -81,7 +81,7 @@ const PUMP_CHASE_VARIANTS = [
 
 const FOMO_VARIANTS = [
   (tick) => ({
-    reflection: `${tick.name} is up ${tick.runUp}% in the last week. Buying after a fast run-up works about a third of the time — and fails spectacularly the other two-thirds.`,
+    reflection: `${tick.name} had run up ${tick.runUp}% over the last ${tick.runSessions || 10} sessions before you bought. Late buyers in a run-up often pay near the top.`,
     historical_context: null,
     warning_level: "caution",
     suggested_q: "Would you still want this stock if it had not rallied recently?",
@@ -110,16 +110,16 @@ const SECTOR_CONCENTRATION_VARIANTS = [
 
 const ANCHORING_VARIANTS = [
   (tick) => ({
-    reflection: `You bought ${tick.name} within 2% of its ${tick.anchor === "52w_high" ? "52-week high" : "52-week low"}. Prices near extreme points carry extreme expectations — in both directions.`,
+    reflection: `You added to ${tick.name} while it is ${tick.belowCost}% below what you paid. Averaging down can be a plan, or a way of anchoring to your buy price.`,
     historical_context: null,
     warning_level: "info",
-    suggested_q: "Are you buying because of this price level, or despite it?",
+    suggested_q: "If you did not own it yet, would you buy it today at this price?",
   }),
 ];
 
 const DISPOSITION_VARIANTS = [
   (tick) => ({
-    reflection: `In the last 30 days you've sold ${tick.winnersSold} winning position${tick.winnersSold === 1 ? "" : "s"} and held ${tick.losersSold === 1 ? "1 losing one" : `${tick.losersSold || "most"} losing ones`}. This is the most documented pattern in retail investing — "sell the winners, hold the losers".`,
+    reflection: `In the last 60 days you've sold ${tick.winnersSold} winning position${tick.winnersSold === 1 ? "" : "s"} and ${tick.losersSold} losing one${tick.losersSold === 1 ? "" : "s"}, while ${tick.losersHeld === 1 ? "1 holding sits" : `${tick.losersHeld} holdings sit`} 10%+ below cost. This is the most documented pattern in retail investing — "sell the winners, hold the losers".`,
     historical_context: null,
     warning_level: "caution",
     suggested_q: "If you'd flipped those decisions — sold losers, held winners — how would your portfolio look today?",
@@ -137,7 +137,7 @@ const CHURNING_VARIANTS = [
 
 const OVERTRADING_VARIANTS = [
   (tick) => ({
-    reflection: `${tick.count} trades in the last 24 hours. Very few strategies require more than 1-2 decisions a day. More activity ≠ more returns.`,
+    reflection: `${tick.count} trades today. Very few strategies need more than one or two decisions a day. More activity is not more returns.`,
     historical_context: null,
     warning_level: "caution",
     suggested_q: "What would happen if you didn't trade for the next 7 days?",
@@ -269,17 +269,17 @@ export function makeTick({ trade, instrument, analog, biasEvidence, holding }) {
   };
   if (biasEvidence?.panic_sell) {
     const ev = biasEvidence.panic_sell.evidence;
-    tick.dropText =
-      Math.abs(ev.drop_intraday_pct) >= 3
-        ? `just minutes after an intraday drop of ${Math.abs(ev.drop_intraday_pct)}%`
-        : `while it was down ${Math.abs(ev.drop_3d_pct)}% over the past few sessions`;
+    tick.dropText = ev.drop_sessions === 1
+      ? `right after a ${Math.abs(ev.drop_pct)}% fall since the last close`
+      : `right after a ${Math.abs(ev.drop_pct)}% fall over ${ev.drop_sessions} sessions`;
     tick.severity = biasEvidence.panic_sell.severity;
   }
   if (biasEvidence?.pump_chase) {
     tick.intradayGain = biasEvidence.pump_chase.evidence.intraday_gain_pct;
   }
   if (biasEvidence?.fomo) {
-    tick.runUp = biasEvidence.fomo.evidence.run_up_pct_7d;
+    tick.runUp = biasEvidence.fomo.evidence.run_up_pct;
+    tick.runSessions = biasEvidence.fomo.evidence.sessions;
   }
   if (biasEvidence?.concentration) {
     tick.concentration = biasEvidence.concentration.evidence.concentration_pct;
@@ -289,17 +289,18 @@ export function makeTick({ trade, instrument, analog, biasEvidence, holding }) {
     tick.sectorPct = biasEvidence.sector_concentration.evidence.sector_pct;
   }
   if (biasEvidence?.anchoring) {
-    tick.anchor = biasEvidence.anchoring.evidence.anchor;
+    tick.belowCost = Math.abs(biasEvidence.anchoring.evidence.below_cost_pct);
   }
   if (biasEvidence?.disposition) {
     tick.winnersSold = biasEvidence.disposition.evidence.winners_sold;
     tick.losersSold = biasEvidence.disposition.evidence.losers_sold;
+    tick.losersHeld = biasEvidence.disposition.evidence.losers_held;
   }
   if (biasEvidence?.churning) {
     tick.rounds = biasEvidence.churning.evidence.round_trips_30d;
   }
   if (biasEvidence?.overtrading) {
-    tick.count = biasEvidence.overtrading.evidence.trades_24h;
+    tick.count = biasEvidence.overtrading.evidence.trades_today;
   }
   if (holding) {
     const plPct = (trade.pricePaise - holding.avgCostPaise) / holding.avgCostPaise;
