@@ -383,6 +383,13 @@ export function renderChat(main, opts = {}) {
       if (m_pending) return;
       const text = input.value.trim();
       if (!text) return;
+      // The chart button fills in "Read the 3-month chart of " for the student
+      // to finish. Sent as is (25 Oct), Saathi had no stock to read.
+      if (/\bchart of$/i.test(text)) {
+        toast({ kind: "info", message: "Add a stock name after \"chart of\", like TCS or Reliance." });
+        input.focus();
+        return;
+      }
       input.value = "";
       fit();
       main.querySelector(".cc-panel")?.classList.remove("is-empty");
@@ -1074,7 +1081,11 @@ function renderBubble(m) {
   // links read), so that text is for screen readers only. A chart Saathi
   // put under an answer (cardWithText) goes below the answer.
   const textCls = card && !m.cardWithText ? "cc-bubble cc-bot sr-only" : "cc-bubble cc-bot";
-  const textHtml = m.text ? `<div class="${textCls}"><span class="msg-body">${body}</span></div>` : "";
+  // A streaming reply starts empty while the model thinks (about 3 s at high
+  // effort). It used to render as nothing and hide the typing dots, so the
+  // chat looked frozen until the first word arrived.
+  const textHtml = m.text ? `<div class="${textCls}"><span class="msg-body">${body}</span></div>`
+    : m.streaming ? `<div class="cc-bubble cc-bot"><span class="msg-body">${statusHtml("Thinking…")}</span></div>` : "";
   return `<div class="cc-row cc-row-bot"${streamAttr} data-i="${i}"><div class="cc-bot-col">${m.cardWithText ? textHtml + card : card + textHtml}${actions}</div></div>`;
 }
 

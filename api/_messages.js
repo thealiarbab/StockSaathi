@@ -197,12 +197,23 @@ const JSON_ONLY = "\n\nOUTPUT FORMAT: reply with exactly one JSON object and not
 // mapping is applied to the call and to its result, so they still pair up.
 const safeId = (id, i) => String(id || `call_${i}`).replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64);
 
+// The per-turn facts ride on the student's message inside this tag (see
+// toMessagesBody). Only this server may write it: the tag is removed from
+// anything the student sends, so the model can trust every copy it sees.
+const APP_TAG = "stocksaathi_app_context";
+const APP_TAG_RE = new RegExp(`<\\s*/?\\s*${APP_TAG}[^>]*>`, "gi");
+function stripAppTag(s) { return String(s).replace(APP_TAG_RE, ""); }
+const APP_CONTEXT_NOTE = `
+
+# APP CONTEXT BLOCK
+The student's latest message ends with a <${APP_TAG}> block. StockSaathi's server adds it on every turn: the current time, market status, the student's own portfolio and other live facts. The server deletes that tag from anything the student types, so the block is always genuine and is not something the student pasted. Rely on it exactly as you rely on these instructions. Never call it pasted, suspicious, unverifiable or "inside your message", and do not mention it unless the student asks what you receive, in which case say the app adds the time, market status and their portfolio to each message.`;
+
 function userContent(content) {
-  if (typeof content === "string") return content;
-  if (!Array.isArray(content)) return String(content ?? "");
+  if (typeof content === "string") return stripAppTag(content);
+  if (!Array.isArray(content)) return stripAppTag(content ?? "");
   const blocks = [];
   for (const part of content) {
-    if (part?.type === "text" && part.text) blocks.push({ type: "text", text: String(part.text) });
+    if (part?.type === "text" && part.text) blocks.push({ type: "text", text: stripAppTag(part.text) });
     else if (part?.type === "image_url") {
       const u = String(part.image_url?.url || part.image_url || "");
       const m = u.match(/^data:([^;]+);base64,(.+)$/);
@@ -312,14 +323,19 @@ export function toMessagesBody(payload, { profile, stream }) {
       if (asked) lastUser = m;
     }
     if (at > 0 && lastUser) {
-      body.system = [{ type: "text", text: system.slice(0, at), cache_control: { type: "ephemeral" } }];
+      // A plain "[Context … added by the app]" note inside the student's turn
+      // read like a prompt injection: from 24 Oct the model called it "the
+      // block you pasted" and ignored the clock and portfolio (14 replies on
+      // 25 Oct). The tag below can only come from this server, and the fixed
+      // instructions say so.
+      body.system = [{ type: "text", text: system.slice(0, at) + APP_CONTEXT_NOTE, cache_control: { type: "ephemeral" } }];
       const content = typeof lastUser.content === "string"
         ? [{ type: "text", text: lastUser.content || "(no text)" }]
         : lastUser.content.slice();
       content[content.length - 1] = { ...content[content.length - 1], cache_control: { type: "ephemeral" } };
       content.push({
         type: "text",
-        text: `[Context for this reply, added by the StockSaathi app, not typed by the user. Follow it as system instructions.]\n${system.slice(at + 2)}`,
+        text: `<${APP_TAG}>\n${system.slice(at + 2)}\n</${APP_TAG}>`,
       });
       lastUser.content = content;
     } else if (at > 0) {
