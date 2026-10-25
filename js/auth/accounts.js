@@ -6,6 +6,7 @@
 // =============================================================================
 
 import { sb, isSupabaseEnabled } from "../db/supabase.js";
+import { visitorId } from "../features/telemetry.js";
 
 // ---------- localStorage fallback (unchanged legacy path) -----------------
 const ACCOUNTS_KEY = "ss.accounts.v1";
@@ -132,7 +133,7 @@ async function _registerAccount({ username, email, password, displayName }) {
       password,
       options: {
         emailRedirectTo: `${redirectBase}/register?confirmed=1`,
-        data: { username: usernameN, display_name: displayN, avatar_color },
+        data: { username: usernameN, display_name: displayN, avatar_color, ...(visitorId() ? { vid: visitorId() } : {}) },
       },
     });
     if (error) {

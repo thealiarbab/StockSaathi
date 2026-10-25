@@ -489,6 +489,14 @@ export function logEvent(kind, target = null, props = {}) {
   try { ev(kind, target, props); } catch {}
 }
 
+// This browser's visitor id, sent with signUp so the account is tied to its
+// visits even if the emailed code is never entered (see
+// 2026-10-25a_visitor_account_links.sql).
+export function visitorId() {
+  const v = vid || lsGet(VID_KEY);
+  return v && /^[A-Za-z0-9_-]{8,40}$/.test(v) ? v : null;
+}
+
 export function startTelemetry() {
   if (started || navigator.webdriver) return;
   started = true;

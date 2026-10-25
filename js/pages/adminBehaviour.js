@@ -296,11 +296,13 @@ function wire() {
 }
 
 // ---------------------------------------------------------------------------
-// One student's trail, for the user drill-down.
-export async function renderJourney(el, { adminGet, userId }) {
+// One student's trail, for the user drill-down; or one browser's (vid), for
+// visitors who never finished signing up.
+export async function renderJourney(el, { adminGet, userId, vid }) {
   el.innerHTML = `<div class="muted text-sm">Loading their journey…</div>`;
   let d;
-  try { d = await adminGet(`/api/ai?op=admin-journey&uid=${encodeURIComponent(userId)}`); }
+  const q = vid ? `vid=${encodeURIComponent(vid)}` : `uid=${encodeURIComponent(userId)}`;
+  try { d = await adminGet(`/api/ai?op=admin-journey&${q}`); }
   catch (err) { el.innerHTML = `<div style="color:var(--negative)">${e(err.message || err)}</div>`; return; }
   const ft = d.visitors?.[0]?.firstTouch || {};
   const evs = d.events || [];
@@ -326,6 +328,7 @@ export async function renderJourney(el, { adminGet, userId }) {
     }
   };
   el.innerHTML = `
+    ${(d.accounts || []).length ? `<div class="text-sm" style="margin-bottom:6px">Accounts from this browser: ${d.accounts.map(a => `<b>${e(a.username || "?")}</b> (${e(a.provider || "email")}, made ${e(ist(a.createdAt))}, ${a.confirmedAt || a.provider === "google" ? "confirmed" : "<span style='color:var(--negative)'>never confirmed</span>"})`).join(" · ")}</div>` : ""}
     <div class="dim text-sm" style="margin-bottom:8px">First visit ${d.visitors?.[0] ? e(ist(d.visitors[0].firstSeen)) : "?"} · came from <b>${e(ft.src || "direct")}</b>${ft.landing ? ` · landed on ${e(ft.landing)}` : ""}${ft.dev ? ` · ${e(ft.dev)} ${e(ft.os || "")} ${e(ft.br || "")}` : ""}${ft.cc ? ` · ${e(ft.cc)}` : ""} · ${fmtInt(evs.length)} events (latest first)</div>
     <div class="bh-journey">${bySid.map((g) => `
       <details ${g === bySid[0] ? "open" : ""}><summary>Visit · ${e(ist(g.rows[g.rows.length - 1].ts))} – ${e(ist(g.rows[0].ts).split(", ").pop())} · ${g.rows.length} events</summary>

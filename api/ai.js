@@ -1607,6 +1607,7 @@ async function route(req) {
       case "ev":                  if (req.method !== "POST") return j(405, { error: "method_not_allowed" }, origin); return await opEv(req, origin);
       case "admin-behaviour":     return await opAdminBehaviour(req, origin, url);
       case "admin-journey":       return await opAdminJourney(req, origin, url);
+      case "admin-signup-funnel": return await opAdminSignupFunnel(req, origin, url);
       case "admin-click-map":     return await opAdminClickMap(req, origin, url);
       case "admin-user":          return await opAdminUser(req, origin, url);
       case "admin-activity-feed": return await opAdminActivityFeed(req, origin, url);
@@ -3197,10 +3198,31 @@ async function opAdminBehaviour(req, origin, url) {
 async function opAdminJourney(req, origin, url) {
   const gate = checkAdmin(req);
   if (!gate.ok) return j(401, { error: gate.reason }, origin);
+  // ?vid= is one browser (signed in or not, e.g. someone who quit the signup
+  // form); ?uid= is one account and every browser it used.
+  const vid = url.searchParams.get("vid") || "";
+  if (vid) {
+    if (!/^[A-Za-z0-9_-]{8,40}$/.test(vid)) return j(400, { error: "bad_vid" }, origin);
+    const res = await sbAdminFetch(`/rest/v1/rpc/admin_visitor_journey`, { method: "POST", body: JSON.stringify({ p_vid: vid, p_limit: 800 }) });
+    if (!res.ok) return j(502, { error: "query_failed", detail: `admin_visitor_journey ${res.status}` }, origin);
+    return j(200, await res.json(), origin);
+  }
   const uid = url.searchParams.get("uid") || "";
   if (!/^[0-9a-f-]{36}$/i.test(uid)) return j(400, { error: "bad_uid" }, origin);
   const res = await sbAdminFetch(`/rest/v1/rpc/admin_user_journey`, { method: "POST", body: JSON.stringify({ p_uid: uid, p_limit: 600 }) });
   if (!res.ok) return j(502, { error: "query_failed", detail: `admin_user_journey ${res.status}` }, origin);
+  return j(200, await res.json(), origin);
+}
+
+// Visit → signup funnel for new browsers, with where each one stopped.
+// Stored result refreshed every 3 min by pg_cron (signup-funnel-cache).
+async function opAdminSignupFunnel(req, origin, url) {
+  const gate = checkAdmin(req);
+  if (!gate.ok) return j(401, { error: gate.reason }, origin);
+  const d = parseInt(url.searchParams.get("days") || "7", 10);
+  const days = [1, 7, 30].includes(d) ? d : 7;
+  const res = await sbAdminFetch(`/rest/v1/rpc/admin_funnel_cached`, { method: "POST", body: JSON.stringify({ p_days: days }) });
+  if (!res.ok) return j(502, { error: "query_failed", detail: `admin_funnel_cached ${res.status}` }, origin);
   return j(200, await res.json(), origin);
 }
 

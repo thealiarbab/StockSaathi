@@ -30,6 +30,7 @@ import { renderAiCostTab } from "./adminAiCost.js";
 import { renderGrowthTab } from "./adminGrowth.js";
 import { renderCoachQualityTab } from "./adminCoachQuality.js";
 import { renderBehaviourTab, renderJourney } from "./adminBehaviour.js";
+import { renderFunnelTab } from "./adminFunnel.js";
 import { toast } from "../components/toast.js";
 import { mountThemedSelect } from "../components/themedSelect.js";
 
@@ -215,6 +216,7 @@ function renderTabbedShell(main) {
   const tabs = [
     { id: "overview", label: "Overview" },
     { id: "signups",  label: "Signups" },
+    { id: "funnel",   label: "Funnel" },
     { id: "growth",   label: "Growth" },
     { id: "behaviour", label: "Behaviour" },
     { id: "users",    label: "Users" },
@@ -283,6 +285,7 @@ function renderTabBody(main) {
   switch (currentTab) {
     case "overview": return renderOverview(host, main);
     case "signups":  return renderSignupsTab(host, { adminGet, onOpenUser: id => openUserModal(id) });
+    case "funnel":   return renderFunnelTab(host, { adminGet, onOpenUser: id => openUserModal(id) });
     case "behaviour": return renderBehaviourTab(host, { adminGet });
     case "users":    return renderUsersTab(host, main);
     case "activity": return renderActivityTab(host, main);
