@@ -169,6 +169,10 @@ def write_cache(rows):
     if not (SUPA_URL and SUPA_SRV) or not rows:
         _last_write_error = {"status": "skipped", "body": "SUPA_URL or SUPA_SRV empty", "key_prefix": None}
         return
+    # One row per symbol, in symbol order. Two requests upserting overlapping
+    # batches in different orders locked each other's rows ("deadlock
+    # detected", 25 Oct); a fixed order means they queue instead.
+    rows = sorted({r["symbol"]: r for r in rows}.values(), key=lambda r: r["symbol"])
     headers = _supa_headers()
     headers["Prefer"] = "resolution=merge-duplicates,return=minimal"
     body = json.dumps(rows).encode("utf-8")
