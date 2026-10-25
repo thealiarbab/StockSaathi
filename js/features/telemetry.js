@@ -569,7 +569,14 @@ export function startTelemetry() {
   addEventListener("unhandledrejection", onRejection);
   addEventListener("online", () => ev("net", "online"));
   addEventListener("offline", () => ev("net", "offline"));
-  addEventListener("beforeinstallprompt", () => ev("install", "prompt shown"));
+  // The browser offers the install on nearly every page load (10,893 rows from
+  // 2,758 browsers in 7 days to 25 Oct). Once per browser per day still gives
+  // the install rate.
+  addEventListener("beforeinstallprompt", () => {
+    const today = new Date().toISOString().slice(0, 10);
+    try { if (localStorage.getItem("ss.instp.v1") === today) return; localStorage.setItem("ss.instp.v1", today); } catch {}
+    ev("install", "prompt shown");
+  });
   addEventListener("appinstalled", () => ev("install", "installed"));
   wrapFetch();
   watchPerf();
