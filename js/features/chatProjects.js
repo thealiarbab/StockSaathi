@@ -7,7 +7,7 @@
 // public.chat_projects (migration 2026-10-19e); removing one sets `removed`.
 // =============================================================================
 
-import { sb } from "../db/supabase.js";
+import { sbSignedIn } from "../db/supabase.js";
 
 const KEY = "ss.chat.projects.v1";
 
@@ -28,7 +28,7 @@ export function getProject(id) {
 
 async function push(p) {
   try {
-    const client = await sb();
+    const client = await sbSignedIn();
     if (!client) return;
     const { error } = await client.from("chat_projects").upsert({
       id: p.id, name: p.name, instructions: p.instructions || "", removed: !!p.removed,
@@ -72,7 +72,7 @@ export function removeProject(id) {
 /** Merge the cloud list in (newest edit wins). Returns true when it changed. */
 export async function syncProjects() {
   try {
-    const client = await sb();
+    const client = await sbSignedIn();
     if (!client) return false;
     const { data, error } = await client.from("chat_projects")
       .select("id,name,instructions,removed,created_at,updated_at").order("created_at").limit(200);

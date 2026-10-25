@@ -12,7 +12,7 @@
 // network or the table is unavailable.
 // =============================================================================
 
-import { sb } from "../db/supabase.js";
+import { sb, sbSignedIn } from "../db/supabase.js";
 import { stripVers } from "./chatBranches.js";
 
 const _timers = new Map();
@@ -40,7 +40,7 @@ export function pushThread(session, { now = false } = {}) {
     _timers.delete(session.id);
     try {
       const row = threadRow(session);
-      const client = await sb();
+      const client = await sbSignedIn();
       if (!client) return;
       const { error } = await client.from("chat_threads").upsert(row, { onConflict: "id" });
       if (error) console.warn("[chat-cloud] save failed:", error.message);
@@ -53,7 +53,7 @@ export function pushThread(session, { now = false } = {}) {
 /** All of the user's conversations, newest first ([] on any failure). */
 export async function pullThreads() {
   try {
-    const client = await sb();
+    const client = await sbSignedIn();
     if (!client) return [];
     const { data, error } = await client.from("chat_threads")
       .select("id,title,pinned,archived,trashed,folder,doc,created_at,updated_at")

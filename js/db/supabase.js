@@ -196,6 +196,21 @@ export async function isSupabaseEnabled() {
 }
 
 /**
+ * The client only when someone is signed in, else null. Reads the stored
+ * session (no network call; an expired token is refreshed first). Tables
+ * granted to `authenticated` only (chat_threads, chat_projects) answered
+ * signed-out visitors with "permission denied" — 248 errors on 25 Oct 2026.
+ */
+export async function sbSignedIn() {
+  const client = await sb();
+  if (!client) return null;
+  try {
+    const { data } = await client.auth.getSession();
+    return data?.session ? client : null;
+  } catch { return null; }
+}
+
+/**
  * Get the current Supabase user (if logged in), or null.
  */
 export async function sbUser() {
