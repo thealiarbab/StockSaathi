@@ -39,12 +39,13 @@ function dayKey() {
 }
 
 // signature = concise summary of what the digest was generated from.
-// If holdings or today's change has shifted meaningfully since the cached
-// digest, the signature changes and we regenerate. Stops stale narrative
-// after a trade mid-day.
+// A new one means a new digest: a trade (holdings or quantities change), a new
+// day, or a move of about 1% (a holding's day change or the whole portfolio).
+// It used to include the exact rupee total and 0.1% steps, so every price tick
+// asked for a fresh digest: 994 model calls in a day for a few hundred students.
 function signatureOf(payload) {
-  const h = (payload.holdings || []).map(x => `${x.symbol}:${x.qty}:${x.dayPct.toFixed(1)}`).join(",");
-  return `${payload.totalRupees.toFixed(0)}|${payload.deltaPct.toFixed(1)}|${h}`;
+  const h = (payload.holdings || []).map(x => `${x.symbol}:${x.qty}:${Math.round(x.dayPct)}`).join(",");
+  return `${Math.round(payload.deltaPct)}|${h}`;
 }
 
 export async function fetchDigest(userId, payload) {

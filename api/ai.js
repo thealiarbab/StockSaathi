@@ -1001,7 +1001,9 @@ async function opReportCard(req, origin) {
   try {
     const text = await callLlm({ op: "report-card", hinglish: hinglishOf(req),
       messages: [{ role: "system", content: SYSTEM_REPORT }, { role: "user", content: userMsg }],
-      max_tokens: 360, temperature: 0.45, response_format: { type: "json_object" }, profile: "json", effort: "medium",
+      // low: effort test 25 Oct (8 profiles x 3 efforts) - 363 output tokens
+      // vs 1,112 at medium and 2,013 at high, same rule checks passed.
+      max_tokens: 360, temperature: 0.45, response_format: { type: "json_object" }, profile: "json", effort: "low",
     });
     const parsed = parseJsonLoose(text);
     if (!parsed) return j(502, { error: "non_json" }, origin);
