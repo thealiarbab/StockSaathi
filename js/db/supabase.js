@@ -211,6 +211,25 @@ export async function sbSignedIn() {
 }
 
 /**
+ * The client with Realtime carrying the signed-in user's token, else null.
+ * A channel that joins before supabase-js hands Realtime the session token
+ * joins as `anon`; Realtime then checks the filter column against anon's
+ * grants and refuses ("invalid column for filter user_id", 15 on 25 Oct
+ * 2026), and the bell got no live notifications until a reload.
+ */
+export async function sbRealtime() {
+  const client = await sb();
+  if (!client) return null;
+  try {
+    const { data } = await client.auth.getSession();
+    const token = data?.session?.access_token;
+    if (!token) return null;
+    client.realtime.setAuth(token);
+    return client;
+  } catch { return null; }
+}
+
+/**
  * Get the current Supabase user (if logged in), or null.
  */
 export async function sbUser() {

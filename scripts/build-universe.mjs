@@ -573,7 +573,12 @@ async function fetchNseEmergeAllEquity() {
 // Returns rows in the same shape as fetchNseEquityMaster but with bse_scrip_cd
 // preserved. The dedup step keys on ISIN to merge dual-listed names; pure-BSE
 // rows survive as standalone instruments.
-async function fetchBseAllEquity() {
+// `known` = ISINs already in the universe (listed or carried). Group X/Z are
+// still skipped for new names, but a stock we already list keeps its row when
+// BSE moves it there: dropping it marked live, trading stocks "unlisted" and
+// took their pages down (SPICEJET B -> Z, 7NR/BMW/ADCINDIA -> X; 8 stocks
+// still trading daily, Oct 2026).
+async function fetchBseAllEquity(known = new Set()) {
   console.log("[bse] fetching BSE main-board equity master…");
   try {
     const url = "https://api.bseindia.com/BseIndiaAPI/api/ListofScripData/w?Group=&Scripcode=&industry=&segment=Equity&status=Active";
@@ -592,7 +597,7 @@ async function fetchBseAllEquity() {
       return [];
     }
     const rows = [];
-    let dropX = 0, dropZ = 0, dropNoIsin = 0, dropEtf = 0;
+    let dropX = 0, dropZ = 0, dropNoIsin = 0, dropEtf = 0, keptXZ = 0;
     // BSE's "segment=Equity" filter still leaks ETFs (BeES, GoldBees, etc.) —
     // they're equity-segment instruments. Detect by name pattern so they
     // don't shadow NSE ETF rows in the downstream seenSym dedup. The ETF
@@ -612,9 +617,11 @@ async function fetchBseAllEquity() {
       const group     = String(r.GROUP || "").trim().toUpperCase();
       const faceVal   = String(r.FACE_VALUE || "10").trim();
       // Skip Group X (illiquid) + Group Z (surveillance/non-compliance).
-      if (group === "X") { dropX++; continue; }
-      if (group === "Z") { dropZ++; continue; }
       if (!isin) { dropNoIsin++; continue; }
+      if (group === "X" || group === "Z") {
+        if (!known.has(isin)) { if (group === "X") dropX++; else dropZ++; continue; }
+        keptXZ++;
+      }
       if (!scripCd && !scripId) continue;
       // Skip ETFs / mutual-fund instruments masquerading as equity rows.
       // Check BOTH Scrip_Name (contains "ETF" / "BeES") and Issuer_Name
@@ -637,7 +644,7 @@ async function fetchBseAllEquity() {
         _bseScripCd:           scripCd,
       });
     }
-    console.log(`[bse] parsed ${rows.length} BSE rows; dropped GroupX=${dropX} GroupZ=${dropZ} no-isin=${dropNoIsin} etf-by-name=${dropEtf}`);
+    console.log(`[bse] parsed ${rows.length} BSE rows; dropped GroupX=${dropX} GroupZ=${dropZ} (kept ${keptXZ} already listed) no-isin=${dropNoIsin} etf-by-name=${dropEtf}`);
     return rows;
   } catch (e) {
     console.warn("[bse] fetch failed, continuing without BSE:", e.message);
@@ -666,9 +673,13 @@ async function main() {
     process.exit(2);
   }
   // NSE Emerge + BSE are soft-fail — main build proceeds without them.
+  let knownIsins = new Set();
+  try {
+    knownIsins = new Set(JSON.parse(await fs.readFile(OUT_JSON, "utf8")).map(r => r?.isin).filter(Boolean));
+  } catch (_) { /* first build */ }
   const [nseSme, bseMain] = await Promise.all([
     fetchNseEmergeAllEquity().catch(e => { console.warn("[nse-sme] failed:", e.message); return []; }),
-    fetchBseAllEquity().catch(e => { console.warn("[bse] failed:", e.message); return []; }),
+    fetchBseAllEquity(knownIsins).catch(e => { console.warn("[bse] failed:", e.message); return []; }),
   ]);
   console.log(`[fetch] NSE main ${nseMain.length}, NSE SME ${nseSme.length}, BSE main ${bseMain.length}`);
 

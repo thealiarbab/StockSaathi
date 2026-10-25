@@ -39,8 +39,14 @@ export function onInbox(fn) {
 export const unreadCount = () => _items.filter((n) => !n.read_at).length;
 export const inboxItems = () => _items;
 
+// Also hands Realtime the session token: a channel that joins before
+// supabase-js does so joins as anon and is refused (see sbRealtime).
 async function uid(client) {
-  try { return (await client.auth.getSession())?.data?.session?.user?.id || null; } catch { return null; }
+  try {
+    const s = (await client.auth.getSession())?.data?.session;
+    if (s?.access_token) client.realtime.setAuth(s.access_token);
+    return s?.user?.id || null;
+  } catch { return null; }
 }
 
 /** Load the newest 50 and start listening. Safe to call repeatedly. */
@@ -60,10 +66,12 @@ export async function loadInbox({ force = false } = {}) {
   listen(client, me);
 }
 
+let _focusHooked = false;
+
 function listen(client, me) {
   if (_channel) return;
   try {
-    _channel = client.channel(`inbox-${me}`)
+    const ch = client.channel(`inbox-${me}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${me}` }, (p) => {
         const n = p.new;
         if (!n?.id || _items.some((x) => x.id === n.id)) return;
@@ -71,9 +79,20 @@ function listen(client, me) {
         emit();
         document.dispatchEvent(new CustomEvent("ss:notification", { detail: n }));
       })
-      .subscribe();
+      .subscribe((status) => {
+        // A refused or dropped join must not leave a dead channel behind:
+        // clear it so the next focus refetch subscribes again.
+        if ((status === "CHANNEL_ERROR" || status === "TIMED_OUT") && _channel === ch) {
+          _channel = null;
+          try { client.removeChannel(ch); } catch {}
+        }
+      });
+    _channel = ch;
   } catch (e) { console.warn("[inbox] realtime failed:", e?.message || e); }
-  window.addEventListener("focus", () => loadInbox({ force: true }));
+  if (!_focusHooked) {
+    _focusHooked = true;
+    window.addEventListener("focus", () => loadInbox({ force: true }));
+  }
 }
 
 /** Mark some (or, with no ids, all) as read. */

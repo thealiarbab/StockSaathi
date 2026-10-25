@@ -26,7 +26,7 @@
 // trading kaise karu". Never make execution depend on a client again.
 // =============================================================================
 
-import { sb } from "../db/supabase.js";
+import { sb, sbRealtime } from "../db/supabase.js";
 import { currentUser } from "../auth/accounts.js";
 import { toast } from "../components/toast.js";
 
@@ -253,7 +253,7 @@ async function _syncChannelNow() {
     try { (await sb())?.removeChannel(ch); } catch {}
   }
   if (!want || _channel) return;
-  const client = await sb();
+  const client = await sbRealtime();
   if (!client) return;
   _channelUid = uid;
   _channel = client
