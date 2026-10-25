@@ -31,6 +31,8 @@ let vid = null, sid = null;
 let token = null;
 let page = null;                  // { path, start, visibleMs, visibleSince, maxScroll, title }
 const lastClicks = [];
+let stepTaps = null;              // { label, props, n, timer }: +/- taps in a row
+const apiSeen = new Map();        // label|outcome -> { at, rep, maxMs }
 let lastSearch = null;            // { q, at }
 const formsStarted = new WeakMap();   // form -> { id, submitted, lastField }
 let fieldStart = null;            // { el, at }
@@ -234,6 +236,17 @@ function onClick(e) {
       } else props.to = u.pathname.slice(0, 120);
     } catch {}
   }
+  // Quantity +/- taps: one row per run of taps with how many there were
+  // (3,100 rows a day on 25 Oct, one per tap). Fast taps here are the
+  // stepper working, not anger, so they skip the rage check too.
+  if (STEPPER.test(label)) {
+    if (stepTaps && stepTaps.label === label) stepTaps.n++;
+    else { flushStepTaps(); stepTaps = { label, props, n: 1 }; }
+    clearTimeout(stepTaps.timer);
+    stepTaps.timer = setTimeout(flushStepTaps, 1500);
+    return;
+  }
+  flushStepTaps();
   ev("click", label, props);
   // Rage: three or more clicks within a second, on about the same spot.
   const now = Date.now();
@@ -241,6 +254,13 @@ function onClick(e) {
   while (lastClicks.length && now - lastClicks[0].t > 1000) lastClicks.shift();
   const near = lastClicks.filter((c) => Math.abs(c.x - e.clientX) < 30 && Math.abs(c.y - e.clientY) < 30);
   if (near.length === 3) ev("rage_click", label, { x: props.x, y: props.y, vw: innerWidth, py: props.py, ph: h, dev: DEV });
+}
+const STEPPER = /^(Increase|Decrease)$/;
+function flushStepTaps() {
+  if (!stepTaps) return;
+  clearTimeout(stepTaps.timer);
+  ev("click", stepTaps.label, { ...stepTaps.props, n: stepTaps.n });
+  stepTaps = null;
 }
 
 // ---------------------------------------------------------------------------
@@ -302,7 +322,11 @@ function watchMessages() {
         if (!(n instanceof HTMLElement)) continue;
         if (n.classList.contains("toast")) {
           const k = ["error", "success", "warning", "info"].find((c) => n.classList.contains(c)) || "info";
-          ev("toast", (n.innerText || "").replace(/\s+/g, " ").trim().slice(0, 160), { k });
+          const text = (n.innerText || "").replace(/\s+/g, " ").trim();
+          // "Processing…", "Placing buy order…": progress notes that the
+          // result toast always follows (4,343 rows in 3 days to 25 Oct).
+          if (k === "info" && /(…|\.\.\.)$/.test(text)) continue;
+          ev("toast", text.slice(0, 160), { k });
         }
       }
       const host = (m.target instanceof Element ? m.target : m.target.parentElement)?.closest?.("[role=alert]");
@@ -434,13 +458,24 @@ function wrapFetch() {
     const t0 = performance.now();
     return realFetch(input, init).then((r) => {
       const ms = Math.round(performance.now() - t0);
-      if (!r.ok || ms > 2500) ev("api", label, { st: r.status, ms, m: (init?.method || "GET").toUpperCase() });
+      if (!r.ok || ms > 2500) logApi(label, { st: r.status, ms, m: (init?.method || "GET").toUpperCase() });
       return r;
     }, (err) => {
-      if (err?.name !== "AbortError") ev("api", label, { st: 0, ms: Math.round(performance.now() - t0), err: String(err?.message || err).slice(0, 80) });
+      if (err?.name !== "AbortError") logApi(label, { st: 0, ms: Math.round(performance.now() - t0), err: String(err?.message || err).slice(0, 80) });
       throw err;
     });
   };
+}
+// A slow or failing call repeats on every price poll (9,067 slow
+// /api/live-quote rows from 244 people on 25 Oct). Keep one row per call and
+// outcome a minute; `rep` is how many more it stood for, `repMaxMs` the worst.
+function logApi(label, props) {
+  const key = `${label}|${props.st === 0 ? "fail" : props.st >= 400 ? props.st : "slow"}`;
+  const now = Date.now();
+  const s = apiSeen.get(key);
+  if (s && now - s.at < 60_000) { s.rep++; s.maxMs = Math.max(s.maxMs, props.ms); return; }
+  apiSeen.set(key, { at: now, rep: 0, maxMs: 0 });
+  ev("api", label, s?.rep ? { ...props, rep: s.rep, repMaxMs: s.maxMs } : props);
 }
 
 // Page speed on the student's own device, for the first page of the visit.
@@ -546,13 +581,14 @@ export function startTelemetry() {
       page.visibleMs += page.visibleSince ? Date.now() - page.visibleSince : 0;
       page.visibleSince = 0;
       sendPerf();
+      flushStepTaps();
       flush(true);
     } else {
       page.visibleSince = Date.now();
       if (session()) startSession();
     }
   });
-  addEventListener("pagehide", () => { sendPerf(); closePage("exit"); flush(true); });
+  addEventListener("pagehide", () => { sendPerf(); flushStepTaps(); closePage("exit"); flush(true); });
   setTimeout(sendPerf, 20_000);
   setInterval(() => { if (!document.hidden) flush(); }, FLUSH_MS);
 }
