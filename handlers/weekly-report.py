@@ -49,6 +49,7 @@ SITE = "https://stocksaathi.co.in"
 SETTINGS = f"{SITE}/settings#notifications"
 UTM = "utm_source=email&utm_medium=recap&utm_campaign=weekly_report"
 MAX_USERS = 2500          # 25 batches of 100: well inside the 60 s limit
+PAGE = 1000               # PostgREST's max rows per response
 BATCH = 100
 IST = timezone(timedelta(hours=5, minutes=30))
 FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif"
@@ -198,6 +199,22 @@ def run(send=False, preview=False):
     sent = 0
     errors = []
     skipped = _rpc("log_weekly_skips", {})
+    tried = set()
+    while due:
+        sent, errors = _send_round(due, week, sent, errors)
+        tried.update(u["user_id"] for u in due)
+        # The database API returns at most 1,000 rows per call, so on 25 Oct
+        # exactly 1,000 went out and the rest were never asked for. Sent users
+        # drop out of weekly_report_due, so ask again until a short page;
+        # users from a failed batch are not retried in the same run.
+        if len(due) < PAGE or len(tried) >= MAX_USERS:
+            break
+        due = [u for u in (_rpc("weekly_report_due", {"p_limit": MAX_USERS}) or [])
+               if u["user_id"] not in tried][:MAX_USERS - len(tried)]
+    return {"ok": not errors, "sent_users": sent, "due_users": len(tried), "skips_logged": skipped, "errors": errors}, None
+
+
+def _send_round(due, week, sent, errors):
     for i in range(0, len(due), BATCH):
         chunk = due[i:i + BATCH]
         items, marks = [], []
@@ -226,7 +243,7 @@ def run(send=False, preview=False):
             m["resend_id"] = rid
         _rpc("mark_weekly_report_sent", {"p_rows": marks})
         sent += len(chunk)
-    return {"ok": not errors, "sent_users": sent, "due_users": len(due), "skips_logged": skipped, "errors": errors}, None
+    return sent, errors
 
 
 class handler(BaseHTTPRequestHandler):

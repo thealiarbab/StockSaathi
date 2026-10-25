@@ -73,6 +73,7 @@ def run():
     t0 = time.monotonic()
     due = _rpc("email_status_due", {"p_limit": PER_RUN}) or []
     rows, failed, counts = [], 0, {}
+    first_error = None                   # what Resend said the first time a lookup failed
     for e in due:
         if time.monotonic() - t0 > DEADLINE_S:
             break
@@ -83,9 +84,16 @@ def run():
                 break
             failed += 1
             ev = ""
-        except Exception:
+            if first_error is None:
+                try:
+                    first_error = f"{err.code} {err.read().decode('utf-8', 'replace')[:200]}"
+                except Exception:
+                    first_error = str(err.code)
+        except Exception as err:
             failed += 1
             ev = ""
+            if first_error is None:
+                first_error = str(err)[:200]
         # A failed lookup still stamps checked_at, so one bad id can't block the queue.
         rows.append({"id": e["id"], "last_event": ev})
         if ev:
@@ -93,7 +101,7 @@ def run():
         time.sleep(GAP_S)
     stored = _rpc("set_email_status", {"p_rows": rows}) if rows else 0
     return {"ok": True, "due": len(due), "checked": len(rows), "stored": stored,
-            "lookup_failed": failed, "events": counts}
+            "lookup_failed": failed, "first_error": first_error, "events": counts}
 
 
 class handler(BaseHTTPRequestHandler):
