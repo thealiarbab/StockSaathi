@@ -217,12 +217,13 @@ function onClick(e) {
   if (!raw) return;
   const el = raw.closest(ACTIONABLE);
   const h = Math.max(document.documentElement.scrollHeight, document.body?.scrollHeight || 0);
-  const props = {
-    x: Math.round(e.clientX), y: Math.round(e.clientY),
-    vw: innerWidth, vh: innerHeight,
-    py: Math.round(e.clientY + scrollY), ph: h,
-    dev: DEV, tag: (el || raw).tagName.toLowerCase(),
-  };
+  const props = { dev: DEV, tag: (el || raw).tagName.toLowerCase() };
+  // Screen position only where the admin click map is drawn: the page groups
+  // with at least 1% of clicks (25 Oct), ~97% of all clicks. The map reads
+  // x, vw, py and ph; y and vh were never read.
+  if (MAP_PAGES.test(location.pathname)) {
+    Object.assign(props, { x: Math.round(e.clientX), vw: innerWidth, py: Math.round(e.clientY + scrollY), ph: h });
+  }
   if (!el) props.dead = 1;
   if (lastSearch && Date.now() - lastSearch.at < 60_000) props.q = lastSearch.q;
   const sect = (el || raw).closest("[id]");
@@ -253,8 +254,9 @@ function onClick(e) {
   lastClicks.push({ t: now, x: e.clientX, y: e.clientY });
   while (lastClicks.length && now - lastClicks[0].t > 1000) lastClicks.shift();
   const near = lastClicks.filter((c) => Math.abs(c.x - e.clientX) < 30 && Math.abs(c.y - e.clientY) < 30);
-  if (near.length === 3) ev("rage_click", label, { x: props.x, y: props.y, vw: innerWidth, py: props.py, ph: h, dev: DEV });
+  if (near.length === 3) ev("rage_click", label, { x: Math.round(e.clientX), y: Math.round(e.clientY), vw: innerWidth, py: Math.round(e.clientY + scrollY), ph: h, dev: DEV });
 }
+const MAP_PAGES = /^\/(stocks(\/[^/]+)?|portfolio|register|onboarding|chat|crash-replay|login)?\/?$/;
 const STEPPER = /^(Increase|Decrease)$/;
 function flushStepTaps() {
   if (!stepTaps) return;
