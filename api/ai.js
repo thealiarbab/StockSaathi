@@ -1771,11 +1771,19 @@ function istDayKey(date = new Date()) {
 
 // Signups tab: admin_signup_stats() works out every number inside Postgres
 // (Indian-time day/hour buckets, rolling windows, records, top 10s, activity)
-// and returns ~20 KB in one call.
+// and returns ~20 KB in one call. It is read from admin_stats_cache, refreshed
+// every 5 min by pg_cron (signup-stats-cache): live it takes 3 s normally but
+// 57 s when the behaviour-cache pass has the CPU, which made this tab 502.
+// The live counter stays live (admin-signup-count).
 async function opAdminSignupStats(req, origin) {
   const gate = checkAdmin(req);
   if (!gate.ok) return j(401, { error: gate.reason }, origin);
   try {
+    const cached = await sbAdminFetch(`/rest/v1/rpc/admin_signup_stats_cached`, { method: "POST", body: "{}" });
+    if (cached.ok) {
+      const d = await cached.json();
+      if (d && d.totals) return j(200, d, origin);
+    }
     const res = await sbAdminFetch(`/rest/v1/rpc/admin_signup_stats`, { method: "POST", body: "{}" });
     if (!res.ok) return j(502, { error: "query_failed", detail: `admin_signup_stats ${res.status}` }, origin);
     return j(200, await res.json(), origin);
