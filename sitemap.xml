@@ -11,7 +11,7 @@
   </url>
   <url>
     <loc>https://stocksaathi.co.in/stocks</loc>
-    <lastmod>2026-10-24</lastmod>
+    <lastmod>2026-10-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
@@ -899,7 +899,7 @@
   </url>
   <url>
     <loc>https://stocksaathi.co.in/stocks/GICRE</loc>
-    <lastmod>2026-10-26</lastmod>
+    <lastmod>2026-10-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
@@ -1031,7 +1031,7 @@
   </url>
   <url>
     <loc>https://stocksaathi.co.in/stocks/HDFCLIFE</loc>
-    <lastmod>2026-10-26</lastmod>
+    <lastmod>2026-10-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
@@ -1120,8 +1120,14 @@
     <priority>0.5</priority>
   </url>
   <url>
+    <loc>https://stocksaathi.co.in/stocks/ICICILIFE</loc>
+    <lastmod>2026-10-28</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
     <loc>https://stocksaathi.co.in/stocks/ICICIGI</loc>
-    <lastmod>2026-10-26</lastmod>
+    <lastmod>2026-10-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
@@ -1475,7 +1481,7 @@
   </url>
   <url>
     <loc>https://stocksaathi.co.in/stocks/LICI</loc>
-    <lastmod>2026-10-26</lastmod>
+    <lastmod>2026-10-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
@@ -1889,7 +1895,7 @@
   </url>
   <url>
     <loc>https://stocksaathi.co.in/stocks/PTCIL</loc>
-    <lastmod>2026-10-26</lastmod>
+    <lastmod>2026-10-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
@@ -2015,7 +2021,7 @@
   </url>
   <url>
     <loc>https://stocksaathi.co.in/stocks/SBILIFE</loc>
-    <lastmod>2026-10-26</lastmod>
+    <lastmod>2026-10-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
@@ -2105,7 +2111,7 @@
   </url>
   <url>
     <loc>https://stocksaathi.co.in/stocks/STARHEALTH</loc>
-    <lastmod>2026-10-25</lastmod>
+    <lastmod>2026-10-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
