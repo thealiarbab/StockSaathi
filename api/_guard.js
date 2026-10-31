@@ -105,6 +105,31 @@ async function loadBlocks() {
   return _blocks.set;
 }
 
+// ---- Human pass (Cloudflare Turnstile, lockdown only) ------------------------
+// During a lockdown a caller can prove it is a real browser once
+// (/api/ai?op=human-check) and gets this cookie for an hour. It is bound to
+// the caller's IP hash and the day key, so one solved check cannot be shared
+// across a botnet. Outside a lockdown it is never asked for or read.
+const HUMAN_TTL_S = 3600;
+export async function humanPassCookie(caller) {
+  const key = await dayKey();
+  if (!key || !caller?.ip_hash) return null;
+  const exp = Math.floor(Date.now() / 1000) + HUMAN_TTL_S;
+  const sig = await h16(key, `human:${exp}:${caller.ip_hash}`);
+  return `ss_human=${exp}.${sig}; Path=/api; Max-Age=${HUMAN_TTL_S}; HttpOnly; Secure; SameSite=Strict`;
+}
+export async function hasHumanPass(req, caller) {
+  try {
+    const m = /(?:^|;\s*)ss_human=(\d{9,11})\.([0-9a-f]{16})/.exec(req.headers.get("cookie") || "");
+    if (!m || !caller?.ip_hash) return false;
+    const exp = Number(m[1]);
+    if (!(exp > Date.now() / 1000)) return false;
+    const key = await dayKey();
+    return !!key && (await h16(key, `human:${exp}:${caller.ip_hash}`)) === m[2];
+  } catch { return false; }
+}
+export function clientIpOf(req) { return clientIp(req); }
+
 async function fresh() {
   if (Date.now() - _blocks.at > BLOCKS_TTL_MS) {
     if (!_blocks.p) _blocks.p = loadBlocks();

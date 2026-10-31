@@ -25,7 +25,7 @@
 
 import { messagesEnabled, messagesFetch, toMessagesBody, textOf, effortFor, MESSAGES_MODEL } from "./_messages.js";
 import { recordUsage as recordUsageRaw, normUsage } from "./_usage.js";
-import { callerHashes, isBlocked, inLockdown } from "./_guard.js";
+import { callerHashes, isBlocked, inLockdown, hasHumanPass, humanPassCookie, clientIpOf } from "./_guard.js";
 import { AsyncLocalStorage } from "node:async_hooks";
 
 // Who is calling (day-keyed hashes, see _guard.js), per request, so every
@@ -196,7 +196,8 @@ function hinglishOf(req) {
 async function callLlm({ messages, temperature = 0.4, max_tokens = 400, response_format, profile = "reasoning", hinglish = false, effort, op = "unknown", feature }) {
   const evalRun = EVAL.getStore();
   if (evalRun) effort = evalRun.effort;
-  if (CALLER.getStore()?.lockdown && !evalRun) throw new Error("ai_lockdown");
+  const who = CALLER.getStore();
+  if (who?.lockdown && !evalRun) { who.refused = true; throw new Error("ai_lockdown"); }
   const usageBase = { route: "ai", op, feature: feature || op, profile, stream: false };
   if (hinglish && messages?.[0]?.role === "system") {
     messages = [{ ...messages[0], content: messages[0].content + HINGLISH_RULE }, ...messages.slice(1)];
@@ -1570,8 +1571,13 @@ export default async function handler(req) {
   if (await isBlocked(caller)) return j(429, { error: "rate_limited" }, req.headers.get("Origin") || "");
   // During an AI lockdown the op still runs, so saved answers are served;
   // callLlm refuses to start a new paid call.
-  const lockdown = await inLockdown();
-  return CALLER.run({ ...caller, lockdown }, () => guarded(req));
+  const lockdown = (await inLockdown()) && !(await hasHumanPass(req, caller));
+  const store = { ...caller, lockdown, refused: false };
+  const res = await CALLER.run(store, () => guarded(req));
+  // The op needed a fresh model call and the lockdown refused it: tell the
+  // browser it may prove it is human (js/features/humanCheck.js) and retry.
+  if (store.refused) return j(503, { error: "busy", challenge: true }, req.headers.get("Origin") || "");
+  return res;
 }
 
 async function guarded(req) {
@@ -1629,6 +1635,7 @@ async function route(req) {
       case "command":             if (req.method !== "POST") return j(405, { error: "method_not_allowed" }, origin); return await opCommand(req, origin);
       case "history":             return await opHistory(req, origin, url);
       case "time":                return opTime(req, origin);
+      case "human-check":         if (req.method !== "POST") return j(405, { error: "method_not_allowed" }, origin); return await opHumanCheck(req, origin);
       case "ops-mail":            if (req.method !== "POST") return j(405, { error: "method_not_allowed" }, origin); return await opOpsMail(req, origin);
       case "signup-count":        return await opSignupCount(req, origin);
       case "admin-path-check":    return opAdminPathCheck(req, origin, url);
@@ -1734,6 +1741,29 @@ function checkCronSecret(req) {
   for (let i = 0; i < token.length; i++) diff |= token.charCodeAt(i) ^ expected.charCodeAt(i);
   return diff === 0;
 }
+// Turnstile check, asked for only during an AI lockdown. Verifies the token
+// with Cloudflare and sets a one-hour human pass bound to the caller's IP.
+async function opHumanCheck(req, origin) {
+  if (!allowed(origin)) return j(403, { error: "forbidden_origin" }, origin);
+  const secret = String(globalThis.process?.env?.TURNSTILE_SECRET || "").trim();
+  if (!secret) return j(503, { error: "not_configured" }, origin);
+  let b; try { b = await req.json(); } catch { return j(400, { error: "bad_body" }, origin); }
+  const token = typeof b?.token === "string" ? b.token.slice(0, 4096) : "";
+  if (!token) return j(400, { error: "no_token" }, origin);
+  const form = new URLSearchParams({ secret, response: token });
+  const ip = clientIpOf(req);
+  if (ip) form.set("remoteip", ip);
+  const r = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", { method: "POST", body: form }).catch(() => null);
+  const v = r ? await r.json().catch(() => null) : null;
+  if (!v?.success) return j(403, { error: "not_verified" }, origin);
+  const cookie = await humanPassCookie(await callerHashes(req));
+  const res = j(200, { ok: true }, origin);
+  if (!cookie) return res;
+  const h = new Headers(res.headers);
+  h.append("Set-Cookie", cookie);
+  return new Response(res.body, { status: 200, headers: h });
+}
+
 async function opOpsMail(req, origin) {
   if (!checkCronSecret(req)) return j(401, { error: "unauthorized" }, origin);
   const env = globalThis.process?.env || {};

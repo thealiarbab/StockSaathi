@@ -225,6 +225,28 @@ effort for A/B runs; unset to restore the per-op settings.
   inserts `notifications` (kind `ops_alert`) for the owner accounts -> bell +
   push; cooldown 2 h per check (`ops_alerts`).
 
+## AI abuse watcher (31 Oct; chat stays open to logged-out users)
+
+- `api/_guard.js`: every /api/chat and /api/ai LLM call is tagged with a
+  day-keyed HMAC of the IP and of the browser id (cookie `ss_vid`, Path=/api)
+  -> `llm_usage.ip_hash/dev_hash` (cleared after 48 h). Blocklist
+  `ai_blocks` and lockdown flag `ai_guard_state` are read every 30 s; fails open.
+- pg_cron `ai-watch` (every min) -> `ops_ai_watch()`: score 0-100 vs the
+  28-day peak (`ai_watch_baseline`, refreshed nightly by `ai-watch-daily`);
+  60 at 2x peak. "attack" (also clustered / cookieless) sets a 30-min AI
+  lockdown: saved answers served, no new model calls, chat 503 busy.
+  Per-caller blocks at 2x the worst real single-caller hour (IP blocks shadow
+  until 7 days of data). End a lockdown: `update ai_guard_state set lockdown_until = now();`
+- During a lockdown the browser may pass Cloudflare Turnstile
+  (`js/features/humanCheck.js`, site key in the file, secret = Vercel env
+  `TURNSTILE_SECRET`) for a one-hour IP-bound pass (`op=human-check`).
+  Never on a normal day; never on sign-up (owner: captcha hurts sign-ups).
+- Every `ops_alert` notification is also e-mailed to ali@aliarbab2009.com
+  (`_ops_alert_mail` -> `/api/ai?op=ops-mail`) and skips the night push hold.
+- ops_health_check also has `signup_spike` (alert only).
+- Vercel Firewall: no config existed and the API refused to create one;
+  the owner must open the Firewall tab once before rules can be added.
+
 ## Behaviour detectors and the after-trade note (rewritten 24 Oct)
 
 - `js/coach/biasCore.js`: the 9 detectors as PURE functions (no imports), so

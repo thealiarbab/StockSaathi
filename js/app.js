@@ -11,6 +11,7 @@ import { currentUser, refreshCurrentUser } from "./auth/accounts.js";
 import { bootSync } from "./db/sync.js";
 import { startOrderEvents } from "./features/limitOrders.js";
 import { startTelemetry } from "./features/telemetry.js";
+import { installHumanCheck } from "./features/humanCheck.js";
 import { showPendingNotices } from "./components/noticeModal.js";
 import { mountAiExplainer } from "./features/aiExplainer.js";
 import { mountCommandPalette, openCommandPalette } from "./components/commandPalette.js";
@@ -60,6 +61,9 @@ ensureUniverseLoaded();
 
 // Visitor tracking (js/features/telemetry.js). Never allowed to break the app.
 try { startTelemetry(); } catch (e) { console.warn("telemetry off:", e); }
+// After telemetry (which also wraps fetch). Does nothing unless an AI call is
+// answered "busy, challenge" during an abuse lockdown.
+try { installHumanCheck(); } catch {}
 
 let coachPanelLoad;
 function canLoadCoachPanel() {

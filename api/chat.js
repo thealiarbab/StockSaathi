@@ -42,7 +42,7 @@
 
 import { liveGeminiModel } from "./_models.js";
 import { recordUsage, featureOf, normUsage, tapOpenAiSse } from "./_usage.js";
-import { callerHashes, isBlocked, inLockdown } from "./_guard.js";
+import { callerHashes, isBlocked, inLockdown, hasHumanPass } from "./_guard.js";
 import {
   messagesEnabled, messagesFetch, toMessagesBody, toChatCompletion, toChatSse, MESSAGES_MODEL, effortFor,
 } from "./_messages.js";
@@ -497,8 +497,9 @@ export default async function handler(req) {
     return jsonResponse(429, { error: "rate_limited" }, origin);
   }
   // AI lockdown during a detected attack (see _guard.js). Short, then lapses.
-  if (await inLockdown()) {
-    return jsonResponse(503, { error: "busy", message: "Saathi is very busy right now. Please try again in a few minutes." }, origin);
+  // A caller that passed the Turnstile check (human pass cookie) is let through.
+  if (await inLockdown() && !(await hasHumanPass(req, caller))) {
+    return jsonResponse(503, { error: "busy", challenge: true, message: "Saathi is very busy right now. Please try again in a few minutes." }, origin);
   }
 
   // Body-size cap. Read the upload before refusing it: answering while a

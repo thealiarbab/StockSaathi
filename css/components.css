@@ -5472,3 +5472,12 @@ button.ss-pill-x:hover { border-color: var(--brand); }
 .tn-q { margin: 0; padding: 12px 14px; border-radius: 14px; background: var(--brand-soft); color: var(--brand-dark); font-weight: 600; line-height: 1.5; }
 [data-theme="dark"] .tn-q { color: var(--brand); }
 .tn-actions { margin-top: var(--sp-2); }
+
+/* Human check (Turnstile), shown only during an AI abuse lockdown and only
+   when Cloudflare wants a click. js/features/humanCheck.js */
+.hc-overlay { position: fixed; inset: 0; z-index: 10050; display: grid; place-items: center; padding: 16px; background: rgba(0,0,0,.45); }
+.hc-overlay[hidden] { display: none; }
+.hc-card { width: min(360px, 100%); background: var(--bg-elev, var(--surface, #fff)); color: var(--text, inherit); border-radius: 16px; padding: 20px; box-shadow: 0 12px 40px rgba(0,0,0,.25); display: grid; gap: 12px; text-align: center; }
+.hc-card h2 { margin: 0; font-size: var(--text-lg, 18px); }
+.hc-card p { margin: 0; font-size: var(--text-sm, 14px); color: var(--text-muted, inherit); }
+.hc-widget { display: flex; justify-content: center; min-height: 65px; }
