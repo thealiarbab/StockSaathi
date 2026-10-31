@@ -868,12 +868,20 @@ async function opMarketMood(req, origin) {
   let body; try { body = await req.json(); } catch { return j(400, { error: "bad_body" }, origin); }
   const sectors = Array.isArray(body.sectors) ? body.sectors.slice(0, 12) : [];
   if (!sectors.length) return j(400, { error: "no_sectors" }, origin);
-  const sig = sectors.slice(0, 6).map(s => `${String(s.name).toLowerCase().slice(0, 10)}:${(Number(s.avgPct) || 0).toFixed(1)}`).join("|");
+  // Cache key (31 Oct): each sector's move to the WHOLE percent, plus a
+  // 30-minute slot while the market is open. It was 0.1%, which changes every
+  // few minutes in session, so about half of /stocks opens bought a fresh
+  // narrative (3,606 model calls in a week). Now at most one per slot unless
+  // a sector really moves. The sectors still come from the caller, so a
+  // caller sending made-up numbers only ever fills its own key.
+  const sig = sectors.slice(0, 6).map(s => `${String(s.name).toLowerCase().slice(0, 10)}:${Math.round(Number(s.avgPct) || 0)}`).join("|");
   // C10: on a Saturday this said "today" about Thursday's moves. The key
   // carries the session and whether it is still today, so Friday's
   // narrative is not served as "today" on Saturday.
   const session = lastSessionIst();
-  const key = `${session.ymd}_${session.isToday ? "t" : "p"}_${sig}` + (hinglishOf(req) ? "_hi" : "");
+  const istMin = (() => { const d = new Date(Date.now() + 5.5 * 3_600_000); return d.getUTCHours() * 60 + d.getUTCMinutes(); })();
+  const slot = session.isToday && istMin >= 555 && istMin < 930 ? `s${Math.floor((istMin - 555) / 30)}` : "c";
+  const key = `v2_${session.ymd}_${session.isToday ? "t" : "p"}_${slot}_${sig}` + (hinglishOf(req) ? "_hi" : "");
   const hit = await cacheGet("market_mood", key);
   if (hit?.narrative) return j(200, { ...hit, source: "cache" }, origin);
 

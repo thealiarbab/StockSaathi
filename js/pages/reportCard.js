@@ -15,6 +15,37 @@ let aiCard = null;           // { narrative, strengths, watchouts } | null
 let aiCardLoading = false;
 let aiCardSignature = null;  // last user-signature we requested — refire only when stats meaningfully change
 
+// The AI card is saved in the browser (31 Oct). It used to live only in this
+// module, so every reload or new tab asked the model again: 1,160 calls for
+// 1,279 report-card opens in a week. It is reused until the user trades or
+// their total return moves 2 points from the one the card was written for.
+const AI_CARD_KEY = "ss.reportCardAi.v1";
+const AI_CARD_MOVE_PTS = 2;
+const AI_CARD_MAX_AGE_MS = 7 * 24 * 3_600_000;
+function aiCardBasis(state) {
+  return {
+    userId: state.user?.id || "anon",
+    lang: aiLang(),
+    tx: (state.transactions || []).length,
+    holds: Object.keys(state.holdings || {}).sort().join(","),
+    retPct: getPortfolioReturnPct(state) * 100,
+  };
+}
+function savedAiCard(state) {
+  try {
+    const o = JSON.parse(localStorage.getItem(AI_CARD_KEY) || "null");
+    if (!o?.data?.narrative || !o.basis) return null;
+    const b = aiCardBasis(state);
+    if (o.basis.userId !== b.userId || o.basis.lang !== b.lang || o.basis.tx !== b.tx || o.basis.holds !== b.holds) return null;
+    if (!Number.isFinite(o.basis.retPct) || Math.abs(o.basis.retPct - b.retPct) >= AI_CARD_MOVE_PTS) return null;
+    if (!(Date.now() - (o.at || 0) < AI_CARD_MAX_AGE_MS)) return null;
+    return o.data;
+  } catch { return null; }
+}
+function saveAiCard(state, data) {
+  try { localStorage.setItem(AI_CARD_KEY, JSON.stringify({ basis: aiCardBasis(state), data, at: Date.now() })); } catch {}
+}
+
 const BADGES = [
   { code: "first_trade",    title: "First Steps",    emoji: "🌱", desc: "Placed your first trade" },
   { code: "diversified",    title: "Well Diversified", emoji: "🪻", desc: "Held ≥5 positions across ≥3 sectors" },
@@ -280,13 +311,13 @@ function renderAiCard() {
 }
 
 function signatureOf(state) {
-  // Trigger regen on meaningful stat movement only.
-  const tx = state.transactions.length;
-  const holds = Object.keys(state.holdings).length;
-  return `${tx}|${holds}|${Math.round(getPortfolioReturnPct(state) * 1000)}`;
+  const b = aiCardBasis(state);
+  return `${b.userId}|${b.lang}|${b.tx}|${b.holds}`;
 }
 
 async function maybeFetchAiCard(state) {
+  const saved = savedAiCard(state);
+  if (saved) { aiCard = saved; aiCardSignature = signatureOf(state); return saved; }
   const sig = signatureOf(state);
   if (aiCardSignature === sig && aiCard) return null;
   aiCardSignature = sig;
@@ -334,6 +365,7 @@ async function maybeFetchAiCard(state) {
     if (!res.ok) throw new Error("http_" + res.status);
     const data = await res.json();
     if (!data?.narrative) throw new Error("no_narrative");
+    saveAiCard(state, data);
     return data;
   } catch (e) {
     aiCardLoading = false;
