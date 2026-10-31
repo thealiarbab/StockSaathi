@@ -70,6 +70,11 @@ jobs:
       - name: Coach guards — looksLikePricelessList regression suite
         run: node scripts/test-coach-guards.mjs
 
+      # getQuote/getQuoteBatch must terminate for a symbol nothing prices
+      # (the 19-31 Oct request loop: ~3M Vercel requests a day).
+      - name: Quote fetch terminates for unpriced symbols
+        run: node scripts/test-quote-loop.mjs
+
   prompt-version-sync:
     name: CURRENT_PROMPT_VERSION matches across customCrash.js and pregen-crashes.mjs
     runs-on: ubuntu-latest

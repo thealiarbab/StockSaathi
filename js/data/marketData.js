@@ -60,6 +60,25 @@ const LEGACY_QUOTE_KEYS = ["ss.quotes.v2", "ss.quotes.v1"];
 const PERSIST_MAX_AGE_MS = 48 * 60 * 60 * 1000;
 
 const _quoteCache = new Map();
+
+// Negative cache: symbols that came back with no real price anywhere
+// (delisted, suspended, dead ticker). While listed here, getQuote and
+// getQuoteBatch answer from the synthetic entry without touching the network,
+// so a dead ticker in a 10 s poll costs one round of requests a minute, not
+// one per tick. A real price for the symbol clears it.
+const NO_PRICE_TTL_MS = 60_000;
+const _noPriceUntil = new Map();
+function _isNoPrice(symbol) {
+  const until = _noPriceUntil.get(symbol);
+  if (until == null) return false;
+  if (Date.now() < until) return true;
+  _noPriceUntil.delete(symbol);
+  return false;
+}
+function _noPriceQuote(symbol) {
+  const c = _quoteCache.get(symbol);
+  return c?.data || synthQuote(symbol);
+}
 const _historyCache = new Map();
 const _fundamentalsCache = new Map();
 // Sidecar tracking last-access timestamp for every symbol in _quoteCache.
@@ -267,11 +286,18 @@ function _isNseOpen(nowMs) {
 
 // ---------- Public API -----------------------------------------------------
 
+// opts.bustCache: the refresh button; skips every cache, the negative one too.
+// opts.fromBatch: set by getQuoteBatch's per-symbol fallback. It must not go
+// back into getQuoteBatch: for a symbol neither batch endpoint prices, that
+// was getQuote -> getQuoteBatch -> getQuote -> ... forever, two requests per
+// loop with no delay (19-31 Oct 2026, ~3M requests a day).
 export async function getQuote(symbol, opts = {}) {
   const bustCache = opts.bustCache === true;
+  const fromBatch = opts.fromBatch === true;
   if (!bustCache) {
     const cached = _quoteCache.get(symbol);
     if (cached && Date.now() - cached.ts < QUOTE_TTL_MS) return cached.data;
+    if (_isNoPrice(symbol)) return _noPriceQuote(symbol);
   }
 
   const inst = getInstrument(symbol);
@@ -288,10 +314,13 @@ export async function getQuote(symbol, opts = {}) {
   // memory and the Vercel edge; /api/quote fetched Yahoo on every call
   // (avg 4.7 s, 370 x 502 on 18 Oct 2026). Only the refresh button
   // (bustCache) still goes straight to the source.
-  if (!bustCache) {
+  if (!bustCache && !fromBatch) {
     await getQuoteBatch([symbol]).catch(() => null);
     const hit = _quoteCache.get(symbol);
     if (hit && Date.now() - hit.ts < 5000 && hit.data && hit.data.source !== "synthetic") return hit.data;
+    // The batch's own fallback already ran steps 1-3 for this symbol and
+    // found nothing; running them again here only doubles the requests.
+    if (_isNoPrice(symbol)) return _noPriceQuote(symbol);
   }
 
   // 1. New normalized single endpoint. Append nocache=1 when bustCache
@@ -305,6 +334,7 @@ export async function getQuote(symbol, opts = {}) {
   const apiRes = await fetchJsonWithTimeout(`/api/quote${qs}`);
   const apiQuote = normalizeFromApi(apiRes, symbol);
   if (apiQuote) {
+    _noPriceUntil.delete(symbol);
     _quoteCache.set(symbol, { data: apiQuote, ts: Date.now() });
     _touchQuote(symbol);
     persistSoon();
@@ -314,6 +344,7 @@ export async function getQuote(symbol, opts = {}) {
   // 2. Legacy path through /api/yahoo/chart
   const fallback = await fetchYahooQuote(symbol).catch(() => null);
   if (fallback) {
+    _noPriceUntil.delete(symbol);
     _quoteCache.set(symbol, { data: fallback, ts: Date.now() });
     _touchQuote(symbol);
     persistSoon();
@@ -324,6 +355,7 @@ export async function getQuote(symbol, opts = {}) {
   const synth = synthQuote(symbol);
   _quoteCache.set(symbol, { data: synth, ts: Date.now() });
   _touchQuote(symbol);
+  _noPriceUntil.set(symbol, Date.now() + NO_PRICE_TTL_MS);
   return synth;
 }
 
@@ -365,8 +397,16 @@ async function _runWithLimit(items, limit, worker) {
   return results;
 }
 
-async function _getQuoteBatchInner(uniq) {
+async function _getQuoteBatchInner(symbols) {
   const out = {};
+  // Symbols that recently had no price anywhere: answer from the negative
+  // cache, request nothing.
+  const uniq = [];
+  for (const s of symbols) {
+    if (_isNoPrice(s)) { const q = _noPriceQuote(s); if (q) out[s] = q; }
+    else uniq.push(s);
+  }
+  if (!uniq.length) return out;
 
   // Try the new cache-first /api/live-quote endpoint. Hundreds of users
   // polling the same symbols share one upstream Yahoo/Dhan hit per 10s
@@ -397,6 +437,7 @@ async function _getQuoteBatchInner(uniq) {
           const norm = normalizeFromApi({ ok: true, ...q }, ourSym);
           if (norm) {
             out[ourSym] = norm;
+            _noPriceUntil.delete(ourSym);
             _quoteCache.set(ourSym, { data: norm, ts: Date.now() });
             _touchQuote(ourSym);
             any = true;
@@ -436,6 +477,7 @@ async function _getQuoteBatchInner(uniq) {
         const norm = normalizeFromApi({ ok: true, ...q }, s);
         if (norm) {
           out[s] = norm;
+          _noPriceUntil.delete(s);
           _quoteCache.set(s, { data: norm, ts: Date.now() });
           _touchQuote(s);
           any = true;
@@ -445,10 +487,11 @@ async function _getQuoteBatchInner(uniq) {
     if (any) persistSoon();
   }
 
-  // Fill any remaining misses one by one (usually empty)
+  // Fill any remaining misses one by one (usually empty). fromBatch: these
+  // must not come back into getQuoteBatch (see getQuote).
   const missing = need.filter(s => !out[s]);
   if (missing.length) {
-    const results = await Promise.all(missing.map(s => getQuote(s).catch(() => null)));
+    const results = await Promise.all(missing.map(s => getQuote(s, { fromBatch: true }).catch(() => null)));
     for (let i = 0; i < missing.length; i++) {
       if (results[i]) out[missing[i]] = results[i];
     }
