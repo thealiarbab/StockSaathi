@@ -7,7 +7,10 @@
 // (~Rs 250/day) and it could not be split by feature, model or lane.
 //
 // Never logged: prompt or reply text, user ids, IPs. Token counts and
-// timings only - the table is safe to show on the admin dashboard.
+// timings only - the table is safe to show on the admin dashboard. The
+// ip_hash / dev_hash columns are day-keyed HMACs from _guard.js (not
+// reversible, not linkable across days, wiped after 48 h) for the abuse
+// watcher.
 //
 // Cost is NOT computed here. Rows carry raw tokens; admin_llm_usage() prices
 // them from public.llm_prices, so a wrong or changed price is fixed with one
@@ -45,7 +48,7 @@ const COLS = [
   "route", "op", "feature", "profile", "upstream", "model", "effort", "ok", "status",
   "stream", "tools", "input_tokens", "output_tokens", "reasoning_tokens",
   "cache_read_tokens", "cache_write_tokens", "ttft_ms", "total_ms", "stop_reason",
-  "attempt", "region",
+  "attempt", "region", "ip_hash", "dev_hash",
 ];
 
 function clean(row) {

@@ -42,6 +42,7 @@
 
 import { liveGeminiModel } from "./_models.js";
 import { recordUsage, featureOf, normUsage, tapOpenAiSse } from "./_usage.js";
+import { callerHashes, isBlocked } from "./_guard.js";
 import {
   messagesEnabled, messagesFetch, toMessagesBody, toChatCompletion, toChatSse, MESSAGES_MODEL, effortFor,
 } from "./_messages.js";
@@ -490,6 +491,11 @@ export default async function handler(req) {
   if (rateLimited(ip)) {
     return jsonResponse(429, { error: "rate_limited" }, origin);
   }
+  // Abuse blocklist (filled by the database watcher ops_ai_watch). Fails open.
+  const caller = await callerHashes(req);
+  if (await isBlocked(caller)) {
+    return jsonResponse(429, { error: "rate_limited" }, origin);
+  }
 
   // Body-size cap. Read the upload before refusing it: answering while a
   // large body is still unread crashes the Node function (500
@@ -629,7 +635,8 @@ export default async function handler(req) {
     : (payload.reasoning_effort || null);
   const usageRow = (desc, extra) => ({
     route: "chat", op: profile, feature, profile, upstream: desc.label, model: desc.model,
-    effort: effortSent(desc), tools: toolCount, attempt: attempts.length, ...extra,
+    effort: effortSent(desc), tools: toolCount, attempt: attempts.length,
+    ip_hash: caller.ip_hash, dev_hash: caller.dev_hash, ...extra,
   });
   for (const desc of order) {
     try {

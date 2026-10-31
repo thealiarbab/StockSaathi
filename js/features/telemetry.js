@@ -539,6 +539,10 @@ export function startTelemetry() {
   started = true;
   vid = lsGet(VID_KEY);
   if (!vid || !/^[A-Za-z0-9_-]{8,40}$/.test(vid)) { vid = rnd(); lsSet(VID_KEY, vid); }
+  // The same id as a cookie scoped to /api, so the AI endpoints can tell one
+  // browser's calls from another's for the abuse watcher (api/_guard.js
+  // hashes it; it is never stored raw). Not a login, not used for anything else.
+  try { document.cookie = `ss_vid=${vid}; Path=/api; Max-Age=31536000; SameSite=Strict; Secure`; } catch {}
   const fresh = session();
   perfPath = location.pathname;
   if (fresh) startSession();

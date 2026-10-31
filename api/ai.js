@@ -25,7 +25,17 @@
 
 import { messagesEnabled, messagesFetch, toMessagesBody, textOf, effortFor, MESSAGES_MODEL } from "./_messages.js";
 import { recordUsage as recordUsageRaw, normUsage } from "./_usage.js";
+import { callerHashes, isBlocked } from "./_guard.js";
 import { AsyncLocalStorage } from "node:async_hooks";
+
+// Who is calling (day-keyed hashes, see _guard.js), per request, so every
+// llm_usage row from callLlm/cacheGet carries it without threading req
+// through every op.
+const CALLER = new AsyncLocalStorage();
+// Ops that can spend on a model. A caller on the abuse blocklist gets 429 on
+// these and nothing else (telemetry, quotes, time keep working).
+const LLM_OPS = new Set(["explain", "news-tldr", "portfolio-digest", "stock-why", "trade-nudge",
+  "market-mood", "market-search", "report-card", "crash-suggestions", "command"]);
 
 // Effort eval (admin only): a request with X-Eval-Effort: low|medium|high and
 // the admin token runs the normal op with that effort forced, never reads or
@@ -36,6 +46,8 @@ import { AsyncLocalStorage } from "node:async_hooks";
 const EVAL = new AsyncLocalStorage();
 const EVAL_EFFORTS = new Set(["low", "medium", "high"]);
 function recordUsage(row) {
+  const who = CALLER.getStore();
+  if (who) row = { ...row, ip_hash: who.ip_hash, dev_hash: who.dev_hash };
   const ev = EVAL.getStore();
   if (ev) {
     row = { ...row, feature: `eval:${ev.effort}:${row.feature || row.op || ""}` };
@@ -1543,6 +1555,14 @@ async function opCommand(req, origin) {
 // Dispatch
 // -----------------------------------------------------------------------------
 export default async function handler(req) {
+  const op = new URL(req.url).searchParams.get("op") || "";
+  if (!LLM_OPS.has(op)) return guarded(req);
+  const caller = await callerHashes(req);
+  if (await isBlocked(caller)) return j(429, { error: "rate_limited" }, req.headers.get("Origin") || "");
+  return CALLER.run(caller, () => guarded(req));
+}
+
+async function guarded(req) {
   const evalEffort = req.headers.get("X-Eval-Effort");
   if (!evalEffort) return route(req);
   const origin = req.headers.get("Origin") || "";
@@ -1597,6 +1617,7 @@ async function route(req) {
       case "command":             if (req.method !== "POST") return j(405, { error: "method_not_allowed" }, origin); return await opCommand(req, origin);
       case "history":             return await opHistory(req, origin, url);
       case "time":                return opTime(req, origin);
+      case "ops-mail":            if (req.method !== "POST") return j(405, { error: "method_not_allowed" }, origin); return await opOpsMail(req, origin);
       case "signup-count":        return await opSignupCount(req, origin);
       case "admin-path-check":    return opAdminPathCheck(req, origin, url);
       case "admin-overview":      return await opAdminOverview(req, origin);
@@ -1686,6 +1707,46 @@ function opTime(req, origin) {
 // panel, stored in localStorage. Treats unset ADMIN_TOKEN as
 // 'admin disabled' to prevent an empty-token bypass.
 // -----------------------------------------------------------------------------
+// --- Owner alert e-mail -------------------------------------------------------
+// The database sends every ops alert (ops_health_check, ops_ai_watch) here
+// through pg_net, so the owner hears about it away from the app, where a push
+// can be missed. Bearer = CRON_SECRET (Vault 'cron_secret' on the DB side).
+// Recipients come from the database (the pinned owner accounts' e-mails);
+// the secret is what makes that trustworthy.
+function checkCronSecret(req) {
+  const expected = String(globalThis.process?.env?.CRON_SECRET || "").trim();
+  const hdr = req.headers.get("Authorization") || "";
+  const token = hdr.startsWith("Bearer ") ? hdr.slice(7).trim() : "";
+  if (!expected || !token || token.length !== expected.length) return false;
+  let diff = 0;
+  for (let i = 0; i < token.length; i++) diff |= token.charCodeAt(i) ^ expected.charCodeAt(i);
+  return diff === 0;
+}
+async function opOpsMail(req, origin) {
+  if (!checkCronSecret(req)) return j(401, { error: "unauthorized" }, origin);
+  const env = globalThis.process?.env || {};
+  const key = String(env.RESEND_API_KEY || "").trim();
+  if (!key) return j(503, { error: "mail_off" }, origin);
+  let b; try { b = await req.json(); } catch { return j(400, { error: "bad_body" }, origin); }
+  const to = (Array.isArray(b.to) ? b.to : [b.to]).filter((x) => typeof x === "string" && /^[^@\s]+@[^@\s]+$/.test(x)).slice(0, 5);
+  if (!to.length) return j(400, { error: "no_recipient" }, origin);
+  const title = String(b.title || "StockSaathi alert").slice(0, 150);
+  const body = String(b.body || "").slice(0, 4000);
+  const esc = (x) => x.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  const r = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from: env.OPS_EMAIL_FROM || "StockSaathi Ops <orders@stocksaathi.co.in>",
+      to, subject: title,
+      text: `${body}\n\nDashboard: https://stocksaathi.co.in/a`,
+      html: `<p style="font:15px/1.5 system-ui,sans-serif;white-space:pre-wrap">${esc(body)}</p><p style="font:14px system-ui,sans-serif"><a href="https://stocksaathi.co.in/a">Open the dashboard</a></p>`,
+    }),
+  }).catch(() => null);
+  if (!r || !r.ok) return j(502, { error: "send_failed", status: r?.status || 0 }, origin);
+  return j(200, { ok: true }, origin);
+}
+
 function checkAdmin(req) {
   const env = globalThis.process?.env || {};
   const expected = (env.ADMIN_TOKEN || "").trim();
