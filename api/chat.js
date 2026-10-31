@@ -42,7 +42,7 @@
 
 import { liveGeminiModel } from "./_models.js";
 import { recordUsage, featureOf, normUsage, tapOpenAiSse } from "./_usage.js";
-import { callerHashes, isBlocked } from "./_guard.js";
+import { callerHashes, isBlocked, inLockdown } from "./_guard.js";
 import {
   messagesEnabled, messagesFetch, toMessagesBody, toChatCompletion, toChatSse, MESSAGES_MODEL, effortFor,
 } from "./_messages.js";
@@ -495,6 +495,10 @@ export default async function handler(req) {
   const caller = await callerHashes(req);
   if (await isBlocked(caller)) {
     return jsonResponse(429, { error: "rate_limited" }, origin);
+  }
+  // AI lockdown during a detected attack (see _guard.js). Short, then lapses.
+  if (await inLockdown()) {
+    return jsonResponse(503, { error: "busy", message: "Saathi is very busy right now. Please try again in a few minutes." }, origin);
   }
 
   // Body-size cap. Read the upload before refusing it: answering while a

@@ -25,7 +25,7 @@
 
 import { messagesEnabled, messagesFetch, toMessagesBody, textOf, effortFor, MESSAGES_MODEL } from "./_messages.js";
 import { recordUsage as recordUsageRaw, normUsage } from "./_usage.js";
-import { callerHashes, isBlocked } from "./_guard.js";
+import { callerHashes, isBlocked, inLockdown } from "./_guard.js";
 import { AsyncLocalStorage } from "node:async_hooks";
 
 // Who is calling (day-keyed hashes, see _guard.js), per request, so every
@@ -196,6 +196,7 @@ function hinglishOf(req) {
 async function callLlm({ messages, temperature = 0.4, max_tokens = 400, response_format, profile = "reasoning", hinglish = false, effort, op = "unknown", feature }) {
   const evalRun = EVAL.getStore();
   if (evalRun) effort = evalRun.effort;
+  if (CALLER.getStore()?.lockdown && !evalRun) throw new Error("ai_lockdown");
   const usageBase = { route: "ai", op, feature: feature || op, profile, stream: false };
   if (hinglish && messages?.[0]?.role === "system") {
     messages = [{ ...messages[0], content: messages[0].content + HINGLISH_RULE }, ...messages.slice(1)];
@@ -1567,7 +1568,10 @@ export default async function handler(req) {
   if (!LLM_OPS.has(op)) return guarded(req);
   const caller = await callerHashes(req);
   if (await isBlocked(caller)) return j(429, { error: "rate_limited" }, req.headers.get("Origin") || "");
-  return CALLER.run(caller, () => guarded(req));
+  // During an AI lockdown the op still runs, so saved answers are served;
+  // callLlm refuses to start a new paid call.
+  const lockdown = await inLockdown();
+  return CALLER.run({ ...caller, lockdown }, () => guarded(req));
 }
 
 async function guarded(req) {

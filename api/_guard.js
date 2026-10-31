@@ -13,6 +13,10 @@
 //  2. Refuses callers on the blocklist (public.ai_blocks), which the database
 //     watcher ops_ai_watch() fills when one IP or browser spends far beyond
 //     anything a real user has. Loaded once per 30 s per edge instance.
+//  3. AI lockdown (public.ai_guard_state.lockdown_until): when the watcher
+//     calls a spend spike an ATTACK it sets this for 30 min. Answers already
+//     saved (market mood, why-is-it-moving, news takes) keep being served;
+//     no new paid model call is made for anyone until it lapses.
 //
 // Everything fails OPEN: if Supabase is slow or down, requests go through.
 // A broken guard must never take the coach down for real users.
@@ -66,7 +70,7 @@ export async function callerHashes(req) {
   }
 }
 
-let _blocks = { at: 0, set: new Set(), p: null };
+let _blocks = { at: 0, set: new Set(), lockUntil: 0, p: null };
 const BLOCKS_TTL_MS = 30_000;
 async function loadBlocks() {
   const url = env().SUPABASE_URL, key = env().SUPABASE_SERVICE_ROLE_KEY;
@@ -75,14 +79,23 @@ async function loadBlocks() {
   const t = setTimeout(() => ctrl.abort(), 600);
   try {
     const now = new Date().toISOString();
-    const r = await fetch(
-      `${url.replace(/\/$/, "")}/rest/v1/ai_blocks?select=key_hash&until=gt.${encodeURIComponent(now)}&shadow=is.false`,
-      { headers: { apikey: key, Authorization: `Bearer ${key}` }, signal: ctrl.signal });
+    const base = url.replace(/\/$/, "");
+    const headers = { apikey: key, Authorization: `Bearer ${key}` };
+    const [r, g] = await Promise.all([
+      fetch(`${base}/rest/v1/ai_blocks?select=key_hash&until=gt.${encodeURIComponent(now)}&shadow=is.false`,
+        { headers, signal: ctrl.signal }),
+      fetch(`${base}/rest/v1/ai_guard_state?select=lockdown_until&id=eq.1`, { headers, signal: ctrl.signal }).catch(() => null),
+    ]);
+    let lockUntil = _blocks.lockUntil;
+    if (g?.ok) {
+      const rows = await g.json().catch(() => []);
+      lockUntil = rows?.[0]?.lockdown_until ? Date.parse(rows[0].lockdown_until) || 0 : 0;
+    }
     if (r.ok) {
       const rows = await r.json();
-      _blocks = { at: Date.now(), set: new Set(rows.map((x) => x.key_hash)), p: null };
+      _blocks = { at: Date.now(), set: new Set(rows.map((x) => x.key_hash)), lockUntil, p: null };
     } else {
-      _blocks = { ..._blocks, at: Date.now(), p: null };
+      _blocks = { ..._blocks, at: Date.now(), lockUntil, p: null };
     }
   } catch {
     _blocks = { ..._blocks, at: Date.now(), p: null };
@@ -90,6 +103,20 @@ async function loadBlocks() {
     clearTimeout(t);
   }
   return _blocks.set;
+}
+
+async function fresh() {
+  if (Date.now() - _blocks.at > BLOCKS_TTL_MS) {
+    if (!_blocks.p) _blocks.p = loadBlocks();
+    await _blocks.p;
+  }
+  return _blocks;
+}
+
+/** True while the watcher's AI lockdown is on (no new paid model calls). */
+export async function inLockdown() {
+  const b = await fresh();
+  return b.lockUntil > Date.now();
 }
 
 /** True when this caller's IP or browser hash is on the active blocklist. */
