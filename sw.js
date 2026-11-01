@@ -1,119 +1,54 @@
 // =============================================================================
-// SERVICE WORKER â€” Offline-first cache. Demo-day insurance against flaky WiFi.
+// SERVICE WORKER — offline-first cache, and the reason repeat visits cost the
+// CDN almost nothing.
 // =============================================================================
-
-// Bump this on every deploy so old cached JS/HTML isn't served forever. The
-// activate step below deletes any cache whose name doesn't match. Include a
-// date so it is obvious in DevTools which build is live.
-const CACHE_NAME = "stocksaathi-v479-20261031d";
+//
+// Two kinds of file, two caches:
+//
+// 1. Content-hashed files (/assets/*, /fonts/*, /js/data/<name>.<sha8>.json).
+//    A name never changes meaning, so they are served cache-first with NO
+//    background re-check, from ASSET_CACHE, which survives deploys. A deploy
+//    ships new names; the new index.html points at them; nothing is thrown
+//    away except files no recent build uses (pruneAssets).
+// 2. Everything else that is not HTML or /api (icons, manifest, the data
+//    index files, the unhashed source files old pages may still ask for).
+//    Cache-first in STATIC_CACHE, whose name follows the build id, so each
+//    deploy starts it fresh. It holds a handful of small files.
+//
+// HTML is network-first, as before, so a deploy reaches users on their next
+// page load.
+//
+// BUILD is filled in by build/bundle.mjs at deploy: { id, core, assets }.
+// null means the unbuilt source (local dev). Do not bump anything here for
+// code changes: the build id changes by itself whenever a served file does.
+// Change SW_VERSION only when this file's own logic changes.
+const BUILD = null;
+const SW_VERSION = "v480-20261101";
+const BUILD_ID = BUILD ? BUILD.id : "dev";
+const ASSET_CACHE = "stocksaathi-assets-v1";
+const STATIC_CACHE = `stocksaathi-${SW_VERSION}-${BUILD_ID}`;
+// Re-fetched once per build: the two pages offline navigation falls back to.
+// Everything else unhashed is cached the first time it is used.
 const STATIC = [
   "./",
   "./app-shell",
-  "./manifest.json",
-  "./logo.svg",
-  "./privacy",
-  "./terms",
-  "./grievance",
-  "./favicon.ico",
-  "./images/icon-192.png",
-  "./robots.txt",
-  "./sitemap.xml",
-  "./css/main.css",
-  "./css/components.css",
-  "./fonts/inter-latin.woff2",
-  "./fonts/inter-latin-ext.woff2",
-  "./js/app.js",
-  "./js/state.js",
-  "./js/money.js",
-  "./js/router.js",
-  "./js/pageTitles.js",
-  "./js/pages/staticPage.js",
-  "./js/navigation.js",
-  "./js/va.js",
-  "./js/ga.js",
-  "./js/auth/accounts.js",
-  "./js/auth/emailCheck.js",
-  "./js/components/googleButton.js",
-  "./js/components/nav.js",
-  "./js/components/coachLauncher.js",
-  "./js/components/tradeNote.js",
-  "./js/components/toast.js",
-  "./js/components/charts.js",
-  "./js/components/chartZoom.js",
-  "./js/components/quantitySelector.js",
-  "./js/components/commandPalette.js",
-  "./js/components/eventMarquee.js",
-  "./js/components/themedSelect.js",
-  "./js/coach/biasDetectors.js",
-  "./js/coach/biasCore.js",
-  "./js/coach/biasCopy.js",
-  "./js/coach/templates.js",
-  "./js/coach/outputFilter.js",
-  "./js/coach/orchestrator.js",
-  "./js/coach/historicalAnalog.js",
-  "./js/coach/llmBridge.js",
-  "./js/db/supabase.js",
-  "./js/vendor/supabase-js-2.45.4.js",
-  "./js/vendor/supabase-js-2.45.4.umd.js",
-  "./js/db/sync.js",
-  "./js/features/limitOrders.js",
-  "./js/features/styles.js",
-  "./js/features/telemetry.js",
-  "./js/features/humanCheck.js",
-  "./js/features/stockSearch.js",
-  "./js/features/stockSearchUi.js",
-  "./js/features/aiLang.js",
-  "./js/features/customCrash.js",
-  "./js/features/chatOrder.js",
-  "./js/features/notifications.js",
-  "./js/features/pushAsk.js",
-  "./js/features/openTracking.js",
-  "./js/components/bell.js",
-  "./js/components/backdrop.js",
-  "./js/features/preview.js",
-  "./js/features/aiExplainer.js",
-  "./js/data/glossary.js",
-  "./js/features/portfolioDigest.js",
-  "./js/features/marketStatusPopover.js",
-  "./js/data/universe.js",
-  "./js/data/universeLoader.js",
-  "./js/data/curated.js",
-  "./js/data/universeFull.json",
-  "./js/data/universeFull.meta.json",
-  "./js/data/mfFull.json",
-  "./js/data/mfFull.meta.json",
-  "./js/data/prices.js",
-  "./js/data/serverTime.js",
-  "./js/data/crashes.js",
-  "./js/data/dips.js",
-  "./js/data/realCloses.js",
-  "./js/data/marketData.js",
-  "./js/data/news.js",
-  "./js/pages/landing.js",
-  "./js/pages/landingContent.js",
-  "./js/pages/portfolio.js",
-  "./js/pages/stocks.js",
-  "./js/pages/stockDetail.js",
-  "./js/pages/crashReplay.js",
-  "./js/pages/reportCard.js",
-  "./js/pages/onboarding.js",
-  "./js/pages/settings.js",
-  "./js/pages/login.js",
-  "./js/pages/register.js",
-  "./js/pages/resetPasswordRequest.js",
-  "./js/pages/resetPassword.js",
-  "./js/pages/news.js",
-  "./js/pages/admin.js",
-  "./js/pages/adminCharts.js",
-  "./js/pages/adminSignups.js",
-  "./js/pages/adminBehaviour.js",
-  "./js/pages/adminFunnel.js",
 ];
+// The core bundle, its stylesheet and fonts: enough to open the app offline.
+// Page chunks are cached the first time they are used.
+const CORE = [
+  "/fonts/inter-latin.woff2",
+  "/fonts/inter-latin-ext.woff2",
+  ...(BUILD ? BUILD.core : []),
+];
+
+const isImmutable = (path) =>
+  path.startsWith("/assets/") || path.startsWith("/fonts/")
+  || /^\/js\/data\/[A-Za-z]+\.[0-9a-f]{8}\.json$/.test(path);
 
 // Pages visited (navigations) live in their own cache, capped (S3): every
 // stock page ever opened used to stay in the main cache for good, ~2,000
 // of them available, with no limit. Deleted with the build like the rest.
-const PAGES_CACHE = CACHE_NAME + "-pages";
+const PAGES_CACHE = STATIC_CACHE + "-pages";
 const MAX_PAGES = 50;
 async function putPage(request, response) {
   try {
@@ -125,29 +60,72 @@ async function putPage(request, response) {
   } catch {}
 }
 
+// Store a hashed file. A new copy of a data file (universeFull.<sha8>.json,
+// ~1 MB, new every daily refresh) replaces the older ones of the same name.
+async function putAsset(request, response) {
+  try {
+    const cache = await caches.open(ASSET_CACHE);
+    await cache.put(request, response);
+    const m = new URL(request.url).pathname.match(/^\/js\/data\/([A-Za-z]+)\.[0-9a-f]{8}\.json$/);
+    if (!m) return;
+    for (const key of await cache.keys()) {
+      const p = new URL(key.url).pathname;
+      if (p !== new URL(request.url).pathname && p.startsWith(`/js/data/${m[1]}.`)) await cache.delete(key);
+    }
+  } catch {}
+}
+
+// Keep the /assets/ files of this build and the one before it. A tab still
+// running the previous build can then open a page it has not opened yet:
+// Vercel no longer serves that build's files.
+const BUILDS_KEY = "/__sw/builds.json";
+async function pruneAssets() {
+  if (!BUILD) return;
+  const cache = await caches.open(ASSET_CACHE);
+  let builds = [];
+  try { builds = (await (await cache.match(BUILDS_KEY))?.json()) || []; } catch {}
+  builds = builds.filter((b) => b.id !== BUILD.id).slice(-1);
+  builds.push({ id: BUILD.id, assets: BUILD.assets });
+  await cache.put(BUILDS_KEY, new Response(JSON.stringify(builds), { headers: { "content-type": "application/json" } }));
+  const keep = new Set(builds.flatMap((b) => b.assets));
+  for (const key of await cache.keys()) {
+    const p = new URL(key.url).pathname;
+    if (p.startsWith("/assets/") && !keep.has(p)) await cache.delete(key);
+  }
+}
+
 self.addEventListener("install", (event) => {
-  // Use cache.add per-entry inside allSettled so a single 404 (e.g. a path
-  // that was renamed since the last deploy) doesn't reject the whole install
-  // â€” previously this made the SW fail forever and left the OLD SW in
-  // charge, which is how stale caches lived for weeks.
+  // Per-entry, inside allSettled, so a single 404 (e.g. a path renamed since
+  // the last deploy) doesn't reject the whole install — that once made the
+  // SW fail forever and left the OLD SW in charge for weeks.
   event.waitUntil((async () => {
-    const cache = await caches.open(CACHE_NAME);
-    await Promise.allSettled(STATIC.map(async (url) => {
-      try {
+    const statics = await caches.open(STATIC_CACHE);
+    const assets = await caches.open(ASSET_CACHE);
+    await Promise.allSettled([
+      ...STATIC.map(async (url) => {
         const res = await fetch(url, { cache: "reload" });
-        if (res && res.ok) await cache.put(url, res);
-      } catch {}
-    }));
+        if (res && res.ok) await statics.put(url, res);
+      }),
+      // Hashed files already cached from an earlier build are not fetched
+      // again. The rest normally come straight from the HTTP cache.
+      ...CORE.map(async (url) => {
+        if (await assets.match(url)) return;
+        const res = await fetch(url);
+        if (res && res.ok) await assets.put(url, res);
+      }),
+    ]);
     await self.skipWaiting();
   })());
 });
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME && k !== PAGES_CACHE).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
-  );
+  const live = new Set([ASSET_CACHE, STATIC_CACHE, PAGES_CACHE]);
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter((k) => !live.has(k)).map((k) => caches.delete(k)));
+    try { await pruneAssets(); } catch {}
+    await self.clients.claim();
+  })());
 });
 
 self.addEventListener("fetch", (event) => {
@@ -177,6 +155,7 @@ self.addEventListener("fetch", (event) => {
   if (externalHosts.some(h => url.hostname.includes(h))) return;
 
   if (url.origin !== location.origin) return;
+  if (event.request.method !== "GET") return;
 
   // Never cache our own /api/* routes â€” they should always hit network.
   // Previously these were cache-first and could return stale config / health
@@ -184,10 +163,10 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname.startsWith("/api/")) return;
   // /sb/* is the database relay (vercel.json rewrite to Supabase): never cache.
   if (url.pathname.startsWith("/sb/")) return;
+  if (url.pathname === "/sw.js") return;
 
-  // Network-first for HTML shell so users get new builds fast. Fallback
-  // to cache on offline. This combines with the new CACHE_NAME bump so
-  // an old build can't stick around after a deploy.
+  // Network-first for HTML so users get new builds fast. Fallback to cache
+  // when offline.
   const isHTML = event.request.mode === "navigate"
                  || (event.request.headers.get("accept") || "").includes("text/html");
 
@@ -203,53 +182,35 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // App code: stale-while-revalidate. Serve the cached copy at once (no
-  // network round trip per module, which is what made phones slow), then
-  // re-check it in the background. A deploy normally bumps CACHE_NAME and
-  // reloads the page through the update flow; if a file changed WITHOUT a
-  // bump, the background check spots the new ETag, stores the new file and
-  // tells the page, which reloads on its next in-app navigation, so a stale
-  // bundle cannot outlive a deployment.
-  if (/\.(?:css|js)$/.test(url.pathname) && event.request.method === "GET") {
+  // Hashed files: cache-first, never re-checked. ignoreVary: the data files
+  // carry "Vary: Accept-Encoding" (Brotli rewrite in vercel.json), and the
+  // content is the same whichever encoding it travelled in.
+  if (isImmutable(url.pathname)) {
     event.respondWith((async () => {
-      const cache = await caches.open(CACHE_NAME);
-      const cached = await cache.match(event.request);
-      const refresh = (async () => {
-        try {
-          const response = await fetch(event.request, { cache: "no-cache" });
-          if (!response.ok) return response;
-          const oldTag = cached?.headers.get("ETag");
-          const newTag = response.headers.get("ETag");
-          await cache.put(event.request, response.clone());
-          if (cached && oldTag && newTag && oldTag !== newTag) {
-            const pages = await self.clients.matchAll({ type: "window" });
-            for (const page of pages) page.postMessage({ type: "asset-updated", url: event.request.url });
-          }
-          return response;
-        } catch (error) {
-          if (cached) return cached;
-          throw error;
-        }
-      })();
-      if (cached) {
-        event.waitUntil(refresh.catch(() => {}));
-        return cached;
-      }
-      return refresh;
+      const cache = await caches.open(ASSET_CACHE);
+      const hit = await cache.match(event.request, { ignoreVary: true });
+      if (hit) return hit;
+      const res = await fetch(event.request);
+      if (res.ok) event.waitUntil(putAsset(event.request, res.clone()));
+      return res;
     })());
     return;
   }
 
-  // Cache-first for data, fonts, icons, and other static files â€” fast on repeat.
+  // Everything else: cache-first for this build.
   event.respondWith(
-    caches.match(event.request).then(cached => {
-      return cached || fetch(event.request).then(res => {
-        if (event.request.method === "GET" && res.ok) {
-          const clone = res.clone();
-          caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
-        }
+    caches.open(STATIC_CACHE).then(async (cache) => {
+      const cached = await cache.match(event.request);
+      if (cached) return cached;
+      try {
+        const res = await fetch(event.request);
+        if (res.ok) event.waitUntil(cache.put(event.request, res.clone()));
         return res;
-      }).catch(() => cached);
+      } catch (error) {
+        const fallback = await caches.match(event.request);
+        if (fallback) return fallback;
+        throw error;
+      }
     })
   );
 });

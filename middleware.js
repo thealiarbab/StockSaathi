@@ -2,7 +2,7 @@
 // `matcher`. The Python handlers and build manifests have to be deployed
 // (api/index.py imports handlers/ from disk), but they were also downloadable
 // as static files. An X-Robots-Tag kept them out of search; this stops them
-// being served at all.
+// being served at all. Same for the deploy-time bundler (build/, package*.json).
 export const config = {
   matcher: [
     "/handlers/:path*",
@@ -12,6 +12,9 @@ export const config = {
     "/pyproject.toml",
     "/uv.lock",
     "/middleware.js",
+    "/package.json",
+    "/package-lock.json",
+    "/build/:path*",
   ],
 };
 

@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "echo 'no build step — static site + per-handler @vercel/python functions'",
-  "installCommand": "echo 'no install step — api/*.py handlers use stdlib only'",
+  "buildCommand": "node build/bundle.mjs && rm -rf node_modules",
+  "installCommand": "npm ci --no-audit --no-fund",
   "framework": null,
   "outputDirectory": ".",
   "cleanUrls": true,
@@ -84,6 +84,10 @@
         { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" },
         { "key": "Vary", "value": "Accept-Encoding" }
       ]
+    },
+    {
+      "source": "/assets/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
     },
     {
       "source": "/fonts/(.*)",

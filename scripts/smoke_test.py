@@ -107,6 +107,19 @@ IGNORE = (
 )
 
 
+# Run against the deploy bundle too: `node build/bundle.mjs`, then this
+# script. build/meta.json says which /assets/ file each source file went
+# into, so the "is module X loaded on page Y" checks below mean the same
+# thing in both modes. A() maps a source path to what the browser requests.
+BUILT = "const BUILD = null;" not in (ROOT / "sw.js").read_text(encoding="utf-8")
+SOURCE_MAP = (json.loads((ROOT / "build" / "meta.json").read_text(encoding="utf-8"))["sourceMap"]
+              if BUILT else {})
+
+
+def A(path):
+    return SOURCE_MAP.get(path.lstrip("/"), SOURCE_MAP.get(path, path))
+
+
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, *a, **k):
         return None
@@ -125,7 +138,8 @@ def wait_for_server():
 def main():
     extra = [(p, 200, "#main") for p in sys.argv[1:]]
     routes = ROUTES + extra
-    for gen_script in ("build_landing.py", "prerender.py"):
+    # The bundle rewrites every page's asset links, so "stale" is expected there.
+    for gen_script in () if BUILT else ("build_landing.py", "prerender.py"):
         gen = subprocess.run([sys.executable, str(ROOT / "scripts" / gen_script), "--check"],
                              cwd=ROOT, capture_output=True, text=True)
         if gen.returncode != 0:
@@ -189,27 +203,27 @@ def main():
             asset_paths = set()
             asset_page.on("request", lambda req: asset_paths.add(urllib.parse.urlsplit(req.url).path))
             asset_page.goto(BASE + "/stocks", wait_until="networkidle")
-            lazy_assets = (
+            lazy_assets = tuple(A(p) for p in (
                 "/css/coach.css",
                 "/js/components/coachPanel.js",
                 "/js/coach/agent.js",
                 "/js/coach/persona.js",
                 "/js/features/chatCards.js",
-            )
+            ))
             checks.append(("Coach chat assets stay unloaded on /stocks",
                            not any(path in asset_paths for path in lazy_assets)))
             asset_paths.clear()
             asset_page.goto(BASE + "/stocks/RELIANCE", wait_until="networkidle")
             checks.append(("stock detail retains trade-coaching detectors",
-                           "/js/coach/orchestrator.js" in asset_paths
-                           and "/js/coach/biasDetectors.js" in asset_paths
-                           and "/js/coach/agent.js" not in asset_paths))
+                           A("/js/coach/orchestrator.js") in asset_paths
+                           and A("/js/coach/biasDetectors.js") in asset_paths
+                           and A("/js/coach/agent.js") not in asset_paths))
             asset_paths.clear()
             asset_page.locator("#nav-root a[href='/chat']").click()
             asset_page.locator("#chat-input").wait_for(timeout=30000)
             chat_assets_ok = (
-                "/css/coach.css" in asset_paths
-                and "/js/coach/agent.js" in asset_paths
+                A("/css/coach.css") in asset_paths
+                and A("/js/coach/agent.js") in asset_paths
                 and asset_page.locator(".coach-fab").evaluate(
                     "el => getComputedStyle(el).display === 'none'")
             )
@@ -217,24 +231,35 @@ def main():
             asset_paths.clear()
             asset_page.goto(BASE + "/share/abcdef12", wait_until="networkidle")
             checks.append(("shared chat loads deferred Coach styles",
-                           "/css/coach.css" in asset_paths))
+                           A("/css/coach.css") in asset_paths))
+            if BUILT:
+                # The bundle's whole point: nothing is fetched from the source
+                # tree, and a page load is a handful of files.
+                asset_paths.clear()
+                asset_page.goto(BASE + "/stocks", wait_until="networkidle")
+                raw = sorted(p for p in asset_paths if re.match(r"^/(js|css)/.*\.(js|css)$", p))
+                checks.append(("bundle: no raw /js or /css file requested (%s)" % ", ".join(raw[:3]), not raw))
             asset_ctx.close()
 
             shell_html = urllib.request.urlopen(BASE + "/portfolio", timeout=10).read().decode("utf-8")
-            checks.append(("app shell preloads component CSS without blocking",
-                           '<link rel="preload" href="/css/components.css" as="style" id="components-css-preload" />'
-                           in shell_html))
+            if BUILT:
+                checks.append(("app shell links the one bundled stylesheet",
+                               '<link rel="stylesheet" href="%s" />' % A("/css/main.css") in shell_html
+                               and "components.css" not in shell_html))
+            else:
+                checks.append(("app shell preloads component CSS without blocking",
+                               '<link rel="preload" href="/css/components.css" as="style" id="components-css-preload" />'
+                               in shell_html))
+            # Offline precache: the trade detectors yes, the chat-only code no.
             sw_source = urllib.request.urlopen(BASE + "/sw.js", timeout=10).read().decode("utf-8")
             sw_static = re.search(r"const STATIC = \[(.*?)\];", sw_source, re.S).group(1)
+            build_m = re.search(r"^const BUILD = (\{.*\});\r?$", sw_source, re.M)
+            sw_core = json.loads(build_m.group(1))["core"] if build_m else []
+            chat_only = ("/css/coach.css", "/js/components/coachPanel.js", "/js/coach/agent.js", "/js/coach/persona.js")
             checks.append(("service worker defers chat assets but preserves trade detectors",
-                           all(asset not in sw_static for asset in (
-                               "./css/coach.css",
-                               "./js/components/coachPanel.js",
-                               "./js/coach/agent.js",
-                               "./js/coach/persona.js",
-                           ))
-                           and "./js/coach/orchestrator.js" in sw_static
-                           and "./js/coach/biasDetectors.js" in sw_static))
+                           all(a not in sw_static and A(a) not in sw_core for a in chat_only)
+                           and (not BUILT or (A("/js/coach/orchestrator.js") in sw_core
+                                              and A("/js/coach/biasDetectors.js") in sw_core))))
 
             page.goto(BASE + "/", wait_until="networkidle")
             page.evaluate("() => { window.__noReload = 1; }")

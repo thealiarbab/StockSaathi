@@ -190,8 +190,16 @@ if ("serviceWorker" in navigator) {
       // background update cycle. Pre-fix reg.update() ran exactly once
       // on window.load, so a tab parked overnight could keep serving
       // stale cached bundles past several deploys.
-      const checkForUpdate = () => { reg.update().catch(() => {}); };
-      checkForUpdate();
+      // Not on load: the browser already re-fetches /sw.js on every page
+      // load, so a second check there was a second CDN request per view.
+      // Each check is one request; refocusing a tab checks at most every 4 min
+      // (under the interval, so timer jitter never skips a tick).
+      let lastCheck = Date.now();
+      const checkForUpdate = () => {
+        if (Date.now() - lastCheck < 4 * 60 * 1000) return;
+        lastCheck = Date.now();
+        reg.update().catch(() => {});
+      };
       setInterval(checkForUpdate, 5 * 60 * 1000);
       // Re-check on tab refocus — most common path back from
       // background. Catches the "I left my tab open yesterday and you
@@ -211,15 +219,6 @@ if ("serviceWorker" in navigator) {
       });
       let reloaded = false;
       let reloadWaitingForChat = false;
-      // The worker found a changed file that came without a version bump
-      // (see sw.js). Pick it up on the next in-app navigation, never mid-page.
-      let staleAssets = false;
-      navigator.serviceWorker.addEventListener("message", (e) => {
-        if (e.data?.type === "asset-updated") staleAssets = true;
-      });
-      window.addEventListener("ss:navigate", () => {
-        if (staleAssets && !document.getElementById("chat-stop")) window.location.reload();
-      });
       // Only an UPDATE should reload. On a visitor's very first load the page
       // starts uncontrolled; the new worker's clients.claim() still fires
       // controllerchange, which used to reload the page a few seconds after

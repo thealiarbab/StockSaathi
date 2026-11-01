@@ -50,3 +50,9 @@ docs/HANDOFF_claude-session-*.md
 
 # Private agent session memory (names students; repo is public). Never commit.
 /.memory/
+
+# Deploy build output (build/bundle.mjs runs on Vercel)
+/assets/
+# (build/ above is Python output; the root one holds the bundler)
+!/build/
+/build/meta.json

@@ -1,0 +1,11 @@
+{
+  "name": "stocksaathi-web",
+  "private": true,
+  "description": "Deploy-time bundling only. The site runs unbuilt from source in local dev.",
+  "scripts": {
+    "build": "node build/bundle.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.27.7"
+  }
+}

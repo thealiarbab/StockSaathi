@@ -12,7 +12,10 @@ achievements (80+/seasonal). Commit 27b1c155 still needs his approval for a
 history rewrite.
 
 ## Stack
-- **Frontend:** vanilla JS modules (no framework, no build step), SW-cached,
+- **Frontend:** vanilla JS modules (no framework). Source runs unbuilt in local
+  dev; at deploy Vercel runs `build/bundle.mjs` (esbuild): core bundle + lazy
+  page chunks + one CSS file under `/assets/<name>.<hash>`, served immutable,
+  and every HTML page is rewritten to the hashed names. SW-cached,
   History-API router with clean URLs (`js/router.js` + `js/navigation.js`;
   legacy `#/x` links are upgraded in place). `vercel.json` has `cleanUrls`.
 - **Pre-rendered HTML (SEO):** every public URL is a committed static file
@@ -88,7 +91,14 @@ history rewrite.
 - **Style:** terse, blunt, no ceremony. User prefers honesty > padding.
 - **No attribution** in anything committed to this repo — no co-author trailers, no "built by X" comments, no vendor-branded filenames or identifiers. This is a hard rule.
 - **Commit identity:** every commit is authored and committed as `Ali Arbab <ali@aliarbab2009.com>`. Agent containers default to their own identity (one commit on 2026-10-19 went out as `Claude <noreply@anthropic.com>` and showed on GitHub as "claude committed"). Before the first commit in any session run `git config user.name "Ali Arbab"` and `git config user.email "ali@aliarbab2009.com"`, and check `git log -1 --format='%an <%ae> | %cn <%ce>'` before pushing. Never credit an AI tool or vendor in a commit, PR, comment, file or identifier.
-- **SW cache bump:** every JS/CSS change → bump `CACHE_NAME` in `sw.js` (format `stocksaathi-vN-YYYYMMDDx`)
+- **No SW cache bump for code changes** (since 1 Nov 2026). Hashed `/assets/`
+  names carry updates; the build writes its file list and a build id into
+  `sw.js`, so every deploy installs a new worker by itself. Bump `SW_VERSION`
+  only when `sw.js`'s own logic changes. A file loaded by a runtime string
+  path (not `import`) must be added to `LITERALS` in `build/bundle.mjs`, or
+  the deploy fails. Test the bundle locally: `node build/bundle.mjs`, then
+  `scriptssmoke.cmd` (it detects the bundle), then undo with
+  `git checkout -- "*.html" sw.js` and delete `assets/`.
 
 ## Order execution — SERVER-SIDE. Never make this client-driven again.
 
@@ -340,4 +350,4 @@ The intended design: primary serving path Cloudflare Worker (`edge/front-door/`)
 
 ### Cache coherency
 
-`sw.js` caches static by `CACHE_NAME`. Since Vercel and Pages serve byte-identical HTML (same repo, same build), a mid-session origin swap is safe. Still bump `CACHE_NAME` on any frontend change.
+`sw.js` caches hashed `/assets/` files forever and the rest per build id. Pages would need the same `node build/bundle.mjs` build step as Vercel, or it serves the unbundled source (which also works).
