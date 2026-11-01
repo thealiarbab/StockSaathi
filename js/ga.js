@@ -78,8 +78,29 @@ window.ssAfterLoad = function (fn) {
 })();
 
 // Google AdSense (auto ads). Was a <script async> in every page's <head>.
+// Only content pages load it. Auto ads cannot be kept out of a form, the
+// coach chat or admin, so every other route never fetches the script.
 (function () {
-  if (location.pathname.indexOf("/a/") === 0) return;
+  var EXACT = { "/": 1, "/stocks": 1, "/portfolio": 1, "/learn-stock-market": 1 };
+  var PREFIX = ["/crash-replay", "/learn"]; // the page itself and anything under it
+  window.ssAdsAllowed = function (path) {
+    path = String(path || "/").replace(/\/+$/, "") || "/";
+    if (EXACT[path]) return true;
+    for (var i = 0; i < PREFIX.length; i++) {
+      if (path === PREFIX[i] || path.indexOf(PREFIX[i] + "/") === 0) return true;
+    }
+    return false;
+  };
+
+  // In-app navigation keeps the script and any auto-placed units in the
+  // DOM. This class hides them (css/main.css) on routes the list blocks.
+  function sync() {
+    document.documentElement.classList.toggle("ss-noads", !window.ssAdsAllowed(location.pathname));
+  }
+  sync();
+  window.addEventListener("ss:navigate", sync);
+
+  if (location.pathname.indexOf("/a/") === 0 || !window.ssAdsAllowed(location.pathname)) return;
   window.ssAfterLoad(function () {
     var s = document.createElement("script");
     s.async = true;

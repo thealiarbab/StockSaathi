@@ -783,3 +783,7 @@ textarea.input { min-height: 88px; resize: vertical; }
 .divider { height: 1px; background: var(--divider); }
 .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rounded-full { border-radius: var(--r-full); }
+
+/* Auto ads that loaded on an allowed page stay in the DOM after in-app
+   navigation; js/ga.js sets this class on routes where ads must not show. */
+html.ss-noads ins.adsbygoogle, html.ss-noads .google-auto-placed { display: none !important; }
