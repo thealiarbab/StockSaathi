@@ -507,7 +507,7 @@ def dip_html(sym, name):
     %s
   </p>
   <p>
-    StockSaathi shows this record, unrecovered falls included, before a likely panic-sell. Daily closing prices
+    This record, unrecovered falls included, is what to check before selling into a fall. Daily closing prices
     from Yahoo Finance since %s. Past recoveries don't guarantee future ones.
   </p>""" % (e(sym), "\n    ".join(paras), since)
 
@@ -589,20 +589,22 @@ def app_node():
         "applicationCategory": "FinanceApplication",
         "applicationSubCategory": "Stock market simulator and paper trading app",
         "operatingSystem": "Any (web browser)",
-        "description": ("A free stock market simulator for Indian teens aged 13–18. Practise with ₹1,00,000 of virtual "
+        "description": ("A free stock market simulator for students and beginners in India (including teens 13–18). "
+                        "Practise with ₹1,00,000 of virtual "
                         "money on real NSE and BSE stocks, ETFs and mutual funds at real market prices, with an AI coach "
                         "that flags beginner mistakes as you make them."),
         "offers": {"@type": "Offer", "price": "0", "priceCurrency": "INR"},
         "isAccessibleForFree": True,
         "inLanguage": "en-IN",
-        "audience": {"@type": "PeopleAudience", "suggestedMinAge": 13, "suggestedMaxAge": 18,
+        "audience": {"@type": "PeopleAudience", "suggestedMinAge": 13,
                      "geographicArea": {"@type": "Country", "name": "India"}},
         "featureList": [
             "₹1,00,000 of virtual money",
             "4,000+ NSE and BSE stocks, 300+ ETFs and 8,000+ mutual funds at real market prices",
             "Market, limit and after-market orders",
             "AI coach that checks every trade for nine common investing mistakes",
-            "Pause before a likely panic-sell showing how often that stock's past falls recovered, and which never did",
+            "After a trade that fits a beginner mistake, a short note explains it in the user's own numbers",
+            "Stock pages showing how often each stock's past falls recovered, and which never did",
             "Replays of the 2020 COVID-19 crash, the 2008 financial crisis and 2016 demonetisation, built from real Nifty 50 closes",
             "Report card that grades decision quality from A+ to D",
             "Optional Hinglish mode",
@@ -742,9 +744,10 @@ def stock_main(r, siblings):
                 f"to learn how the stock market works without risking real money.")
     if t["open"]:
         coach = (f"{e(sym)} is in a fall right now (its record is below), the moment beginners most often sell in a "
-                 f"panic. Before a sell like that, the coach pauses you and shows how this stock's own past falls "
-                 f"ended, the ones that never recovered included. It also flags buying after a big run-up or putting "
-                 f"more than 40% of your portfolio into one stock, and never tells you what to buy or sell.")
+                 f"panic. If a sale fits that pattern, the coach points it out after the trade, in your own numbers, "
+                 f"and this stock's own past falls are listed below, the ones that never recovered included. It also "
+                 f"flags buying after a big run-up or putting more than 40% of your portfolio into one stock, and never "
+                 f"tells you what to buy or sell.")
     elif t["rate"] >= 1.0:
         coach = (f"{e(sym)} has fallen 10% or more about {t['rate']:.1f} times a year in its record, so its swings "
                  f"are a real part of trading it. The coach watches for the two mistakes those swings invite: buying "
@@ -853,8 +856,12 @@ def crash_hub_main(crashes):
 
 def crash_main(c, others):
     delta = c["finalDelta"]
-    delta_line = ("Holding finished %.1f%% ahead of panic-selling." % delta) if delta >= 0 \
-        else ("Within this window, the panic-seller finished %.1f%% ahead of holding." % abs(delta))
+    # In rupees, not as a percentage of the loser's value: "-145.6%" read as
+    # an impossible loss of more than 100% (2008: ₹98,604 vs ₹40,144).
+    delta_line = ("Holding won: the held portfolio ended at %s, the panic-seller's at %s."
+                  % (rupees(c["heldEnd"]), rupees(c["panicEnd"]))) if delta >= 0 \
+        else ("Within this window, selling on day three won: the panic-seller ended at %s, the held portfolio at %s."
+              % (rupees(c["panicEnd"]), rupees(c["heldEnd"])))
     stats = [
         ("Window", "%s to %s" % (c["start"], c["end"])),
         ("Index fall at its worst", "%.1f%%" % abs(c["indexDrop"])),
@@ -863,7 +870,9 @@ def crash_main(c, others):
         ("Panic-sold on day 3", rupees(c["panicEnd"])),
     ]
     dl = "".join("<dt>%s</dt><dd>%s</dd>" % (e(k), e(v)) for k, v in stats)
-    tl = "".join("<li><strong>Day %d.</strong> %s</li>" % (d, e(t)) for d, t in c["timeline"])
+    # The timeline text may already open with "Day N."; print the label once.
+    tl = "".join("<li><strong>Day %d.</strong> %s</li>" % (d, e(re.sub(r"^Day %d\.\s*" % d, "", t)))
+                 for d, t in c["timeline"])
     other = "".join('<li><a href="/crash-replay/%s">%s</a> (%s)</li>' % (o["id"], e(o["title"]), e(o["subtitle"])) for o in others)
     return f"""<article class="container static-page">
   {crumbs_html([("Home", "/"), ("Crash replays", "/crash-replay"), (c["title"], "/crash-replay/" + c["id"])])}
@@ -877,12 +886,12 @@ def crash_main(c, others):
   <dl class="stat-list">{dl}</dl>
   <h2>What happened, day by day</h2>
   <ol class="timeline">{tl}</ol>
-  <h2>The lesson</h2>
+  <h2>What this replay shows</h2>
   <p>
     Crashes feel endless from the inside, and the urge to sell is strongest near the bottom. Replaying one lets
-    you feel that pressure with virtual money and see how the decision played out. StockSaathi's coach uses the
-    same idea in live trading: before a likely panic-sell it shows how often that stock's past falls recovered,
-    how long that took and which never did, then lets you decide.
+    you feel that pressure with virtual money and see how the decision played out. When you trade on
+    StockSaathi, every stock page lists how often that stock's past falls recovered, how long that took and
+    which never did, and the coach points out a sale that fits the panic-selling pattern after you make it.
   </p>
   <h2>More crash replays</h2>
   <ul class="link-list">{other}</ul>
@@ -984,15 +993,15 @@ def build_pages():
 
     # Home: head only (main comes from partials/landing.html via build_landing.py).
     home = {"path": "/", "file": "index.html", "headOnly": True, "priority": "1.0", "changefreq": "weekly",
-            "title": "StockSaathi: Free Paper Trading & Stock Market Simulator for Teens",
-            "description": ("Free paper trading app for Indian teens, 13–18. Practise with ₹1,00,000 of virtual "
-                            "money on real NSE and BSE stocks, with an AI coach that spots mistakes."),
+            "title": "StockSaathi: Free Paper Trading App India for Beginners",
+            "description": ("Free paper trading for students and beginners in India. Practise with ₹1,00,000 of "
+                            "virtual money on real NSE and BSE stocks, with an AI coach that spots mistakes."),
             "images": [(SITE + "/images/og-image-v2.png", OG_ALT),
                        (SITE + "/images/screenshot-wide.png", "The StockSaathi home page on a desktop screen"),
                        (SITE + "/images/screenshot-narrow.png", "The StockSaathi home page on a phone")],
             "graph": [website_node(), org_node(), founder_node(), app_node(),
                       {"@type": "WebPage", "@id": SITE + "/#webpage", "url": SITE + "/",
-                       "name": "StockSaathi: Free Paper Trading & Stock Market Simulator for Teens", "inLanguage": "en-IN",
+                       "name": "StockSaathi: Free Paper Trading App India for Beginners", "inLanguage": "en-IN",
                        "isPartOf": {"@id": SITE_ID}, "about": {"@id": APP_ID}, "primaryImageOfPage": OG_IMAGE}],
             "index": True, "sitemap": True}
     pages.append(home)
@@ -1243,13 +1252,20 @@ Sitemap: {SITE}/sitemap.xml
 """
 
 
-def llms_txt():
+def llms_txt(pages):
     """llms.txt from partials/llms.txt (hand-written copy, §2 claims only).
 
     Placeholders hold the links to pages that are still behind the SEO gate,
-    so llms.txt never points AI crawlers at a noindex page.
+    so llms.txt never points AI crawlers at a noindex page, and the counts
+    that come from data (indexed stock pages, dip-data date).
     """
     text = (ROOT / "partials" / "llms.txt").read_text(encoding="utf-8").replace("\r\n", "\n")
+    head = (ROOT / "js" / "data" / "dipStats.js").read_text(encoding="utf-8")[:300]
+    dips_on = dt.date.fromisoformat(re.search(r"on (\d{4}-\d{2}-\d{2})", head).group(1))
+    rich = sum(1 for p in pages if p["path"].startswith("/stocks/") and p.get("index"))
+    n500 = sum(1 for r in load_universe()[2])
+    text = (text.replace("{{STOCK_PAGES}}", str(rich)).replace("{{NIFTY500}}", str(n500))
+            .replace("{{BUILD_DATE}}", "%d %s %d" % (dips_on.day, dips_on.strftime("%b"), dips_on.year)))
     live = {
         "{{FOUNDER_PROFILE}}": "Profile: %s/about · " % SITE,
         "{{ABOUT_CONTACT_PAGES}}": ("- [About StockSaathi](%s/about): what it is, how it's built, founder and contact.\n"
@@ -1291,7 +1307,7 @@ def main():
         lastmod = prev.get("lastmod") if prev.get("hash") == digest else TODAY
         new_state[p["path"]] = {"hash": digest, "lastmod": lastmod or TODAY}
 
-    outputs[ROOT / "llms.txt"] = llms_txt()
+    outputs[ROOT / "llms.txt"] = llms_txt(pages)
     check_copy_counts([(str(f.relative_to(ROOT)), t) for f, t in outputs.items()] +
                       [("index.html", (ROOT / "index.html").read_text(encoding="utf-8"))])
 

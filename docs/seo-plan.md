@@ -69,7 +69,10 @@ from the repo and the production database on 2026-11-02.
 8. Replay real Indian market crashes — COVID-19 2020, the 2008 financial crisis, demonetisation 2016 — built from real daily Nifty 50 closes, and compare holding against panic-selling. Results: COVID holding +5.6% by 9 Nov 2020; 2008 selling early won within the window; demonetisation holding +7.0%. Featured replays also cover Harshad Mehta 1992, Satyam 2009, YES Bank 2020, Adani–Hindenburg 2023 and more.
 9. Market orders, limit orders and after-market orders, like a real trading app.
 10. A report card that grades your decisions, not just your returns.
-11. Built for Indian teens, ages 13–18. (Positioning. Signup accepts 13+ and has no upper limit, so never say "only".)
+11. Built for students (including Indian teens 13–18) and open to anyone in India learning to invest. Signup accepts 13+, no upper limit. (Positioning, 2026-11-02: the homepage owns "paper trading app india"; /for-students, the home FAQ and llms.txt keep the explicit teen signal.)
+19. StockSaathi was founded and built by Ali Arbab, a student developer from India, and launched on 19 April 2026. (Owner statement; production Supabase project created 2026-04-19 and first transaction 2026-04-19, verified 2026-11-02.)
+20. StockSaathi is an independent project, not a registered company. (Owner statement.) Contacts: grievance@ (support, data requests), business@ (business, partnerships, press, schools), ambassador@ (student and school outreach; Devansh Singh Chauhan, brand ambassador, written consent 2026-10-31).
+21. Limit orders and AMOs are matched on the server, so they fill even when the app is closed. (§1 "Orders"; AGENTS.md "Order execution".)
 12. Markets, crash replays, news and the coach can be explored without an account.
 13. No leaderboard of returns — by design.
 14. Hinglish mode for the coach.

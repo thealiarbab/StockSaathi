@@ -349,7 +349,7 @@ function renderSelector(main) {
           <div class="flex items-center justify-between">
             <h4>${c.title}</h4>
             <span class="pill ${c.finalDelta > 0 ? "pill-green" : "pill-red"}">
-              ${c.finalDelta > 0 ? "+" : ""}${c.finalDelta.toFixed(1)}% delta
+              ${c.finalDelta > 0 ? "Holding won" : "Selling won"}
             </span>
           </div>
           <div class="desc">${c.description}</div>
