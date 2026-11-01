@@ -24,10 +24,10 @@ Outputs (committed, served by Vercel with cleanUrls):
   crash-replay.html           /crash-replay
   crash-replay/<ID>.html      /crash-replay/<ID> the three curated replays
   chat.html, news.html        /chat, /news (news is noindex: third-party headlines)
-  learn-stock-market.html, for-students.html
+  learn-stock-market.html, for-students.html, about.html, contact.html
   app-shell.html              noindex shell for gated / long-tail app routes
   404.html                    branded not-found page
-  sitemap.xml, robots.txt, js/pageTitles.js
+  sitemap.xml, robots.txt, llms.txt (from partials/llms.txt), js/pageTitles.js
 
 Usage:
   python scripts/prerender.py           write everything
@@ -49,13 +49,15 @@ STATE = ROOT / "scripts" / "prerender-state.json"
 IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
 TODAY = dt.datetime.now(IST).date().isoformat()
 
-# <lastmod> follows what a crawler reads, not the asset tags every page shares:
-# adding an analytics script must not date every page to today.
-SCRIPT_TAG = re.compile(r'^[ \t]*<script\b[^>]*\bsrc="[^"]+"[^>]*></script>\n', re.M)
+# <lastmod> follows the page's own content (title, description, robots and
+# <main>), not what every page shares: a new footer link, analytics script or
+# site-wide JSON-LD node must not date every page to today.
+DIGEST_PARTS = re.compile(r'<title>.*?</title>|<meta name="(?:description|robots)"[^>]*>'
+                          r'|<!-- landing:start -->.*?<!-- landing:end -->', re.S)
 
 
 def content_digest(body):
-    text = SCRIPT_TAG.sub("", body.replace("\r\n", "\n"))
+    text = "\n".join(DIGEST_PARTS.findall(body.replace("\r\n", "\n")))
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
 OG_IMAGE = SITE + "/images/og-image-v2.png"
@@ -70,6 +72,9 @@ ORG_ID = SITE + "/#org"
 SITE_ID = SITE + "/#website"
 APP_ID = SITE + "/#app"
 FOUNDER_ID = SITE + "/#founder"
+
+# /about and /contact ship noindex first and are flipped after the SEO gate.
+NEW_PAGES_LIVE = False
 
 e = html.escape
 
@@ -524,20 +529,52 @@ def org_node():
         "alternateName": ["Stock Saathi"],
         "slogan": "Invest virtually. Learn for real.",
         "logo": {"@type": "ImageObject", "url": SITE + "/images/logo-512.png", "width": 512, "height": 512},
-        "description": "StockSaathi makes a free stock market simulator that teaches Indian teenagers to invest with virtual money.",
+        "description": ("StockSaathi makes a free stock market simulator for students and beginners in India "
+                        "(including teens 13–18), who practise investing with virtual money."),
         "founder": {"@id": FOUNDER_ID},
+        "foundingDate": "2026-04-19",
         "areaServed": {"@type": "Country", "name": "India"},
-        "sameAs": ["https://www.instagram.com/stocksaathi.co.in/", "https://x.com/stocksaathiCoIn",
+        "sameAs": ["https://www.instagram.com/stocksaathi.co.in/", "https://x.com/stocksaathicoin",
                    "https://github.com/thealiarbab/StockSaathi"],
-        "contactPoint": {"@type": "ContactPoint", "contactType": "customer support",
-                         "email": "grievance@stocksaathi.co.in", "areaServed": "IN",
-                         "availableLanguage": ["English"]},
+        "contactPoint": [
+            {"@type": "ContactPoint", "contactType": "customer support",
+             "email": "grievance@stocksaathi.co.in", "areaServed": "IN", "availableLanguage": ["English"]},
+            {"@type": "ContactPoint", "contactType": "business inquiries",
+             "email": "business@stocksaathi.co.in", "areaServed": "IN", "availableLanguage": ["English", "Hindi"]},
+        ],
     }
 
 
+# One canonical Person node, emitted on every page that carries JSON-LD so
+# each page ties the site to its founder (docs/seo-plan.md §2, founder claims).
 def founder_node():
-    return {"@type": "Person", "@id": FOUNDER_ID, "name": "Ali Arbab",
-            "sameAs": ["https://github.com/thealiarbab", "https://x.com/thealiarbab", "https://aliarbab2009.com"]}
+    return {"@type": "Person", "@id": FOUNDER_ID, "name": "Ali Arbab", "url": SITE + "/about",
+            "jobTitle": "Founder and developer",
+            "description": "Student developer from India who founded and built StockSaathi.",
+            "worksFor": {"@id": ORG_ID},
+            "sameAs": ["https://www.linkedin.com/in/thealiarbab", "https://github.com/thealiarbab",
+                       "https://x.com/thealiarbab", "https://aliarbab2009.com"]}
+
+
+# Article author: the same entity by @id, plus name and url so the object
+# stands on its own for parsers that don't resolve references.
+AUTHOR = {"@type": "Person", "@id": FOUNDER_ID, "name": "Ali Arbab", "url": SITE + "/about"}
+
+
+def byline_html(modified):
+    d = dt.date.fromisoformat(modified)
+    return ('<p class="byline dim text-sm">By <a href="/about" rel="author">Ali Arbab</a>, founder of StockSaathi'
+            ' · Updated <time datetime="%s">%d %s %d</time></p>' % (modified, d.day, d.strftime("%B"), d.year))
+
+
+def with_byline(body, modified):
+    if "</h1>" not in body:
+        raise SystemExit("byline: no </h1> in page body")
+    return body.replace("</h1>", "</h1>\n  " + byline_html(modified), 1)
+
+
+def iso_ist(day):
+    return day + "T00:00:00+05:30"
 
 
 def website_node():
@@ -933,7 +970,15 @@ def build_pages():
         graph = [webpage_node(p, p.pop("webpageExtra", None))]
         if p.get("crumbs"):
             graph.append(breadcrumb_node(url, p["crumbs"]))
+        art = p.pop("article", None)
+        if art:
+            # Article is its own node; breadcrumb and primaryImageOfPage stay
+            # on the WebPage, where schema.org allows them.
+            graph.append(dict({"@type": "Article", "@id": url + "#article", "mainEntityOfPage": {"@id": url + "#webpage"},
+                               "description": p["description"], "inLanguage": "en-IN", "image": OG_IMAGE,
+                               "author": AUTHOR, "publisher": {"@id": ORG_ID}}, **art))
         graph += p.pop("extraGraph", [])
+        graph += [website_node(), org_node(), founder_node()]
         p["graph"] = graph
         pages.append(p)
 
@@ -1028,26 +1073,59 @@ def build_pages():
         description="Indian market headlines from major business news sources, tagged bullish, bearish or neutral.",
         crumbs=[("Home", "/"), ("News", "/news")], main=news_main())
 
-    learn = partial("learn-stock-market.html", "/learn-stock-market")
+    # Guides carry a visible byline and Article markup authored by the founder.
+    # Bump the modified date when the page's copy or data changes.
+    learn_mod = "2026-11-02"
+    learn = with_byline(partial("learn-stock-market.html", "/learn-stock-market"), learn_mod)
     add(path="/learn-stock-market", file="learn-stock-market.html", priority="0.8", changefreq="monthly",
-        pageType="Article", ogType="article",
+        ogType="article",
         title="How to Learn the Stock Market as a Teenager in India",
         ogTitle="How to learn the stock market as a teenager in India, without real money",
         description=("A beginner's guide for Indian teens: key words, whether under-18s can invest, a free "
                      "practice portfolio with virtual money and nine mistakes to avoid."),
         crumbs=[("Home", "/"), ("Learn the stock market", "/learn-stock-market")],
-        webpageExtra={"headline": "How to learn the stock market as a teenager in India, without real money",
-                      "author": {"@id": ORG_ID}, "publisher": {"@id": ORG_ID},
-                      "datePublished": "2026-09-30", "image": OG_IMAGE},
+        article={"headline": "How to learn the stock market as a teenager in India, without real money",
+                 "datePublished": iso_ist("2026-09-30"), "dateModified": iso_ist(learn_mod)},
         extraGraph=[faq_node(SITE + "/learn-stock-market", faq_pairs(learn))],
         main=learn)
 
+    students_mod = "2026-11-02"
     add(path="/for-students", file="for-students.html", priority="0.8", changefreq="monthly",
+        ogType="article",
         title="Stock Market Game for School Students in India | StockSaathi",
         description=("A free virtual stock market game for Indian students aged 13–18: ₹1,00,000 of virtual money, "
                      "real NSE and BSE stocks and an AI coach. No payments."),
         crumbs=[("Home", "/"), ("For students", "/for-students")],
-        main=partial("for-students.html", "/for-students"))
+        article={"headline": "A free stock market game for school and college students in India",
+                 "datePublished": iso_ist("2026-09-30"), "dateModified": iso_ist(students_mod)},
+        main=with_byline(partial("for-students.html", "/for-students"), students_mod))
+
+    # About + Contact (founder entity). NEW_PAGES_LIVE flips them from
+    # noindex (out of sitemap, llms.txt and nav) to indexable once they pass
+    # the SEO gate on production.
+    about_url = SITE + "/about"
+    about = partial("about.html", "/about")
+    add(path="/about", file="about.html", priority="0.7", changefreq="monthly",
+        index=NEW_PAGES_LIVE, pageType="AboutPage",
+        title="About StockSaathi: Founded by Ali Arbab | StockSaathi",
+        description=("StockSaathi is a free stock market simulator for students and beginners in India, founded "
+                     "and built by Ali Arbab, a student developer. How it works and who's behind it."),
+        crumbs=[("Home", "/"), ("About", "/about")],
+        webpageExtra={"about": {"@id": ORG_ID}},
+        extraGraph=[{"@type": "ProfilePage", "@id": about_url + "#profile", "url": about_url,
+                     "name": "Ali Arbab, founder of StockSaathi", "mainEntity": {"@id": FOUNDER_ID},
+                     "dateCreated": iso_ist("2026-11-02"), "dateModified": iso_ist("2026-11-02"),
+                     "isPartOf": {"@id": SITE_ID}},
+                    faq_node(about_url, faq_pairs(about))],
+        main=about)
+    add(path="/contact", file="contact.html", priority="0.5", changefreq="yearly",
+        index=NEW_PAGES_LIVE, pageType="ContactPage",
+        title="Contact StockSaathi: Support, Business and Schools",
+        description=("How to reach StockSaathi: grievance@ for support and data requests, business@ for "
+                     "partnerships and press, ambassador@ for students and schools."),
+        crumbs=[("Home", "/"), ("Contact", "/contact")],
+        webpageExtra={"about": {"@id": ORG_ID}},
+        main=partial("contact.html", "/contact"))
 
 
     pages.append({"path": "/app-shell", "file": "app-shell.html", "index": False, "sitemap": False,
@@ -1165,6 +1243,26 @@ Sitemap: {SITE}/sitemap.xml
 """
 
 
+def llms_txt():
+    """llms.txt from partials/llms.txt (hand-written copy, §2 claims only).
+
+    Placeholders hold the links to pages that are still behind the SEO gate,
+    so llms.txt never points AI crawlers at a noindex page.
+    """
+    text = (ROOT / "partials" / "llms.txt").read_text(encoding="utf-8").replace("\r\n", "\n")
+    live = {
+        "{{FOUNDER_PROFILE}}": "Profile: %s/about · " % SITE,
+        "{{ABOUT_CONTACT_PAGES}}": ("- [About StockSaathi](%s/about): what it is, how it's built, founder and contact.\n"
+                                    "- [Contact](%s/contact): support, business and school email addresses.\n"
+                                    % (SITE, SITE)),
+    }
+    for key, value in live.items():
+        text = text.replace(key, value if NEW_PAGES_LIVE else "")
+    if "{{" in text:
+        raise SystemExit("partials/llms.txt has an unknown {{placeholder}}")
+    return text
+
+
 def page_titles(pages):
     titles = {p["path"]: p["title"] for p in pages
               if not p.get("legal") and p["path"] not in ("/app-shell", "/404")
@@ -1193,8 +1291,9 @@ def main():
         lastmod = prev.get("lastmod") if prev.get("hash") == digest else TODAY
         new_state[p["path"]] = {"hash": digest, "lastmod": lastmod or TODAY}
 
+    outputs[ROOT / "llms.txt"] = llms_txt()
     check_copy_counts([(str(f.relative_to(ROOT)), t) for f, t in outputs.items()] +
-                      [(n, (ROOT / n).read_text(encoding="utf-8")) for n in ("llms.txt", "index.html")])
+                      [("index.html", (ROOT / "index.html").read_text(encoding="utf-8"))])
 
     outputs[ROOT / "sitemap.xml"] = sitemap(pages, new_state)
     outputs[ROOT / "robots.txt"] = robots()

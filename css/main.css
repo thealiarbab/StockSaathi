@@ -685,6 +685,8 @@ textarea.input { min-height: 88px; resize: vertical; }
   overflow-wrap: anywhere;
   min-width: 0;
 }
+.footer-social a { display: inline-flex; align-items: center; padding: 8px; }
+.footer-social svg { width: 18px; height: 18px; }
 @media (max-width: 480px) {
   /* Drop the · separators on narrow phones so wrapped items don't leave
      an orphan bullet at the start of a line. */

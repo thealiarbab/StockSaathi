@@ -11,6 +11,8 @@ export const PAGE_TITLES = {
   "/news": "Indian Stock Market News with Sentiment | StockSaathi",
   "/learn-stock-market": "How to Learn the Stock Market as a Teenager in India",
   "/for-students": "Stock Market Game for School Students in India | StockSaathi",
+  "/about": "About StockSaathi: Founded by Ali Arbab | StockSaathi",
+  "/contact": "Contact StockSaathi: Support, Business and Schools",
   "/privacy": "Privacy Policy | StockSaathi",
   "/terms": "Terms of Use | StockSaathi",
   "/grievance": "Grievance Officer | StockSaathi"
