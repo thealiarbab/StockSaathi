@@ -1,0 +1,119 @@
+{
+ "generated_by": "scripts/build_learn_data.py",
+ "start_date": "2008-01-08",
+ "start_close": 6287.85,
+ "day3_date": "2008-01-11",
+ "day3_close": 6200.1,
+ "sold_value": 98604,
+ "day3_drop_pct": -1.4,
+ "low_date": "2008-10-27",
+ "low_close": 2524.2,
+ "low_held": 40144,
+ "low_drop_pct": -59.9,
+ "low_day_change_pct": -2.3,
+ "low_calendar_days": 293,
+ "end_date": "2008-10-27",
+ "end_close": 2524.2,
+ "held_end": 40144,
+ "panic_end": 98604,
+ "held_end_pct": -59.9,
+ "panic_end_pct": -1.4,
+ "final_delta": -145.6,
+ "back_to_start_date": "2010-11-09",
+ "back_to_start_trading_days_from_low": 496,
+ "year_after_low": {
+  "date": "2009-10-27",
+  "nifty": 4846.7,
+  "held": 77080
+ },
+ "path": [
+  {
+   "date": "2008-01-08",
+   "nifty": 6287.85,
+   "held": 100000,
+   "sold": 100000
+  },
+  {
+   "date": "2008-01-11",
+   "nifty": 6200.1,
+   "held": 98604,
+   "sold": 98604
+  },
+  {
+   "date": "2008-02-01",
+   "nifty": 5317.25,
+   "held": 84564,
+   "sold": 98604
+  },
+  {
+   "date": "2008-03-03",
+   "nifty": 4953.0,
+   "held": 78771,
+   "sold": 98604
+  },
+  {
+   "date": "2008-04-01",
+   "nifty": 4739.55,
+   "held": 75376,
+   "sold": 98604
+  },
+  {
+   "date": "2008-05-02",
+   "nifty": 5228.2,
+   "held": 83148,
+   "sold": 98604
+  },
+  {
+   "date": "2008-06-02",
+   "nifty": 4739.6,
+   "held": 75377,
+   "sold": 98604
+  },
+  {
+   "date": "2008-07-01",
+   "nifty": 3896.75,
+   "held": 61973,
+   "sold": 98604
+  },
+  {
+   "date": "2008-08-01",
+   "nifty": 4413.55,
+   "held": 70192,
+   "sold": 98604
+  },
+  {
+   "date": "2008-09-01",
+   "nifty": 4348.65,
+   "held": 69160,
+   "sold": 98604
+  },
+  {
+   "date": "2008-10-01",
+   "nifty": 3950.75,
+   "held": 62831,
+   "sold": 98604
+  },
+  {
+   "date": "2008-10-27",
+   "nifty": 2524.2,
+   "held": 40144,
+   "sold": 98604
+  }
+ ],
+ "nifty_buckets": {
+  "20": {
+   "median_days": 265,
+   "recovered": 3,
+   "fastest_days": 165,
+   "slowest_days": 419,
+   "open_days": 0
+  },
+  "10": {
+   "median_days": 168,
+   "recovered": 9,
+   "fastest_days": 48,
+   "slowest_days": 557,
+   "open_days": 157
+  }
+ }
+}

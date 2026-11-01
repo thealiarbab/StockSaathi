@@ -1,0 +1,13 @@
+{
+ "generated_by": "scripts/build_learn_data.py",
+ "pct_first_buy_nifty50": 67.9,
+ "pct_replay_starters_who_finished": 45.3,
+ "pct_traders_used_limit_or_amo": 86.4,
+ "nifty10": {
+  "median_days": 168,
+  "recovered": 9,
+  "fastest_days": 48,
+  "slowest_days": 557,
+  "open_days": 157
+ }
+}

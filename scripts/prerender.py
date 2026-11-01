@@ -75,6 +75,8 @@ FOUNDER_ID = SITE + "/#founder"
 
 # /about and /contact ship noindex first and are flipped after the SEO gate.
 NEW_PAGES_LIVE = False
+# Same for the /learn hub (it also needs at least one live guide).
+LEARN_HUB_LIVE = False
 
 e = html.escape
 
@@ -961,6 +963,186 @@ def partial(name, path):
                         '<article class="container static-page" data-static-page="%s">' % path, 1)
 
 
+# ─── /learn guides ──────────────────────────────────────────────────────────
+#
+# partials/learn/<slug>.html = a JSON front-matter comment + the article body
+# (H1, answer-first lede, key takeaways, sections, data table, FAQ). The build
+# adds crumbs, byline, sources, the "Try it" link and related guides, and
+# refuses an article that breaks the rules below. "status": "gate" builds a
+# noindex page kept out of the hub, sitemap and llms files until it passes
+# the SEO gate on production; "live" publishes it. partials/learn/_drafts/ is
+# not built.
+
+LEARN_DIR = ROOT / "partials" / "learn"
+LEARN_CATEGORIES = ["Getting started", "How the market works", "Market crashes and recoveries",
+                    "Investing behaviour", "Funds and long-term investing", "For parents and teachers"]
+FRONT = re.compile(r"\A\s*<!--\s*(\{.*?\})\s*-->\s*", re.S)
+# Section 0 rules: no curriculum, no advice or price promises, no
+# hackathon/company claims, no user counts (owner, 2 Nov 2026).
+BANNED_COPY = re.compile(
+    r"\b(lessons?|courses?|modules?|quiz(?:zes)?|real-?time|live prices?|hackathon|buildathon|masters' union"
+    r"|pvt\.? ltd|made in india|parental consent|strong buy|target price|multibagger|guaranteed returns?)\b"
+    r"|\b(?:thousands|hundreds|lakhs?) of (?:users|students|people|accounts|investors on stocksaathi)\b"
+    r"|\b\d[\d,]*\+?\s+(?:users|students|signups|accounts)\b", re.I)
+NUMBER = re.compile(r"₹?\d+(?:,\d{2,3})*(?:\.\d+)?%?")
+
+
+def load_articles():
+    arts = []
+    for f in sorted(LEARN_DIR.glob("*.html")) if LEARN_DIR.exists() else []:
+        raw = f.read_text(encoding="utf-8").replace("\r\n", "\n")
+        m = FRONT.match(raw)
+        if not m:
+            raise SystemExit("learn/%s: no front-matter comment" % f.name)
+        a = json.loads(m.group(1))
+        a["slug"], a["body"] = f.stem, raw[m.end():].strip()
+        check_article(a)
+        arts.append(a)
+    return arts
+
+
+def _data_value(ref):
+    """"data:scripts/data/learn/x.json:a.b.0" -> the value at that key."""
+    path, _, key = ref[5:].rpartition(":")
+    v = json.loads((ROOT / path).read_text(encoding="utf-8"))
+    for k in key.split("."):
+        v = v[int(k)] if isinstance(v, list) else v[k]
+    return v
+
+
+def _num(s):
+    return float(s.replace("₹", "").replace(",", "").replace("%", ""))
+
+
+def check_article(a):
+    slug, body = a["slug"], a["body"]
+    where = "learn/%s" % slug
+    for k in ("title", "headline", "description", "category", "datePublished", "dateModified", "status",
+              "sources", "facts", "related", "cta", "summary"):
+        if k not in a:
+            raise SystemExit("%s: front matter needs %r" % (where, k))
+    if a["category"] not in LEARN_CATEGORIES:
+        raise SystemExit("%s: unknown category %r" % (where, a["category"]))
+    if a["status"] not in ("gate", "live"):
+        raise SystemExit("%s: status must be gate or live" % where)
+    if len(a["title"]) > 60 or len(a["description"]) > 155:
+        raise SystemExit("%s: title %d/60 or description %d/155 chars" % (where, len(a["title"]), len(a["description"])))
+    if body.count("<h1") != 1:
+        raise SystemExit("%s: needs exactly one <h1>" % where)
+    words = len(text_of(body).split())
+    if not 800 <= words <= 2000:
+        raise SystemExit("%s: %d words (800-2,000)" % (where, words))
+    if len(a["sources"]) < 2:
+        raise SystemExit("%s: needs at least 2 sources" % where)
+    urls = {s["url"] for s in a["sources"]}
+    plain = text_of(body + " " + a["title"] + " " + a["description"] + " " + a["summary"])
+    bad = BANNED_COPY.search(plain)
+    if bad:
+        raise SystemExit("%s: banned wording %r" % (where, bad.group(0)))
+    # Every number in Key takeaways is a declared fact backed by a cited URL
+    # or by a value in a generated data file (checked here, so a stale file
+    # can't leave a wrong number on the page).
+    kt = re.search(r'<div class="key-takeaways">(.*?)</div>', body, re.S)
+    if not kt:
+        raise SystemExit("%s: needs a key-takeaways block" % where)
+    # Index names and calendar dates aren't data claims.
+    names = re.sub(r"\b(?:Nifty (?:Next )?\d+|BSE \d+|T\+\d|COVID-19|\d{1,2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*)\b",
+                   "", text_of(kt.group(1)))
+    for n in NUMBER.findall(names):
+        if re.fullmatch(r"(19|20)\d\d", n):
+            continue                                    # years
+        src = a["facts"].get(n)
+        if src is None:
+            raise SystemExit("%s: key-takeaways number %s has no entry in facts" % (where, n))
+        if src.startswith("def:"):                       # a threshold or term, e.g. "a 10% fall"
+            continue
+        if src.startswith("data:"):
+            v = _data_value(src)
+            if abs(abs(float(v)) - _num(n)) > 10 ** -(len(n.split(".")[1].rstrip("%")) if "." in n else 0) / 2 + 1e-9:
+                raise SystemExit("%s: fact %s but %s holds %r" % (where, n, src, v))
+        elif src not in urls:
+            raise SystemExit("%s: fact %s cites %s, which is not in sources" % (where, n, src))
+    for r in a["related"]:
+        if not (LEARN_DIR / (r + ".html")).exists() and r != "learn-stock-market":
+            raise SystemExit("%s: related guide %r does not exist" % (where, r))
+
+
+def human_day(iso):
+    d = dt.date.fromisoformat(iso)
+    return "%d %s %d" % (d.day, d.strftime("%B"), d.year)
+
+
+def learn_main(a, titles):
+    path = "/learn/" + a["slug"]
+    body = with_byline(a["body"], a["dateModified"])
+    src = "".join('<li><a href="%s" rel="noopener" target="_blank">%s</a> (accessed %s)</li>'
+                  % (e(s["url"]), e(s["name"]), human_day(s["accessed"])) for s in a["sources"])
+    rel = "".join('<li><a href="%s">%s</a></li>'
+                  % ("/" + r if r == "learn-stock-market" else "/learn/" + r, e(titles[r])) for r in a["related"])
+    return f"""<article class="container static-page learn-article" data-static-page="{path}">
+  {crumbs_html([("Home", "/"), ("Learn", "/learn"), (a["headline"], path)])}
+  {body}
+  <h2>Try it on StockSaathi</h2>
+  <p class="cta-line"><a href="{e(a["cta"]["href"])}" class="btn btn-primary btn-lg">{e(a["cta"]["label"])} →</a></p>
+  <h2>Sources</h2>
+  <ol class="sources">{src}</ol>
+  <h2>Related guides</h2>
+  <ul class="link-list">{rel}</ul>
+  <p class="muted text-sm">StockSaathi is an educational simulator with virtual money. Nothing here is investment advice.</p>
+</article>"""
+
+
+def learn_hub_main(live):
+    cats = []
+    for cat in LEARN_CATEGORIES:
+        items = [a for a in live if a["category"] == cat]
+        if cat == "Getting started":
+            items = [{"slug": None, "headline": "How to learn the stock market as a teenager in India",
+                      "summary": "The starting point: key words, whether under-18s can invest, and how to practise "
+                                 "with virtual money."}] + items
+        if not items:
+            continue
+        li = "".join('<li><a href="%s">%s</a><p class="dim text-sm">%s</p></li>'
+                     % ("/learn-stock-market" if a["slug"] is None else "/learn/" + a["slug"],
+                        e(a["headline"]), e(a["summary"])) for a in items)
+        cats.append('<h2>%s</h2>\n  <ul class="link-list learn-list">%s</ul>' % (e(cat), li))
+    return f"""<article class="container static-page" data-static-page="/learn">
+  {crumbs_html([("Home", "/"), ("Learn", "/learn")])}
+  <h1 class="tight">Stock market guides for students and beginners in India</h1>
+  <p class="lede">
+    Plain-English guides to how the Indian stock market works, written for complete beginners and built on
+    StockSaathi's own data: real Nifty 50 closes, every recorded fall and recovery of Nifty 500 stocks, and the
+    crash replays. Read a guide, then practise it with ₹1,00,000 of virtual money. Nothing here is investment
+    advice.
+  </p>
+  {"".join(cats)}
+  <p class="cta-line"><a href="/register" class="btn btn-primary btn-lg">Create a free account →</a>
+  <a href="/crash-replay" class="btn btn-ghost btn-lg">Try a crash replay</a></p>
+</article>"""
+
+
+def llms_guides(live):
+    if not live:
+        return ""
+    return "\n## Guides\n\n" + "".join("- [%s](%s/learn/%s): %s\n" % (a["headline"], SITE, a["slug"], a["summary"])
+                                       for a in live)
+
+
+def llms_full(live):
+    """llms-full.txt: each published guide's answer-first summary and key takeaways."""
+    out = ["# StockSaathi guides (full summaries)\n",
+           "> Answer-first summaries and key takeaways of every published StockSaathi guide. "
+           "Each guide is written by Ali Arbab, founder of StockSaathi. Educational only; not investment advice.\n"]
+    for a in live:
+        lede = re.search(r'<p class="lede">(.*?)</p>', a["body"], re.S)
+        kt = re.findall(r"<li>(.*?)</li>",
+                        re.search(r'<div class="key-takeaways">(.*?)</div>', a["body"], re.S).group(1), re.S)
+        out.append("\n## %s\n\nURL: %s/learn/%s\nUpdated: %s\n\n%s\n\nKey takeaways:\n%s\n"
+                   % (a["headline"], SITE, a["slug"], a["dateModified"], text_of(lede.group(1)) if lede else "",
+                      "".join("- %s\n" % text_of(x) for x in kt)))
+    return "".join(out)
+
+
 # ─── page registry ──────────────────────────────────────────────────────────
 
 def build_pages():
@@ -1136,6 +1318,31 @@ def build_pages():
         webpageExtra={"about": {"@id": ORG_ID}},
         main=partial("contact.html", "/contact"))
 
+    # /learn guides. A guide in "gate" status is built noindex and left out of
+    # the hub, sitemap and llms files until it passes the SEO gate.
+    arts = load_articles()
+    titles = {a["slug"]: a["headline"] for a in arts}
+    titles["learn-stock-market"] = "How to learn the stock market as a teenager in India"
+    for a in arts:
+        url = SITE + "/learn/" + a["slug"]
+        faq = faq_pairs(a["body"])
+        add(path="/learn/" + a["slug"], file="learn/%s.html" % a["slug"], priority="0.7", changefreq="monthly",
+            index=a["status"] == "live", ogType="article", learn=a,
+            title=a["title"], description=a["description"],
+            crumbs=[("Home", "/"), ("Learn", "/learn"), (a["headline"], "/learn/" + a["slug"])],
+            article={"headline": a["headline"], "datePublished": iso_ist(a["datePublished"]),
+                     "dateModified": iso_ist(a["dateModified"]), "articleSection": a["category"]},
+            extraGraph=[faq_node(url, faq)] if faq else [],
+            main=learn_main(a, titles))
+    live = [a for a in arts if a["status"] == "live"]
+    add(path="/learn", file="learn.html", priority="0.8", changefreq="weekly",
+        index=LEARN_HUB_LIVE and bool(live),
+        title="Stock Market Guides for Beginners in India | StockSaathi",
+        description=("Plain-English stock market guides for students and beginners in India, built on real Nifty "
+                     "and NSE data: crashes, orders, indices, funds and investing habits."),
+        crumbs=[("Home", "/"), ("Learn", "/learn")], pageType="CollectionPage",
+        main=learn_hub_main(live))
+
 
     pages.append({"path": "/app-shell", "file": "app-shell.html", "index": False, "sitemap": False,
                   "canonical": False, "title": "StockSaathi",
@@ -1274,6 +1481,11 @@ def llms_txt(pages):
     }
     for key, value in live.items():
         text = text.replace(key, value if NEW_PAGES_LIVE else "")
+    guides = [p["learn"] for p in pages if p.get("learn") and p.get("index")]
+    hub = next((p for p in pages if p["path"] == "/learn"), {})
+    text = text.replace("{{LEARN_HUB}}", ("- [Guides](%s/learn): plain-English stock market guides built on "
+                                          "StockSaathi's own data.\n" % SITE) if hub.get("index") else "")
+    text = text.replace("{{GUIDES}}", llms_guides(guides))
     if "{{" in text:
         raise SystemExit("partials/llms.txt has an unknown {{placeholder}}")
     return text
@@ -1308,6 +1520,7 @@ def main():
         new_state[p["path"]] = {"hash": digest, "lastmod": lastmod or TODAY}
 
     outputs[ROOT / "llms.txt"] = llms_txt(pages)
+    outputs[ROOT / "llms-full.txt"] = llms_full([p["learn"] for p in pages if p.get("learn") and p.get("index")])
     check_copy_counts([(str(f.relative_to(ROOT)), t) for f, t in outputs.items()] +
                       [("index.html", (ROOT / "index.html").read_text(encoding="utf-8"))])
 
@@ -1318,7 +1531,7 @@ def main():
 
     # Generated stock / replay pages that no longer exist in the data.
     keep = {f for f in outputs}
-    stale_files = [f for d in ("stocks", "crash-replay") for f in (ROOT / d).glob("*.html") if f not in keep] \
+    stale_files = [f for d in ("stocks", "crash-replay", "learn") for f in (ROOT / d).glob("*.html") if f not in keep] \
         if (ROOT / "stocks").exists() else []
 
     def same(path, text):

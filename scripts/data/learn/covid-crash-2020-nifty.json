@@ -1,0 +1,105 @@
+{
+ "generated_by": "scripts/build_learn_data.py",
+ "start_date": "2020-02-19",
+ "start_close": 12125.9,
+ "day3_date": "2020-02-25",
+ "day3_close": 11797.9,
+ "sold_value": 97295,
+ "day3_drop_pct": -2.7,
+ "low_date": "2020-03-23",
+ "low_close": 7610.25,
+ "low_held": 62760,
+ "low_drop_pct": -37.2,
+ "low_day_change_pct": -13.0,
+ "low_calendar_days": 33,
+ "end_date": "2020-11-09",
+ "end_close": 12461.05,
+ "held_end": 102764,
+ "panic_end": 97295,
+ "held_end_pct": 2.8,
+ "panic_end_pct": -2.7,
+ "final_delta": 5.6,
+ "back_to_start_date": "2020-11-06",
+ "back_to_start_trading_days_from_low": 157,
+ "year_after_low": null,
+ "path": [
+  {
+   "date": "2020-02-19",
+   "nifty": 12125.9,
+   "held": 100000,
+   "sold": 100000
+  },
+  {
+   "date": "2020-02-25",
+   "nifty": 11797.9,
+   "held": 97295,
+   "sold": 97295
+  },
+  {
+   "date": "2020-03-02",
+   "nifty": 11132.75,
+   "held": 91810,
+   "sold": 97295
+  },
+  {
+   "date": "2020-03-23",
+   "nifty": 7610.25,
+   "held": 62760,
+   "sold": 97295
+  },
+  {
+   "date": "2020-04-01",
+   "nifty": 8253.8,
+   "held": 68068,
+   "sold": 97295
+  },
+  {
+   "date": "2020-05-04",
+   "nifty": 9293.5,
+   "held": 76642,
+   "sold": 97295
+  },
+  {
+   "date": "2020-06-01",
+   "nifty": 9826.15,
+   "held": 81034,
+   "sold": 97295
+  },
+  {
+   "date": "2020-07-01",
+   "nifty": 10430.05,
+   "held": 86015,
+   "sold": 97295
+  },
+  {
+   "date": "2020-08-03",
+   "nifty": 10891.6,
+   "held": 89821,
+   "sold": 97295
+  },
+  {
+   "date": "2020-09-01",
+   "nifty": 11470.25,
+   "held": 94593,
+   "sold": 97295
+  },
+  {
+   "date": "2020-10-01",
+   "nifty": 11416.95,
+   "held": 94153,
+   "sold": 97295
+  },
+  {
+   "date": "2020-11-02",
+   "nifty": 11669.15,
+   "held": 96233,
+   "sold": 97295
+  },
+  {
+   "date": "2020-11-09",
+   "nifty": 12461.05,
+   "held": 102764,
+   "sold": 97295
+  }
+ ]
+}

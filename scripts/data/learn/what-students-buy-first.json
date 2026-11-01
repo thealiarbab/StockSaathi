@@ -1,0 +1,107 @@
+{
+ "generated_by": "scripts/build_learn_data.py",
+ "generated_at": "2026-11-02T00:26+05:30",
+ "period": "2026-04-19 to 2026-10-30 (all trades to date)",
+ "top": [
+  {
+   "rank": 1,
+   "symbol": "RELIANCE",
+   "name": "Reliance Industries Limited",
+   "pct_of_first_buys": 25.1,
+   "nifty50": true,
+   "list_order_artifact": false
+  },
+  {
+   "rank": 2,
+   "symbol": "TCS",
+   "name": "Tata Consultancy Services Limited",
+   "pct_of_first_buys": 6.3,
+   "nifty50": true,
+   "list_order_artifact": false
+  },
+  {
+   "rank": 3,
+   "symbol": "HDFCBANK",
+   "name": "HDFC Bank Limited",
+   "pct_of_first_buys": 6.2,
+   "nifty50": true,
+   "list_order_artifact": false
+  },
+  {
+   "rank": 4,
+   "symbol": "BHARTIARTL",
+   "name": "Bharti Airtel Limited",
+   "pct_of_first_buys": 5.9,
+   "nifty50": true,
+   "list_order_artifact": false
+  },
+  {
+   "rank": 5,
+   "symbol": "SBIN",
+   "name": "State Bank of India",
+   "pct_of_first_buys": 3.8,
+   "nifty50": true,
+   "list_order_artifact": false
+  },
+  {
+   "rank": 7,
+   "symbol": "ADANIENT",
+   "name": "Adani Enterprises Limited",
+   "pct_of_first_buys": 2.2,
+   "nifty50": true,
+   "list_order_artifact": false
+  },
+  {
+   "rank": 8,
+   "symbol": "ICICIBANK",
+   "name": "ICICI Bank Limited",
+   "pct_of_first_buys": 1.9,
+   "nifty50": true,
+   "list_order_artifact": false
+  },
+  {
+   "rank": 9,
+   "symbol": "INFY",
+   "name": "Infosys Limited",
+   "pct_of_first_buys": 1.7,
+   "nifty50": true,
+   "list_order_artifact": false
+  }
+ ],
+ "pct_first_buy_nifty50": 67.9,
+ "pct_first_buy_etf": 2.4,
+ "pct_first_buy_reliance": 25.1,
+ "sectors": [
+  {
+   "rank": 1,
+   "sector": "Energy",
+   "pct_of_trades": 17.3
+  },
+  {
+   "rank": 2,
+   "sector": "Banking",
+   "pct_of_trades": 14.9
+  },
+  {
+   "rank": 3,
+   "sector": "IT Services",
+   "pct_of_trades": 10.4
+  },
+  {
+   "rank": 4,
+   "sector": "Telecom",
+   "pct_of_trades": 7.0
+  },
+  {
+   "rank": 5,
+   "sector": "NBFC",
+   "pct_of_trades": 4.3
+  },
+  {
+   "rank": 6,
+   "sector": "Other",
+   "pct_of_trades": 3.7
+  }
+ ],
+ "pct_trades_in_nifty50": 56.8
+}

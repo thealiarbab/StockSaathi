@@ -1,0 +1,214 @@
+{
+ "generated_by": "scripts/build_learn_data.py",
+ "since": "2011-01-03",
+ "data_to": "2026-10-30",
+ "buckets": {
+  "5": {
+   "median_days": 84,
+   "recovered": 19,
+   "fastest_days": 3,
+   "slowest_days": 570,
+   "open_days": 164
+  },
+  "7": {
+   "median_days": 152,
+   "recovered": 10,
+   "fastest_days": 74,
+   "slowest_days": 566,
+   "open_days": 163
+  },
+  "10": {
+   "median_days": 168,
+   "recovered": 9,
+   "fastest_days": 48,
+   "slowest_days": 557,
+   "open_days": 157
+  },
+  "15": {
+   "median_days": 208,
+   "recovered": 5,
+   "fastest_days": 110,
+   "slowest_days": 548,
+   "open_days": 146
+  },
+  "20": {
+   "median_days": 265,
+   "recovered": 3,
+   "fastest_days": 165,
+   "slowest_days": 419,
+   "open_days": 0
+  }
+ },
+ "falls10": [
+  {
+   "peak_date": "2011-01-03",
+   "peak_close": 6157.6,
+   "start_date": "2011-01-28",
+   "trough_date": "2011-12-20",
+   "trough_close": 4544.2,
+   "depth_pct": -26.2,
+   "recovered_date": "2013-05-16",
+   "recovery_days": 557,
+   "open_days": null
+  },
+  {
+   "peak_date": "2013-05-17",
+   "peak_close": 6187.3,
+   "start_date": "2013-08-06",
+   "trough_date": "2013-08-28",
+   "trough_close": 5285.0,
+   "depth_pct": -14.6,
+   "recovered_date": "2013-10-18",
+   "recovery_days": 48,
+   "open_days": null
+  },
+  {
+   "peak_date": "2015-03-03",
+   "peak_close": 8996.25,
+   "start_date": "2015-05-07",
+   "trough_date": "2016-02-25",
+   "trough_close": 6970.6,
+   "depth_pct": -22.5,
+   "recovered_date": "2017-03-14",
+   "recovery_days": 455,
+   "open_days": null
+  },
+  {
+   "peak_date": "2018-01-29",
+   "peak_close": 11130.4,
+   "start_date": "2018-03-23",
+   "trough_date": "2018-03-23",
+   "trough_close": 9998.05,
+   "depth_pct": -10.2,
+   "recovered_date": "2018-07-24",
+   "recovery_days": 84,
+   "open_days": null
+  },
+  {
+   "peak_date": "2018-08-28",
+   "peak_close": 11738.5,
+   "start_date": "2018-10-05",
+   "trough_date": "2018-10-26",
+   "trough_close": 10030.0,
+   "depth_pct": -14.6,
+   "recovered_date": "2019-04-16",
+   "recovery_days": 128,
+   "open_days": null
+  },
+  {
+   "peak_date": "2019-06-03",
+   "peak_close": 12088.55,
+   "start_date": "2019-08-05",
+   "trough_date": "2019-09-19",
+   "trough_close": 10704.8,
+   "depth_pct": -11.4,
+   "recovered_date": "2019-11-27",
+   "recovery_days": 73,
+   "open_days": null
+  },
+  {
+   "peak_date": "2020-01-14",
+   "peak_close": 12362.3,
+   "start_date": "2020-03-06",
+   "trough_date": "2020-03-23",
+   "trough_close": 7610.25,
+   "depth_pct": -38.4,
+   "recovered_date": "2020-11-09",
+   "recovery_days": 168,
+   "open_days": null
+  },
+  {
+   "peak_date": "2021-10-18",
+   "peak_close": 18477.05,
+   "start_date": "2021-12-20",
+   "trough_date": "2022-06-17",
+   "trough_close": 15293.5,
+   "depth_pct": -17.2,
+   "recovered_date": "2022-11-24",
+   "recovery_days": 231,
+   "open_days": null
+  },
+  {
+   "peak_date": "2024-09-26",
+   "peak_close": 26216.05,
+   "start_date": "2024-11-13",
+   "trough_date": "2025-03-04",
+   "trough_close": 22082.65,
+   "depth_pct": -15.8,
+   "recovered_date": "2026-01-02",
+   "recovery_days": 282,
+   "open_days": null
+  },
+  {
+   "peak_date": "2026-01-02",
+   "peak_close": 26328.55,
+   "start_date": "2026-03-12",
+   "trough_date": "2026-10-08",
+   "trough_close": 22231.8,
+   "depth_pct": -15.6,
+   "recovered_date": null,
+   "recovery_days": null,
+   "open_days": 157
+  }
+ ],
+ "falls20": [
+  {
+   "peak_date": "2011-01-03",
+   "peak_close": 6157.6,
+   "start_date": "2011-08-19",
+   "trough_date": "2011-12-20",
+   "trough_close": 4544.2,
+   "depth_pct": -26.2,
+   "recovered_date": "2013-05-16",
+   "recovery_days": 419,
+   "open_days": null
+  },
+  {
+   "peak_date": "2015-03-03",
+   "peak_close": 8996.25,
+   "start_date": "2016-02-11",
+   "trough_date": "2016-02-25",
+   "trough_close": 6970.6,
+   "depth_pct": -22.5,
+   "recovered_date": "2017-03-14",
+   "recovery_days": 265,
+   "open_days": null
+  },
+  {
+   "peak_date": "2020-01-14",
+   "peak_close": 12362.3,
+   "start_date": "2020-03-12",
+   "trough_date": "2020-03-23",
+   "trough_close": 7610.25,
+   "depth_pct": -38.4,
+   "recovered_date": "2020-11-09",
+   "recovery_days": 165,
+   "open_days": null
+  }
+ ],
+ "falls30": [
+  {
+   "peak_date": "2020-01-14",
+   "peak_close": 12362.3,
+   "start_date": "2020-03-18",
+   "trough_date": "2020-03-23",
+   "trough_close": 7610.25,
+   "depth_pct": -38.4,
+   "recovered_date": "2020-11-09",
+   "recovery_days": 161,
+   "open_days": null
+  }
+ ],
+ "n_falls10": 10,
+ "n_open10": 1,
+ "n_falls20": 3,
+ "n_falls30": 1,
+ "now": {
+  "high": 26328.55,
+  "high_date": "2026-01-02",
+  "last": 23053.1,
+  "last_date": "2026-10-30",
+  "below_high_pct": -12.4,
+  "open10_since": "2026-03-12"
+ }
+}

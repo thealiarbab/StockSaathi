@@ -13,6 +13,13 @@ export const PAGE_TITLES = {
   "/for-students": "Stock Market Game for School Students in India | StockSaathi",
   "/about": "About StockSaathi: Founded by Ali Arbab | StockSaathi",
   "/contact": "Contact StockSaathi: Support, Business and Schools",
+  "/learn/2008-crash-india": "2008 Stock Market Crash in India: When Selling Early Won",
+  "/learn/covid-crash-2020-nifty": "COVID Crash 2020: What Happened to ₹1 Lakh in the Nifty",
+  "/learn/demat-account-minor-india": "Can a Teenager Open a Demat Account in India? SEBI Rules",
+  "/learn/nifty-recovery-time": "How Long Does the Nifty 50 Take to Recover From a Fall?",
+  "/learn/nifty-sensex-explained": "Nifty 50 and Sensex Explained: How India's Indices Work",
+  "/learn/t-plus-1-settlement": "T+1 Settlement in India Explained, With Worked Examples",
+  "/learn": "Stock Market Guides for Beginners in India | StockSaathi",
   "/privacy": "Privacy Policy | StockSaathi",
   "/terms": "Terms of Use | StockSaathi",
   "/grievance": "Grievance Officer | StockSaathi"

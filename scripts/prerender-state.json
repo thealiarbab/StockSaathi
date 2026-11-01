@@ -8,7 +8,7 @@
   "lastmod": "2026-10-24"
  },
  "/about": {
-  "hash": "db8dcd0260e4f2aa",
+  "hash": "23fd4ef27d49244d",
   "lastmod": "2026-11-02"
  },
  "/app-shell": {
@@ -44,11 +44,39 @@
   "lastmod": "2026-11-02"
  },
  "/grievance": {
-  "hash": "f914c7b1d32581ee",
-  "lastmod": "2026-10-24"
+  "hash": "92d77d735a22fc61",
+  "lastmod": "2026-11-02"
+ },
+ "/learn": {
+  "hash": "d6bcc9113cd654ab",
+  "lastmod": "2026-11-02"
  },
  "/learn-stock-market": {
   "hash": "0dc0655437cdd106",
+  "lastmod": "2026-11-02"
+ },
+ "/learn/2008-crash-india": {
+  "hash": "02a248e8fbbbc37a",
+  "lastmod": "2026-11-02"
+ },
+ "/learn/covid-crash-2020-nifty": {
+  "hash": "d95aa5a40a3b6d89",
+  "lastmod": "2026-11-02"
+ },
+ "/learn/demat-account-minor-india": {
+  "hash": "521b07521713127b",
+  "lastmod": "2026-11-02"
+ },
+ "/learn/nifty-recovery-time": {
+  "hash": "fdd7f44787a3358d",
+  "lastmod": "2026-11-02"
+ },
+ "/learn/nifty-sensex-explained": {
+  "hash": "1e34886960fd7b0f",
+  "lastmod": "2026-11-02"
+ },
+ "/learn/t-plus-1-settlement": {
+  "hash": "9da9e2c975c0ba31",
   "lastmod": "2026-11-02"
  },
  "/news": {

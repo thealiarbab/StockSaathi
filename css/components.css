@@ -1484,6 +1484,17 @@ table.compare { min-width: 560px; }
 .fineprint { font-size: var(--text-xs) !important; color: var(--text-faint) !important; margin-top: var(--sp-8); }
 .cta-line { display: flex; flex-wrap: wrap; gap: var(--sp-3); margin-top: var(--sp-8); }
 .site-links { margin-bottom: var(--sp-2); }
+/* /learn guides (scripts/prerender.py learn_main). */
+.static-page .byline { margin: calc(-1 * var(--sp-2)) 0 var(--sp-4); }
+.static-page .byline a { color: var(--text-muted); }
+.key-takeaways { border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); padding: var(--sp-2) var(--sp-5) var(--sp-4); margin: var(--sp-6) 0; }
+.static-page .key-takeaways h2 { margin-top: var(--sp-3); font-size: var(--text-lg); }
+.key-takeaways ul { padding-left: 1.2em; display: grid; gap: var(--sp-2); }
+.data-table { margin: var(--sp-5) 0; }
+.data-table figcaption { font-size: var(--text-xs); color: var(--text-faint); margin-top: var(--sp-2); line-height: 1.6; }
+.sources { padding-left: 1.4em; display: grid; gap: var(--sp-1); }
+.static-page .sources li { font-size: var(--text-sm); }
+.learn-list p { margin: 2px 0 var(--sp-3); }
 
 /* ============================== PORTFOLIO =========================== */
 .portfolio-hero {

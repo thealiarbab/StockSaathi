@@ -35,6 +35,7 @@ StockSaathi teaches by doing rather than through lessons: there are no course mo
 - [AI coach](https://stocksaathi.co.in/chat): ask Saathi about investing and Indian markets.
 - [Learn the stock market](https://stocksaathi.co.in/learn-stock-market): a beginner's guide for Indian teens.
 - [For students, parents and teachers](https://stocksaathi.co.in/for-students)
-{{ABOUT_CONTACT_PAGES}}- [Privacy policy](https://stocksaathi.co.in/privacy), [Terms of use](https://stocksaathi.co.in/terms), [Grievance officer](https://stocksaathi.co.in/grievance)
+{{LEARN_HUB}}{{ABOUT_CONTACT_PAGES}}- [Privacy policy](https://stocksaathi.co.in/privacy), [Terms of use](https://stocksaathi.co.in/terms), [Grievance officer](https://stocksaathi.co.in/grievance)
 
 Stock pages with a dip record (each stock's real falls and recoveries since 2011 or its listing, unrecovered falls included; {{STOCK_PAGES}} of the {{NIFTY500}} Nifty 500 companies as of {{BUILD_DATE}}, the rest lack enough clean price history) follow the pattern https://stocksaathi.co.in/stocks/SYMBOL (for example https://stocksaathi.co.in/stocks/RELIANCE).
+{{GUIDES}}
