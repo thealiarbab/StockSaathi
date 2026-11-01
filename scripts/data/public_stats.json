@@ -1,0 +1,181 @@
+{
+ "generated_at": "2026-11-02T00:26+05:30",
+ "rules": "Percentages and rankings only; never publish counts. Real accounts: excludes owner/admin_users, username admin, qa_*, temp-mail domains (oemails.com, copytosh.com, 37xiao.com, 93301.com, dgfxvb.gy, *.test) and the test account holding 1e9+ shares. Queries: scripts/public_stats.sql.",
+ "period": "2026-04-19 to 2026-10-30 (all trades to date)",
+ "first_buys": {
+  "top": [
+   {
+    "rank": 1,
+    "symbol": "RELIANCE",
+    "name": "Reliance Industries Limited",
+    "pct_of_first_buys": 25.1,
+    "nifty50": true,
+    "list_order_artifact": false
+   },
+   {
+    "rank": 2,
+    "symbol": "TCS",
+    "name": "Tata Consultancy Services Limited",
+    "pct_of_first_buys": 6.3,
+    "nifty50": true,
+    "list_order_artifact": false
+   },
+   {
+    "rank": 3,
+    "symbol": "HDFCBANK",
+    "name": "HDFC Bank Limited",
+    "pct_of_first_buys": 6.2,
+    "nifty50": true,
+    "list_order_artifact": false
+   },
+   {
+    "rank": 4,
+    "symbol": "BHARTIARTL",
+    "name": "Bharti Airtel Limited",
+    "pct_of_first_buys": 5.9,
+    "nifty50": true,
+    "list_order_artifact": false
+   },
+   {
+    "rank": 5,
+    "symbol": "SBIN",
+    "name": "State Bank of India",
+    "pct_of_first_buys": 3.8,
+    "nifty50": true,
+    "list_order_artifact": false
+   },
+   {
+    "rank": 6,
+    "symbol": "20MICRONS",
+    "name": "20 Microns Limited",
+    "pct_of_first_buys": 2.7,
+    "nifty50": false,
+    "list_order_artifact": true
+   },
+   {
+    "rank": 7,
+    "symbol": "ADANIENT",
+    "name": "Adani Enterprises Limited",
+    "pct_of_first_buys": 2.2,
+    "nifty50": true,
+    "list_order_artifact": false
+   },
+   {
+    "rank": 8,
+    "symbol": "ICICIBANK",
+    "name": "ICICI Bank Limited",
+    "pct_of_first_buys": 1.9,
+    "nifty50": true,
+    "list_order_artifact": false
+   },
+   {
+    "rank": 9,
+    "symbol": "INFY",
+    "name": "Infosys Limited",
+    "pct_of_first_buys": 1.7,
+    "nifty50": true,
+    "list_order_artifact": false
+   },
+   {
+    "rank": 10,
+    "symbol": "ADANIPORTS",
+    "name": "Adani Ports and Special Economic Zone Limited",
+    "pct_of_first_buys": 1.6,
+    "nifty50": true,
+    "list_order_artifact": false
+   },
+   {
+    "rank": 11,
+    "symbol": "BAJFINANCE",
+    "name": "Bajaj Finance Limited",
+    "pct_of_first_buys": 1.6,
+    "nifty50": true,
+    "list_order_artifact": false
+   },
+   {
+    "rank": 12,
+    "symbol": "21STCENMGM",
+    "name": "21st Century Management Services Limited",
+    "pct_of_first_buys": 1.4,
+    "nifty50": false,
+    "list_order_artifact": true
+   }
+  ],
+  "pct_first_buy_nifty50": 67.9,
+  "pct_first_buy_etf": 2.4,
+  "pct_first_buy_reliance": 25.1,
+  "note": "Symbols flagged list_order_artifact sat at the top of the old A-Z market list (before size order shipped 18 Oct); do not present them as choices."
+ },
+ "sectors_by_trades": {
+  "top": [
+   {
+    "rank": 1,
+    "sector": "Energy",
+    "pct_of_trades": 17.3
+   },
+   {
+    "rank": 2,
+    "sector": "Banking",
+    "pct_of_trades": 14.9
+   },
+   {
+    "rank": 3,
+    "sector": "IT Services",
+    "pct_of_trades": 10.4
+   },
+   {
+    "rank": 4,
+    "sector": "Telecom",
+    "pct_of_trades": 7.0
+   },
+   {
+    "rank": 5,
+    "sector": "NBFC",
+    "pct_of_trades": 4.3
+   },
+   {
+    "rank": 6,
+    "sector": "Other",
+    "pct_of_trades": 3.7
+   },
+   {
+    "rank": 7,
+    "sector": "Infrastructure",
+    "pct_of_trades": 3.3
+   },
+   {
+    "rank": 8,
+    "sector": "Auto",
+    "pct_of_trades": 3.0
+   },
+   {
+    "rank": 9,
+    "sector": "Power",
+    "pct_of_trades": 3.0
+   },
+   {
+    "rank": 10,
+    "sector": "ETFs",
+    "pct_of_trades": 2.6
+   }
+  ],
+  "coverage_pct_of_trades": 85.4,
+  "note": "Sector shares computed over the most-traded symbols, which cover coverage_pct_of_trades of all trades; sector labels from js/data/universeFull.json."
+ },
+ "pct_trades_in_nifty50": 56.8,
+ "activity": {
+  "pct_accounts_that_traded": 44.3,
+  "pct_replay_starters_who_finished": 45.3,
+  "pct_traders_used_limit_or_amo": 86.4,
+  "pct_accounts_asked_coach": 15.1,
+  "pct_trades_that_are_buys": 70.1
+ },
+ "panic_pattern": {
+  "pct_sells_fitting_panic_pattern": 0.32,
+  "pct_sells_not_panic": 99.7,
+  "since": "2026-10-25 IST (bias_flags written at trade time since the 24 Oct detector rewrite)"
+ },
+ "dropped": {
+  "held_through_10pct_drawdown": "Not publishable: exchange closes in the database cover only 25 Sep-30 Oct 2026, and only 2 accounts were active while a holding sat 10%+ below cost."
+ }
+}

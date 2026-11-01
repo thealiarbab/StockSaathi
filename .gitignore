@@ -56,3 +56,5 @@ docs/HANDOFF_claude-session-*.md
 # (build/ above is Python output; the root one holds the bundler)
 !/build/
 /build/meta.json
+
+/seo-reports/
