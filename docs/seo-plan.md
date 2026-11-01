@@ -73,6 +73,7 @@ from the repo and the production database on 2026-11-02.
 19. StockSaathi was founded and built by Ali Arbab, a student developer from India, and launched on 19 April 2026. (Owner statement; production Supabase project created 2026-04-19 and first transaction 2026-04-19, verified 2026-11-02.)
 20. StockSaathi is an independent project, not a registered company. (Owner statement.) Contacts: grievance@ (support, data requests), business@ (business, partnerships, press, schools), ambassador@ (student and school outreach; Devansh Singh Chauhan, brand ambassador, written consent 2026-10-31).
 21. Limit orders and AMOs are matched on the server, so they fill even when the app is closed. (§1 "Orders"; AGENTS.md "Order execution".)
+22. StockSaathi shows ads served by Google AdSense to cover its costs; there is no paid plan. (Privacy policy §2 and §3, `partials/pages/privacy.html`.) Never call it "non-commercial" or "ad-free".
 12. Markets, crash replays, news and the coach can be explored without an account.
 13. No leaderboard of returns — by design.
 14. Hinglish mode for the coach.
