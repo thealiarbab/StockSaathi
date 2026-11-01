@@ -5,7 +5,8 @@ site makes must trace to a line in §2 ("Honest claims"). If a claim is not in
 §2, it does not ship. This file is excluded from the deployment
 (`.vercelignore` → `docs/`), so it is never served on stocksaathi.co.in.
 
-Audit date: 2026-09-30. Numbers below were counted from the repo on that date.
+Audit date: 2026-11-02 (first audit 2026-09-30). Numbers below were recounted
+from the repo and the production database on 2026-11-02.
 
 ---
 
@@ -16,14 +17,14 @@ Audit date: 2026-09-30. Numbers below were counted from the repo on that date.
 | Path | Access | What it is |
 |---|---|---|
 | `/` | public | Landing page. Pre-rendered into `index.html`, so non-JS crawlers see it. |
-| `/stocks` | public | Markets: browse 4,311 stocks + 351 ETFs + mutual funds, sector filters, plain-English search ("cheap IT stocks with low debt"). |
+| `/stocks` | public | Markets: browse 4,501 stocks + 370 ETFs + mutual funds, sector filters, plain-English search ("cheap IT stocks with low debt"). |
 | `/stocks/<symbol>` | public (trading needs login) | Candle / area chart (1D, 1W, 1M, 3M, 6M, YTD, 1Y, 5Y, MAX, custom), fundamentals where available, a SIMULATED order book, buy / sell ticket. |
 | `/crash-replay` | public | Scenario picker: 3 curated replays, 10 featured AI-built replays, and "replay any event". |
 | `/crash-replay/<id>` | public | Scrubbable replay of a held portfolio vs one panic-sold on day 3. Only `COVID_2020`, `GFC_2008`, `DEMO_2016` resolve for a first-time visitor; `CUSTOM_*` ids live in the generating browser's localStorage. |
-| `/news` | public | Headlines from Moneycontrol, Economic Times, LiveMint and Business Standard via RSS, tagged bullish / bearish / neutral by a keyword scorer. |
-| `/chat` | public | Full-page chat with the coach, "Saathi". |
-| `/privacy`, `/terms`, `/grievance` | public | Static HTML files. |
-| `/login`, `/register`, `/reset-password-request`, `/reset-password` | public, not indexed | Email + password; signup confirmed by emailed OTP. |
+| `/news` | public | Headlines from Indian business-news RSS feeds (`handlers/news.py` `FEEDS`), tagged bullish / bearish / neutral. |
+| `/chat` | public | Full-page chat with the coach, "Saathi": saved conversations, branches, projects, slash-command cards, share links (`/share/<id>`). |
+| `/privacy`, `/terms`, `/grievance` | public | Built from `partials/pages/` by `prerender.py`. |
+| `/login`, `/register`, `/reset-password-request`, `/reset-password` | public, not indexed | Email + password (signup confirmed by emailed OTP) or Google sign-in (since 2026-10-17). |
 | `/onboarding` | login | Age (13+), optional school + class code, investing style. |
 | `/portfolio`, `/report-card`, `/settings` | login | Private. |
 | `/orders` | — | Redirects to `/portfolio`. |
@@ -33,15 +34,19 @@ Audit date: 2026-09-30. Numbers below were counted from the repo on that date.
 
 - **Starting balance:** ₹1,00,000 virtual (`STARTING_CASH_PAISE = 1_00_00_000`, `js/state.js`).
 - **Universe** (`js/data/universeFull.json`, rebuilt weekly by `.github/workflows/universe-refresh.yml`):
-  - 2,587 NSE mainboard + 572 NSE Emerge (SME) + 1,152 BSE-only = **4,311 stocks**. Dual-listed companies appear once (ISIN dedupe, NSE wins); 2,433 NSE rows also carry their BSE scrip code.
-  - **351 ETFs** (NSE).
-  - **14,165 mutual-fund schemes** from AMFI (`js/data/mfFull.json`), 54 fund houses.
+  - 2,636 NSE mainboard + 581 NSE Emerge (SME) + 1,284 BSE-only = **4,501 stocks**. Dual-listed companies appear once (ISIN dedupe, NSE wins); 2,509 NSE rows also carry their BSE scrip code.
+  - **370 ETFs** (NSE).
+  - **14,200 mutual-fund schemes** from AMFI (`js/data/mfFull.json`); **8,945 active** (a NAV in the last year), the count `prerender.py` checks.
   - BSE-only stocks are priced: quote / history / fundamentals fall back from `.NS` to `.BO`.
 - **Prices:** Yahoo Finance through the Supabase `quote_cache` layer during market hours; NSE's official end-of-day bhavcopy as a second source since 2026-09-27. Whether intraday quotes are real-time or delayed is not established in code → never say "real-time".
 - **Orders:** market, limit, and after-market orders (AMO). Limit orders and AMOs are matched server-side on a schedule (`handlers/match-orders.py`), so the app does not need to be open.
-- **Coach — nine deterministic detectors** (`js/coach/biasDetectors.js`): panic-sell, pump-chase (>5% up today), FOMO (≥18% up in 7 sessions, new position), anchoring (buy within 2% of 52-week high/low), single-stock concentration (>40%), sector concentration (>55%), disposition effect, churning (≥3 round-trips in 30 days), overtrading (≥10 trades in 24 h). Mutual funds are excluded from the price-based detectors.
-- **Panic-sell intervention** (`js/components/interventionModal.js`): modal before the sell executes; "Sell anyway" is disabled for 3 s; shows the median trading days to recovery for past dips of similar size on the Nifty 50 or the stock. Since 2026-10-01 these are real statistics from daily closes since 2011 (`scripts/build_dip_stats.py` → `js/data/dipStats.js`, 49 stocks + Nifty 50). Before that, `dips.js` generated them from a formula over hand-typed numbers while the UI called them history.
-- **LLM coach "Saathi":** Gemini via `/api/chat`. Explains; the persona + `outputFilter.js` stop it recommending trades. Optional Hinglish mode (Settings); wired into every coach prompt through `runtimeFacts()` in `js/coach/persona.js` since 2026-10-01 (before that the switch was saved but never read). Can look up crypto prices (lookup only — crypto is not tradable).
+- **Coach — nine deterministic detectors** (pure functions in `js/coach/biasCore.js`, inputs built by `js/coach/biasDetectors.js`, rewritten 2026-10-24): panic-sell, pump-chase, FOMO (≥18% up in 7 sessions, new position), anchoring (buy near the 52-week high/low), single-stock concentration (>40%), sector concentration (>55%), disposition effect, churning (≥3 round-trips in 30 days), overtrading (≥10 trades in 24 h). Price thresholds scale with each stock's own volatility (stdev of 60 daily returns); a trade price >25% from the last close is treated as a data mismatch and not judged on price. Mutual funds are excluded from the price-based detectors.
+  - **Every trade is checked (verified 2026-11-02):** market orders are judged before they are booked (`js/pages/stockDetail.js` ~2356, flags stored in `transactions.bias_flags`); AMO and limit orders are judged when placed (`noteAfterOrder`, ~2089 and ~2156).
+- **After-trade note** (`js/components/tradeNote.js`, copy `js/coach/biasCopy.js`, since 2026-10-24): when a decision fits a pattern, a quiet note appears AFTER the order goes through, with the user's own numbers (e.g. for panic-selling: the fall, the stock's usual daily move, the result) and a "What is …?" explainer. **There is no longer any pause before an order:** the pre-sell modal (`interventionModal.js`) was removed on 2026-10-24 (owner's option C).
+- **Dip records:** real falls and recoveries from daily closes since 2011 or listing (`scripts/build_dip_stats.py` → `js/data/dipStats.js`, refreshed by workflow): 2,099 stocks pass the data-quality gate (2026-11-01 build). Shown on stock pages; the coach uses them in answers.
+- **LLM coach "Saathi":** `api/_messages.js` puts a Messages-API model at the head of every chain in `api/chat.js` and `api/ai.js` (live since 2026-10-20, on Google Cloud Vertex AI); Gemini models are the fallback. Public copy names no model vendor. Explains; the persona + `outputFilter.js` stop it recommending trades. Optional Hinglish mode (Settings). Can look up crypto prices (lookup only — crypto is not tradable).
+- **Notifications:** bell inbox + web push for order fills and account notices (every signed-in user since 2026-10-19); pushes held overnight (22:00–07:00 IST).
+- **Removed features:** sending/receiving virtual cash between users and redeem codes were removed on 2026-10-17 (commit c64275eb). Never mention them.
 - **Crash replays** (`js/data/crashes.js`, `js/pages/crashReplay.js`):
   - Curated, every frame a real daily Nifty 50 close (`scripts/build_crash_frames.py`): **COVID-19 crash** (Feb 19 – Nov 9 2020; holding +5.6%), **Global Financial Crisis** (Jan 8 – Oct 27 2008; panic-selling won, Nifty −59.9%), **Demonetisation** (Nov 8 2016 – Feb 28 2017; holding +7.0%). Model: ₹1,00,000 tracking the Nifty 50; the panic-seller sells at the day-3 close and stays in cash. `prerender.py` refuses to build if the frames and summary numbers disagree. The first versions recorded the day-3 sale far below the portfolio's value that day (COVID ₹66,800 vs ₹95,900), which produced the false "holding won by 38.4%".
   - Featured (AI-written narration over Yahoo price data, cached cross-user): Harshad Mehta 1992, Dot-com 2000, GFC 2008, Satyam 2009, IL&FS 2018, DHFL 2019, YES Bank 2020, COVID 2020, Paytm IPO 2021, Adani–Hindenburg 2023.
@@ -58,8 +63,8 @@ Audit date: 2026-09-30. Numbers below were counted from the repo on that date.
 2. You start with ₹1,00,000 of virtual money. No real money is ever involved; nothing can be deposited or withdrawn.
 3. 4,000+ Indian stocks from both NSE and BSE — including NSE Emerge SME listings — plus 300+ ETFs and 8,000+ active mutual fund schemes. (The MF file has ~14,000 rows, but the app hides schemes with no NAV in a year, leaving ~8,900. `prerender.py` fails the build if the data drops below any of these floors.)
 4. Real market prices (never "real-time" / "live" as a promise; say prices can be delayed).
-5. The AI coach watches for nine common investing mistakes as you make them: panic-selling, FOMO, pump-chasing, anchoring, putting too much in one stock, putting too much in one sector, the disposition effect, churning, and overtrading.
-6. Before a likely panic-sell it pauses you and shows how long similar past dips took to recover, measured from real daily prices since 2011.
+5. The AI coach checks every trade for nine common investing mistakes: panic-selling, FOMO, pump-chasing, anchoring, putting too much in one stock, putting too much in one sector, the disposition effect, churning, and overtrading. (Verified 2026-11-02, §1: market, AMO and limit orders are all judged.)
+6. When a trade fits one of those patterns, a short note appears after the order goes through, using the user's own numbers, and explains the pattern; it never blocks or delays the order. Stock pages show each stock's real falls and recoveries, measured from daily prices since 2011 or listing. (Never say the app "pauses" a sale: that pause was removed on 2026-10-24.)
 7. The coach explains; it never tells you what to buy or sell.
 8. Replay real Indian market crashes — COVID-19 2020, the 2008 financial crisis, demonetisation 2016 — built from real daily Nifty 50 closes, and compare holding against panic-selling. Results: COVID holding +5.6% by 9 Nov 2020; 2008 selling early won within the window; demonetisation holding +7.0%. Featured replays also cover Harshad Mehta 1992, Satyam 2009, YES Bank 2020, Adani–Hindenburg 2023 and more.
 9. Market orders, limit orders and after-market orders, like a real trading app.
@@ -70,7 +75,8 @@ Audit date: 2026-09-30. Numbers below were counted from the repo on that date.
 14. Hinglish mode for the coach.
 15. Educational simulator; not a SEBI-registered broker or adviser; not affiliated with SEBI, NSE or BSE.
 16. Account and data deletion: on request to grievance@stocksaathi.co.in. (Settings → "Delete account" currently only signs out and flags the profile; never claim deletion from Settings until a real self-delete ships.)
-17. A stock page is indexable only if the stock passed the data-quality gate in `scripts/build_dip_stats.py` (≥3 years of prices, not frozen, liquid, no unadjusted jumps, ≥3 recovered 10% dips) and so carries its own real recovery figures: 1,727 of 4,324 stocks on 2026-10-01. Nifty 500 stocks that fail keep a `noindex, follow` page; the rest are app-only. Reasons per stock: `scripts/dip-quality.json`.
+17. A stock page is indexable only if the stock is in the Nifty 500 AND carries its own record of falls from `js/data/dipStats.js` (`rich_page()` in `scripts/prerender.py`): 423 stock pages on 2026-11-02 (it was 1,727 on 2026-10-01, cut on 2026-10-02 and 2026-10-14 to avoid scaled template content). Every other stock page exists for visitors as `noindex, follow`. Reasons per stock: `scripts/dip-quality.json`.
+18. User statistics may be published only as percentages and rankings from `scripts/data/public_stats.json` (source queries `scripts/public_stats.sql`, test and temp-mail accounts excluded), never as counts of accounts, signups, trades or replays (owner, 2026-11-02).
 
 ## 3. Cannot verify / contradicted — never publish
 
@@ -86,6 +92,9 @@ Audit date: 2026-09-30. Numbers below were counted from the repo on that date.
 | "No third-party analytics" | privacy policy | Vercel Web Analytics is loaded. Flagged to owner. |
 | Masters' Union AI Buildathon | — | Owner instruction: never mention. |
 | Anything about lessons, courses, modules or quizzes | — | StockSaathi has none. Never imply a curriculum. |
+| "Send virtual cash to friends", redeem codes | llms.txt | Feature removed 2026-10-17. Removed from llms.txt (2026-11-02). |
+| "Pauses you before a panic-sell" | §2 claim 6, llms.txt, WebApplication featureList | Pause removed 2026-10-24. Reworded (2026-11-02). |
+| Any user count ("N users", "thousands of students", signup/trade/replay totals) | — | Owner, 2026-11-02: never publish counts. Percentages and rankings only (§2 claim 18). |
 
 
 ## 5. Keyword universe → target page
