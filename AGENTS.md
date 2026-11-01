@@ -97,7 +97,7 @@ history rewrite.
   only when `sw.js`'s own logic changes. A file loaded by a runtime string
   path (not `import`) must be added to `LITERALS` in `build/bundle.mjs`, or
   the deploy fails. Test the bundle locally: `node build/bundle.mjs`, then
-  `scriptssmoke.cmd` (it detects the bundle), then undo with
+  `scripts\smoke.cmd` (it detects the bundle), then undo with
   `git checkout -- "*.html" sw.js` and delete `assets/`.
 
 ## Order execution — SERVER-SIDE. Never make this client-driven again.

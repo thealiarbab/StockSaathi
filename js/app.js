@@ -192,19 +192,24 @@ if ("serviceWorker" in navigator) {
       // stale cached bundles past several deploys.
       // Not on load: the browser already re-fetches /sw.js on every page
       // load, so a second check there was a second CDN request per view.
-      // Each check is one request; refocusing a tab checks at most every 4 min
-      // (under the interval, so timer jitter never skips a tick).
+      // Each check is one CDN request, so: every 30 min, and never while the
+      // tab is hidden (a tab left open in the background cost 12 a hour).
+      // Pages are network-first, so a deploy reaches the user on their next
+      // page load anyway; this only catches a tab sitting on one page.
+      const CHECK_EVERY_MS = 30 * 60 * 1000;
       let lastCheck = Date.now();
       const checkForUpdate = () => {
-        if (Date.now() - lastCheck < 4 * 60 * 1000) return;
+        if (document.visibilityState !== "visible") return;
+        // A little under the interval, so timer jitter never skips a tick.
+        if (Date.now() - lastCheck < CHECK_EVERY_MS - 60 * 1000) return;
         lastCheck = Date.now();
         reg.update().catch(() => {});
       };
-      setInterval(checkForUpdate, 5 * 60 * 1000);
+      setInterval(checkForUpdate, CHECK_EVERY_MS);
       // Re-check on tab refocus — most common path back from
       // background. Catches the "I left my tab open yesterday and you
-      // shipped 5 hotfixes overnight" case faster than the 5-min
-      // interval would.
+      // shipped 5 hotfixes overnight" case without waiting for the next
+      // interval tick.
       document.addEventListener("visibilitychange", () => {
         if (document.visibilityState === "visible") checkForUpdate();
       });
