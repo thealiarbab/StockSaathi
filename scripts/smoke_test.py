@@ -301,7 +301,8 @@ def main():
             page.wait_for_timeout(1000)
             app_txt = " ".join(page.inner_text("#main").split())
             checks.append(("crawler text == SPA text on /", static_txt == app_txt and len(static_txt) > 1500))
-            for must in ("NSE and BSE", "ages 13", "Frequently asked questions", "Is StockSaathi free?"):
+            # "teens aged 13": the teen signal must survive the students-and-beginners positioning (2 Nov).
+            for must in ("NSE and BSE", "teens aged 13", "Frequently asked questions", "Is StockSaathi free?"):
                 checks.append(("raw HTML has '%s'" % must, must in static_txt))
 
             # 6. crawler view of every public page (JS off): own title, own h1,
