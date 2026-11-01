@@ -10,7 +10,7 @@ import { track, installTracking } from "./features/track.js";
 import { currentUser, refreshCurrentUser } from "./auth/accounts.js";
 import { getState, subscribe } from "./state.js";
 import { go, installNavigation, upgradeLegacyHash, NAV_EVENT } from "./navigation.js";
-import { renderStaticPage, captureBootMain, bootTitleFor, syncBootCompanion } from "./pages/staticPage.js";
+import { renderStaticPage, captureBootMain, bootTitleFor, syncBootCompanion, keepBootMain } from "./pages/staticPage.js";
 import { PAGE_TITLES } from "./pageTitles.js";
 import { getInstrument } from "./data/universe.js";
 import { ensureCoachStyles } from "./features/styles.js";
@@ -108,6 +108,10 @@ const ROUTES = [
   // server's markup on a cold load and fetches it on in-app navigation.
   { name: "learn",         match: /^\/learn-stock-market\/?$/,             render: renderStaticPage, public: true },
   { name: "for-students",  match: /^\/for-students\/?$/,                   render: renderStaticPage, public: true },
+  { name: "about",         match: /^\/about\/?$/,                          render: renderStaticPage, public: true },
+  { name: "contact",       match: /^\/contact\/?$/,                        render: renderStaticPage, public: true },
+  { name: "learn-hub",     match: /^\/learn\/?$/,                          render: renderStaticPage, public: true },
+  { name: "learn-guide",   match: /^\/learn\/[a-z0-9-]+\/?$/,              render: renderStaticPage, public: true },
   // Admin path is NOT /admin — that 404s. Real path is /a/<slug> where
   // <slug> must match ADMIN_PATH env var on the server. The server returns
   // the same 404 shape for wrong slugs, so scanning the URL space gets you
@@ -351,11 +355,16 @@ export function mountRouter() {
       document.title = titleFor(r);
       const renderPage = r.load ? await r.load() : r.render;
       if (renderSeq !== _routeRenderSeq || location.pathname !== routePath) return;
-      main.innerHTML = "";
-      main.classList.remove("page-enter");
-      void main.offsetWidth;
-      main.classList.add("page-enter");
-      renderPage(main, r.params);
+      // Cold load of a pre-rendered content page: the server's markup is
+      // already the page. Rebuilding it made the browser paint the largest
+      // element again after boot (mobile LCP 4.8 s on /learn-stock-market).
+      if (!(renderPage === renderStaticPage && keepBootMain(main))) {
+        main.innerHTML = "";
+        main.classList.remove("page-enter");
+        void main.offsetWidth;
+        main.classList.add("page-enter");
+        renderPage(main, r.params);
+      }
     } catch (err) {
       if (renderSeq !== _routeRenderSeq || location.pathname !== routePath) return;
       console.error(`[router] ${r.name} render failed:`, err);
