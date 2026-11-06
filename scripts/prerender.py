@@ -1046,7 +1046,7 @@ def check_article(a):
     if not kt:
         raise SystemExit("%s: needs a key-takeaways block" % where)
     # Index names and calendar dates aren't data claims.
-    names = re.sub(r"\b(?:Nifty (?:Next )?\d+|BSE \d+|T\+\d|COVID-19|\d{1,2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*)\b",
+    names = re.sub(r"\b(?:Nifty (?:Next )?\d+|BSE \d+|T\+\d|COVID-19|\d{1,2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*|\d{1,2}:\d{2})\b",
                    "", text_of(kt.group(1)))
     for n in NUMBER.findall(names):
         if re.fullmatch(r"(19|20)\d\d", n):
