@@ -1,0 +1,135 @@
+<!--
+{
+  "title": "Market Order vs Limit Order vs AMO, Explained With Examples",
+  "headline": "Market order, limit order and AMO explained, with examples",
+  "description": "What a market order, a limit order and an after-market order (AMO) do, when each one fills, and the price risk of each, with worked rupee examples.",
+  "summary": "A market order fills now at the best available price, a limit order only at your price or better, and an AMO is placed while the market is closed and runs at the next open.",
+  "category": "How the market works",
+  "datePublished": "2026-11-02",
+  "dateModified": "2026-11-02",
+  "status": "gate",
+  "sources": [
+    {"name": "NSE: How to buy and sell shares in the stock exchange (order types)", "url": "https://nsearchives.nseindia.com/web/sites/default/files/inline-files/How_to_buy_and_sell_shares_in_Stock_Exchange.pdf", "accessed": "2026-11-02"},
+    {"name": "BSE: Equity Segment Master Circular (trading sessions and pre-open)", "url": "https://www.bseindia.com/Downloads/UploadDocs/Notices/Attach/Equity_Master_Circular$b0cfd71f-2ac1-4205-b6c5-5085f322e1ae.pdf", "accessed": "2026-11-02"}
+  ],
+  "facts": {
+    "30": "def:StockSaathi order validity (AGENTS.md 'Expiry', limit_orders.expires_at)",
+    "86.4%": "data:scripts/data/learn/market-limit-amo-orders.json:pct_traders_used_limit_or_amo"
+  },
+  "related": ["t-plus-1-settlement", "learn-stock-market", "nifty-sensex-explained"],
+  "cta": {"href": "/stocks", "label": "Place a practice limit order with virtual money"}
+}
+-->
+<h1 class="tight">Market order, limit order and AMO explained, with examples</h1>
+<p class="lede">
+  A market order buys or sells straight away at the best price available. A limit order only trades at the price
+  you set or better, so it may wait or never fill. An after-market order (AMO) is placed while the market is closed
+  and is sent for execution when trading opens again.
+</p>
+
+<div class="key-takeaways">
+  <h2>Key takeaways</h2>
+  <ul>
+    <li>A market order trades straight away at the best price on offer; a limit order only trades at your price or better.</li>
+    <li>On NSE and BSE, continuous trading runs from 9:15 am to 3:30 pm on trading days, after a pre-open session that starts at 9:00 am.</li>
+    <li>An after-market order (AMO) is placed while the market is closed and runs when trading next opens, at whatever price the market offers then.</li>
+    <li>On StockSaathi, pending limit orders and AMOs are matched on the server and stay valid for 30 days, so they can fill while the app is closed.</li>
+    <li>86.4% of StockSaathi traders have placed at least one limit order or AMO.</li>
+  </ul>
+</div>
+
+<h2>What is the difference between a market order and a limit order?</h2>
+<p>
+  The difference is what you fix: the timing or the price. NSE's investor material describes a market order as
+  buying or selling "at price offered on market", and a limit order as one that trades only if the price reaches a
+  level you set. A market order is certain to trade but not certain of its price. A limit order is certain of its
+  price but not certain to trade.
+</p>
+<figure class="data-table table-wrap">
+  <table class="compare">
+    <thead>
+      <tr><th scope="col"></th><th scope="col">Market order</th><th scope="col">Limit order</th><th scope="col">After-market order (AMO)</th></tr>
+    </thead>
+    <tbody>
+      <tr><th scope="row">You set</th><td>Quantity only</td><td>Quantity and a price</td><td>Quantity (and a price, if it's a limit AMO)</td></tr>
+      <tr><th scope="row">When it trades</th><td>Straight away, in market hours</td><td>Only if the price reaches your limit</td><td>When trading next opens</td></tr>
+      <tr><th scope="row">Price risk</th><td>You may pay a little more, or get a little less, than the last price you saw</td><td>None above your limit, but it may never fill</td><td>The opening price can differ a lot from the last close</td></tr>
+      <tr><th scope="row">On StockSaathi</th><td>Fills at the current market price when you confirm</td><td>Fills at your price or better; valid for 30 days</td><td>Fills at the first market price after the open; valid for 30 days</td></tr>
+    </tbody>
+  </table>
+  <figcaption>Source: NSE investor material on order types and BSE's equity master circular for sessions;
+  StockSaathi's own order rules for the last row. Real brokers' AMO timings and validity rules vary.</figcaption>
+</figure>
+
+<h2>When should a beginner understand market orders?</h2>
+<p>
+  A <strong>market order</strong> says "buy (or sell) now, at whatever the best available price is". Say a share
+  last traded at ₹500.00 and you place a market order for 10 shares. If the cheapest seller is asking ₹500.20,
+  you pay ₹5,002 rather than ₹5,000. In a busy, frequently traded stock that gap is usually tiny. In a thinly
+  traded stock, or in the first minutes after the open, it can be much bigger, because there are fewer orders
+  waiting on the other side.
+</p>
+
+<h2>How does a limit order work?</h2>
+<p>
+  A <strong>limit order</strong> says "buy only at ₹495 or less" or "sell only at ₹520 or more". If you place a buy
+  limit at ₹495 and the price never falls that far, nothing happens and you keep your cash. If it does fall to
+  ₹495, your order trades at ₹495 or better. That protects you from paying more than you planned, at the cost of
+  sometimes missing a trade. A related order NSE describes is the <strong>stop-loss</strong>, which sells once the
+  price falls below a trigger level you set in advance.
+</p>
+
+<h2>What is an AMO, an after-market order?</h2>
+<p>
+  An <strong>after-market order</strong> is an order you place while the market is closed, for example in the
+  evening or at the weekend. Brokers hold it and send it to the exchange when trading next opens. Indian exchanges
+  start each day with a short pre-open session: BSE's rules describe it as a 15-minute call auction from 9:00 am to
+  9:15 am, in which both limit and market orders are collected and matched at a single opening price. Continuous
+  trading then runs from 9:15 am to 3:30 pm.
+</p>
+<p>
+  The risk with a market AMO is the overnight gap. If news breaks after the close, the opening price can be far
+  from yesterday's closing price, and a market AMO trades at whatever the market offers then. A limit AMO caps the
+  price you pay or receive. Each broker sets its own AMO window and rules, so check them before relying on one.
+</p>
+
+<h2>How do orders work on StockSaathi?</h2>
+<p>
+  StockSaathi uses virtual money but follows the same logic. A market order fills at the current market price when you
+  confirm it. Limit orders and AMOs are matched on StockSaathi's server, so they fill even when the app is closed,
+  and each stays valid for 30 days; you get a warning before an order expires, and an expired order returns its
+  money. A limit order fills at your price or better. A market AMO fills at the first market price after the open, and
+  a buy AMO holds some extra cash in reserve so a higher opening price can still be paid for. Prices can be delayed,
+  so StockSaathi is a practice tool, not a live trading feed.
+</p>
+<p>
+  Most people who trade on StockSaathi try these order types: 86.4% of traders have placed at least one limit order
+  or AMO. Practising here is a cheap way to learn the trade-off between price and certainty before it involves real
+  money.
+</p>
+
+<h2>Frequently asked questions</h2>
+<div class="faq-list">
+  <div class="faq-item">
+    <h3>Which is better, a market order or a limit order?</h3>
+    <p>Neither is better in general. A market order is certain to trade but not certain of its price; a limit order is certain of its price but may never trade. Beginners often use limit orders to avoid paying more than they planned.</p>
+  </div>
+  <div class="faq-item">
+    <h3>What are the stock market timings in India?</h3>
+    <p>On trading days, NSE and BSE run a pre-open session from 9:00 am to 9:15 am and continuous trading from 9:15 am to 3:30 pm, Monday to Friday, except exchange holidays.</p>
+  </div>
+  <div class="faq-item">
+    <h3>Can an AMO be cancelled?</h3>
+    <p>With most brokers you can modify or cancel an AMO until it is sent to the exchange at the open; after that it behaves like a normal order. On StockSaathi you can cancel a pending order from your portfolio at any time before it fills.</p>
+  </div>
+  <div class="faq-item" lang="hi-Latn">
+    <h3>Limit order aur market order mein kya fark hai?</h3>
+    <p>Market order turant us price par chalta hai jo market mein mil rahi hai. Limit order sirf aapki di hui price ya usse behtar price par chalta hai, isliye wo wait kar sakta hai ya kabhi na chale.</p>
+  </div>
+</div>
+
+<p>
+  Try both without risk: <a href="/stocks">pick a stock</a>, place a limit order a little below the current price,
+  and watch whether it fills. The <a href="/learn/t-plus-1-settlement">T+1 settlement guide</a> explains what
+  happens after a real trade.
+</p>
