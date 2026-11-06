@@ -20,7 +20,7 @@ StockSaathi teaches by doing rather than through lessons: there are no course mo
 - No leaderboard: there is deliberately no leaderboard ranking users by returns.
 - News: Indian market headlines from major business news sources, tagged bullish, bearish or neutral.
 - Without an account, visitors can browse markets and charts, read news, chat with the AI coach and play the curated crash replays. Trading and keeping a portfolio need a free account.
-- Founder: Founded and built by Ali Arbab, a student developer from India; launched 19 April 2026. LinkedIn: https://www.linkedin.com/in/thealiarbab
+- Founder: Founded and built by Ali Arbab, a student developer from India; launched 19 April 2026. Profile: https://stocksaathi.co.in/about · LinkedIn: https://www.linkedin.com/in/thealiarbab
 - Contact: Support: grievance@stocksaathi.co.in · Business, partnerships and press: business@stocksaathi.co.in
 - Compliance: StockSaathi is an educational simulator. It is not a SEBI-registered broker, investment adviser or research analyst, and is not affiliated with SEBI, NSE or BSE. Any account and its data can be deleted on request via grievance@stocksaathi.co.in.
 
@@ -35,6 +35,8 @@ StockSaathi teaches by doing rather than through lessons: there are no course mo
 - [AI coach](https://stocksaathi.co.in/chat): ask Saathi about investing and Indian markets.
 - [Learn the stock market](https://stocksaathi.co.in/learn-stock-market): a beginner's guide for Indian teens.
 - [For students, parents and teachers](https://stocksaathi.co.in/for-students)
+- [About StockSaathi](https://stocksaathi.co.in/about): what it is, how it's built, founder and contact.
+- [Contact](https://stocksaathi.co.in/contact): support, business and school email addresses.
 - [Privacy policy](https://stocksaathi.co.in/privacy), [Terms of use](https://stocksaathi.co.in/terms), [Grievance officer](https://stocksaathi.co.in/grievance)
 
 Stock pages with a dip record (each stock's real falls and recoveries since 2011 or its listing, unrecovered falls included; 423 of the 497 Nifty 500 companies as of 1 Nov 2026, the rest lack enough clean price history) follow the pattern https://stocksaathi.co.in/stocks/SYMBOL (for example https://stocksaathi.co.in/stocks/RELIANCE).

@@ -74,7 +74,7 @@ APP_ID = SITE + "/#app"
 FOUNDER_ID = SITE + "/#founder"
 
 # /about and /contact ship noindex first and are flipped after the SEO gate.
-NEW_PAGES_LIVE = False
+NEW_PAGES_LIVE = True
 # Same for the /learn hub (it also needs at least one live guide).
 LEARN_HUB_LIVE = False
 
@@ -1298,9 +1298,9 @@ def build_pages():
     about = partial("about.html", "/about")
     add(path="/about", file="about.html", priority="0.7", changefreq="monthly",
         index=NEW_PAGES_LIVE, pageType="AboutPage",
-        title="About StockSaathi: Founded by Ali Arbab | StockSaathi",
+        title="About StockSaathi: Founded by Ali Arbab, Student Developer",
         description=("StockSaathi is a free stock market simulator for students and beginners in India, founded "
-                     "and built by Ali Arbab, a student developer. How it works and who's behind it."),
+                     "and built by Ali Arbab, a student developer."),
         crumbs=[("Home", "/"), ("About", "/about")],
         webpageExtra={"about": {"@id": ORG_ID}},
         extraGraph=[{"@type": "ProfilePage", "@id": about_url + "#profile", "url": about_url,
