@@ -7,17 +7,17 @@
   "since": "2026-10-25 IST (bias_flags written at trade time since the 24 Oct detector rewrite)"
  },
  "nifty10": {
-  "median_days": 168,
-  "recovered": 9,
-  "fastest_days": 48,
-  "slowest_days": 557,
+  "median_days": 200,
+  "recovered": 8,
+  "fastest_days": 73,
+  "slowest_days": 682,
   "open_days": 157
  },
  "nifty20": {
   "median_days": 265,
   "recovered": 3,
   "fastest_days": 165,
-  "slowest_days": 419,
+  "slowest_days": 538,
   "open_days": 0
  }
 }

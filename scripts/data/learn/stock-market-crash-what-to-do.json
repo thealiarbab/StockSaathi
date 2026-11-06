@@ -3,18 +3,11 @@
  "data_to": "2026-10-30",
  "falls": [
   {
-   "start_date": "2011-01-28",
-   "depth_pct": -26.2,
-   "further_pct": 16.2,
-   "recovered_date": "2013-05-16",
-   "recovery_days": 557
-  },
-  {
-   "start_date": "2013-08-06",
-   "depth_pct": -14.6,
-   "further_pct": 4.6,
-   "recovered_date": "2013-10-18",
-   "recovery_days": 48
+   "start_date": "2011-01-14",
+   "depth_pct": -27.9,
+   "further_pct": 17.9,
+   "recovered_date": "2013-11-01",
+   "recovery_days": 682
   },
   {
    "start_date": "2015-05-07",
@@ -73,24 +66,24 @@
    "recovery_days": null
   }
  ],
- "n_falls10": 10,
- "n_recovered": 9,
- "median_further_pct": 5.8,
- "n_stopped_before_15": 4,
+ "n_falls10": 9,
+ "n_recovered": 8,
+ "median_further_pct": 6.5,
+ "n_stopped_before_15": 3,
  "n_reached_20": 3,
  "buckets": {
   "10": {
-   "median_days": 168,
-   "recovered": 9,
-   "fastest_days": 48,
-   "slowest_days": 557,
+   "median_days": 200,
+   "recovered": 8,
+   "fastest_days": 73,
+   "slowest_days": 682,
    "open_days": 157
   },
   "20": {
    "median_days": 265,
    "recovered": 3,
    "fastest_days": 165,
-   "slowest_days": 419,
+   "slowest_days": 538,
    "open_days": 0
   }
  },

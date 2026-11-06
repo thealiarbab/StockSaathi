@@ -137,9 +137,16 @@ def main():
     if {str(k): v for k, v in mine.items()} != comp:
         raise SystemExit("Nifty data differs from dipStats.js NIFTY_COMPOSITE: run with --refresh, or rebuild "
                          "dipStats first.\n mine %s\n site %s" % (mine, comp))
-    f10 = falls(rows, 10)
-    if [f["recovery_days"] for f in f10 if f["recovered_date"]] != bds.dips(closes, 10)[0]:
+    if [f["recovery_days"] for f in falls(rows, 10) if f["recovered_date"]] != bds.dips(closes, 10)[0]:
         raise SystemExit("falls() disagrees with build_dip_stats.dips()")
+    # The checks above prove the series matches the site. dipStats starts on
+    # 3 Jan 2011, mid-fall, which splits one long fall in two (a false 48-day
+    # recovery in 2013). Guides measure from the real record high instead.
+    start_high = "2010-11-09"
+    rows = [(d, c, 0) for d, c in csv_closes() if start_high <= d < rows[0][0]] + rows
+    closes = [c for _, c, _ in rows]
+    comp = {str(k): v for k, v in bds.stats(rows)[0].items()}
+    f10 = falls(rows, 10)
     now = export("DIP_NOW")["NIFTY50"]
     data_to = rows[-1][0]
     stats = json.loads((ROOT / "scripts" / "data" / "public_stats.json").read_text(encoding="utf-8"))
@@ -173,7 +180,7 @@ def main():
                      for i, y in enumerate(ys)],
         "first_close": {"date": rows[0][0], "close": round(rows[0][1], 2)},
         "last_close": {"date": data_to, "close": round(rows[-1][1], 2)},
-        "since_2011_pct": pct(rows[0][1], rows[-1][1]),
+        "since_start_pct": pct(rows[0][1], rows[-1][1]),
         "full_years": len(ys) - 2,                       # first and current year are partial
         "full_years_up": sum(1 for i, y in enumerate(ys[1:-1], 1) if years[y][1] > years[ys[i - 1]][1]),
         "first_year_pct": pct(rows[0][1], years[ys[0]][1]),

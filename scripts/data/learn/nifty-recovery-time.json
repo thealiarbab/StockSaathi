@@ -1,65 +1,54 @@
 {
  "generated_by": "scripts/build_learn_data.py",
- "since": "2011-01-03",
+ "since": "2010-11-09",
  "data_to": "2026-10-30",
  "buckets": {
   "5": {
-   "median_days": 84,
-   "recovered": 19,
+   "median_days": 71,
+   "recovered": 18,
    "fastest_days": 3,
-   "slowest_days": 570,
+   "slowest_days": 721,
    "open_days": 164
   },
   "7": {
-   "median_days": 152,
-   "recovered": 10,
+   "median_days": 173,
+   "recovered": 9,
    "fastest_days": 74,
-   "slowest_days": 566,
+   "slowest_days": 717,
    "open_days": 163
   },
   "10": {
-   "median_days": 168,
-   "recovered": 9,
-   "fastest_days": 48,
-   "slowest_days": 557,
+   "median_days": 200,
+   "recovered": 8,
+   "fastest_days": 73,
+   "slowest_days": 682,
    "open_days": 157
   },
   "15": {
    "median_days": 208,
    "recovered": 5,
    "fastest_days": 110,
-   "slowest_days": 548,
+   "slowest_days": 666,
    "open_days": 146
   },
   "20": {
    "median_days": 265,
    "recovered": 3,
    "fastest_days": 165,
-   "slowest_days": 419,
+   "slowest_days": 538,
    "open_days": 0
   }
  },
  "falls10": [
   {
-   "peak_date": "2011-01-03",
-   "peak_close": 6157.6,
-   "start_date": "2011-01-28",
+   "peak_date": "2010-11-09",
+   "peak_close": 6301.55,
+   "start_date": "2011-01-14",
    "trough_date": "2011-12-20",
    "trough_close": 4544.2,
-   "depth_pct": -26.2,
-   "recovered_date": "2013-05-16",
-   "recovery_days": 557,
-   "open_days": null
-  },
-  {
-   "peak_date": "2013-05-17",
-   "peak_close": 6187.3,
-   "start_date": "2013-08-06",
-   "trough_date": "2013-08-28",
-   "trough_close": 5285.0,
-   "depth_pct": -14.6,
-   "recovered_date": "2013-10-18",
-   "recovery_days": 48,
+   "depth_pct": -27.9,
+   "recovered_date": "2013-11-01",
+   "recovery_days": 682,
    "open_days": null
   },
   {
@@ -153,14 +142,14 @@
  ],
  "falls20": [
   {
-   "peak_date": "2011-01-03",
-   "peak_close": 6157.6,
-   "start_date": "2011-08-19",
+   "peak_date": "2010-11-09",
+   "peak_close": 6301.55,
+   "start_date": "2011-08-16",
    "trough_date": "2011-12-20",
    "trough_close": 4544.2,
-   "depth_pct": -26.2,
-   "recovered_date": "2013-05-16",
-   "recovery_days": 419,
+   "depth_pct": -27.9,
+   "recovered_date": "2013-11-01",
+   "recovery_days": 538,
    "open_days": null
   },
   {
@@ -199,7 +188,7 @@
    "open_days": null
   }
  ],
- "n_falls10": 10,
+ "n_falls10": 9,
  "n_open10": 1,
  "n_falls20": 3,
  "n_falls30": 1,
