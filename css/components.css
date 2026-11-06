@@ -974,6 +974,13 @@
   border-top: 3px solid color-mix(in srgb, var(--text-muted) 25%, var(--border));
   min-height: 116px;
 }
+/* /stocks header: the subtitle gains "· N mutual funds" when the fund list
+   arrives, seconds after paint. On a phone that wraps it and drops the badge to
+   its own row (48 -> 97 px), which pushed the whole page down (lab CLS 0.33).
+   Reserve the final height from the first frame. */
+.stocks-head { align-content: flex-start; }
+@media (max-width: 559px) { .stocks-head { min-height: 102px; } }
+@media (max-width: 479px) { .stocks-head { min-height: 97px; } }
 /* The narrative wraps to far more lines on a phone (239 px at 375 wide). */
 @media (max-width: 820px) { .market-mood-card-skeleton { min-height: 170px; } }
 @media (max-width: 480px) { .market-mood-card-skeleton { min-height: 236px; } }

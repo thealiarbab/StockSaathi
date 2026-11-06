@@ -846,7 +846,7 @@ export function renderStocks(main) {
     const skelPill = (w) => `<span class="filter-pill skeleton" style="width: ${w}px; height: 32px; display: inline-block; border-radius: 16px;"></span>`;
     const skelSectorPill = (w) => `<span class="filter-pill skeleton" style="width: ${w}px; height: 28px; display: inline-block; border-radius: 14px;"></span>`;
     main.innerHTML = `
-      <div class="flex items-start justify-between wrap gap-3" style="margin-bottom: var(--sp-4);">
+      <div class="flex items-start justify-between wrap gap-3 stocks-head" style="margin-bottom: var(--sp-4);">
         <div>
           <h1>Markets</h1>
           <p class="muted"><span class="skeleton" style="width: 240px; height: 14px; display: inline-block; vertical-align: middle;"></span></p>
@@ -988,7 +988,7 @@ export function renderStocks(main) {
       end: active.selectionEnd,
     } : null;
     main.innerHTML = `
-      <div class="flex items-start justify-between wrap gap-3" style="margin-bottom: var(--sp-4);">
+      <div class="flex items-start justify-between wrap gap-3 stocks-head" style="margin-bottom: var(--sp-4);">
         <div>
           <h1>Markets</h1>
           <p class="muted">${(() => {
