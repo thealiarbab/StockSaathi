@@ -1,0 +1,9 @@
+{
+ "generated_by": "scripts/build_learn_data.py",
+ "nse_mainboard": 2647,
+ "nse_sme": 583,
+ "bse_only": 1318,
+ "total_stocks": 4548,
+ "etfs": 371,
+ "nse_with_bse_code": 2520
+}

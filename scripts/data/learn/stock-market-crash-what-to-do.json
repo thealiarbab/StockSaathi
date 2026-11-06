@@ -1,0 +1,105 @@
+{
+ "generated_by": "scripts/build_learn_data.py",
+ "data_to": "2026-10-30",
+ "falls": [
+  {
+   "start_date": "2011-01-28",
+   "depth_pct": -26.2,
+   "further_pct": 16.2,
+   "recovered_date": "2013-05-16",
+   "recovery_days": 557
+  },
+  {
+   "start_date": "2013-08-06",
+   "depth_pct": -14.6,
+   "further_pct": 4.6,
+   "recovered_date": "2013-10-18",
+   "recovery_days": 48
+  },
+  {
+   "start_date": "2015-05-07",
+   "depth_pct": -22.5,
+   "further_pct": 12.5,
+   "recovered_date": "2017-03-14",
+   "recovery_days": 455
+  },
+  {
+   "start_date": "2018-03-23",
+   "depth_pct": -10.2,
+   "further_pct": 0.2,
+   "recovered_date": "2018-07-24",
+   "recovery_days": 84
+  },
+  {
+   "start_date": "2018-10-05",
+   "depth_pct": -14.6,
+   "further_pct": 4.6,
+   "recovered_date": "2019-04-16",
+   "recovery_days": 128
+  },
+  {
+   "start_date": "2019-08-05",
+   "depth_pct": -11.4,
+   "further_pct": 1.4,
+   "recovered_date": "2019-11-27",
+   "recovery_days": 73
+  },
+  {
+   "start_date": "2020-03-06",
+   "depth_pct": -38.4,
+   "further_pct": 28.4,
+   "recovered_date": "2020-11-09",
+   "recovery_days": 168
+  },
+  {
+   "start_date": "2021-12-20",
+   "depth_pct": -17.2,
+   "further_pct": 7.2,
+   "recovered_date": "2022-11-24",
+   "recovery_days": 231
+  },
+  {
+   "start_date": "2024-11-13",
+   "depth_pct": -15.8,
+   "further_pct": 5.8,
+   "recovered_date": "2026-01-02",
+   "recovery_days": 282
+  },
+  {
+   "start_date": "2026-03-12",
+   "depth_pct": -15.6,
+   "further_pct": 5.6,
+   "recovered_date": null,
+   "recovery_days": null
+  }
+ ],
+ "n_falls10": 10,
+ "n_recovered": 9,
+ "median_further_pct": 5.8,
+ "n_stopped_before_15": 4,
+ "n_reached_20": 3,
+ "buckets": {
+  "10": {
+   "median_days": 168,
+   "recovered": 9,
+   "fastest_days": 48,
+   "slowest_days": 557,
+   "open_days": 157
+  },
+  "20": {
+   "median_days": 265,
+   "recovered": 3,
+   "fastest_days": 165,
+   "slowest_days": 419,
+   "open_days": 0
+  }
+ },
+ "now": {
+  "high": 26328.55,
+  "high_date": "2026-01-02",
+  "last": 23053.1,
+  "last_date": "2026-10-30",
+  "below_high_pct": -12.4,
+  "open10_since": "2026-03-12"
+ }
+}

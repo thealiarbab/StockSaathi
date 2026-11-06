@@ -128,7 +128,9 @@ def crash(cid, start, end):
 
 
 def main():
-    rows = bds.fetch("^NSEI", "--refresh" in sys.argv)
+    # Stop at the date dipStats.js was built to, so guides match the stock pages.
+    upto = export("DIP_NOW")["NIFTY50"][3]
+    rows = [r for r in bds.fetch("^NSEI", "--refresh" in sys.argv) if r[0] <= upto]
     closes = [c for _, c, _ in rows]
     comp = export("NIFTY_COMPOSITE")
     mine, _ = bds.stats(rows)
@@ -197,6 +199,104 @@ def main():
     }
     out["market-limit-amo-orders"] = {
         "pct_traders_used_limit_or_amo": stats["activity"]["pct_traders_used_limit_or_amo"],
+    }
+
+    # ── wave 2 and 3 ───────────────────────────────────────────────────────
+    out["demonetisation-stock-market"] = crash("DEMO_2016", "2016-11-08", "2017-02-28")
+
+    # What happened after the Nifty first closed 10% below a high: how much
+    # further it fell before turning, for each completed fall.
+    further = []
+    for f in f10:
+        further.append({"start_date": f["start_date"], "depth_pct": f["depth_pct"],
+                        "further_pct": round(abs(f["depth_pct"]) - 10, 1),
+                        "recovered_date": f["recovered_date"], "recovery_days": f["recovery_days"]})
+    done = [x for x in further if x["recovered_date"]]
+    out["stock-market-crash-what-to-do"] = {
+        "data_to": data_to, "falls": further, "n_falls10": len(f10), "n_recovered": len(done),
+        "median_further_pct": round(statistics.median(x["further_pct"] for x in done), 1),
+        "n_stopped_before_15": sum(1 for x in done if abs(x["depth_pct"]) < 15),
+        "n_reached_20": sum(1 for x in further if abs(x["depth_pct"]) >= 20),
+        "buckets": {"10": bucket(10), "20": bucket(20)},
+        "now": out["nifty-recovery-time"]["now"],
+    }
+
+    # SIP: the same rupee amount on the first trading day of every month.
+    sip_from, amount = "2015-01", 5000
+    units = invested = 0.0
+    flows, seen, path = [], set(), []
+    for d, c, _ in rows:
+        if d[:7] < sip_from or d[:7] in seen:
+            continue
+        seen.add(d[:7])
+        units += amount / c
+        invested += amount
+        flows.append((dt.date.fromisoformat(d), -amount))
+        if d[5:7] == "01":
+            path.append({"date": d, "invested": round(invested), "value": round(units * c)})
+    last_d, last_c = dt.date.fromisoformat(data_to), rows[-1][1]
+    value = units * last_c
+    lump = amount * len(seen) * last_c / next(c for d, c, _ in rows if d[:7] == sip_from)
+
+    def xirr(cash):
+        lo, hi = -0.9, 1.0
+        for _ in range(100):
+            r = (lo + hi) / 2
+            npv = sum(a / (1 + r) ** ((d - cash[0][0]).days / 365) for d, a in cash)
+            lo, hi = (r, hi) if npv > 0 else (lo, r)
+        return r
+
+    out["sip-explained-nifty-backtest"] = {
+        "from": sip_from, "data_to": data_to, "monthly": amount, "months": len(seen), "invested": round(invested),
+        "value": round(value), "gain_pct": pct(invested, value),
+        "xirr_pct": round(xirr(flows + [(last_d, value)]) * 100, 1), "lump_sum_same_total_on_day_one": round(lump),
+        "path": path + [{"date": data_to, "invested": round(invested), "value": round(value)}],
+    }
+
+    uni = json.loads((ROOT / "js" / "data" / "universeFull.json").read_text(encoding="utf-8"))
+    dips_all, now_all = export("DIPS"), export("DIP_NOW")
+    names = {r["symbol"]: r["name"] for r in uni}
+
+    def in_index(bit):
+        return [r["symbol"] for r in uni if r.get("kind") == "EQUITY" and (r.get("idx") or 0) & bit]
+
+    fast = sorted(((dips_all[s]["10"][0], dips_all[s]["10"][1], s) for s in in_index(2)
+                   if s in dips_all and dips_all[s].get("10") and dips_all[s]["10"][0] is not None
+                   and dips_all[s]["10"][1] >= 5))
+    out["fastest-recovering-large-caps"] = {
+        "dip_data_on": re.search(r"on (\d{4}-\d{2}-\d{2})", DIPSTATS).group(1), "universe": "Nifty 100, 5+ recovered 10% falls",
+        "n_stocks": len(fast), "median_of_medians": statistics.median(m for m, _, _ in fast),
+        "nifty_median": comp["10"][0],
+        "fastest": [{"symbol": s, "name": names[s], "median_days": m, "recovered": n} for m, n, s in fast[:10]],
+        "slowest": [{"symbol": s, "name": names[s], "median_days": m, "recovered": n} for m, n, s in fast[-5:]],
+    }
+
+    below = []
+    for s in in_index(4):
+        n = now_all.get(s)
+        if n and n[0] and n[2]:
+            below.append({"symbol": s, "name": names[s], "high": n[0], "high_date": n[1], "last": n[2],
+                          "below_pct": pct(n[0], n[2])})
+    below.sort(key=lambda x: x["below_pct"])
+    deep = lambda p: round(100 * sum(1 for b in below if b["below_pct"] <= -p) / len(below), 1)
+    out["stocks-that-never-recovered"] = {
+        "dip_data_on": re.search(r"on (\d{4}-\d{2}-\d{2})", DIPSTATS).group(1), "n_stocks": len(below),
+        "pct_below_high_10": deep(10), "pct_below_high_30": deep(30), "pct_below_high_50": deep(50),
+        "pct_below_high_75": deep(75), "median_below_pct": statistics.median(b["below_pct"] for b in below),
+        "nifty_below_pct": out["nifty-recovery-time"]["now"]["below_high_pct"], "deepest": below[:12],
+    }
+    out["concentration-risk"] = {k: out["stocks-that-never-recovered"][k] for k in
+                                 ("dip_data_on", "n_stocks", "pct_below_high_30", "pct_below_high_50",
+                                  "median_below_pct", "nifty_below_pct")}
+
+    eq = [r for r in uni if r.get("kind") == "EQUITY"]
+    by_ex = {}
+    for r in eq:
+        by_ex[r.get("exchange")] = by_ex.get(r.get("exchange"), 0) + 1
+    out["nse-and-bse-explained"] = {
+        "nse_mainboard": by_ex.get("NSE", 0), "nse_sme": by_ex.get("NSE_SME", 0), "bse_only": by_ex.get("BSE", 0),
+        "total_stocks": len(eq), "etfs": sum(1 for r in uni if r.get("kind") == "ETF"),
+        "nse_with_bse_code": sum(1 for r in eq if r.get("exchange") == "NSE" and r.get("bseScripCd")),
     }
 
     OUT.mkdir(parents=True, exist_ok=True)

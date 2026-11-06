@@ -1,0 +1,73 @@
+{
+ "generated_by": "scripts/build_learn_data.py",
+ "start_date": "2016-11-08",
+ "start_close": 8543.55,
+ "day3_date": "2016-11-11",
+ "day3_close": 8296.3,
+ "sold_value": 97106,
+ "day3_drop_pct": -2.9,
+ "low_date": "2016-12-26",
+ "low_close": 7908.25,
+ "low_held": 92564,
+ "low_drop_pct": -7.4,
+ "low_day_change_pct": -1.0,
+ "low_calendar_days": 48,
+ "end_date": "2017-02-28",
+ "end_close": 8879.6,
+ "held_end": 103933,
+ "panic_end": 97106,
+ "held_end_pct": 3.9,
+ "panic_end_pct": -2.9,
+ "final_delta": 7.0,
+ "back_to_start_date": "2017-01-25",
+ "back_to_start_trading_days_from_low": 22,
+ "year_after_low": {
+  "date": "2017-12-26",
+  "nifty": 10531.5,
+  "held": 123268
+ },
+ "path": [
+  {
+   "date": "2016-11-08",
+   "nifty": 8543.55,
+   "held": 100000,
+   "sold": 100000
+  },
+  {
+   "date": "2016-11-11",
+   "nifty": 8296.3,
+   "held": 97106,
+   "sold": 97106
+  },
+  {
+   "date": "2016-12-01",
+   "nifty": 8192.9,
+   "held": 95896,
+   "sold": 97106
+  },
+  {
+   "date": "2016-12-26",
+   "nifty": 7908.25,
+   "held": 92564,
+   "sold": 97106
+  },
+  {
+   "date": "2017-01-02",
+   "nifty": 8179.5,
+   "held": 95739,
+   "sold": 97106
+  },
+  {
+   "date": "2017-02-01",
+   "nifty": 8716.4,
+   "held": 102023,
+   "sold": 97106
+  },
+  {
+   "date": "2017-02-28",
+   "nifty": 8879.6,
+   "held": 103933,
+   "sold": 97106
+  }
+ ]
+}

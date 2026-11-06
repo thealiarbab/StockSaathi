@@ -1,0 +1,79 @@
+{
+ "generated_by": "scripts/build_learn_data.py",
+ "from": "2015-01",
+ "data_to": "2026-10-30",
+ "monthly": 5000,
+ "months": 142,
+ "invested": 710000,
+ "value": 1266619,
+ "gain_pct": 78.4,
+ "xirr_pct": 9.4,
+ "lump_sum_same_total_on_day_one": 1949592,
+ "path": [
+  {
+   "date": "2015-01-02",
+   "invested": 5000,
+   "value": 5000
+  },
+  {
+   "date": "2016-01-04",
+   "invested": 65000,
+   "value": 61057
+  },
+  {
+   "date": "2017-01-02",
+   "invested": 125000,
+   "value": 124436
+  },
+  {
+   "date": "2018-01-02",
+   "invested": 185000,
+   "value": 223654
+  },
+  {
+   "date": "2019-01-02",
+   "invested": 245000,
+   "value": 291116
+  },
+  {
+   "date": "2020-01-01",
+   "invested": 305000,
+   "value": 392125
+  },
+  {
+   "date": "2021-01-01",
+   "invested": 365000,
+   "value": 528431
+  },
+  {
+   "date": "2022-01-03",
+   "invested": 425000,
+   "value": 730560
+  },
+  {
+   "date": "2023-01-02",
+   "invested": 485000,
+   "value": 817349
+  },
+  {
+   "date": "2024-01-01",
+   "invested": 545000,
+   "value": 1045452
+  },
+  {
+   "date": "2025-01-01",
+   "invested": 605000,
+   "value": 1201822
+  },
+  {
+   "date": "2026-01-01",
+   "invested": 665000,
+   "value": 1387352
+  },
+  {
+   "date": "2026-10-30",
+   "invested": 710000,
+   "value": 1266619
+  }
+ ]
+}

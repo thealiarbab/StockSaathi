@@ -1,0 +1,109 @@
+{
+ "generated_by": "scripts/build_learn_data.py",
+ "dip_data_on": "2026-11-01",
+ "n_stocks": 423,
+ "pct_below_high_10": 89.6,
+ "pct_below_high_30": 53.2,
+ "pct_below_high_50": 23.2,
+ "pct_below_high_75": 4.0,
+ "median_below_pct": -32.7,
+ "nifty_below_pct": -12.4,
+ "deepest": [
+  {
+   "symbol": "YESBANK",
+   "name": "Yes Bank Limited",
+   "high": 394.0,
+   "high_date": "2018-08-20",
+   "last": 15.15,
+   "below_pct": -96.2
+  },
+  {
+   "symbol": "MMTC",
+   "name": "MMTC Limited",
+   "high": 811.5,
+   "high_date": "2011-01-06",
+   "last": 50.44,
+   "below_pct": -93.8
+  },
+  {
+   "symbol": "SAMMAANCAP",
+   "name": "Sammaan Capital Limited",
+   "high": 1266.79,
+   "high_date": "2018-01-29",
+   "last": 116.74,
+   "below_pct": -90.8
+  },
+  {
+   "symbol": "IDEA",
+   "name": "Vodafone Idea Limited",
+   "high": 122.25,
+   "high_date": "2015-04-16",
+   "last": 11.83,
+   "below_pct": -90.3
+  },
+  {
+   "symbol": "ZEEL",
+   "name": "Zee Entertainment Enterprises Limited",
+   "high": 613.4,
+   "high_date": "2018-01-16",
+   "last": 66.4,
+   "below_pct": -89.2
+  },
+  {
+   "symbol": "RPOWER",
+   "name": "Reliance Power Limited",
+   "high": 161.1,
+   "high_date": "2011-01-06",
+   "last": 17.91,
+   "below_pct": -88.9
+  },
+  {
+   "symbol": "TTML",
+   "name": "Tata Teleservices (Maharashtra) Limited",
+   "high": 290.15,
+   "high_date": "2022-01-11",
+   "last": 34.32,
+   "below_pct": -88.2
+  },
+  {
+   "symbol": "ATGL",
+   "name": "Adani Total Gas Limited",
+   "high": 3918.9,
+   "high_date": "2023-01-20",
+   "last": 534.45,
+   "below_pct": -86.4
+  },
+  {
+   "symbol": "IOB",
+   "name": "Indian Overseas Bank",
+   "high": 160.55,
+   "high_date": "2011-05-02",
+   "last": 28.74,
+   "below_pct": -82.1
+  },
+  {
+   "symbol": "UCOBANK",
+   "name": "UCO Bank",
+   "high": 120.15,
+   "high_date": "2011-04-15",
+   "last": 22.06,
+   "below_pct": -81.6
+  },
+  {
+   "symbol": "CENTRALBK",
+   "name": "Central Bank of India",
+   "high": 155.11,
+   "high_date": "2011-01-03",
+   "last": 28.73,
+   "below_pct": -81.5
+  },
+  {
+   "symbol": "AWL",
+   "name": "AWL Agri Business Limited",
+   "high": 841.0,
+   "high_date": "2022-04-27",
+   "last": 164.17,
+   "below_pct": -80.5
+  }
+ ]
+}

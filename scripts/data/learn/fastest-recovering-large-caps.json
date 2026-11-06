@@ -1,0 +1,102 @@
+{
+ "generated_by": "scripts/build_learn_data.py",
+ "dip_data_on": "2026-11-01",
+ "universe": "Nifty 100, 5+ recovered 10% falls",
+ "n_stocks": 86,
+ "median_of_medians": 67.5,
+ "nifty_median": 168,
+ "fastest": [
+  {
+   "symbol": "POWERINDIA",
+   "name": "Hitachi Energy India Limited",
+   "median_days": 25,
+   "recovered": 17
+  },
+  {
+   "symbol": "LTM",
+   "name": "LTM Limited",
+   "median_days": 26,
+   "recovered": 12
+  },
+  {
+   "symbol": "MOTHERSON",
+   "name": "Samvardhana Motherson International Limited",
+   "median_days": 26,
+   "recovered": 21
+  },
+  {
+   "symbol": "MAXHEALTH",
+   "name": "Max Healthcare Institute Limited",
+   "median_days": 27,
+   "recovered": 16
+  },
+  {
+   "symbol": "HAL",
+   "name": "Hindustan Aeronautics Limited",
+   "median_days": 28,
+   "recovered": 10
+  },
+  {
+   "symbol": "VBL",
+   "name": "Varun Beverages Limited",
+   "median_days": 35,
+   "recovered": 17
+  },
+  {
+   "symbol": "POLYCAB",
+   "name": "Polycab India Limited",
+   "median_days": 36,
+   "recovered": 18
+  },
+  {
+   "symbol": "ETERNAL",
+   "name": "ETERNAL LIMITED",
+   "median_days": 37,
+   "recovered": 7
+  },
+  {
+   "symbol": "CGPOWER",
+   "name": "CG Power and Industrial Solutions Limited",
+   "median_days": 37,
+   "recovered": 12
+  },
+  {
+   "symbol": "ADANIENSOL",
+   "name": "Adani Energy Solutions Limited",
+   "median_days": 38,
+   "recovered": 19
+  }
+ ],
+ "slowest": [
+  {
+   "symbol": "IOC",
+   "name": "Indian Oil Corporation Limited",
+   "median_days": 187,
+   "recovered": 7
+  },
+  {
+   "symbol": "SBIN",
+   "name": "State Bank of India",
+   "median_days": 217,
+   "recovered": 11
+  },
+  {
+   "symbol": "COALINDIA",
+   "name": "Coal India Limited",
+   "median_days": 237,
+   "recovered": 5
+  },
+  {
+   "symbol": "TATACONSUM",
+   "name": "TATA CONSUMER PRODUCTS LIMITED",
+   "median_days": 251,
+   "recovered": 9
+  },
+  {
+   "symbol": "TATASTEEL",
+   "name": "Tata Steel Limited",
+   "median_days": 318,
+   "recovered": 7
+  }
+ ]
+}

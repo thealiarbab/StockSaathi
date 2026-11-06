@@ -1,0 +1,9 @@
+{
+ "generated_by": "scripts/build_learn_data.py",
+ "dip_data_on": "2026-11-01",
+ "n_stocks": 423,
+ "pct_below_high_30": 53.2,
+ "pct_below_high_50": 23.2,
+ "median_below_pct": -32.7,
+ "nifty_below_pct": -12.4
+}
