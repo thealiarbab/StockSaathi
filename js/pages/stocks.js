@@ -853,6 +853,7 @@ export function renderStocks(main) {
         </div>
         <span class="data-badge"><span class="dot offline"></span> Loading…</span>
       </div>
+      <div id="market-mood-slot">${renderMoodSkeletonHtml()}</div>
       <div class="stocks-toolbar">
         <div class="input-prefix">
           <span class="px">🔍</span>

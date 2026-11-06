@@ -974,6 +974,9 @@
   border-top: 3px solid color-mix(in srgb, var(--text-muted) 25%, var(--border));
   min-height: 116px;
 }
+/* The narrative wraps to far more lines on a phone (239 px at 375 wide). */
+@media (max-width: 820px) { .market-mood-card-skeleton { min-height: 170px; } }
+@media (max-width: 480px) { .market-mood-card-skeleton { min-height: 236px; } }
 .market-mood-card-skeleton .mood-head {
   margin-bottom: 12px;
 }
