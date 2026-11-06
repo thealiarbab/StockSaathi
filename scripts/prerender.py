@@ -1331,6 +1331,7 @@ def build_pages():
             title=a["title"], description=a["description"],
             crumbs=[("Home", "/"), ("Learn", "/learn"), (a["headline"], "/learn/" + a["slug"])],
             article={"headline": a["headline"], "datePublished": iso_ist(a["datePublished"]),
+                     "citation": [{"@type": "CreativeWork", "name": s["name"], "url": s["url"]} for s in a["sources"]],
                      "dateModified": iso_ist(a["dateModified"]), "articleSection": a["category"]},
             extraGraph=[faq_node(url, faq)] if faq else [],
             main=learn_main(a, titles))

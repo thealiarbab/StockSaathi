@@ -14,5 +14,41 @@
   "mid": 398,
   "large": 50,
   "mega": 50
- }
+ },
+ "daily_swing_pct": {
+  "top100": {
+   "stocks": 96,
+   "median_daily_stdev_pct": 1.75
+  },
+  "101-250": {
+   "stocks": 144,
+   "median_daily_stdev_pct": 1.94
+  },
+  "251-500": {
+   "stocks": 232,
+   "median_daily_stdev_pct": 2.24
+  }
+ },
+ "top5": [
+  [
+   "Reliance Industries Limited",
+   1800000
+  ],
+  [
+   "Bharti Airtel Limited",
+   1300000
+  ],
+  [
+   "Jio Platforms Limited",
+   1300000
+  ],
+  [
+   "HDFC Bank Limited",
+   1200000
+  ],
+  [
+   "ICICI Bank Limited",
+   1100000
+  ]
+ ]
 }
