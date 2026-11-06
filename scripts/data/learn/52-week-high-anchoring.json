@@ -1,0 +1,69 @@
+{
+ "generated_by": "scripts/build_learn_data_extra.py",
+ "stocks": 94,
+ "to": "2026-10-30",
+ "after_new_high_250": {
+  "n": 1738,
+  "median_pct": 15.15,
+  "pct_higher": 67.72,
+  "p10_pct": -19.15,
+  "p90_pct": 79.18
+ },
+ "after_new_low_250": {
+  "n": 605,
+  "median_pct": 17.0,
+  "pct_higher": 69.26,
+  "p10_pct": -25.96,
+  "p90_pct": 90.44
+ },
+ "nifty50_now": {
+  "n": 50,
+  "median_below_high_pct": -20.0,
+  "n_within_5pct": 6,
+  "n_20pct_or_more_below": 25,
+  "examples": [
+   {
+    "symbol": "ITC",
+    "high": 421.6,
+    "low": 255.0,
+    "close": 265.6,
+    "below_high_pct": -37.0
+   },
+   {
+    "symbol": "HDFCBANK",
+    "high": 1009.5,
+    "low": 680.2,
+    "close": 692.8,
+    "below_high_pct": -31.4
+   },
+   {
+    "symbol": "INFY",
+    "high": 1689.8,
+    "low": 985.3,
+    "close": 1185.0,
+    "below_high_pct": -29.9
+   },
+   {
+    "symbol": "RELIANCE",
+    "high": 1592.3,
+    "low": 1158.0,
+    "close": 1164.9,
+    "below_high_pct": -26.8
+   },
+   {
+    "symbol": "TCS",
+    "high": 3324.9,
+    "low": 1982.6,
+    "close": 2502.6,
+    "below_high_pct": -24.7
+   },
+   {
+    "symbol": "SBIN",
+    "high": 1227.8,
+    "low": 930.25,
+    "close": 961.85,
+    "below_high_pct": -21.7
+   }
+  ]
+ }
+}

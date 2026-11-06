@@ -1,0 +1,11 @@
+{
+ "generated_by": "scripts/build_learn_data_extra.py",
+ "from": "2007-09-17",
+ "to": "2026-10-30",
+ "n_falls_10": 10,
+ "n_corrections_10_to_20": 6,
+ "n_20_or_more": 4,
+ "median_depth_corrections": -15.1,
+ "median_peak_to_trough_corrections": 91.0,
+ "median_peak_to_recovery_corrections": 153
+}

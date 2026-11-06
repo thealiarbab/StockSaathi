@@ -1,0 +1,17 @@
+{
+ "generated_by": "scripts/build_learn_data_extra.py",
+ "nav_date": "2026-11-05",
+ "rows_amfi": 14196,
+ "active_rows": 8709,
+ "amcs": 55,
+ "active_equity": 2456,
+ "active_index": 1654,
+ "active_debt": 1590,
+ "active_hybrid": 917,
+ "direct": 4096,
+ "regular": 4613,
+ "elss_rows": 237,
+ "elss_schemes": 50,
+ "elss_amcs": 38,
+ "index_schemes": 706
+}

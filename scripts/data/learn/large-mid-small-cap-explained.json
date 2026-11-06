@@ -1,0 +1,18 @@
+{
+ "generated_by": "scripts/build_learn_data_extra.py",
+ "n_with_market_cap": 4310,
+ "rank100_cr": 110000,
+ "rank250_cr": 36000,
+ "rank1_cr": 1800000,
+ "rank1": "RELIANCE",
+ "median_cr": 380,
+ "share_top100_pct": 59.42,
+ "share_101_250_pct": 19.75,
+ "share_rest_pct": 20.84,
+ "app_buckets": {
+  "micro": 4050,
+  "mid": 398,
+  "large": 50,
+  "mega": 50
+ }
+}

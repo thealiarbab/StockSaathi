@@ -1,0 +1,34 @@
+{
+ "generated_by": "scripts/build_learn_data_extra.py",
+ "stocks": 94,
+ "universe": "Nifty 100 today, closes since 2011",
+ "to": "2026-10-30",
+ "after_runup_20": {
+  "n": 463,
+  "median_pct": 1.85,
+  "pct_higher": 57.67,
+  "p10_pct": -11.22,
+  "p90_pct": 20.28
+ },
+ "after_runup_60": {
+  "n": 463,
+  "median_pct": 6.44,
+  "pct_higher": 63.71,
+  "p10_pct": -16.13,
+  "p90_pct": 41.23
+ },
+ "all_days_20": {
+  "n": 16051,
+  "median_pct": 1.11,
+  "pct_higher": 55.97,
+  "p10_pct": -9.06,
+  "p90_pct": 12.76
+ },
+ "all_days_60": {
+  "n": 16051,
+  "median_pct": 3.33,
+  "pct_higher": 59.23,
+  "p10_pct": -14.16,
+  "p90_pct": 25.54
+ }
+}

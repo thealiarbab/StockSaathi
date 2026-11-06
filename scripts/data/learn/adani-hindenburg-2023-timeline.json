@@ -1,0 +1,76 @@
+{
+ "generated_by": "scripts/build_learn_data_extra.py",
+ "base_date": "2023-01-24",
+ "stocks": [
+  {
+   "symbol": "ADANIENT",
+   "name": "Adani Enterprises Limited",
+   "close_24jan": 3442.0,
+   "close_27jan": 2761.45,
+   "two_session_pct": -19.8,
+   "low_date": "2023-02-27",
+   "low_close": 1193.5,
+   "low_pct": -65.3,
+   "back_above_date": "2024-06-03",
+   "latest_date": "2026-10-30",
+   "latest_close": 2579.4,
+   "latest_pct": -25.1
+  },
+  {
+   "symbol": "ADANIPORTS",
+   "name": "Adani Ports and Special Economic Zone Limited",
+   "close_24jan": 761.2,
+   "close_27jan": 596.95,
+   "two_session_pct": -21.6,
+   "low_date": "2023-02-02",
+   "low_close": 462.45,
+   "low_pct": -39.2,
+   "back_above_date": "2023-07-31",
+   "latest_date": "2026-10-30",
+   "latest_close": 1850.0,
+   "latest_pct": 143.0
+  },
+  {
+   "symbol": "ADANIPOWER",
+   "name": "Adani Power Limited",
+   "close_24jan": 54.93,
+   "close_27jan": 49.59,
+   "two_session_pct": -9.7,
+   "low_date": "2023-02-27",
+   "low_close": 27.87,
+   "low_pct": -49.3,
+   "back_above_date": "2023-06-07",
+   "latest_date": "2026-10-30",
+   "latest_close": 189.0,
+   "latest_pct": 244.1
+  },
+  {
+   "symbol": "ADANIGREEN",
+   "name": "Adani Green Energy Limited",
+   "close_24jan": 1916.8,
+   "close_27jan": 1486.25,
+   "two_session_pct": -22.5,
+   "low_date": "2023-02-27",
+   "low_close": 462.2,
+   "low_pct": -75.9,
+   "back_above_date": "2024-02-19",
+   "latest_date": "2026-10-30",
+   "latest_close": 1298.7,
+   "latest_pct": -32.2
+  },
+  {
+   "symbol": "ADANIENSOL",
+   "name": "Adani Energy Solutions Limited",
+   "close_24jan": 2762.15,
+   "close_27jan": 2014.2,
+   "two_session_pct": -27.1,
+   "low_date": "2023-02-28",
+   "low_close": 642.9,
+   "low_pct": -76.7,
+   "back_above_date": null,
+   "latest_date": "2026-10-30",
+   "latest_close": 1349.5,
+   "latest_pct": -51.1
+  }
+ ]
+}

@@ -1,0 +1,50 @@
+{
+ "generated_by": "scripts/build_learn_data_extra.py",
+ "peak": {
+  "date": "2018-08-20",
+  "close": 394.0
+ },
+ "points": {
+  "before_moratorium": {
+   "date": "2020-03-05",
+   "close": 36.8,
+   "from_peak_pct": -90.7
+  },
+  "moratorium_day": {
+   "date": "2020-03-06",
+   "close": 16.15,
+   "from_peak_pct": -95.9
+  },
+  "rescue_1": {
+   "date": "2020-03-16",
+   "close": 37.1,
+   "from_peak_pct": -90.6
+  },
+  "rescue_2": {
+   "date": "2020-03-17",
+   "close": 58.65,
+   "from_peak_pct": -85.1
+  },
+  "year_end_2019": {
+   "date": "2019-12-31",
+   "close": 46.95,
+   "from_peak_pct": -88.1
+  },
+  "year_end_2018": {
+   "date": "2018-12-31",
+   "close": 181.8,
+   "from_peak_pct": -53.9
+  }
+ },
+ "low_after": {
+  "date": "2021-08-23",
+  "close": 10.8,
+  "from_peak_pct": -97.3
+ },
+ "latest": {
+  "date": "2026-10-30",
+  "close": 15.15,
+  "from_peak_pct": -96.2
+ },
+ "one_day_moratorium_pct": -56.1
+}

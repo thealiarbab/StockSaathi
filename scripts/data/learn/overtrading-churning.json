@@ -1,0 +1,15 @@
+{
+ "generated_by": "scripts/build_learn_data_extra.py",
+ "from": "2011-01-03",
+ "to": "2026-10-30",
+ "sessions": 3883,
+ "all_days": 375794,
+ "miss_best_10": 229254,
+ "miss_best_20": 161950,
+ "miss_best_30": 119903,
+ "best10_within_10_sessions_of_worst10": 6,
+ "best_day": {
+  "date": "2020-04-07",
+  "pct": 8.76
+ }
+}

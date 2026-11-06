@@ -1,0 +1,72 @@
+{
+ "generated_by": "scripts/build_learn_data_extra.py",
+ "covid_sip": {
+  "monthly": 5000,
+  "start": "2020-01-14",
+  "at_trough": {
+   "date": "2020-03-23",
+   "invested": 15000,
+   "value": 9746,
+   "pct": -35.0
+  },
+  "at_end": {
+   "date": "2020-11-09",
+   "invested": 55000,
+   "value": 64474,
+   "pct": 17.2
+  }
+ },
+ "gfc_sip": {
+  "monthly": 5000,
+  "start": "2008-01-08",
+  "at_trough": {
+   "date": "2008-10-27",
+   "invested": 50000,
+   "value": 26864,
+   "pct": -46.3
+  },
+  "at_end": {
+   "date": "2010-11-09",
+   "invested": 175000,
+   "value": 253454,
+   "pct": 44.8
+  }
+ },
+ "sensex_2008": {
+  "peak": {
+   "date": "2008-01-08",
+   "close": 20873.33
+  },
+  "trough": {
+   "date": "2008-11-20",
+   "close": 8451.01
+  },
+  "depth_pct": -59.5
+ },
+ "covid": {
+  "peak_date": "2020-01-14",
+  "peak_close": 12362.3,
+  "start_date": "2020-03-12",
+  "trough_date": "2020-03-23",
+  "trough_close": 7610.25,
+  "depth_pct": -38.4,
+  "recovered_date": "2020-11-09",
+  "recovery_days": 165,
+  "open_days": null,
+  "peak_to_trough_sessions": 47,
+  "peak_to_recovery_sessions": 205
+ },
+ "gfc": {
+  "peak_date": "2008-01-08",
+  "peak_close": 6287.85,
+  "start_date": "2008-01-22",
+  "trough_date": "2008-10-27",
+  "trough_close": 2524.2,
+  "depth_pct": -59.9,
+  "recovered_date": "2010-11-09",
+  "recovery_days": 684,
+  "open_days": null,
+  "peak_to_trough_sessions": 198,
+  "peak_to_recovery_sessions": 694
+ }
+}

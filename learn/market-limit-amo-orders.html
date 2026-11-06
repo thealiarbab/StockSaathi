@@ -308,7 +308,10 @@
     <p>
       A <strong>market order</strong> says "buy (or sell) now, at whatever the best available price is". Say a share
       last traded at ₹500.00 and you place a market order for 10 shares. If the cheapest seller is asking ₹500.20,
-      you pay ₹5,002 rather than ₹5,000. In a busy, frequently traded stock that gap is usually tiny. In a thinly
+      you pay ₹5,002 rather than ₹5,000.
+    </p>
+    <p>
+      In a busy, frequently traded stock that gap is usually tiny. In a thinly
       traded stock, or in the first minutes after the open, it can be much bigger, because there are fewer orders
       waiting on the other side.
     </p>
@@ -317,7 +320,10 @@
     <p>
       A <strong>limit order</strong> says "buy only at ₹495 or less" or "sell only at ₹520 or more". If you place a buy
       limit at ₹495 and the price never falls that far, nothing happens and you keep your cash. If it does fall to
-      ₹495, your order trades at ₹495 or better. That protects you from paying more than you planned, at the cost of
+      ₹495, your order trades at ₹495 or better.
+    </p>
+    <p>
+      That protects you from paying more than you planned, at the cost of
       sometimes missing a trade. A related order NSE describes is the <strong>stop-loss</strong>, which sells once the
       price falls below a trigger level you set in advance.
     </p>
@@ -341,7 +347,10 @@
       StockSaathi uses virtual money but follows the same logic. A market order fills at the current market price when you
       confirm it. Limit orders and AMOs are matched on StockSaathi's server, so they fill even when the app is closed,
       and each stays valid for 30 days; you get a warning before an order expires, and an expired order returns its
-      money. A limit order fills at your price or better. A market AMO fills at the first market price after the open, and
+      money.
+    </p>
+    <p>
+      A limit order fills at your price or better. A market AMO fills at the first market price after the open, and
       a buy AMO holds some extra cash in reserve so a higher opening price can still be paid for. Prices can be delayed,
       so StockSaathi is a practice tool, not a live trading feed.
     </p>
@@ -349,6 +358,25 @@
       Most people who trade on StockSaathi try these order types: 86.4% of traders have placed at least one limit order
       or AMO. Practising here is a cheap way to learn the trade-off between price and certainty before it involves real
       money.
+    </p>
+
+    <h2>What happens to an order when a stock gaps at the open?</h2>
+    <p>
+      A <strong>gap</strong> is when a stock opens well above or below the previous close, usually because of news that came
+      out while the market was shut. A market order or market AMO takes the opening price, whatever it is, so a stock that
+      closed at ₹500 and opens at ₹540 fills near ₹540. A limit order at ₹510 would not fill at all, and would wait.
+    </p>
+    <p>
+      The difference between the price you expected and the price you got is called <strong>slippage</strong>. A limit order
+      removes that risk and gives you a different one, which is that the trade may never happen.
+    </p>
+
+    <h2>What is a partial fill?</h2>
+    <p>
+      A partial fill is when only part of your order trades. If you place a limit order for 100 shares and only 40 are on
+      offer at your price, 40 trade and the other 60 keep waiting. Real exchanges match orders against what is available, so
+      this is normal, especially in thinly traded stocks. NSE's material describes an Immediate or Cancel order, which trades
+      what it can straight away and cancels the rest.
     </p>
 
     <h2>Frequently asked questions</h2>
@@ -373,7 +401,7 @@
 
     <p>
       Try both without risk: <a href="/stocks">pick a stock</a>, place a limit order a little below the current price,
-      and watch whether it fills. The <a href="/learn/t-plus-1-settlement">T+1 settlement guide</a> explains what
+      and watch whether it fills. The <a href="/learn-stock-market">beginner's guide</a> covers the words you will meet on the way, and the <a href="/learn/t-plus-1-settlement">T+1 settlement guide</a> explains what
       happens after a real trade.
     </p>
       <h2>Try it on StockSaathi</h2>
