@@ -1266,7 +1266,7 @@ def build_pages():
 
     # Guides carry a visible byline and Article markup authored by the founder.
     # Bump the modified date when the page's copy or data changes.
-    learn_mod = "2026-11-02"
+    learn_mod = "2026-11-06"
     learn = with_byline(partial("learn-stock-market.html", "/learn-stock-market"), learn_mod)
     add(path="/learn-stock-market", file="learn-stock-market.html", priority="0.8", changefreq="monthly",
         ogType="article",
