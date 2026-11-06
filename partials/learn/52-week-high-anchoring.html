@@ -1,0 +1,165 @@
+<!--
+{
+  "title": "What Is a 52-Week High? And the Anchoring Trap for Beginners",
+  "headline": "52-week highs, lows and the anchoring trap",
+  "description": "The 52-week high is a stock's highest price of the past year. Half the Nifty 50 sat 20% or more below it in October 2026. How that number can anchor you.",
+  "summary": "A 52-week high is a stock's highest price of the last year; on 30 October 2026 half the Nifty 50 was 20% or more below it, and anchoring on that number is a common trap.",
+  "category": "Investing behaviour",
+  "datePublished": "2026-11-07",
+  "dateModified": "2026-11-07",
+  "status": "gate",
+  "sources": [
+    {"name": "Tversky and Kahneman (1974), Judgment under Uncertainty: Heuristics and Biases, Science 185 (university copy)", "url": "https://pages.ucsd.edu/~mckenzie/TverskyKahneman1974Science.pdf", "accessed": "2026-11-07"},
+    {"name": "Yahoo Finance: historical daily closes for Nifty 50 and Nifty 100 companies", "url": "https://finance.yahoo.com/quote/%5ENSEI/history/", "accessed": "2026-11-07"}
+  ],
+  "facts": {
+    "25": "data:scripts/data/learn/52-week-high-anchoring.json:nifty50_now.n_20pct_or_more_below",
+    "50": "data:scripts/data/learn/52-week-high-anchoring.json:nifty50_now.n",
+    "20%": "def:fall threshold",
+    "6": "data:scripts/data/learn/52-week-high-anchoring.json:nifty50_now.n_within_5pct",
+    "5%": "def:near-high threshold",
+    "8%": "def:anchoring detector threshold",
+    "69.26%": "data:scripts/data/learn/52-week-high-anchoring.json:after_new_low_250.pct_higher",
+    "67.72%": "data:scripts/data/learn/52-week-high-anchoring.json:after_new_high_250.pct_higher"
+  },
+  "related": ["fomo-investing", "pe-ratio-explained", "panic-selling"],
+  "cta": {"href": "/stocks", "label": "Check a stock's own highs and falls"}
+}
+-->
+<h1 class="tight">What is a 52-week high? And the anchoring trap for beginners</h1>
+<p class="lede">
+  A 52-week high is the highest price a share reached in the past year, and a 52-week low is its lowest. They are useful
+  markers, but they say nothing about what a share is worth. The trap is anchoring: treating an old price as the
+  price the share should return to.
+</p>
+
+<div class="key-takeaways">
+  <h2>Key takeaways</h2>
+  <ul>
+    <li>On 30 October 2026, 25 of the 50 Nifty 50 companies closed 20% or more below their highest close of the past year.</li>
+    <li>Only 6 of the 50 stood within 5% of it.</li>
+    <li>Anchoring is letting a first number pull your later judgment towards it, as Tversky and Kahneman described in 1974.</li>
+    <li>In large Indian stocks since 2012, a year after a new low 69.26% were higher, and a year after a new high 67.72% were higher, but these are survivors.</li>
+    <li>StockSaathi's coach notes anchoring when you buy more of a share at least 8% below what you paid.</li>
+  </ul>
+</div>
+
+<h2>How far were big Indian companies from their 52-week highs?</h2>
+<p>
+  Further than most people would guess. The table takes six large companies on one date, using closing prices over the last
+  250 sessions. Every one of them is a major business, so a big gap from the high is plainly not a sign of a failing company on its own.
+</p>
+<figure class="data-table table-wrap">
+  <table class="compare">
+    <thead>
+      <tr><th scope="col">Company</th><th scope="col">High</th><th scope="col">Low</th><th scope="col">30 Oct close</th><th scope="col">Below high</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>ITC</td><td>₹421.60</td><td>₹255.00</td><td>₹265.60</td><td>37.0%</td></tr>
+      <tr><td>HDFC Bank</td><td>₹1,009.50</td><td>₹680.20</td><td>₹692.80</td><td>31.4%</td></tr>
+      <tr><td>Infosys</td><td>₹1,689.80</td><td>₹985.30</td><td>₹1,185.00</td><td>29.9%</td></tr>
+      <tr><td>Reliance Industries</td><td>₹1,592.30</td><td>₹1,158.00</td><td>₹1,164.90</td><td>26.8%</td></tr>
+      <tr><td>TCS</td><td>₹3,324.90</td><td>₹1,982.60</td><td>₹2,502.60</td><td>24.7%</td></tr>
+      <tr><td>State Bank of India</td><td>₹1,227.80</td><td>₹930.25</td><td>₹961.85</td><td>21.7%</td></tr>
+    </tbody>
+  </table>
+  <figcaption>Source: StockSaathi analysis of daily closes, 250 sessions to 30 October 2026. Published 52-week figures often use
+  intraday prices, so they can differ slightly. Prices move every day; this is a snapshot, and nothing here is a
+  recommendation.</figcaption>
+</figure>
+
+<h2>What is the 52-week high and low?</h2>
+<p>
+  The <strong>52-week high</strong> is the highest price in the past year and the <strong>52-week low</strong> is the lowest.
+  Apps usually show them with the current price, so you can see at a glance where a share sits in its range. The window
+  rolls forward every day, so an old high simply drops out after a year. Different sites may use closing prices or
+  prices during the day, and may or may not adjust for splits, which is why the numbers don't always match.
+</p>
+
+<h2>What is anchoring bias in investing?</h2>
+<p>
+  <strong>Anchoring</strong> is letting a first number shape your later estimate, even when it shouldn't. In their 1974 paper
+  in Science, Amos Tversky and Daniel Kahneman showed that people make estimates by starting from an initial value and
+  adjusting, and that the adjustment is typically too small. Different starting points lead to different answers.
+</p>
+<p>
+  Their
+  experiments had nothing to do with shares, so applying the idea to prices is our inference, but the fit is easy to see. If
+  a share once traded at ₹1,000 and now trades at ₹700, ₹1,000 tends to stick in your mind as the "real" price, and ₹700
+  starts to feel like a discount.
+</p>
+<p>
+  The ₹1,000 tells you what somebody paid at one moment, under the facts known at that moment.
+  It says nothing about what the business is worth now. The same thing happens with the price you paid yourself, which
+  often becomes the number you are waiting to get back to, as though the share knows or cares what you paid for it. That
+  second anchor is the more dangerous one, because it is the one that ties up your money and your attention.
+</p>
+
+<h2>Is a stock near its 52-week low a bargain?</h2>
+<p>
+  Not because of that alone. A low price can reflect real bad news. We looked at every new 250-session low and high in today's
+  large Indian stocks since 2012, to see what happened a year later.
+</p>
+<figure class="data-table table-wrap">
+  <table class="compare">
+    <thead>
+      <tr><th scope="col">One year later</th><th scope="col">After a new low</th><th scope="col">After a new high</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Median move</td><td>+17.0%</td><td>+15.15%</td></tr>
+      <tr><td>Share that were higher</td><td>69.26%</td><td>67.72%</td></tr>
+      <tr><td>Worst tenth did at least this badly</td><td>−25.96%</td><td>−19.15%</td></tr>
+      <tr><td>Best tenth did at least this well</td><td>+90.44%</td><td>+79.18%</td></tr>
+    </tbody>
+  </table>
+  <figcaption>Source: StockSaathi analysis of daily closes for 94 of today's Nifty 100 companies to 30 October 2026: 605 new
+  lows and 1,738 new highs, at least 60 sessions apart in each stock. Price only. Today's list leaves out companies that
+  collapsed, which flatters the "new low" column most of all.</figcaption>
+</figure>
+<p>
+  The two columns are close, and neither position in the range told you much. What differs is the worst tenth. And this list
+  only contains companies that survived, so the true record after a new low is worse than it looks. A stock near its high
+  isn't automatically expensive, and one near its low isn't automatically cheap.
+</p>
+
+<h2>How does StockSaathi's coach spot anchoring?</h2>
+<p>
+  The coach watches for buying more of a share well below what you paid, because that is when the purchase price tends to
+  become the fair price in your mind. It speaks up when a new buy is at least 8% below your average cost, or further for a
+  jumpy stock, and more strongly if you have already added below cost before. The note appears after the order goes through.
+  Averaging down isn't always wrong, but it helps to know why you are doing it.
+</p>
+
+<h2>How can you avoid anchoring?</h2>
+<p>
+  Ask a different question. Instead of "how far is this from its high?", ask "would I buy this today at this price if I
+  had never seen the old one?" Look at what the business earns, using measures such as the
+  <a href="/learn/pe-ratio-explained">P/E ratio</a>, rather than where the chart has been. And notice the opposite pull: a
+  price that has just shot up isn't proof of value either, which is the
+  <a href="/learn/fomo-investing">FOMO trap</a>.
+</p>
+
+<h2>Frequently asked questions</h2>
+<div class="faq-list">
+  <div class="faq-item">
+    <h3>What does a 52-week high mean?</h3>
+    <p>It is the highest price a share reached in the past year. It is a marker of where the price has been, and it says nothing about where it is going or what the company is worth.</p>
+  </div>
+  <div class="faq-item">
+    <h3>Is it good to buy at a 52-week low?</h3>
+    <p>StockSaathi doesn't advise on buying. A low price alone isn't a reason, because it can reflect real bad news at the company. In the data above, the results after new highs and new lows were close.</p>
+  </div>
+  <div class="faq-item">
+    <h3>Why do different sites show different 52-week highs?</h3>
+    <p>Some use closing prices and some use the highest price during the day, and adjustments for splits can differ too.</p>
+  </div>
+  <div class="faq-item" lang="hi-Latn">
+    <h3>52 week high ka matlab kya hai?</h3>
+    <p>Pichhle ek saal mein share ki sabse oonchi price. Ye sirf batata hai ki price kahan tak gayi thi, ye nahi ki company ki sahi keemat kya hai ya price wapas wahan jayegi.</p>
+  </div>
+</div>
+
+<p>
+  Try it on <a href="/stocks">StockSaathi</a>: pick a share far below its high, write down what you think it is worth and why,
+  and buy it with virtual money. Later, check whether the old high was doing your thinking for you.
+</p>

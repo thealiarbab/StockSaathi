@@ -1,0 +1,62 @@
+{
+ "generated_by": "fundamentals_cache query, 6 Nov 2026 (select pe_ratio, eps from fundamentals_cache)",
+ "as_of": "2026-11-06",
+ "stocks": [
+  {
+   "name": "Asian Paints",
+   "sector": "Materials",
+   "pe": 49.99,
+   "eps": 45.09,
+   "implied_price": 2254.05
+  },
+  {
+   "name": "Hindustan Unilever",
+   "sector": "Consumer staples",
+   "pe": 30.92,
+   "eps": 63.48,
+   "implied_price": 1962.8
+  },
+  {
+   "name": "Reliance Industries",
+   "sector": "Energy",
+   "pe": 21.65,
+   "eps": 59.69,
+   "implied_price": 1292.29
+  },
+  {
+   "name": "ITC",
+   "sector": "Consumer staples",
+   "pe": 18.51,
+   "eps": 16.52,
+   "implied_price": 305.79
+  },
+  {
+   "name": "TCS",
+   "sector": "IT services",
+   "pe": 17.5,
+   "eps": 136.01,
+   "implied_price": 2380.17
+  },
+  {
+   "name": "Infosys",
+   "sector": "IT services",
+   "pe": 15.38,
+   "eps": 71.89,
+   "implied_price": 1105.67
+  },
+  {
+   "name": "HDFC Bank",
+   "sector": "Banking",
+   "pe": 14.64,
+   "eps": 49.53,
+   "implied_price": 725.12
+  },
+  {
+   "name": "State Bank of India",
+   "sector": "Banking",
+   "pe": 10.47,
+   "eps": 91.76,
+   "implied_price": 960.73
+  }
+ ]
+}

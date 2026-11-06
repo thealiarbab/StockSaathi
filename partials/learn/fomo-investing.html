@@ -1,0 +1,167 @@
+<!--
+{
+  "title": "FOMO in the Stock Market: What It Is and What the Data Shows",
+  "headline": "FOMO in the stock market: what it is, and what happened after big run-ups",
+  "description": "FOMO investing means buying because a price has already jumped. What happened after 463 sharp run-ups in large Indian stocks, and why risk runs wider.",
+  "summary": "After 463 sharp run-ups in large Indian stocks since 2011, the typical next 60 sessions were not worse than normal, but outcomes spread far wider in both directions.",
+  "category": "Investing behaviour",
+  "datePublished": "2026-11-07",
+  "dateModified": "2026-11-07",
+  "status": "gate",
+  "sources": [
+    {"name": "SEBI: Investor Charter", "url": "https://investor.sebi.gov.in/Investor-charter.html", "accessed": "2026-11-07"},
+    {"name": "SEBI: Securities market investment, do's and don'ts", "url": "https://investor.sebi.gov.in/securities-dos_and_donts.html", "accessed": "2026-11-07"},
+    {"name": "Yahoo Finance: historical daily closes for Nifty 100 companies", "url": "https://finance.yahoo.com/quote/%5ENSEI/history/", "accessed": "2026-11-07"}
+  ],
+  "facts": {
+    "20%": "def:FOMO detector threshold",
+    "10": "def:FOMO detector window",
+    "60": "def:measurement window in sessions",
+    "100": "def:Nifty 100, index name",
+    "463": "data:scripts/data/learn/fomo-investing.json:after_runup_60.n",
+    "6.44%": "data:scripts/data/learn/fomo-investing.json:after_runup_60.median_pct",
+    "3.33%": "data:scripts/data/learn/fomo-investing.json:all_days_60.median_pct",
+    "16.13%": "data:scripts/data/learn/fomo-investing.json:after_runup_60.p10_pct",
+    "14.16%": "data:scripts/data/learn/fomo-investing.json:all_days_60.p10_pct"
+  },
+  "related": ["panic-selling", "52-week-high-anchoring", "concentration-risk"],
+  "cta": {"href": "/stocks", "label": "Practise deciding before you buy"}
+}
+-->
+<h1 class="tight">FOMO in the stock market: what it is and what the data shows</h1>
+<p class="lede">
+  FOMO, the fear of missing out, is buying something because its price has already jumped and you can't stand watching
+  it go higher without you. The trouble isn't that such stocks always fall afterwards. Often they don't. The trouble is
+  that you bought without a reason of your own.
+</p>
+
+<div class="key-takeaways">
+  <h2>Key takeaways</h2>
+  <ul>
+    <li>StockSaathi's coach flags a FOMO buy when a new purchase is at least 20% above the stock's lowest close of the last 10 sessions, and the move is unusually large for that stock.</li>
+    <li>Across 463 such run-ups in large Indian stocks since 2011, the median move over the next 60 sessions was +6.44%, against +3.33% for ordinary days.</li>
+    <li>The bad outcomes were worse: one run-up in ten was followed by a fall of 16.13% or more, against 14.16% for ordinary days.</li>
+    <li>These stocks are today's Nifty 100, which flatters the numbers, because companies that collapsed dropped out of the list.</li>
+    <li>SEBI tells investors not to follow the herd and not to rely on hot tips.</li>
+  </ul>
+</div>
+
+<h2>What happened after big run-ups in large Indian stocks?</h2>
+<p>
+  The result is not the usual story that chasing always loses. We found every sharp run-up in today's Nifty 100 companies
+  since 2011, using the same test as StockSaathi's coach, and compared what came next with ordinary days in the same
+  stocks.
+</p>
+<figure class="data-table table-wrap">
+  <table class="compare">
+    <thead>
+      <tr><th scope="col">Next 60 sessions</th><th scope="col">After a run-up</th><th scope="col">Ordinary days</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Median move</td><td>+6.44%</td><td>+3.33%</td></tr>
+      <tr><td>Share that ended higher</td><td>63.71%</td><td>59.23%</td></tr>
+      <tr><td>Worst tenth did at least this badly</td><td>−16.13%</td><td>−14.16%</td></tr>
+      <tr><td>Best tenth did at least this well</td><td>+41.23%</td><td>+25.54%</td></tr>
+    </tbody>
+  </table>
+  <figcaption>Source: StockSaathi analysis of daily closes for 94 Nifty 100 companies with clean data, 2011 to
+  30 October 2026: 463 run-ups, at least 20 sessions apart in each stock, and 16,051 ordinary starting points. Price moves
+  only, no costs or dividends. Past moves don't predict future ones.</figcaption>
+</figure>
+
+<h2>What does this data really say?</h2>
+<p>
+  Two things, and the second matters more. First, after a sharp run-up the typical stock kept doing fine. Second, the range
+  of outcomes was much wider: the best tenth did far better than usual and the worst tenth did worse.
+</p>
+<p>
+  You are taking on
+  more uncertainty, not a guaranteed loss. There is also a serious catch.
+</p>
+<p>
+  This list is today's Nifty 100, so it only
+  contains companies that survived and grew large enough to be there now. A smaller company that spiked on hype and then
+  collapsed isn't in the data at all, and that is exactly the kind of stock a tip group tends to push. So the true result for
+  an ordinary beginner chasing whatever is trending is likely to be worse than this table.
+</p>
+<p>
+  Treat it as a picture of big,
+  established companies, and never as evidence that chasing works. A number that looks reassuring on survivors tells you
+  little about the ones that vanished.
+</p>
+
+<h2>What is FOMO in the stock market?</h2>
+<p>
+  <strong>FOMO</strong> means fear of missing out. In investing, it is the urge to buy because others seem to be making money
+  and you are not. The feeling arrives after the rise, which is why it so often leads to buying later than you meant to,
+  at a price you wouldn't have paid a week earlier.
+</p>
+<p>
+  SEBI's Investor Charter tells investors not to follow herd mentality, and its do's and don'ts say not to rely on hot tips.
+  Passing on hot tips is itself illegal, SEBI adds, and can be reported to it.
+</p>
+
+<h2>Why do beginners feel FOMO so strongly?</h2>
+<p>
+  Because they can see other people's wins and not their losses. Screenshots of gains spread quickly, while nobody posts the
+  trade that went wrong. A beginner also has no record of their own to compare with, so a single rising stock can feel
+  like proof that everyone else has found something they missed.
+</p>
+
+<h2>What are the signs of FOMO investing?</h2>
+<p>
+  Watch for these. You found the stock because it was already moving, and you only started researching it after you decided to
+  buy. You feel rushed, as if the chance will be gone tomorrow.
+</p>
+<p>
+  You can quote the rise but can't explain what the company
+  does. You are buying more than you planned, because a small amount feels pointless.
+</p>
+
+<h2>How does StockSaathi's coach spot it?</h2>
+<p>
+  The coach looks at your buy price against the stock's lowest close of the last 10 sessions. It only speaks up if the gap
+  is at least 20% and also more than three times that stock's typical 10-session move, so a quiet stock and a wild one are
+  judged by their own standards. Adding to a position you already hold in size doesn't count.
+</p>
+<p>
+  When it fires, you get a short
+  note after the order goes through, with your own numbers. It never blocks the trade.
+</p>
+
+<h2>How can you avoid FOMO when investing?</h2>
+<p>
+  Slow the decision down. Write one sentence on why you want this company at this price, and wait a day before buying. If
+  the reason is only that the price went up, that is the answer.
+</p>
+<p>
+  Decide how much you would put in before you look at the
+  chart, and keep any single holding from growing too large: the
+  <a href="/learn/concentration-risk">concentration guide</a> shows why. The opposite habit,
+  <a href="/learn/panic-selling">selling in a panic</a>, comes from the same place.
+</p>
+
+<h2>Frequently asked questions</h2>
+<div class="faq-list">
+  <div class="faq-item">
+    <h3>Is buying a stock after a big rise always a mistake?</h3>
+    <p>No. In large Indian stocks since 2011, the typical result after a sharp run-up was not worse than usual, though the range of outcomes was wider. The mistake is buying with no reason beyond the rise.</p>
+  </div>
+  <div class="faq-item">
+    <h3>What is the difference between FOMO and momentum investing?</h3>
+    <p>Momentum investing is a planned strategy with rules set in advance. FOMO is an emotional reaction with no plan behind it, even when the two lead to the same trade.</p>
+  </div>
+  <div class="faq-item">
+    <h3>Does StockSaathi stop FOMO trades?</h3>
+    <p>No. It lets the trade go through and then shows a note explaining what it noticed, in your own numbers, so you can decide for yourself next time.</p>
+  </div>
+  <div class="faq-item" lang="hi-Latn">
+    <h3>Stock market mein FOMO kya hota hai?</h3>
+    <p>FOMO matlab fear of missing out. Jab koi share pehle hi bahut upar ja chuka ho aur tum sirf isliye khareedo ki kahin mauka na chhoot jaaye, bina ye samjhe ki company kya karti hai.</p>
+  </div>
+</div>
+
+<p>
+  Practise with virtual money: pick a stock that has jumped, write down your reason, and <a href="/stocks">place the trade on
+  StockSaathi</a>. See what the coach says, and come back in a month to check whether your reason held up.
+</p>

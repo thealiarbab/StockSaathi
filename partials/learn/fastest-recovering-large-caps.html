@@ -1,0 +1,147 @@
+<!--
+{
+  "title": "Large Cap Stocks After a Fall: How Fast Do They Recover?",
+  "headline": "Large-cap stocks that recovered fastest from falls since 2011",
+  "description": "How long Nifty 100 companies took to climb back after 10% falls since 2011: the typical stock took 67.5 trading days, with a huge gap between stocks.",
+  "summary": "Across 86 Nifty 100 companies with at least five recovered 10% falls since 2011, the typical median recovery was 67.5 trading days, from 25 for the fastest to 318 for the slowest.",
+  "category": "Market crashes and recoveries",
+  "datePublished": "2026-11-07",
+  "dateModified": "2026-11-07",
+  "status": "gate",
+  "sources": [
+    {"name": "Yahoo Finance: historical daily closes for Nifty 100 companies", "url": "https://finance.yahoo.com/quote/%5ENSEI/history/", "accessed": "2026-11-07"},
+    {"name": "NSE Indices: Methodology Document (Nifty 50 index)", "url": "https://nsearchives.nseindia.com/content/indices/Method_Nifty_50.pdf", "accessed": "2026-11-02"}
+  ],
+  "facts": {
+    "86": "data:scripts/data/learn/fastest-recovering-large-caps.json:n_stocks",
+    "67.5": "data:scripts/data/learn/fastest-recovering-large-caps.json:median_of_medians",
+    "25": "data:scripts/data/learn/fastest-recovering-large-caps.json:fastest.0.median_days",
+    "318": "data:scripts/data/learn/fastest-recovering-large-caps.json:slowest.4.median_days",
+    "200": "data:scripts/data/learn/fastest-recovering-large-caps.json:nifty_median",
+    "10%": "def:fall threshold",
+    "5": "def:minimum recovered falls to be listed"
+  },
+  "related": ["nifty-recovery-time", "concentration-risk", "panic-selling"],
+  "cta": {"href": "/stocks", "label": "See any stock's own falls and recoveries"}
+}
+-->
+<h1 class="tight">Large-cap stocks after a fall: how fast do they recover?</h1>
+<p class="lede">
+  The typical large Indian company climbed back from a 10% fall in a median of 67.5 trading days, about three months, in data
+  since 2011. The range is huge: from 25 trading days for the fastest stock to 318 for the slowest. A company's size doesn't
+  tell you how quickly its shares will return.
+</p>
+
+<div class="key-takeaways">
+  <h2>Key takeaways</h2>
+  <ul>
+    <li>Across 86 Nifty 100 companies, the typical stock's median recovery from a 10% fall was 67.5 trading days.</li>
+    <li>The fastest stock's median was 25 trading days and the slowest was 318.</li>
+    <li>The Nifty 50 index itself had a median of 200 trading days, because its 10% falls are rarer and run deeper.</li>
+    <li>Only stocks with at least 5 recovered falls are included.</li>
+    <li>Falls that never recovered aren't counted in these medians, so the true picture is less comfortable.</li>
+  </ul>
+</div>
+
+<h2>Which large caps recovered fastest and slowest?</h2>
+<p>
+  The table ranks companies by the median number of trading days their shares took to get back to the old high, counted from the
+  day a fall first reached 10%. It describes what happened; it isn't a list of good or bad investments.
+</p>
+<figure class="data-table table-wrap">
+  <table class="compare">
+    <thead>
+      <tr><th scope="col">Company</th><th scope="col">Median days to recover</th><th scope="col">Recovered 10% falls</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Hitachi Energy India</td><td>25</td><td>17</td></tr>
+      <tr><td>LTM</td><td>26</td><td>12</td></tr>
+      <tr><td>Samvardhana Motherson International</td><td>26</td><td>21</td></tr>
+      <tr><td>Max Healthcare Institute</td><td>27</td><td>16</td></tr>
+      <tr><td>Hindustan Aeronautics</td><td>28</td><td>10</td></tr>
+      <tr><td>Varun Beverages</td><td>35</td><td>17</td></tr>
+      <tr><td><em>Slowest five</em></td><td></td><td></td></tr>
+      <tr><td>Indian Oil Corporation</td><td>187</td><td>7</td></tr>
+      <tr><td>State Bank of India</td><td>217</td><td>11</td></tr>
+      <tr><td>Coal India</td><td>237</td><td>5</td></tr>
+      <tr><td>Tata Consumer Products</td><td>251</td><td>9</td></tr>
+      <tr><td>Tata Steel</td><td>318</td><td>7</td></tr>
+    </tbody>
+  </table>
+  <figcaption>Source: StockSaathi analysis of daily closes for Nifty 100 companies, 2011 or listing to the end of October 2026.
+  Price only, with no dividends. A short list of falls can move a median a long way, and past recoveries don't predict
+  future ones.</figcaption>
+</figure>
+
+<h2>What does recovery mean for a stock?</h2>
+<p>
+  Here it means the share closed back at or above the high it had before the fall. A <strong>10% fall</strong> counts once a
+  close is at least 10% below the most recent high, and the clock starts that day. It stops the day the stock regains that
+  high. Falls still open don't have a recovery time yet, so they are left out of the median.
+</p>
+<p>
+  A <strong>large cap</strong> here is a company in the Nifty 100, which in practice means the biggest listed companies by
+  market value. This is today's list, so it doesn't include companies that were large in 2011 and have since dropped out.
+</p>
+
+<h2>Why does a single stock recover faster than the Nifty?</h2>
+<p>
+  It usually doesn't mean stocks are safer than the index. It reflects how often each one falls. A single share is much more
+  volatile than a basket of 50, so it drops 10% often, including on ordinary bumps that reverse in weeks.
+</p>
+<p>
+  The Nifty 50 only
+  falls 10% when something broad is happening, which is why it has had just nine such falls since its November 2010 high,
+  against seventeen or more in some single stocks here. So the index's median of 200 trading days covers a small set of serious
+  falls, while a stock's median includes many small ones.
+</p>
+<p>
+  The two numbers measure different things, and comparing them
+  directly would mislead you. The <a href="/learn/nifty-recovery-time">Nifty recovery guide</a> has the index's full record.
+  A better way to read this table is to look at the stocks one at a time: how often they fell and how long they took each
+  time. A company with many quick recoveries has behaved very differently from one with a handful of very long ones, even
+  if both are household names.
+</p>
+
+<h2>Why do some large caps take so much longer?</h2>
+<p>
+  There is no single reason, and this data doesn't prove one. Several of the slowest names are in businesses tied to
+  commodity prices, government policy or long cycles, where a downturn can last for years. Faster names in this period include
+  companies whose earnings were growing quickly. Those are patterns to look into, not causes this table can establish, and
+  a stock's past speed says nothing certain about its next fall.
+</p>
+
+<h2>What are the limits of this data?</h2>
+<p>
+  The biggest limit is that only recovered falls count. Many large companies are still below an old high, and the
+  stock pages on StockSaathi show which falls are still open. The list
+  is also today's Nifty 100, so it leaves out companies that fell far enough to leave the list. Both effects make recovery
+  look more reliable than it really is, which is another reason to keep any one holding from
+  <a href="/learn/concentration-risk">becoming too large</a>.
+</p>
+
+<h2>Frequently asked questions</h2>
+<div class="faq-list">
+  <div class="faq-item">
+    <h3>How long do large-cap stocks take to recover from a fall?</h3>
+    <p>Across 86 Nifty 100 companies since 2011, the typical median recovery from a 10% fall was 67.5 trading days, about three months, but it ranged from 25 to 318 for individual stocks.</p>
+  </div>
+  <div class="faq-item">
+    <h3>Do all large-cap stocks recover?</h3>
+    <p>No. These medians count only falls that recovered. Some falls are still open, and a large company can stay below an old high for years.</p>
+  </div>
+  <div class="faq-item">
+    <h3>Should I buy a stock because it recovers quickly?</h3>
+    <p>StockSaathi doesn't recommend stocks. A fast past recovery describes what happened, and it can't tell you what the next fall will do.</p>
+  </div>
+  <div class="faq-item" lang="hi-Latn">
+    <h3>Badi companies ke share girne ke baad kitne din mein recover hote hain?</h3>
+    <p>2011 se Nifty 100 ki 86 companies mein 10% girawat ke baad typical median 67.5 trading days raha, lekin har stock mein fark bahut bada hai, 25 se 318 din tak.</p>
+  </div>
+</div>
+
+<p>
+  Every stock page on StockSaathi lists that stock's own falls and recoveries, where there is enough clean data.
+  <a href="/stocks">Look up a company you know</a>, then practise holding through a fall with virtual money in the
+  <a href="/crash-replay">crash replays</a>.
+</p>
