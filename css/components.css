@@ -5502,3 +5502,8 @@ button.ss-pill-x:hover { border-color: var(--brand); }
 .hc-card h2 { margin: 0; font-size: var(--text-lg, 18px); }
 .hc-card p { margin: 0; font-size: var(--text-sm, 14px); color: var(--text-muted, inherit); }
 .hc-widget { display: flex; justify-content: center; min-height: 65px; }
+/* Homepage guides grid: whole card is the link */
+.landing-guides { margin: var(--sp-6) 0 0; }
+a.feature-card { display: block; color: inherit; text-decoration: none; }
+a.feature-card h3 { color: var(--text); }
+.landing-guides-cta { margin-top: var(--sp-5); }

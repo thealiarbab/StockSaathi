@@ -16,12 +16,14 @@ const LINKS_AUTH = [
   { route: "chat",      label: "Coach Chat", icon: "💬" },
   { route: "crash-replay", label: "Time Travel", icon: "⏱" },
   { route: "report-card", label: "Report Card", icon: "📋" },
+  { route: "learn",       label: "Guides",    icon: "📚" },
 ];
 
 const LINKS_PUBLIC = [
   { route: "chat",         label: "Coach Chat", icon: "💬" },
   { route: "crash-replay", label: "Time Travel", icon: "⏱" },
   { route: "news",         label: "News",       icon: "📰" },
+  { route: "learn",        label: "Guides",     icon: "📚" },
 ];
 
 // Top bar on desktop. Leaderboard removed Apr 24 2026 — see router.js
