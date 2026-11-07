@@ -76,7 +76,7 @@ FOUNDER_ID = SITE + "/#founder"
 # /about and /contact ship noindex first and are flipped after the SEO gate.
 NEW_PAGES_LIVE = True
 # Same for the /learn hub (it also needs at least one live guide).
-LEARN_HUB_LIVE = False
+LEARN_HUB_LIVE = True
 
 e = html.escape
 

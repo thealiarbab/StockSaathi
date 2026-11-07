@@ -1,2 +1,285 @@
 # StockSaathi guides (full summaries)
 > Answer-first summaries and key takeaways of every published StockSaathi guide. Each guide is written by Ali Arbab, founder of StockSaathi. Educational only; not investment advice.
+
+## The 2008 crash in India: why selling early won, and why that's rare
+
+URL: https://stocksaathi.co.in/learn/2008-crash-india
+Updated: 2026-11-07
+
+In 2008 the Nifty 50 fell 59.9% from its January record to its October low. ₹1,00,000 that stayed invested shrank to ₹40,144, while someone who sold on day three kept ₹98,604. Selling early won that year, but only because the fall was unusually deep and long, and getting back in was the harder decision.
+
+Key takeaways:
+- ₹1,00,000 tracking the Nifty 50 from its record close on 8 January 2008 fell to ₹40,144 by 27 October 2008, a 59.9% drop.
+- Someone who sold everything on day three kept ₹98,604, almost two and a half times what the holder had at the bottom.
+- A year after the bottom the held portfolio was back to ₹77,080, still well below where it started.
+- The Nifty only closed back at its January 2008 level on 9 November 2010, 496 trading days after the bottom.
+- No Nifty 50 fall since then has come close: the deepest was 38.4%, and all 8 completed falls of 10% or more got back to their old high.
+
+
+## 52-week highs, lows and the anchoring trap
+
+URL: https://stocksaathi.co.in/learn/52-week-high-anchoring
+Updated: 2026-11-07
+
+A 52-week high is the highest price a share reached in the past year, and a 52-week low is its lowest. They are useful markers, but they say nothing about what a share is worth. The trap is anchoring: treating an old price as the price the share should return to.
+
+Key takeaways:
+- On 30 October 2026, 25 of the 50 Nifty 50 companies closed 20% or more below their highest close of the past year.
+- Only 6 of the 50 stood within 5% of it.
+- Anchoring is letting a first number pull your later judgment towards it, as Tversky and Kahneman described in 1974.
+- In large Indian stocks since 2012, a year after a new low 69.26% were higher, and a year after a new high 67.72% were higher, but these are survivors.
+- StockSaathi's coach notes anchoring when you buy more of a share at least 8% below what you paid.
+
+
+## Diversification for beginners: why putting most of your money in one stock is risky
+
+URL: https://stocksaathi.co.in/learn/concentration-risk
+Updated: 2026-11-07
+
+Concentration risk is the danger of having so much of your money in one stock or sector that a single bad result damages everything you own. Diversification, spreading money across different investments, reduces that risk but can't remove it. The median stock stood 32.7% below its own highest close, against 12.4% for the Nifty 50.
+
+Key takeaways:
+- Of 423 stocks tracked by StockSaathi, 53.2% stood 30% or more below their highest close in the data at the end of October 2026.
+- The median stock was 32.7% below its high, while the Nifty 50 was 12.4% below its own.
+- StockSaathi's coach flags a buy that takes one stock to 40% of everything you have, or one sector past 55% of your portfolio.
+- SEBI's rules stop an ordinary mutual fund scheme from putting more than 10% of its NAV into one entity's shares.
+
+
+## What happened to ₹1 lakh in the Nifty 50 during the COVID crash (2020)
+
+URL: https://stocksaathi.co.in/learn/covid-crash-2020-nifty
+Updated: 2026-11-07
+
+₹1,00,000 put into the Nifty 50 on 19 February 2020 was worth ₹62,760 by 23 March, after a 37.2% fall in 33 days. Someone who held on had ₹1,02,764 by 9 November 2020. Someone who panic-sold on day three kept ₹97,295 in cash and missed the climb back.
+
+Key takeaways:
+- ₹1,00,000 tracking the Nifty 50 from 19 February 2020 fell to ₹62,760 at the lowest close on 23 March 2020, a 37.2% drop in 33 days.
+- On that last day of the fall the Nifty dropped 13.0% in one session, the day before India's 21-day national lockdown was announced.
+- Holding all the way left ₹1,02,764 on 9 November 2020, 2.8% more than the start.
+- Selling everything on day three left ₹97,295, 2.7% less than the start, so holding finished 5.6% ahead.
+- The Nifty was back at its 19 February level on 6 November 2020, 157 trading days after the bottom.
+
+
+## Can a teenager open a demat account in India?
+
+URL: https://stocksaathi.co.in/learn/demat-account-minor-india
+Updated: 2026-11-07
+
+Yes, but with limits. A demat account can be opened in a minor's name, and a parent or court-appointed guardian operates it until the minor turns 18. A minor cannot contract with a stock broker to buy or sell shares, so a trading account in their name can only be used to sell shares they already own.
+
+Key takeaways:
+- SEBI allows a demat account in a minor's name, operated by a guardian until the minor becomes an adult.
+- In India a person becomes an adult in law, a major, on completing the age of 18.
+- A minor cannot enter into a contract with a stock broker to buy or sell shares.
+- A trading account in a minor's name can only sell shares the minor already holds, for example from an IPO, an inheritance, a gift or a corporate action.
+- A minor cannot be a joint holder in someone else's demat account.
+
+
+## Demonetisation and the stock market: what happened from November 2016 to February 2017
+
+URL: https://stocksaathi.co.in/learn/demonetisation-stock-market
+Updated: 2026-11-07
+
+After demonetisation was announced on 8 November 2016, the Nifty 50 slid for seven weeks, losing 7.4% by its low on 26 December 2016. It was back above its starting level by 25 January 2017. It was a real fall but a shallow one, far smaller than the 2008 or COVID-19 crashes.
+
+Key takeaways:
+- ₹500 and ₹1,000 notes stopped being legal tender at midnight on 8 November 2016, after the Prime Minister's address that evening.
+- The Nifty 50 fell 2.9% in the first three sessions and 7.4% by its low on 26 December 2016.
+- ₹1,00,000 in the index at the 8 November close was worth ₹92,564 at the low.
+- By 28 February 2017 the index stood 3.9% above where it started.
+- The RBI later reported that about 99.3% of the value of the withdrawn notes came back.
+
+
+## Large-cap stocks that recovered fastest from falls since 2011
+
+URL: https://stocksaathi.co.in/learn/fastest-recovering-large-caps
+Updated: 2026-11-07
+
+The typical large Indian company climbed back from a 10% fall in a median of 67.5 trading days, about three months, in data since 2011. The range is huge: from 25 trading days for the fastest stock to 318 for the slowest. A company's size doesn't tell you how quickly its shares will return.
+
+Key takeaways:
+- Across 86 Nifty 100 companies, the typical stock's median recovery from a 10% fall was 67.5 trading days.
+- The fastest stock's median was 25 trading days and the slowest was 318.
+- The Nifty 50 index itself had a median of 200 trading days, because its 10% falls are rarer and run deeper.
+- Only stocks with at least 5 recovered falls are included.
+- Falls that never recovered aren't counted in these medians, so the true picture is less comfortable.
+
+
+## FOMO in the stock market: what it is, and what happened after big run-ups
+
+URL: https://stocksaathi.co.in/learn/fomo-investing
+Updated: 2026-11-07
+
+FOMO, the fear of missing out, is buying something because its price has already jumped and you can't stand watching it go higher without you. In today's Nifty 100 companies since 2011, the median move over the next 60 sessions was +6.44%, against +3.33% on ordinary days. The trouble is that you bought without a reason of your own.
+
+Key takeaways:
+- StockSaathi's coach flags a FOMO buy when a new purchase is at least 20% above the stock's lowest close of the last 10 sessions, and the move is unusually large for that stock.
+- Across 463 such run-ups in large Indian stocks since 2011, the median move over the next 60 sessions was +6.44%, against +3.33% for ordinary days.
+- The bad outcomes were worse: one run-up in ten was followed by a fall of 16.13% or more, against 14.16% for ordinary days.
+- These stocks are today's Nifty 100, which flatters the numbers, because companies that collapsed dropped out of the list.
+- SEBI tells investors not to follow the herd and not to rely on hot tips.
+
+
+## Market order, limit order and AMO explained, with examples
+
+URL: https://stocksaathi.co.in/learn/market-limit-amo-orders
+Updated: 2026-11-07
+
+A market order buys or sells straight away at the best price available. A limit order only trades at the price you set or better, so it may wait or never fill. An after-market order (AMO) is placed while the market is closed and is sent for execution when trading opens again.
+
+Key takeaways:
+- A market order trades straight away at the best price on offer; a limit order only trades at your price or better.
+- On NSE and BSE, continuous trading runs from 9:15 am to 3:30 pm on trading days, after a pre-open session that starts at 9:00 am.
+- An after-market order (AMO) is placed while the market is closed and runs when trading next opens, at whatever price the market offers then.
+- On StockSaathi, pending limit orders and AMOs are matched on the server and stay valid for 30 days, so they can fill while the app is closed.
+- 86.4% of StockSaathi traders have placed at least one limit order or AMO.
+
+
+## Mutual funds, stocks and ETFs explained for beginners
+
+URL: https://stocksaathi.co.in/learn/mutual-funds-stocks-etfs-explained
+Updated: 2026-11-07
+
+A stock is a small part of one company. A mutual fund pools many people's money and invests it for them, and you buy units at that day's NAV. An ETF is a basket of investments that trades on the exchange through the day, like a share. Beginners mostly need to know what they own and how they buy it.
+
+Key takeaways:
+- A stock is a share of one company, and its price moves through the trading day.
+- A mutual fund issues units at its NAV, published after the market closes.
+- An ETF is a basket of securities bought and sold on an exchange like a share.
+- StockSaathi's list holds 4,548 stocks and 371 ETFs.
+- AMFI's data on 5 November 2026 shows 8,709 fund plans with a recent NAV, from 55 fund houses.
+
+
+## How long does the Nifty 50 take to recover from a 10%, 20% or 30% fall?
+
+URL: https://stocksaathi.co.in/learn/nifty-recovery-time
+Updated: 2026-11-07
+
+Since its record high of November 2010 the Nifty 50 has fallen 10% or more nine times. Eight of those falls recovered fully, taking a median of 200 trading days, about nine and a half months, to get back to the old high. Bigger falls took longer, and history describes what happened; it does not promise what will.
+
+Key takeaways:
+- Since its record high of November 2010 the Nifty 50 has fallen 10% or more 9 times; 8 of those falls have fully recovered and 1 is still open.
+- The median 10% fall took 200 trading days to climb back to its old high; the fastest took 73 and the slowest took 682.
+- Falls of 20% or more happened 3 times, reaching their lows in 2011, 2016 and 2020, and took a median of 265 trading days to recover from the day the fall reached 20%.
+- Only one of these falls went past 30%: the COVID-19 crash, when the Nifty dropped 38.4% and still regained its January 2020 high by November 2020.
+- At the end of October 2026 the Nifty was 12.4% below its January 2026 high, in a fall that has not yet recovered.
+
+
+## Nifty 50 and Sensex: what they are and how they're calculated
+
+URL: https://stocksaathi.co.in/learn/nifty-sensex-explained
+Updated: 2026-11-07
+
+The Nifty 50 and the Sensex are India's two best-known stock market indices. The Nifty 50 tracks 50 large, frequently traded companies on the NSE, and the Sensex tracks 30 on the BSE. Both are weighted by each company's free-float market value, so when people say "the market rose today", they usually mean one of these.
+
+Key takeaways:
+- The Nifty 50 tracks 50 large NSE companies chosen from the Nifty 100; the Sensex tracks 30 BSE companies chosen from the BSE 100.
+- Both are weighted by free-float market value, so the biggest companies move them the most.
+- The Nifty 50 started at 1,000 on 3 November 1995; the Sensex measures against a base of 100 in the 1978 to 1979 financial year.
+- From its record close on 9 November 2010 to 30 October 2026 the Nifty 50 rose from 6,301.55 to 23,053.10, up 265.8%.
+- It ended 13 of the 15 full calendar years from 2011 to 2025 higher; the exceptions were 2011, down 24.6%, and 2015, down 4.1%.
+
+
+## NSE and BSE explained: what is the difference?
+
+URL: https://stocksaathi.co.in/learn/nse-and-bse-explained
+Updated: 2026-11-07
+
+NSE and BSE are India's two main stock exchanges, the marketplaces where shares are bought and sold. BSE dates from 1875, while NSE was incorporated in 1992 and began trading shares in 1994. Many companies list on both, so for most beginners the choice of exchange makes little practical difference.
+
+Key takeaways:
+- BSE, established in 1875, describes itself as Asia's first stock exchange.
+- NSE was incorporated in 1992 and started trading equities on 3 November 1994.
+- StockSaathi's list counts 2,647 NSE main-board stocks, 583 NSE small-company (SME) stocks and 1,318 stocks found only on BSE.
+- 2,520 of those NSE main-board stocks also carry a BSE code, so they trade on both exchanges.
+- The Nifty 50 is NSE's main index and the Sensex is BSE's.
+
+
+## Panic selling: what it is, why beginners do it, and how to stop
+
+URL: https://stocksaathi.co.in/learn/panic-selling
+Updated: 2026-11-07
+
+Panic selling is selling an investment because its price is falling fast and you are afraid it will keep falling, without checking whether anything has changed about the investment itself. It often turns a temporary fall into a permanent loss. The fix is not a rule to never sell, but a habit of deciding why before you act.
+
+Key takeaways:
+- Panic selling means selling because a price is falling fast, out of fear, without checking whether anything changed at the company.
+- SEBI's investor material puts it in one line: an investor should not be impulsive in buying, emotional in holding and panicky in selling.
+- StockSaathi's coach flags a sale as panic-selling when at least a quarter of a position is sold at a loss right after an unusually sharp fall for that stock.
+- Since 25 October 2026, 99.7% of sales on StockSaathi did not fit the panic-selling pattern.
+- Every completed 10% fall in the Nifty 50 since its November 2010 high recovered, taking a median of 200 trading days, which is why selling in the first weeks of a fall so often locks in a loss.
+
+
+## What is the P/E ratio? Explained with real Indian stocks
+
+URL: https://stocksaathi.co.in/learn/pe-ratio-explained
+Updated: 2026-11-07
+
+The P/E ratio is a share's price divided by the company's earnings per share. It tells you how many rupees buyers are paying today for each rupee of yearly profit. A share at ₹500 earning ₹25 a share has a P/E of 20. It describes a price; it doesn't say whether that price is right.
+
+Key takeaways:
+- NSE defines the price-earnings ratio as the ratio of a company's share price to its earnings per share.
+- A share at ₹500 with earnings per share of ₹25 has a P/E of 20.
+- On 6 November 2026, eight large Indian companies ranged from a P/E of 10.47 to 49.99.
+- P/E differs widely between sectors, so it is most useful for comparing similar companies.
+- The Nifty's own P/E uses its companies' earnings over the last 4 quarters.
+
+
+## Share market kaise sikhe: bina paise ka 4 hafte ka practice plan
+
+URL: https://stocksaathi.co.in/learn/share-market-kaise-sikhe
+Updated: 2026-11-07
+
+Share market sabse achhe se karke seekha jaata hai, sirf padh kar nahi. Asli paisa lagane se pehle virtual paise se practice karo: kuch zaroori shabd samjho, chhote trades lagao, ek asli crash ko replay karo, aur apni galtiyon ko dekho. Ye 4 hafte ka plan bilkul free hai aur ek bhi rupaya risk mein nahi daalta.
+
+Key takeaways:
+- StockSaathi par 13 saal ya usse zyada ka koi bhi free account bana kar ₹1,00,000 ke virtual paise se practice kar sakta hai.
+- Plan 4 hafte ka hai: shabd, pehla trade, crash replay, aur apni galtiyon ka review.
+- StockSaathi par 67.9% pehle trades Nifty 50 companies mein hote hain, yaani zyadatar log jaani-pehchaani badi companies se shuru karte hain.
+- 86.4% traders kam se kam ek limit order ya AMO try karte hain, jo order types seekhne ka sabse aasaan tareeka hai.
+- Kya crash ke baad market wapas aata hai? November 2010 ke high se Nifty 50 ki har poori ho chuki 10% girawat wapas recover hui, median 200 trading days mein; isliye crash ko samajhna zaroori hai.
+
+
+## What is a SIP? Explained with a real Nifty 50 backtest
+
+URL: https://stocksaathi.co.in/learn/sip-explained-nifty-backtest
+Updated: 2026-11-07
+
+A SIP, or systematic investment plan, puts a fixed amount into a mutual fund at regular intervals. Investing ₹5,000 a month in the Nifty 50 from January 2015 to October 2026 meant putting in ₹7,10,000, which reached ₹12,66,619. That works out to about 9.4% a year, before costs and dividends.
+
+Key takeaways:
+- AMFI defines a SIP as investing a fixed amount in a mutual fund scheme periodically at fixed intervals.
+- ₹5,000 a month in the Nifty 50 from January 2015 to October 2026 turned ₹7,10,000 into ₹12,66,619.
+- That is a yearly return of 9.4%, measured on the index alone with no costs, taxes or dividends.
+- The same total invested on the first day would have reached ₹19,49,592, but few people have the whole amount on day one.
+- AMFI says SIPs can start as small as ₹500 a month, and ₹250 a month under Chhoti SIP.
+
+
+## T+1 settlement in India explained, with worked examples
+
+URL: https://stocksaathi.co.in/learn/t-plus-1-settlement
+Updated: 2026-11-07
+
+T+1 settlement means a stock trade in India is completed one working day after the day it happens: the buyer receives the shares and the seller is paid on the next working day. All stocks have settled on T+1 since 27 January 2023, when India finished moving from T+2.
+
+Key takeaways:
+- Indian stock trades settle on T+1: shares and money change hands one working day after the trade day.
+- T+1 has applied to all stocks since 27 January 2023, when India completed the move from T+2.
+- Settlement took three working days (T+3) from April 2002 and two (T+2) from 1 April 2003.
+- Since 28 March 2024 an optional same-day T+0 cycle has run alongside T+1, starting with 25 stocks; in November 2024 SEBI's board was asked to widen it to the top 500 stocks by market value.
+
+
+## What Indian students buy first when they start investing
+
+URL: https://stocksaathi.co.in/learn/what-students-buy-first
+Updated: 2026-11-07
+
+On StockSaathi, a free practice app built for students, the most common first buy is Reliance Industries, chosen in 25.1% of first trades. Big, familiar names dominate: 67.9% of first buys are Nifty 50 companies, led by Reliance, TCS, HDFC Bank and Bharti Airtel. Familiar is not the same as well understood, though.
+
+Key takeaways:
+- Reliance Industries is the most common first buy on StockSaathi, chosen in 25.1% of first trades.
+- The next four are TCS (6.3%), HDFC Bank (6.2%), Bharti Airtel (5.9%) and State Bank of India (3.8%).
+- 67.9% of first buys are Nifty 50 companies, and only 2.4% are ETFs.
+- Across all trades, 56.8% are in Nifty 50 companies.
+- Energy (17.3%), banking (14.9%) and IT services (10.4%) are the most-traded sectors.
+
