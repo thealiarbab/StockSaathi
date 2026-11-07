@@ -31,6 +31,48 @@ Key takeaways:
 - StockSaathi's coach notes anchoring when you buy more of a share at least 8% below what you paid.
 
 
+## Adani and Hindenburg 2023: a share price timeline
+
+URL: https://stocksaathi.co.in/learn/adani-hindenburg-2023-timeline
+Updated: 2026-11-07
+
+A report by the short seller Hindenburg Research on 24 January 2023 was followed by a sharp fall in Adani group shares. Five of them lost between 39.2% and 76.7% by their 2023 lows. This timeline records dates and prices only. It doesn't judge the allegations, which the Supreme Court also said it wasn't deciding.
+
+Key takeaways:
+- Five Adani group shares fell between 39.2% and 76.7% from their 24 January 2023 closes to their 2023 lows.
+- Adani Enterprises' follow-on offer ran from 27 January to 31 January 2023, was fully subscribed, and was then withdrawn with money returned.
+- On 3 January 2024 the Supreme Court declined to move the investigation away from SEBI and said a third-party report can't be regarded as conclusive proof.
+- On 30 October 2026, 3 of the 5 shares were still below their 24 January 2023 close.
+
+
+## Can a student open a demat account?
+
+URL: https://stocksaathi.co.in/learn/can-a-student-open-demat-account
+Updated: 2026-11-07
+
+Yes, if you are 18 or over. Being a student doesn't stop you: the rules look at your age and your KYC, and SEBI's booklet doesn't list a job among the requirements. Under 18, a demat account can exist in your name, but a guardian operates it and you can't trade through a broker.
+
+Key takeaways:
+- Under the Majority Act, a person in India reaches majority at 18.
+- A student aged 18 or over opens a demat account through the same KYC process as any adult.
+- Under 18, a demat account can be opened in your name but must be operated by a guardian.
+- A Basic Services Demat Account has no annual charge up to ₹4 lakh, and holdings can't exceed ₹10 lakh.
+
+
+## Running a classroom stock market activity
+
+URL: https://stocksaathi.co.in/learn/classroom-stock-market-competition
+Updated: 2026-11-07
+
+A classroom stock market activity works best when students are marked on their reasoning, not their returns. Each student gets virtual money, writes down why they made each trade, and reflects every week. Avoid prizes and avoid ranking anyone by returns: both reward luck and risk-taking, which is the opposite of what you want to teach.
+
+Key takeaways:
+- Mark students on their written reasoning, not on how much their portfolio rose.
+- Avoid prizes: SEBI has cautioned about securities market competitions that offer prize money.
+- StockSaathi gives each student ₹1,00,000 of virtual money, and students must be 13 or older.
+- A 4-week plan with one reflection task a week fits inside a normal school timetable.
+
+
 ## Diversification for beginners: why putting most of your money in one stock is risky
 
 URL: https://stocksaathi.co.in/learn/concentration-risk
@@ -90,6 +132,34 @@ Key takeaways:
 - The RBI later reported that about 99.3% of the value of the withdrawn notes came back.
 
 
+## The disposition effect: selling winners too early
+
+URL: https://stocksaathi.co.in/learn/disposition-effect
+Updated: 2026-11-07
+
+The disposition effect is the tendency to sell investments that have gone up too soon, and to hold those that have gone down for too long. Selling a winner feels good and selling a loser feels like admitting a mistake, so the portfolio slowly fills with losers. Terrance Odean documented the pattern in 1998.
+
+Key takeaways:
+- The disposition effect is the tendency to hold losing investments too long and sell winning ones too soon.
+- Terrance Odean found it in the trading records of 10,000 brokerage accounts at a large US discount broker.
+- He reported that the behaviour wasn't justified by how those investments later performed.
+- StockSaathi's coach flags it when you sell at a profit while another holding is 10% or more under water, and winners sold outnumber losers sold at least 2 to 1 over 60 days.
+
+
+## ELSS and tax-saving mutual funds explained
+
+URL: https://stocksaathi.co.in/learn/elss-tax-saving-funds
+Updated: 2026-11-07
+
+An ELSS, or Equity Linked Saving Scheme, is an equity mutual fund with a statutory 3-year lock-in and a tax benefit. Under the Income-tax Act, 2025, the related deduction of up to ₹1,50,000 isn't available under the default tax regime. So whether it helps you depends on which regime you use.
+
+Key takeaways:
+- SEBI defines an ELSS as an open-ended equity linked saving scheme with a statutory lock-in of 3 years and tax benefit, holding at least 80% in equity.
+- Section 123 of the Income-tax Act, 2025 gives a deduction of up to ₹1,50,000 for items listed in Schedule XV.
+- That deduction isn't available under the default regime; you have to opt out of it.
+- Long-term gains on equity funds above ₹1,25,000 are taxed at 12.5%, where the conditions in section 198 are met.
+
+
 ## Large-cap stocks that recovered fastest from falls since 2011
 
 URL: https://stocksaathi.co.in/learn/fastest-recovering-large-caps
@@ -102,7 +172,21 @@ Key takeaways:
 - The fastest stock's median was 25 trading days and the slowest was 318.
 - The Nifty 50 index itself had a median of 200 trading days, because its 10% falls are rarer and run deeper.
 - Only stocks with at least 5 recovered falls are included.
-- Falls that never recovered aren't counted in these medians, so the true picture is less comfortable.
+- Falls that never recovered aren't counted in these medians, so the true picture is less comfortable. For those, see the stocks still below their peak.
+
+
+## Got your first salary? How investing works in India (no tips)
+
+URL: https://stocksaathi.co.in/learn/first-salary-investing-india
+Updated: 2026-11-07
+
+Your first salary is a good moment to learn how investing works, not to rush. SEBI's financial education booklet starts with your current financial situation: what you earn, spend and owe, and what you need for emergencies. Investing comes after that, with money you won't need soon. StockSaathi explains the options and never recommends one.
+
+Key takeaways:
+- SEBI's financial education material starts planning from your current financial situation.
+- To invest in shares you need three accounts: bank, trading and demat.
+- ₹2,000 a month in the Nifty 50 from January 2015 to October 2026 turned ₹2,84,000 into ₹5,06,648, on the index alone.
+- That works out to 9.4% a year before costs and dividends, and past returns don't predict future ones.
 
 
 ## FOMO in the stock market: what it is, and what happened after big run-ups
@@ -120,6 +204,93 @@ Key takeaways:
 - SEBI tells investors not to follow the herd and not to rely on hot tips.
 
 
+## The Harshad Mehta scam explained for students
+
+URL: https://stocksaathi.co.in/learn/harshad-mehta-scam-1992
+Updated: 2026-11-07
+
+The 1992 securities scam, linked to the broker Harshad Mehta, involved irregular deals in government securities and bank money diverted to brokers' accounts. The Government set up a Special Court by ordinance on 6 June 1992, and the RBI banned key inter-bank deals that month. It changed how Indian markets are policed.
+
+Key takeaways:
+- Official records describe large-scale irregularities in government and other securities transactions, and diversion of funds from banks to the accounts of certain brokers.
+- The RBI records banks doing ready forward deals without holding the securities, and using bank receipts instead.
+- A Special Court ordinance was promulgated on 6 June 1992, and 29 entities were notified under the law that replaced it.
+- The RBI banned inter-bank ready forward deals in dated government securities from 22 June 1992.
+- The SEBI Act, 1992 is deemed to have come into force on 30 January 1992, the same year.
+
+
+## How much money do you need to start investing in India?
+
+URL: https://stocksaathi.co.in/learn/how-much-money-to-start-investing-india
+Updated: 2026-11-07
+
+There is no fixed minimum. The real floor is the price of one share or a fund's minimum instalment. On 5 November 2026 the median NSE share closed at ₹196.90, and AMFI says a SIP can start at ₹500 a month, or ₹250 under Chhoti SIP. A low price doesn't make a share cheap, though.
+
+Key takeaways:
+- The median share on NSE's main equity series closed at ₹196.90 on 5 November 2026.
+- 947 of 2,742 shares closed under ₹100, and 1,933 closed under ₹500.
+- AMFI says a SIP instalment could be as small as ₹500 a month, or ₹250 a month under Chhoti SIP.
+- The price of a share says nothing about whether it is a good or safe investment.
+
+
+## How to buy your first share in India, step by step
+
+URL: https://stocksaathi.co.in/learn/how-to-buy-first-share-india
+Updated: 2026-11-07
+
+To buy your first share in India you need three accounts: a bank account, a trading account with a SEBI-registered broker, and a demat account. You complete KYC, add money, place an order on NSE or BSE, and the shares reach your demat account after settlement. Under 18, the rules are different.
+
+Key takeaways:
+- SEBI says you need three accounts to invest in shares: bank, trading and demat.
+- KYC is compulsory under the Prevention of Money Laundering Act, and you can complete it online with e-KYC.
+- Buy only through a SEBI-registered broker, and check the broker on SEBI's or the exchange's website.
+- Under 18 you can't enter a contract with a stock broker to buy shares, so the steps here apply from age 18.
+- Note every charge before you begin, because charges differ between brokers.
+
+
+## How to invest as a student in India
+
+URL: https://stocksaathi.co.in/learn/how-to-invest-as-a-student-india
+Updated: 2026-11-07
+
+Students aged 18 or over can invest like any adult once they complete KYC. Under 18 you can't buy shares through a broker, though a guardian can run a demat account in your name and a mutual fund account for you. The cheapest first step at any age is to learn with virtual money.
+
+Key takeaways:
+- From 18, a student can open trading and demat accounts like any adult.
+- Under 18, SEBI's FAQ says a minor can't enter into a contract with a stock broker to buy or sell shares.
+- AMFI's guidelines let a minor be the sole holder of a mutual fund account, with a guardian.
+- Banks may let minors aged 10 or more operate a savings account on their own, on terms each bank sets.
+- AMFI says SIPs can start at ₹500 a month, or ₹250 under Chhoti SIP; StockSaathi's virtual practice is open from age 13.
+
+
+## Index funds and active funds explained
+
+URL: https://stocksaathi.co.in/learn/index-funds-and-active-funds-explained
+Updated: 2026-11-07
+
+An index fund copies an index such as the Nifty 50, and an active fund's manager chooses holdings to try to beat one. Index funds usually cost less. In S&P's mid-2026 report, 85% of Indian large-cap active funds lagged their benchmark over 5 years. That's a track record for a group, not a promise about any fund.
+
+Key takeaways:
+- SEBI defines an index fund scheme as one that invests in securities in the same proportion as an index.
+- SEBI's base expense limit is 0.90% for index funds and ETFs, against 2.10% on the first slab of an active equity fund's assets.
+- S&P's SPIVA report found 80% of Indian large-cap funds lagged their benchmark over 3 years, 85% over 5 years and 74% over 10 years.
+- An index fund won't beat its index: its aim is to match it, minus costs.
+
+
+## Large cap, mid cap and small cap explained
+
+URL: https://stocksaathi.co.in/learn/large-mid-small-cap-explained
+Updated: 2026-11-07
+
+In India, large cap means the 100 biggest listed companies by full market value, mid cap means the next 150, and small cap means everything from the 251st down. SEBI set these definitions for mutual funds, and AMFI publishes the ranked list. Market cap measures a company's size, not its quality.
+
+Key takeaways:
+- SEBI defines large cap as the 1st to 100th company by full market value, mid cap as the next 150 and small cap as the 251st onward.
+- In AMFI's list for the six months to June 2026, the 100th company averaged about ₹1,06,346 crore and the 250th about ₹33,664 crore.
+- On StockSaathi's list, the top 100 companies hold 59.42% of total market value.
+- The typical top-100 share moved about 1.75% a day over the past year, against 2.24% for the typical share ranked 251st to 500th.
+
+
 ## Market order, limit order and AMO explained, with examples
 
 URL: https://stocksaathi.co.in/learn/market-limit-amo-orders
@@ -135,6 +306,49 @@ Key takeaways:
 - 86.4% of StockSaathi traders have placed at least one limit order or AMO.
 
 
+## The sectors Indian students trade most
+
+URL: https://stocksaathi.co.in/learn/most-traded-sectors-students
+Updated: 2026-11-07
+
+Students on StockSaathi trade big, familiar sectors most. Energy leads with 17.3% of all practice trades, then banking at 14.9% and IT services at 10.4%, so three sectors make up 42.6% of trades. That says more about which names beginners know than about which sectors are good investments.
+
+Key takeaways:
+- Energy accounts for 17.3% of all trades on StockSaathi, largely because Reliance Industries is classed as an energy company.
+- Banking follows at 14.9% and IT services at 10.4%, so three sectors make up 42.6% of trades.
+- 56.8% of all trades are in Nifty 50 companies.
+- StockSaathi's coach notes when one sector goes past 55% of a portfolio.
+
+
+## Mutual fund costs explained: expense ratio and exit load
+
+URL: https://stocksaathi.co.in/learn/mutual-fund-costs-explained
+Updated: 2026-11-07
+
+An expense ratio is the yearly cost of running a fund, taken out of its assets, and an exit load is a fee for leaving within a set period. Neither arrives as a bill, so they are easy to overlook. Over decades even a small yearly cost can take a large share of your final amount.
+
+Key takeaways:
+- An expense ratio is a yearly cost taken from the fund's assets, so it shows up as a lower NAV.
+- SEBI's 2026 Regulations cap the base expense ratio at 0.90% for index funds and ETFs, and at 2.10% on the first slab of an active equity fund.
+- An exit load is charged when you redeem units, and it can't exceed 3% of NAV.
+- ₹1,00,000 at an assumed 10% a year grows to ₹6,72,750 in 20 years with no cost, but to ₹5,60,441 with a cost of 1% a year.
+
+
+## Mutual funds for beginners in India: how they work
+
+URL: https://stocksaathi.co.in/learn/mutual-funds-for-beginners-india
+Updated: 2026-11-07
+
+A mutual fund pools money from many investors and invests it in shares, bonds and other assets. You buy units at the day's NAV, and your money rises or falls with what the fund holds. SEBI regulates mutual funds, and every fund carries a Riskometer. StockSaathi explains how they work and doesn't recommend any fund.
+
+Key takeaways:
+- A mutual fund pools investors' money and issues units at the prevailing NAV.
+- NAV is the price of one unit, calculated at the end of each trading day.
+- Every fund carries a Riskometer, with 6 levels from Low Risk to Very High Risk.
+- AMFI's file for 5 November 2026 shows 8,709 plans with a recent NAV, from 55 fund houses.
+- AMFI says SIPs can start at ₹500 a month, or ₹250 under Chhoti SIP.
+
+
 ## Mutual funds, stocks and ETFs explained for beginners
 
 URL: https://stocksaathi.co.in/learn/mutual-funds-stocks-etfs-explained
@@ -148,6 +362,21 @@ Key takeaways:
 - An ETF is a basket of securities bought and sold on an exchange like a share.
 - StockSaathi's list holds 4,548 stocks and 371 ETFs.
 - AMFI's data on 5 November 2026 shows 8,709 fund plans with a recent NAV, from 55 fund houses.
+
+
+## The Nifty 50's biggest one-day falls
+
+URL: https://stocksaathi.co.in/learn/nifty-biggest-one-day-falls
+Updated: 2026-11-07
+
+The biggest one-day fall in the Nifty 50 since 2007 was 13.0% on 23 March 2020, measured on closing prices, followed by 12.2% on 24 October 2008. Of the ten worst sessions, six came in 2008 and three in 2020. Days like these are rare, and they cluster in the middle of crises.
+
+Key takeaways:
+- The Nifty 50's worst day since 2007 was a fall of 13.0% on 23 March 2020.
+- The next worst was a fall of 12.2% on 24 October 2008.
+- 6 of the 10 worst days came in 2008 and 3 in 2020.
+- Falls of 3% or more happened on 81 days, or 1.73% of sessions.
+- Winning back a worst day took a median of 53 sessions, though the range was huge.
 
 
 ## How long does the Nifty 50 take to recover from a 10%, 20% or 30% fall?
@@ -193,6 +422,21 @@ Key takeaways:
 - StockSaathi's list counts 2,647 NSE main-board stocks, 583 NSE small-company (SME) stocks and 1,318 stocks found only on BSE.
 - 2,520 of those NSE main-board stocks also carry a BSE code, so they trade on both exchanges.
 - The Nifty 50 is NSE's main index and the Sensex is BSE's.
+
+
+## Overtrading and churning: when more trades means worse results
+
+URL: https://stocksaathi.co.in/learn/overtrading-churning
+Updated: 2026-11-07
+
+Overtrading means buying and selling far more often than any plan calls for, usually out of boredom, excitement or the urge to fix a loss. Each trade has a cost, and being out of the market at the wrong moment has a bigger one. ₹1,00,000 in the Nifty 50 without its 10 best days ended at ₹2,29,254, not ₹3,75,794.
+
+Key takeaways:
+- ₹1,00,000 in the Nifty 50 from January 2011 reached ₹3,75,794 by 30 October 2026, before costs and dividends.
+- Without the index's 10 best days it would have reached ₹2,29,254.
+- 6 of those 10 best days came within 10 sessions of one of the 10 worst days, so they are easy to miss after selling in fear.
+- SEBI found that 93% of individual F&O traders lost money over FY22 to FY24, and its later study put the share at 87.7% in FY26.
+- StockSaathi's coach flags the 10th hand-placed trade in a day, and a 3rd in-and-out of one stock within 30 days, each held under 5 days.
 
 
 ## Panic selling: what it is, why beginners do it, and how to stop
@@ -255,6 +499,48 @@ Key takeaways:
 - AMFI says SIPs can start as small as ₹500 a month, and ₹250 a month under Chhoti SIP.
 
 
+## The market just fell 10%. What does history say?
+
+URL: https://stocksaathi.co.in/learn/stock-market-crash-what-to-do
+Updated: 2026-11-07
+
+When the Nifty 50 falls 10%, history says it usually isn't over but isn't a disaster either. In nine such falls since its 2010 high, the index fell a median of 6.5 more points before turning. Three stopped before 15%, and three went past 20%. Nobody can tell you which kind you are in.
+
+Key takeaways:
+- The Nifty 50 has fallen 10% or more 9 times since its high of November 2010, and 8 of those falls have recovered.
+- After first reaching 10%, the median fall went 6.5 percentage points further before it hit its low.
+- 3 falls stopped before reaching 15%, and 3 went on to pass 20%.
+- The range was very wide: from 0.2 points further in 2018 to 28.4 points further in 2020.
+
+
+## India's biggest stock market crashes, dated and measured
+
+URL: https://stocksaathi.co.in/learn/stock-market-crashes-india
+Updated: 2026-11-07
+
+Since 2007 the Nifty 50 has fallen 20% or more four times. The deepest was 59.9% in 2008, followed by 38.4% in 2020, 27.9% in 2010 to 2011 and 22.5% in 2015 to 2016. Every one recovered, but it took from less than a year to almost three, and nothing guarantees the next will.
+
+Key takeaways:
+- The Nifty 50 has had 4 falls of 20% or more since 2007.
+- The deepest was 59.9% in 2008, and it took 694 sessions from peak to recovery.
+- The fastest of the four was COVID-19: 38.4% down, and back at the high 205 sessions after the peak.
+- The two quieter falls, 27.9% and 22.5%, were slow grinds that took longer to recover than COVID-19 despite being far shallower.
+
+
+## Nifty 500 stocks still below their last peak
+
+URL: https://stocksaathi.co.in/learn/stocks-that-never-recovered
+Updated: 2026-11-07
+
+Most Indian stocks sit below their old highs at any given time, and some have stayed there for many years. At the end of October 2026, 89.6% of 423 stocks in the Nifty 500 were at least 10% below their highest close since 2011, and 23.2% were at least half below it.
+
+Key takeaways:
+- Of 423 stocks studied, 89.6% were 10% or more below their highest close since 2011 at the end of October 2026.
+- 53.2% were 30% or more below it, and 23.2% were 50% or more below it.
+- The median stock was 32.7% below its high, while the Nifty 50 was 12.4% below its own.
+- Some highs date from 2011, so a share can stay below a peak for more than a decade.
+
+
 ## T+1 settlement in India explained, with worked examples
 
 URL: https://stocksaathi.co.in/learn/t-plus-1-settlement
@@ -267,6 +553,63 @@ Key takeaways:
 - T+1 has applied to all stocks since 27 January 2023, when India completed the move from T+2.
 - Settlement took three working days (T+3) from April 2002 and two (T+2) from 1 April 2003.
 - Since 28 March 2024 an optional same-day T+0 cycle has run alongside T+1, starting with 25 stocks; in November 2024 SEBI's board was asked to widen it to the top 500 stocks by market value.
+
+
+## How to teach your teenager about the stock market safely
+
+URL: https://stocksaathi.co.in/learn/teach-teenager-stock-market
+Updated: 2026-11-07
+
+Start with what your teenager already knows: the brands they use. Explain that a share is a small piece of one of those businesses, then let them practise with virtual money so that a mistake costs nothing. Under 18 they can't deal with a broker themselves, so practice is often the best first step anyway.
+
+Key takeaways:
+- Under 18, a minor can't enter into a contract with a stock broker, though a guardian can operate a demat account for them.
+- Banks may let a minor aged 10 or more open and operate a savings account, on terms each bank sets.
+- StockSaathi is free for users aged 13 or older, with ₹1,00,000 of virtual money and nothing to deposit.
+- Among StockSaathi users who trade, 86.4% have used a limit or after-market order, so teenagers pick up real mechanics quickly.
+
+
+## What is a demat account?
+
+URL: https://stocksaathi.co.in/learn/what-is-a-demat-account
+Updated: 2026-11-07
+
+A demat account holds your shares and other securities in electronic form, in the way a bank account holds money. You open one through a Depository Participant of NSDL or CDSL. It keeps shares, while a separate trading account places your orders, and you need both to buy shares in India.
+
+Key takeaways:
+- A demat account holds securities in dematerialised, or electronic, form.
+- India has 2 depositories, NSDL and CDSL, and you open an account through a Depository Participant.
+- A trading account places orders, and a demat account stores what you bought.
+- A Basic Services Demat Account covers holdings up to ₹10 lakh, with no annual charge up to ₹4 lakh and at most ₹100 from there to ₹10 lakh.
+
+
+## What is a market correction?
+
+URL: https://stocksaathi.co.in/learn/what-is-a-market-correction
+Updated: 2026-11-07
+
+A market correction is a fall of about 10% to 20% from a recent high. It is common usage rather than an official definition. The Nifty 50 has had six since 2007, with a median depth of 15.1%. A fall of 20% or more is usually called a bear market or a crash, and there have been four.
+
+Key takeaways:
+- A correction usually means a fall of 10% to 20% from a recent high; it is a convention, not a rule set by any regulator.
+- The Nifty 50 has had 6 corrections and 4 deeper falls since 2007.
+- The median correction reached 15.1% below the high.
+- Corrections took a median of 91 sessions from peak to low.
+- The median recovery took 153 sessions from the peak.
+
+
+## What is a share? A plain-English guide with Indian examples
+
+URL: https://stocksaathi.co.in/learn/what-is-a-share
+Updated: 2026-11-07
+
+A share is a small piece of ownership in a company. SEBI's investor booklet says a shareholder is entitled to corporate benefits such as dividends, and to vote at the company's general meeting. If the company does well your share can rise in value, and if it does badly you can lose some or all of your money.
+
+Key takeaways:
+- SEBI describes equity shares as a share of ownership in a company.
+- A shareholder can receive dividends out of the company's profits and can vote at general meetings.
+- Reliance Industries closed at ₹1,313.40 on 5 November 2026, and one share is a tiny fraction of a company of that size.
+- A share price moves with what buyers and sellers think the company will be worth, not with what you paid.
 
 
 ## What Indian students buy first when they start investing
@@ -282,4 +625,18 @@ Key takeaways:
 - 67.9% of first buys are Nifty 50 companies, and only 2.4% are ETFs.
 - Across all trades, 56.8% are in Nifty 50 companies.
 - Energy (17.3%), banking (14.9%) and IT services (10.4%) are the most-traded sectors.
+
+
+## YES Bank 2020: what a bank collapse looks like in the share price
+
+URL: https://stocksaathi.co.in/learn/yes-bank-crash-2020
+Updated: 2026-11-07
+
+YES Bank's shares fell from ₹394.00 in August 2018 to ₹16.15 on 6 March 2020, the day after the RBI put the bank under moratorium. Most of that fall happened before the headline: by the end of 2019 the shares had already lost 88.1%. In October 2026 they were still far below the old high.
+
+Key takeaways:
+- YES Bank closed at ₹394.00 on 20 August 2018, its highest close in this data.
+- By 31 December 2019, more than two months before the moratorium, the shares were already 88.1% below that high.
+- The shares fell 56.1% in one session on 6 March 2020, to ₹16.15.
+- On 30 October 2026 they closed at ₹15.15, still 96.2% below the 2018 high.
 
