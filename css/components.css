@@ -5507,3 +5507,9 @@ button.ss-pill-x:hover { border-color: var(--brand); }
 a.feature-card { display: block; color: inherit; text-decoration: none; }
 a.feature-card h3 { color: var(--text); }
 .landing-guides-cta { margin-top: var(--sp-5); }
+/* Six top links when signed in (Guides added 7 Nov): tighten between 821px
+   and 959px so the bar never runs past the screen edge. */
+@media (min-width: 821px) and (max-width: 959px) {
+  .nav-link { padding: 8px 6px; }
+  .nav-cmdk-label, .nav-cmdk-kbd { display: none; }
+}

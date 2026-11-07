@@ -29,7 +29,7 @@ const LINKS_PUBLIC = [
 // Top bar on desktop. Leaderboard removed Apr 24 2026 — see router.js
 // for the full reasoning. Report card and Settings live in the
 // avatar dropdown since they're less frequently accessed.
-const DESKTOP_TOP_AUTH = ["portfolio", "stocks", "news", "chat", "crash-replay"];
+const DESKTOP_TOP_AUTH = ["portfolio", "stocks", "news", "chat", "crash-replay", "learn"];
 
 export function mountNav() {
   const root = document.getElementById("nav-root");
